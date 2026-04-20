@@ -1,0 +1,158 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --primary: #4f46e5;
+  --primary-light: #eef2ff;
+  --primary-dark: #4338ca;
+  --accent: #10b981;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Force Hex colors to prevent oklch errors in html2canvas */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  --color-indigo-50: var(--primary-light);
+  --color-indigo-100: var(--primary-light);
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: var(--primary);
+  --color-indigo-600: var(--primary);
+  --color-indigo-700: var(--primary-dark);
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #1e1b4b;
+  --color-indigo-950: #1e1b4b;
+
+  --color-rose-50: #fff1f2;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-500: var(--accent);
+  --color-emerald-600: var(--accent);
+  --color-emerald-700: #047857;
+
+  /* Safe Shadows (Avoiding oklch defaults) */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+
+  --color-yellow-50: #fefce8;
+  --color-yellow-100: #fef9c3;
+  --color-yellow-400: #facc15;
+  --color-yellow-500: #eab308;
+  --color-yellow-700: #a16207;
+  --color-yellow-800: #854d0e;
+
+  --color-orange-400: #fb923c;
+  --color-orange-600: #ea580c;
+
+  --color-slate-950: #020617;
+
+  /* Safe opacity colors for html2canvas (avoiding oklch color-mix) */
+  --color-indigo-50-op40: rgba(238, 242, 255, 0.4);
+  --color-indigo-100-op50: rgba(224, 231, 255, 0.5);
+  --color-indigo-500-op5: rgba(99, 102, 241, 0.05);
+  --color-indigo-500-op10: rgba(99, 102, 241, 0.1);
+  --color-indigo-600-op10: rgba(79, 70, 229, 0.1);
+  --color-indigo-950-op20: rgba(30, 27, 75, 0.2);
+  --color-emerald-500-op5: rgba(16, 185, 129, 0.05);
+  --color-emerald-500-op10: rgba(16, 185, 129, 0.1);
+  --color-white-op5: rgba(255, 255, 255, 0.05);
+  --color-white-op10: rgba(255, 255, 255, 0.1);
+  --color-white-op20: rgba(255, 255, 255, 0.2);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+}
+
+.dark body {
+  @apply bg-[#030712] text-white;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+html, body {
+  overflow-x: hidden;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { 
+    background-color: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #root { 
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  main { padding: 0 !important; margin: 0 !important; }
+  header, aside, nav { display: none !important; }
+  
+  #receipt-download-area {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    padding: 20px !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { transform: translateX(350%); opacity: 0.5; }
+}
