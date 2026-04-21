@@ -335,7 +335,15 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-white/5 gap-6">
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-white/5 overflow-hidden">
-            <img src="/logo.png" alt="Logo" className="w-14 h-14 object-contain" referrerPolicy="no-referrer" />
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="w-14 h-14 object-contain" 
+              referrerPolicy="no-referrer" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
           </div>
           <div>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white leading-none mb-2">{localSettings.businessName}</h3>

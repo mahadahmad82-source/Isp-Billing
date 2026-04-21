@@ -483,7 +483,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-4">
                    <div className="h-[50px] w-auto bg-white border-2 border-slate-900 rounded-xl flex items-center justify-center overflow-hidden p-1">
-                     <img src="/logo.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                     <img 
+                       src="/logo.png" 
+                       alt="Logo" 
+                       className="h-full w-auto object-contain" 
+                       referrerPolicy="no-referrer" 
+                       onError={(e) => {
+                         (e.target as HTMLImageElement).style.display = 'none';
+                       }}
+                     />
                    </div>
                    <div>
                      <h1 className="text-3xl font-black uppercase tracking-tighter leading-none">{settings.businessName}</h1>
@@ -554,7 +562,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       case ReceiptDesign.THERMAL:
         return (
           <div className="flex flex-col items-center text-center p-4 text-black leading-tight bg-white w-full max-w-[300px] mx-auto">
-            <img src="/logo.png" alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="h-[40px] w-auto object-contain mb-2 grayscale" 
+              referrerPolicy="no-referrer" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
             <h2 className="text-lg font-black uppercase mb-1">{settings.businessName}</h2>
             <p className="text-[9px] font-bold mb-2">ISP RECEIPT</p>
             <div className="w-full text-left space-y-1 text-[10px] border-y border-dashed border-slate-300 py-2 mb-2">
@@ -579,7 +595,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             <div className="flex justify-between items-center mb-6 bg-indigo-600 p-5 rounded-[1.5rem] text-white">
               <div className="flex items-center gap-3">
                 <div className="h-[40px] w-auto bg-white rounded-lg p-1">
-                  <img src="/logo.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="h-full w-auto object-contain" 
+                    referrerPolicy="no-referrer" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
                 </div>
                 <h2 className="font-black text-sm">{settings.businessName}</h2>
               </div>
@@ -618,7 +642,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             <div className="flex justify-between items-start mb-8 border-b-2 border-slate-50 pb-6">
               <div className="flex items-center gap-4">
                 <div className="h-[50px] w-auto bg-white border border-slate-100 rounded-xl p-1">
-                  <img src="/logo.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="h-full w-auto object-contain" 
+                    referrerPolicy="no-referrer" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
                 </div>
                 <div>
                   <h2 className="text-2xl font-black text-indigo-950 uppercase">{settings.businessName}</h2>

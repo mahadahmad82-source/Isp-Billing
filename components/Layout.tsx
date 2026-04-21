@@ -64,7 +64,15 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="mb-10">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <div className="p-1 bg-white rounded-lg shadow-sm w-10 h-10 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              <img 
+                src="/logo.png" 
+                alt="Logo" 
+                className="w-full h-full object-contain" 
+                referrerPolicy="no-referrer" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
             </div>
             <span className="text-white truncate">{businessName}</span>
           </h1>

@@ -25,10 +25,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'bg-[#030712] text-white' : 'bg-white text-slate-900'}`}>
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] backdrop-blur-md border-b border-slate-200/10 px-6 py-4 flex justify-between items-center">
-        <Link to="/" className="flex items-center gap-3">
-          <img src="/logo.png" alt="Ledgerzo Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" />
-          <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
-        </Link>
+          <Link to="/" className="flex items-center gap-3">
+            <img 
+              src="/logo.png" 
+              alt="Ledgerzo Logo" 
+              className="h-[40px] w-auto object-contain" 
+              referrerPolicy="no-referrer" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
+          </Link>
         
         <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
           {navLinks.map((link) => (
@@ -75,7 +83,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-24">
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-8">
-                <img src="/logo.png" alt="Ledgerzo Logo" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+                <img 
+                  src="/logo.png" 
+                  alt="Ledgerzo Logo" 
+                  className="w-12 h-12 object-contain" 
+                  referrerPolicy="no-referrer" 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
                 <span className="text-2xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 max-w-sm font-medium text-lg">
