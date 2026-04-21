@@ -564,12 +564,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
           <div className="flex flex-col items-center text-center p-4 text-black leading-tight bg-white w-full max-w-[300px] mx-auto">
             <img 
               src="/logo.png" 
-              alt="Logo" 
+              alt="Ledgerzo Logo" 
               className="h-[40px] w-auto object-contain mb-2 grayscale" 
               referrerPolicy="no-referrer" 
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
             />
             <h2 className="text-lg font-black uppercase mb-1">{settings.businessName}</h2>
             <p className="text-[9px] font-bold mb-2">ISP RECEIPT</p>
@@ -597,12 +595,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <div className="h-[40px] w-auto bg-white rounded-lg p-1">
                   <img 
                     src="/logo.png" 
-                    alt="Logo" 
+                    alt="Ledgerzo Logo" 
                     className="h-full w-auto object-contain" 
                     referrerPolicy="no-referrer" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                   />
                 </div>
                 <h2 className="font-black text-sm">{settings.businessName}</h2>
@@ -644,12 +640,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <div className="h-[50px] w-auto bg-white border border-slate-100 rounded-xl p-1">
                   <img 
                     src="/logo.png" 
-                    alt="Logo" 
+                    alt="Ledgerzo Logo" 
                     className="h-full w-auto object-contain" 
                     referrerPolicy="no-referrer" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                   />
                 </div>
                 <div>

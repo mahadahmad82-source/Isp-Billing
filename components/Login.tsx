@@ -226,9 +226,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 alt="Ledgerzo Logo" 
                 className="w-[120px] md:w-[150px] h-auto object-contain" 
                 referrerPolicy="no-referrer" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               />
             </div>
           </div>

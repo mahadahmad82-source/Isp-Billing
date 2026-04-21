@@ -337,12 +337,10 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-white/5 overflow-hidden">
             <img 
               src="/logo.png" 
-              alt="Logo" 
+              alt="Ledgerzo Logo" 
               className="w-14 h-14 object-contain" 
               referrerPolicy="no-referrer" 
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
             />
           </div>
           <div>

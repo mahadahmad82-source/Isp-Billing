@@ -410,12 +410,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                    <div className="h-[60px] w-auto bg-white border-2 border-slate-900 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg p-2">
                      <img 
                        src="/logo.png" 
-                       alt="Logo" 
+                       alt="Ledgerzo Logo" 
                        className="h-full w-auto object-contain" 
                        referrerPolicy="no-referrer" 
-                       onError={(e) => {
-                         (e.target as HTMLImageElement).style.display = 'none';
-                       }}
+                       onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                      />
                    </div>
                    <div>
@@ -577,7 +575,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       case ReceiptDesign.THERMAL:
         return (
           <div className="flex flex-col items-center text-center p-1 text-black leading-tight bg-white">
-            <img src="/logo.png" alt="Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
+            <img src="/logo.png" alt="Ledgerzo Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>
             <p className="text-[10px] font-bold">ISP SUBSCRIPTION RECEIPT</p>
             <p className="text-[10px] mb-2">{settings.businessPhone}</p>
@@ -614,12 +612,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="h-[60px] w-auto bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   <img 
                     src="/logo.png" 
-                    alt="Logo" 
+                    alt="Ledgerzo Logo" 
                     className="h-full w-auto object-contain" 
                     referrerPolicy="no-referrer" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                   />
                 </div>
                 <div>
@@ -676,7 +672,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         return (
           <div className="bg-white p-5 border-2 border-slate-100 text-slate-900 max-w-[300px] mx-auto rounded-none">
             <div className="flex justify-center mb-4">
-              <img src="/logo.png" alt="Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
+              <img src="/logo.png" alt="Ledgerzo Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             </div>
             <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-4">
               <h3 className="font-black text-sm uppercase leading-none">{settings.businessName}</h3>
@@ -711,12 +707,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="h-[60px] w-auto bg-white border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   <img 
                     src="/logo.png" 
-                    alt="Logo" 
+                    alt="Ledgerzo Logo" 
                     className="h-full w-auto object-contain" 
                     referrerPolicy="no-referrer" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                   />
                 </div>
                 <div>

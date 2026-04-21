@@ -31,9 +31,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
               alt="Ledgerzo Logo" 
               className="h-[40px] w-auto object-contain" 
               referrerPolicy="no-referrer" 
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
             />
             <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
           </Link>
@@ -88,9 +86,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
                   alt="Ledgerzo Logo" 
                   className="w-12 h-12 object-contain" 
                   referrerPolicy="no-referrer" 
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                 />
                 <span className="text-2xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
               </div>
