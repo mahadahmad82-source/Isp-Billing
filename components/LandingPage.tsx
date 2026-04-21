@@ -27,11 +27,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
       <nav className="fixed top-0 w-full z-[100] backdrop-blur-md border-b border-slate-200/10 px-6 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
             <img 
-              src="/logo.png" 
-              alt="Ledgerzo Logo" 
-              className="h-[40px] w-auto object-contain" 
-              referrerPolicy="no-referrer" 
-              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+              src="/logo.png"
+              alt="Mahadnet Logo"
+              className="h-8 w-auto"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
             <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
           </Link>
