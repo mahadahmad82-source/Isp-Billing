@@ -220,7 +220,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             </button>
           )}
           <div className="flex justify-center mb-6">
-            <img src="/logo.png" alt="Ledgerzo Logo" className="w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
+            <div className="p-3 bg-white dark:bg-white/10 rounded-3xl shadow-xl shadow-indigo-500/10 border border-slate-100 dark:border-white/5 backdrop-blur-sm">
+              <img src="/logo.png" alt="Ledgerzo Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
+            </div>
           </div>
           
           <div className="space-y-1">
