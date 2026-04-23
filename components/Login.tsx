@@ -223,7 +223,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             <div className="p-3 bg-white dark:bg-white/10 rounded-3xl shadow-xl shadow-indigo-500/10 border border-slate-100 dark:border-white/5 backdrop-blur-sm">
               <img 
                 src="/logo.png" 
-                alt="Ledgerzo Logo" 
+                alt="Myisp Logo" 
                 className="w-[120px] md:w-[150px] h-auto object-contain" 
                 referrerPolicy="no-referrer" 
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} 
@@ -233,7 +233,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           
           <div className="space-y-1">
             <h1 className={`text-5xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              Ledgerzo
+              Myisp
             </h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.4em] mt-2 text-center">
               {view === 'signup' ? 'Local Node Registration' : (view === 'recent' ? 'Recent Profiles' : 'Secure Manager Access')}

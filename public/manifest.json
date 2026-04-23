@@ -1,7 +1,7 @@
 
 {
-  "name": "Ledgerzo Manager",
-  "short_name": "Ledgerzo",
+  "name": "Myisp Manager",
+  "short_name": "Myisp",
   "description": "Offline ISP Subscription and Receipt Manager",
   "start_url": "/",
   "display": "standalone",

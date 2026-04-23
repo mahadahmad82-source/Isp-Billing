@@ -66,7 +66,7 @@ const Layout: React.FC<LayoutProps> = ({
             <div className="p-1 bg-white rounded-lg shadow-sm w-10 h-10 flex items-center justify-center overflow-hidden">
               <img 
                 src="/logo.png" 
-                alt="Ledgerzo Logo" 
+                alt="Myisp Logo" 
                 className="w-full h-full object-contain" 
                 referrerPolicy="no-referrer" 
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} 

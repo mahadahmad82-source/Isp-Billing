@@ -32,7 +32,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
               className="h-8 w-auto"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
-            <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
+            <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Myisp</span>
           </Link>
         
         <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
@@ -82,12 +82,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
               <div className="flex items-center gap-3 mb-8">
                 <img 
                   src="/logo.png" 
-                  alt="Ledgerzo Logo" 
+                  alt="Myisp Logo" 
                   className="w-12 h-12 object-contain" 
                   referrerPolicy="no-referrer" 
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                 />
-                <span className="text-2xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Ledgerzo</span>
+                <span className="text-2xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Myisp</span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 max-w-sm font-medium text-lg">
                 The world's most advanced ISP management infrastructure. 
@@ -112,7 +112,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
             </div>
           </div>
           <div className="pt-12 border-t border-slate-200/10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 Ledgerzo Infrastructure. All rights reserved.</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 Myisp Infrastructure. All rights reserved.</p>
             <div className="flex gap-8">
               {['Twitter', 'GitHub', 'LinkedIn'].map(social => (
                 <a key={social} href="#" className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-500 transition-colors">{social}</a>
