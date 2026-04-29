@@ -79,7 +79,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
               Enterprise Intelligence
             </div>
             <h3 className="text-3xl md:text-4xl font-black mb-4 tracking-tight leading-none uppercase">Business <br/>Performance</h3>
-            <p className="text-indigo-100/70 text-xs md:text-sm font-medium leading-relaxed max-w-xl">
+            <p className="text-white opacity-70 text-xs md:text-sm font-medium leading-relaxed max-w-xl">
               Analyzing recovery cycles to optimize bandwidth allocation and subscription pricing strategies for your local network.
             </p>
           </div>
@@ -87,11 +87,11 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg">🤖</div>
               <div>
-                <p className="font-black text-sm uppercase tracking-tight">Financial AI</p>
-                <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Real-time Analysis</p>
+                <p className="font-black text-sm uppercase tracking-tight text-white">Financial AI</p>
+                <p className="text-[9px] font-black text-white opacity-80 uppercase tracking-widest">Real-time Analysis</p>
               </div>
             </div>
-            <div className="text-xs text-indigo-50 leading-relaxed italic">
+            <div className="text-xs text-white opacity-90 leading-relaxed italic">
               {loading ? (
                 <div className="flex gap-2 py-2">
                   <div className="w-1.5 h-1.5 bg-indigo-300 rounded-full animate-bounce"></div>

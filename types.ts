@@ -42,6 +42,7 @@ export interface ManagerAccount {
   email: string;
   phone: string;
   createdAt: string;
+  rememberPassword?: boolean;
 }
 
 export interface AppSettings {
@@ -66,6 +67,7 @@ export interface AppSettings {
   themePrimaryColor?: string;
   themeAccentColor?: string;
   selectedThemeId?: string;
+  businessLogo?: string; // Base64 string for the logo
 }
 
 export interface UserRecord {
@@ -109,6 +111,8 @@ export interface Receipt {
   transactionRef: string;
   description?: string; 
   companyId?: string;
+  isLatePayment?: boolean;
+  actualPaymentDate?: string;
 }
 
 export interface AppNotification {

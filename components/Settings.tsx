@@ -31,6 +31,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
   const adImageInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -58,6 +59,32 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
     setSaveStatus('Settings Saved! ✓');
     setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setModalStatus({
+        title: 'File Too Large',
+        message: 'Please upload a logo smaller than 2MB.',
+        type: 'error'
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setLocalSettings(prev => ({ ...prev, businessLogo: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLocalSettings(prev => ({ ...prev, businessLogo: undefined }));
+    if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
   const handleAdImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -334,26 +361,32 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       {/* Profile Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-white/5 gap-6">
         <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-white/5 overflow-hidden">
-            <img 
-              src="/logo.png" 
-              alt="Ledgerzo Logo" 
-              className="w-14 h-14 object-contain" 
-              referrerPolicy="no-referrer" 
-              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-            />
+          <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center shadow-xl border border-slate-100 dark:border-white/5 overflow-hidden group relative">
+            {localSettings.businessLogo ? (
+              <img src={localSettings.businessLogo} alt="Logo" className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
+            ) : (
+              <img src="/logo-v3.png" alt="Logo" className="w-14 h-14 object-contain" referrerPolicy="no-referrer" />
+            )}
+            <button 
+              onClick={() => logoInputRef.current?.click()}
+              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+            <input type="file" ref={logoInputRef} className="hidden" accept=".png, .jpg, .jpeg, .svg" onChange={handleLogoUpload} />
           </div>
           <div>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white leading-none mb-2">{localSettings.businessName}</h3>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Manager Profile Settings</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Manager Profile Settings</p>
+              {localSettings.businessLogo && (
+                <button onClick={removeLogo} className="text-[8px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 ml-2">Remove Logo</button>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
           {saveStatus && <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">{saveStatus}</span>}
-          <button onClick={onLogout} className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-rose-500/10 active:scale-95 transition-all flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-            Logout Session
-          </button>
         </div>
       </div>
 

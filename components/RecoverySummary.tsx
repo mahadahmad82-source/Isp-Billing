@@ -417,7 +417,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
-        logging: false
+        logging: false,
+        windowWidth: element.scrollWidth,
+        width: element.scrollWidth,
       });
       
       const url = canvas.toDataURL('image/png');
@@ -478,82 +480,80 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     switch (settings.receiptDesign) {
       case ReceiptDesign.UTILITY:
         return (
-          <div className="bg-white p-10 text-black font-sans border-[6px] border-slate-900 w-full relative overflow-hidden shadow-2xl">
-            <div className="flex justify-between items-start border-b-[4px] border-slate-900 pb-8 mb-8">
-              <div className="flex-1">
+          <div className="bg-white p-4 md:p-10 text-black font-sans border-[4px] md:border-[6px] border-slate-900 w-full relative overflow-hidden shadow-2xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start border-b-[4px] border-slate-900 pb-6 mb-6 gap-6 sm:gap-0">
+              <div className="flex-1 w-full">
                 <div className="flex items-center gap-4 mb-4">
-                   <div className="h-[50px] w-auto bg-white border-2 border-slate-900 rounded-xl flex items-center justify-center overflow-hidden p-1">
-                     <img 
-                       src="/logo.png" 
-                       alt="Logo" 
-                       className="h-full w-auto object-contain" 
-                       referrerPolicy="no-referrer" 
-                       onError={(e) => {
-                         (e.target as HTMLImageElement).style.display = 'none';
-                       }}
-                     />
+                   <div className="h-[40px] md:h-[50px] w-auto bg-white border-2 border-slate-900 rounded-xl flex items-center justify-center overflow-hidden p-1">
+                     {settings.businessLogo ? (
+                       <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                     ) : (
+                       <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                     )}
                    </div>
                    <div>
-                     <h1 className="text-3xl font-black uppercase tracking-tighter leading-none">{settings.businessName}</h1>
-                     <p className="text-[10px] font-black uppercase text-indigo-600 tracking-[0.3em] mt-1">Digital Utility Infrastructure</p>
+                     <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none break-all">{settings.businessName}</h1>
+                     <p className="text-[8px] md:text-[10px] font-black uppercase text-indigo-600 tracking-[0.2em] md:tracking-[0.3em] mt-1">Digital Utility Infrastructure</p>
                    </div>
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700">
+                <div className="mt-4 md:mt-6 flex flex-col sm:grid sm:grid-cols-2 gap-2 text-[10px] md:text-[11px] font-bold text-slate-700">
                   <p>📞 {settings.businessPhone}</p>
                   <p>✉️ {settings.businessEmail}</p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right w-full sm:w-auto">
                 <div className="bg-slate-50 p-4 rounded-[1.5rem] border-[3px] border-slate-900">
                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Instrument Serial</p>
-                   <p className="text-xl font-black tracking-tighter">{viewingReceipt.transactionRef}</p>
+                   <p className="text-lg md:text-xl font-black tracking-tighter break-all">{viewingReceipt.transactionRef}</p>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-6 gap-0 border-[3px] border-slate-900 mb-8 rounded-[2rem] overflow-hidden">
-               <div className="p-6 border-r-[3px] border-slate-900 bg-slate-50 col-span-2">
+            <div className="flex flex-col sm:grid sm:grid-cols-6 gap-0 border-[3px] border-slate-900 mb-6 rounded-[1.5rem] overflow-hidden">
+               <div className="p-4 md:p-6 border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-slate-900 bg-slate-50 sm:col-span-2">
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Account Holder</p>
-                  <p className="text-xl font-black uppercase leading-tight">{viewingReceipt.userName}</p>
-                  <p className="text-[10px] font-black text-indigo-700 mt-1">@{viewingReceipt.username}</p>
+                  <p className="text-lg md:text-xl font-black uppercase leading-tight break-words">{viewingReceipt.userName}</p>
+                  <p className="text-[10px] font-black text-indigo-700 mt-1 break-words">@{viewingReceipt.username}</p>
                </div>
-               <div className="p-6 col-span-4">
+               <div className="p-4 md:p-6 sm:col-span-4">
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Installation Address</p>
-                  <p className="text-sm font-bold uppercase text-slate-800">{viewingReceipt.userAddress || 'ADDRESS RECORD NOT PROVIDED'}</p>
+                  <p className="text-xs md:text-sm font-bold uppercase text-slate-800 break-words">{viewingReceipt.userAddress || 'ADDRESS RECORD NOT PROVIDED'}</p>
                </div>
             </div>
-            <table className="w-full text-left border-collapse border-[3px] border-slate-900 rounded-[1.5rem] overflow-hidden mb-8">
-               <thead className="bg-slate-900 text-white text-[11px] uppercase font-black tracking-[0.1em]">
-                 <tr><th className="p-4">Billing Component</th><th className="p-4 text-right">Amount</th></tr>
-               </thead>
-               <tbody className="text-[13px] font-black">
-                 <tr className="border-b-[2px] border-slate-900">
-                   <td className="p-4 uppercase">Monthly Subscription ({viewingReceipt.period})</td>
-                   <td className="p-4 text-right">{(storedMonthlyFee || 0).toLocaleString()}</td>
-                 </tr>
-                 {arrears > 0 && (
-                   <tr className="border-b-[2px] border-slate-900 bg-rose-50 text-rose-700">
-                     <td className="p-4 uppercase">Previous Arrears</td>
-                     <td className="p-4 text-right">{(arrears || 0).toLocaleString()}</td>
-                   </tr>
-                 )}
-                 {viewingReceipt.discount && viewingReceipt.discount > 0 && (
-                   <tr className="border-b-[2px] border-slate-900 bg-emerald-50 text-emerald-700">
-                     <td className="p-4 uppercase">Discount Applied</td>
-                     <td className="p-4 text-right">-{(viewingReceipt.discount || 0).toLocaleString()}</td>
-                   </tr>
-                 )}
-               </tbody>
-            </table>
-            <div className="flex justify-between items-end gap-6">
-               <div className="flex-1 p-6 bg-slate-50 rounded-[2rem] border-[2px] border-slate-900 border-dashed">
-                  <p className="text-[10px] leading-relaxed text-slate-700 font-bold">
+            <div className="overflow-x-auto w-full mb-6 relative rounded-[1.5rem] border-[3px] border-slate-900">
+              <table className="w-full text-left border-collapse min-w-[300px]">
+                <thead className="bg-slate-900 text-white text-[10px] md:text-[11px] uppercase font-black tracking-[0.1em]">
+                  <tr><th className="p-3 md:p-4">Billing Component</th><th className="p-3 md:p-4 text-right">Amount</th></tr>
+                </thead>
+                <tbody className="text-[11px] md:text-[13px] font-black">
+                  <tr className="border-b-[2px] border-slate-900">
+                    <td className="p-3 md:p-4 uppercase">Monthly Subscription ({viewingReceipt.period})</td>
+                    <td className="p-3 md:p-4 text-right">{(storedMonthlyFee || 0).toLocaleString()}</td>
+                  </tr>
+                  {arrears > 0 && (
+                    <tr className="border-b-[2px] border-slate-900 bg-rose-50 text-rose-700">
+                      <td className="p-3 md:p-4 uppercase">Previous Arrears</td>
+                      <td className="p-3 md:p-4 text-right">{(arrears || 0).toLocaleString()}</td>
+                    </tr>
+                  )}
+                  {viewingReceipt.discount && viewingReceipt.discount > 0 && (
+                    <tr className="border-[2px] border-slate-900 bg-emerald-50 text-emerald-700">
+                      <td className="p-3 md:p-4 uppercase">Discount Applied</td>
+                      <td className="p-3 md:p-4 text-right">-{(viewingReceipt.discount || 0).toLocaleString()}</td>
+                    </tr>
+                  ) || null}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-4 md:gap-6">
+               <div className="flex-1 p-4 md:p-6 bg-slate-50 rounded-[2rem] border-[2px] border-slate-900 border-dashed">
+                  <p className="text-[9px] md:text-[10px] leading-relaxed text-slate-700 font-bold">
                     • Verified proof of connectivity payment.<br/>
                     • Technical support: {settings.businessPhone}
                   </p>
                </div>
-               <div className="w-64 bg-indigo-600 text-white p-6 rounded-[2rem] border-[3px] border-slate-900 text-center">
+               <div className="w-full sm:w-64 bg-indigo-600 text-white p-4 md:p-6 rounded-[2rem] border-[3px] border-slate-900 text-center">
                   <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Received</p>
-                  <span className="text-3xl font-black">Rs. {(viewingReceipt.paidAmount || 0).toLocaleString()}</span>
+                  <span className="text-2xl md:text-3xl font-black break-words">Rs. {(viewingReceipt.paidAmount || 0).toLocaleString()}</span>
                </div>
             </div>
             <AdsSection design={ReceiptDesign.UTILITY} />
@@ -562,15 +562,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       case ReceiptDesign.THERMAL:
         return (
           <div className="flex flex-col items-center text-center p-4 text-black leading-tight bg-white w-full max-w-[300px] mx-auto">
-            <img 
-              src="/logo.png" 
-              alt="Ledgerzo Logo" 
-              className="h-[40px] w-auto object-contain mb-2 grayscale" 
-              referrerPolicy="no-referrer" 
-              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-            />
+            {settings.businessLogo ? (
+              <img src={settings.businessLogo} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            ) : (
+              <img src="/logo-v3.png" alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            )}
             <h2 className="text-lg font-black uppercase mb-1">{settings.businessName}</h2>
-            <p className="text-[9px] font-bold mb-2">ISP RECEIPT</p>
+            <p className="text-[9px] font-bold mb-2">{viewingReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP RECEIPT'}</p>
+            {viewingReceipt.isLatePayment && (
+              <p className="text-[8px] font-black bg-black text-white px-2 py-0.5 mb-2 uppercase">RCVD: {new Date(viewingReceipt.actualPaymentDate || viewingReceipt.date).toLocaleDateString()}</p>
+            )}
             <div className="w-full text-left space-y-1 text-[10px] border-y border-dashed border-slate-300 py-2 mb-2">
               <div className="flex justify-between"><span className="font-bold">SERIAL:</span><span>{viewingReceipt.transactionRef}</span></div>
               <div className="flex justify-between"><span className="font-bold">DATE:</span><span>{new Date(viewingReceipt.date).toLocaleDateString()}</span></div>
@@ -589,42 +590,43 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         );
       case ReceiptDesign.MODERN:
         return (
-          <div className="bg-white p-6 rounded-[2rem] text-slate-900 border border-slate-100 w-full">
-            <div className="flex justify-between items-center mb-6 bg-indigo-600 p-5 rounded-[1.5rem] text-white">
+          <div className="bg-white p-5 md:p-6 rounded-[1.5rem] text-slate-900 border border-slate-100 w-full relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-indigo-600 p-4 md:p-5 rounded-[1.5rem] text-white gap-4 sm:gap-0">
               <div className="flex items-center gap-3">
                 <div className="h-[40px] w-auto bg-white rounded-lg p-1">
-                  <img 
-                    src="/logo.png" 
-                    alt="Ledgerzo Logo" 
-                    className="h-full w-auto object-contain" 
-                    referrerPolicy="no-referrer" 
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                  />
+                  {settings.businessLogo ? (
+                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  )}
                 </div>
-                <h2 className="font-black text-sm">{settings.businessName}</h2>
+                <div>
+                  <h2 className="font-black text-sm break-words">{settings.businessName}</h2>
+                  {viewingReceipt.isLatePayment && <p className="text-[8px] font-black opacity-70 uppercase tracking-widest mt-0.5">Late Payment History</p>}
+                </div>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right text-xs">
                 <p className="text-[9px] font-black opacity-60">SN: {viewingReceipt.transactionRef}</p>
               </div>
             </div>
             <div className="space-y-4">
-              <div className="flex justify-between items-end border-b border-slate-50 pb-4">
-                <div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-50 pb-4 gap-4 sm:gap-0">
+                <div className="w-full">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Customer</p>
-                  <p className="text-lg font-black">{viewingReceipt.userName}</p>
-                  <p className="text-xs font-bold text-indigo-600">@{viewingReceipt.username}</p>
+                  <p className="text-lg font-black break-words">{viewingReceipt.userName}</p>
+                  <p className="text-xs font-bold text-indigo-600 break-words">@{viewingReceipt.username}</p>
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right w-full sm:w-auto">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Period</p>
-                  <p className="text-xs font-black">{viewingReceipt.period}</p>
+                  <p className="text-xs font-black bg-slate-50 p-2 sm:p-0 rounded sm:bg-transparent">{viewingReceipt.period}</p>
                 </div>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span>Subscription</span><span className="font-black">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
-                {arrears > 0 && <div className="flex justify-between text-rose-500"><span>Arrears</span><span className="font-black">Rs. {arrears.toLocaleString()}</span></div>}
-                <div className="flex justify-between bg-slate-50 p-4 rounded-xl mt-4">
+              <div className="space-y-2 text-sm w-full">
+                <div className="flex justify-between"><span>Subscription</span><span className="font-black text-right pl-2">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
+                {arrears > 0 && <div className="flex justify-between text-rose-500"><span>Arrears</span><span className="font-black text-right pl-2">Rs. {arrears.toLocaleString()}</span></div>}
+                <div className="flex justify-between bg-slate-50 p-4 rounded-xl mt-4 max-w-full">
                   <span className="text-[10px] font-black text-slate-400 uppercase">Paid</span>
-                  <span className="text-xl font-black text-indigo-600">Rs. {viewingReceipt.paidAmount.toLocaleString()}</span>
+                  <span className="text-lg md:text-xl font-black text-indigo-600 text-right pl-2 break-words">Rs. {viewingReceipt.paidAmount.toLocaleString()}</span>
                 </div>
               </div>
               <AdsSection design={ReceiptDesign.MODERN} />
@@ -634,25 +636,28 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       case ReceiptDesign.PROFESSIONAL:
       default:
         return (
-          <div className="text-black bg-white p-6 w-full">
-            <div className="flex justify-between items-start mb-8 border-b-2 border-slate-50 pb-6">
-              <div className="flex items-center gap-4">
-                <div className="h-[50px] w-auto bg-white border border-slate-100 rounded-xl p-1">
-                  <img 
-                    src="/logo.png" 
-                    alt="Ledgerzo Logo" 
-                    className="h-full w-auto object-contain" 
-                    referrerPolicy="no-referrer" 
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                  />
+          <div className="text-black bg-white p-4 md:p-6 w-full relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start mb-6 md:mb-8 border-b-2 border-slate-50 pb-6 gap-6 sm:gap-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+                <div className="h-[40px] md:h-[50px] w-auto bg-white border border-slate-100 rounded-xl p-1">
+                  {settings.businessLogo ? (
+                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  )}
                 </div>
-                <div>
-                  <h2 className="text-2xl font-black text-indigo-950 uppercase">{settings.businessName}</h2>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{settings.businessPhone}</p>
+                <div className="w-full">
+                  <h2 className="text-xl md:text-2xl font-black text-indigo-950 uppercase break-words">{settings.businessName}</h2>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{settings.businessPhone}</p>
+                    {viewingReceipt.isLatePayment && (
+                      <span className="text-[8px] bg-rose-500 text-white px-2 py-0.5 rounded font-black uppercase">Late Record</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black text-indigo-600 uppercase">SN: {viewingReceipt.transactionRef}</p>
+              <div className="sm:text-right w-full sm:w-auto p-3 sm:p-0 bg-slate-50 sm:bg-transparent rounded-lg">
+                <p className="text-[10px] font-black text-indigo-600 uppercase break-all">SN: {viewingReceipt.transactionRef}</p>
                 <p className="text-[9px] font-bold text-slate-400">{new Date(viewingReceipt.date).toLocaleDateString()}</p>
               </div>
             </div>
@@ -692,7 +697,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         <div className="space-y-4">
           <div className="mb-6 flex justify-between items-end px-2">
             <div>
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Recovery Catalog</h3>
+              <h3 className="text-2xl font-black text-black dark:text-white uppercase tracking-tight">Recovery Catalog</h3>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">Select month to view ledger</p>
             </div>
             <div>
@@ -1012,8 +1017,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               <button onClick={() => setViewingReceipt(null)} className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors">✕</button>
             </div>
             
-            <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden mb-6" id="receipt-view-area">
-               {renderReceiptPreview()}
+            <div className="bg-white rounded-[1.5rem] shadow-2xl overflow-x-auto mb-6 custom-scrollbar">
+               <div id="receipt-view-area" className="min-w-fit w-full inline-block bg-white pb-1">
+                 {renderReceiptPreview()}
+               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 px-2">

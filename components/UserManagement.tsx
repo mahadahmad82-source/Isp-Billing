@@ -356,12 +356,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <div className={`hidden md:flex flex-col transition-all duration-500 border-r border-slate-200 dark:border-white/5 bg-white dark:bg-[#0f172a] overflow-hidden ${showMonthlyFolders ? 'w-72 p-6' : 'w-0 p-0 border-r-0'}`}>
         <div className="mb-8 flex justify-between items-start min-w-[240px]">
           <div>
-            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Monthly Folders</h3>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest mt-1">Select Period to View</p>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Folders</h3>
+            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest mt-1">Select Period to View</p>
           </div>
           <button 
             onClick={() => setShowMonthlyFolders(false)}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-slate-400 transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-slate-500 transition-colors"
             title="Hide Folders"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
@@ -375,7 +375,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               className={`w-full text-left px-5 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${
                 selectedMonth === month 
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
-                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
               }`}
             >
               {month} {month === currentMonth && <span className="ml-2 text-[9px] bg-white/20 px-2 py-0.5 rounded-full">ACTIVE</span>}
@@ -391,23 +391,23 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <div className="flex-1 p-6 transition-all overflow-x-hidden">
         {/* Mobile Month Selector */}
         <div className="md:hidden mb-6">
-          <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 block">Select Month</label>
+          <label className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest mb-2 block">Select Month</label>
           <select 
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="w-full p-4 bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-white/5 font-bold text-slate-900 dark:text-white outline-none shadow-sm"
           >
-            {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+            {availableMonths.map(m => <option key={m} value={m} className="bg-white dark:bg-[#0f172a]">{m}</option>)}
           </select>
         </div>
 
         <div className="space-y-6 pb-24">
           <div className="space-y-1 flex justify-between items-start">
             <div>
-              <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase leading-none">
+              <h3 className="text-3xl font-black text-black dark:text-white uppercase leading-none">
                 {selectedMonth === currentMonth ? 'Active Customers' : `Archive: ${selectedMonth}`}
               </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em]">
+              <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.2em]">
                 {selectedMonth === currentMonth ? 'Manage Current Month Subscribers' : 'Read-Only Historical Data'}
               </p>
             </div>
@@ -435,7 +435,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white dark:bg-[#0f172a] px-5 py-4 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg">
-              <span className="text-slate-500 dark:text-slate-400 text-xs font-black">🔃 SORT BY</span>
+              <span className="text-slate-600 dark:text-slate-300 text-xs font-black">🔃 SORT BY</span>
               <select 
                 className="bg-transparent text-slate-900 dark:text-slate-100 font-black text-[10px] uppercase tracking-widest outline-none w-full appearance-none cursor-pointer"
                 value={sortKey}
@@ -450,12 +450,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
             
             {isCurrentMonth && (
               <>
-                <button onClick={downloadCustomerTemplate} className="p-5 bg-white dark:bg-[#0f172a] text-slate-600 dark:text-[#ff9966] rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all" title="Download Template">📋</button>
-                <button onClick={() => fileInputRef.current?.click()} className="p-5 bg-white dark:bg-[#0f172a] text-slate-600 dark:text-[#ff9966] rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all" title="Import Excel">📥</button>
+                <button onClick={downloadCustomerTemplate} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Download Template">📋</button>
+                <button onClick={() => fileInputRef.current?.click()} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Import Excel">📥</button>
                 <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImportExcel} />
               </>
             )}
-            <button onClick={handleExportExcel} className="p-5 bg-white dark:bg-[#0f172a] text-slate-600 dark:text-[#ff9966] rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all" title="Export Excel">📤</button>
+            <button onClick={handleExportExcel} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Export Excel">📤</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -471,7 +471,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 mt-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left min-w-[1000px]">
-                <thead className="bg-slate-50 dark:bg-[#0f172a] border-b border-slate-200 dark:border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-500 dark:text-slate-400">
+                <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 dark:text-slate-400">
                   <tr>
                     <th className="px-6 py-6 w-16">
                        {!readOnly && isCurrentMonth && (
@@ -482,7 +482,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                        )}
                     </th>
                     <th className="px-6 py-6">ACCOUNT ID</th>
-                    <th className="px-6 py-6">FULL NAME</th>
+                    <th className="px-6 py-6 font-black">FULL NAME</th>
                     <th className="px-6 py-6">PHONE</th>
                     <th className="px-6 py-6">PHONE 2</th>
                     <th className="px-6 py-6">ADDRESS</th>
@@ -497,7 +497,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="px-8 py-12 text-center text-slate-400 text-sm font-bold">
+                      <td colSpan={12} className="px-8 py-12 text-center text-slate-500 dark:text-slate-400 text-sm font-bold">
                         No customers found for {selectedMonth}.
                         {isCurrentMonth && <p className="text-xs mt-2 text-indigo-500">Add or Import users to get started.</p>}
                       </td>
@@ -513,16 +513,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">@{user.username}</span>
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-sm font-black text-slate-800 dark:text-slate-100">{user.name}</span>
+                             <span className="text-sm font-black text-slate-900 dark:text-slate-100">{user.name}</span>
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{user.phone}</span>
+                             <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user.phone}</span>
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{user.phone2 || '-'}</span>
+                             <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user.phone2 || '-'}</span>
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 line-clamp-1 max-w-[150px]" title={user.address}>{user.address || '-'}</span>
+                             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 line-clamp-1 max-w-[150px]" title={user.address}>{user.address || '-'}</span>
                           </td>
                           <td className="px-6 py-6">
                             <div className="flex items-center gap-2">
@@ -530,10 +530,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             </div>
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-xs font-black text-slate-700 dark:text-slate-300">Rs. {(user.monthlyFee || 0).toLocaleString()}</span>
+                             <span className="text-xs font-black text-slate-900 dark:text-slate-100">Rs. {(user.monthlyFee || 0).toLocaleString()}</span>
                           </td>
                           <td className="px-6 py-6 text-center">
-                            <span className={`text-xs font-black ${(user.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-500 dark:text-slate-500'}`}>
+                            <span className={`text-xs font-black ${(user.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'}`}>
                               {(user.balance || 0) > 0 ? `Rs. ${(user.balance || 0).toLocaleString()}` : '0'}
                             </span>
                           </td>
@@ -541,14 +541,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
                              <span className="text-xs font-black text-emerald-600">Rs. {(user.persistentDiscount || 0).toLocaleString()}</span>
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                             <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">
                                {new Date(user.expiryDate).toLocaleDateString()}
                              </span>
                           </td>
                           {!readOnly && (
                             <td className="px-6 py-6">
                               <div className="flex items-center justify-center gap-3">
-                                <button onClick={() => handleClearBalance(user)} className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-white transition-colors">CLEAR</button>
+                                <button onClick={() => handleClearBalance(user)} className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-colors">CLEAR</button>
                                 <button className="text-lg hover:scale-125 transition-transform" title="SMS Reminder" onClick={() => handleSendReminder(user, 'sms')}>💬</button>
                                 <button className="text-xl hover:scale-125 transition-transform text-emerald-600 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" title="Direct WhatsApp Inbox" onClick={() => handleSendReminder(user, 'whatsapp')}>📱</button>
                                 <button onClick={() => setViewingLedgerUser(user)} className="text-lg hover:scale-125 transition-transform" title="View Ledger">📜</button>
@@ -576,37 +576,37 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="bg-white dark:bg-[#0f172a] w-full max-w-2xl rounded-t-[3.5rem] shadow-2xl border-x border-t border-slate-200 dark:border-white/10 relative z-10 flex flex-col max-h-[92vh] animate-in slide-in-from-bottom duration-500">
             <div className="p-10 border-b border-slate-100 dark:border-white/5 flex items-center gap-4">
                <div className="w-14 h-14 bg-[#5a4ff0] rounded-3xl flex items-center justify-center text-white text-3xl shadow-2xl">👤</div>
-               <h4 className="text-3xl font-black text-slate-900 dark:text-white">{editingUser ? 'Update Profile' : 'Register New Subscriber'}</h4>
+               <h4 className="text-3xl font-black text-black dark:text-white leading-tight">{editingUser ? 'Update Profile' : 'Register New Subscriber'}</h4>
             </div>
             <form onSubmit={handleSubmit} className="p-10 overflow-y-auto custom-scrollbar space-y-10 pb-20">
               <div className="space-y-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">ACCOUNT ID / USERNAME</label>
-                  <input required className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
+                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">ACCOUNT ID / USERNAME</label>
+                  <input required className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">FULL NAME</label>
-                  <input required className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">FULL NAME</label>
+                  <input required className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">PHONE NUMBER</label>
-                    <input required className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                    <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">PHONE NUMBER</label>
+                    <input required className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">PHONE NUMBER 2 (OPTIONAL)</label>
-                    <input className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} />
+                    <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">PHONE NUMBER 2 (OPTIONAL)</label>
+                    <input className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700" value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">PLAN</label>
+                    <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">PLAN</label>
                     <select className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-black text-slate-900 dark:text-white text-lg outline-none appearance-none cursor-pointer" value={formData.plan} onChange={e => setFormData({...formData, plan: e.target.value, monthlyFee: settings.planPrices?.[e.target.value] || 0})}>
                       {availablePlans.map(p => <option key={p} value={p} className="bg-white dark:bg-[#0f172a]">{p} (Rs. {settings.planPrices?.[p]})</option>)}
                     </select>
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">EXPIRY DATE</label>
+                    <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">EXPIRY DATE</label>
                     <input type="date" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} />
                   </div>
                 </div>
@@ -621,11 +621,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">INSTALLATION ADDRESS</label>
+                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">INSTALLATION ADDRESS</label>
                   <input className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-lg focus:border-indigo-500 transition-all" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">NOTES / DESCRIPTION</label>
+                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">NOTES / DESCRIPTION</label>
                   <textarea className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-lg min-h-[120px] focus:border-indigo-500 transition-all" placeholder="Specific instructions for this subscriber..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
                 </div>
               </div>
@@ -645,28 +645,28 @@ const UserManagement: React.FC<UserManagementProps> = ({
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">📜</div>
                 <div>
-                  <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Subscriber Ledger</h4>
+                  <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Subscriber Ledger</h4>
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Transaction History & Plan Details</p>
                 </div>
               </div>
-              <button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors">✕</button>
+              <button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 dark:text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors">✕</button>
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Subscriber</p>
-                  <p className="text-lg font-black text-slate-800 dark:text-white">{viewingLedgerUser.name}</p>
-                  <p className="text-xs font-bold text-indigo-500">@{viewingLedgerUser.username}</p>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Subscriber</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{viewingLedgerUser.name}</p>
+                  <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400">@{viewingLedgerUser.username}</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Plan</p>
-                  <p className="text-lg font-black text-slate-800 dark:text-white">{viewingLedgerUser.plan}</p>
-                  <p className="text-xs font-bold text-slate-500">Rs. {(viewingLedgerUser.monthlyFee || 0).toLocaleString()}/mo</p>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Current Plan</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{viewingLedgerUser.plan}</p>
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Rs. {(viewingLedgerUser.monthlyFee || 0).toLocaleString()}/mo</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Outstanding Balance</p>
-                  <p className={`text-2xl font-black ${(viewingLedgerUser.balance || 0) > 0 ? 'text-rose-600' : 'text-emerald-500'}`}>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Outstanding Balance</p>
+                  <p className={`text-2xl font-black ${(viewingLedgerUser.balance || 0) > 0 ? 'text-rose-600' : 'text-emerald-500 dark:text-emerald-400'}`}>
                     Rs. {(viewingLedgerUser.balance || 0).toLocaleString()}
                   </p>
                 </div>

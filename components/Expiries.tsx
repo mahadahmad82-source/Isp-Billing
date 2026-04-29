@@ -152,7 +152,7 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
     const reminded = isRemindedToday(user.lastReminderSentAt);
     
     return (
-      <div className={`bg-white dark:bg-slate-900 p-6 rounded-[2rem] border transition-all hover:shadow-xl group relative overflow-hidden ${isPriority ? 'border-orange-200 dark:border-orange-500/20 shadow-sm' : 'border-slate-100 dark:border-slate-800'}`}>
+      <div className={`bg-white dark:bg-slate-900 p-6 rounded-[2rem] border transition-all hover:shadow-xl group relative overflow-hidden ${isPriority ? 'border-orange-200 dark:border-orange-500/20 shadow-sm' : 'border-slate-100 dark:border-white/5'}`}>
         {reminded && (
           <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-2xl z-10">
             ✓ Reminded Today
@@ -161,22 +161,22 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
         
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h4 className="font-black text-slate-800 dark:text-white text-lg leading-tight tracking-tight">{user.name}</h4>
+            <h4 className="font-black text-slate-900 dark:text-white text-lg leading-tight tracking-tight">{user.name}</h4>
             <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em] mt-1">{user.plan}</p>
           </div>
-          <div className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${days === 3 ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+          <div className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${days === 3 ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
             {days === 0 ? 'Today' : days < 0 ? 'Expired' : `${days} Days`}
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-inner">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Amount</p>
-            <p className="text-sm font-black text-slate-700 dark:text-slate-300">Rs. {((currentPrice - discount) + (user.balance || 0)).toLocaleString()}</p>
+          <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-white/5 shadow-inner">
+            <p className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Due Amount</p>
+            <p className="text-sm font-black text-slate-900 dark:text-slate-100">Rs. {((currentPrice - discount) + (user.balance || 0)).toLocaleString()}</p>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-inner">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Username</p>
-            <p className="text-[10px] font-black text-indigo-500 truncate">@{user.username || 'n/a'}</p>
+          <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-white/5 shadow-inner">
+            <p className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Username</p>
+            <p className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 truncate">@{user.username || 'n/a'}</p>
           </div>
         </div>
 
@@ -225,8 +225,8 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight uppercase">Priority Reminders</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">3 Days until service interruption</p>
+              <h3 className="text-2xl font-black text-black dark:text-white tracking-tight uppercase">Priority Reminders</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest">3 Days until service interruption</p>
             </div>
           </div>
           {priorityUsers.length > 0 && (
@@ -265,8 +265,8 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight uppercase">Upcoming Expiries</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Next 7 days schedule</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Upcoming Expiries</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest">Next 7 days schedule</p>
             </div>
           </div>
           {upcomingUsers.length > 0 && (

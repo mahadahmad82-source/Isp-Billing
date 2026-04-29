@@ -14,7 +14,7 @@ interface LoginProps {
 // ADMIN CREDENTIALS (Hardcoded as requested)
 // ==========================================
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin123'; // Change this as needed
+const ADMIN_PASSWORD = 'wancom#1'; // Change this as needed
 
 const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
@@ -31,6 +31,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
+  const [rememberPassword, setRememberPassword] = useState(false);
 
   useEffect(() => {
     const loadedAccounts = getAccounts();
@@ -54,14 +55,33 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       
       // 1. Check if Admin
       if (loginUser === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        if (rememberPassword && !accounts.some(a => a.username === ADMIN_USERNAME && a.rememberPassword)) {
+          saveAccount({
+            username: ADMIN_USERNAME,
+            password: ADMIN_PASSWORD,
+            businessName: 'Admin Manager',
+            email: '',
+            phone: '',
+            createdAt: new Date().toISOString(),
+            rememberPassword: true
+          });
+        }
         onLogin(loginUser);
         return;
       }
 
       // 2. Check if Manager in Local Storage
-      const account = accounts.find(a => a.username === loginUser && a.password === password);
+      const accountIndex = accounts.findIndex(a => a.username === loginUser && a.password === password);
       
-      if (account) {
+      if (accountIndex !== -1) {
+        const account = accounts[accountIndex];
+        if (rememberPassword && !account.rememberPassword) {
+          const updatedAccount = { ...account, rememberPassword: true };
+          saveAccount(updatedAccount);
+        } else if (!rememberPassword && account.rememberPassword) {
+          const updatedAccount = { ...account, rememberPassword: false };
+          saveAccount(updatedAccount);
+        }
         onLogin(account.username);
         return;
       }
@@ -105,7 +125,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         businessName: businessName || username,
         email: '',
         phone: phone,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        rememberPassword: rememberPassword
       };
 
       saveAccount(newAccount);
@@ -122,6 +143,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const handleSelectAccount = (acc: ManagerAccount) => {
     setSelectedAccount(acc.username);
     setUsername(acc.username);
+    if (acc.rememberPassword && acc.password) {
+      setPassword(acc.password);
+      setRememberPassword(true);
+    } else {
+      setPassword('');
+      setRememberPassword(false);
+    }
     setView('login');
   };
 
@@ -131,6 +159,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setPhone('');
     setPassword('');
     setConfirmPassword('');
+    setRememberPassword(false);
     setError('');
   };
 
@@ -211,7 +240,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           {onBack && (
             <button 
               onClick={onBack}
-              className="absolute left-0 top-0 p-2 text-slate-400 hover:text-indigo-500 transition-colors"
+              className="absolute left-0 top-0 p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors"
               title="Back to Home"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,23 +248,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               </svg>
             </button>
           )}
-          <div className="flex justify-center mb-6">
-            <div className="p-3 bg-white dark:bg-white/10 rounded-3xl shadow-xl shadow-indigo-500/10 border border-slate-100 dark:border-white/5 backdrop-blur-sm">
-              <img 
-                src="/logo.png" 
-                alt="Myisp Logo" 
-                className="w-[120px] md:w-[150px] h-auto object-contain" 
-                referrerPolicy="no-referrer" 
-                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-              />
-            </div>
+          <div className="flex justify-center mb-2">
+            <img src="/logo-v3.png" alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
           </div>
           
           <div className="space-y-1">
-            <h1 className={`text-5xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              Myisp
-            </h1>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.4em] mt-2 text-center">
+            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.4em] mt-2 text-center">
               {view === 'signup' ? 'Local Node Registration' : (view === 'recent' ? 'Recent Profiles' : 'Secure Manager Access')}
             </p>
           </div>
@@ -264,12 +282,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             <div className="p-10 space-y-6">
               <div className="flex justify-between items-center px-1">
                 <div className="flex flex-col">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Stored Profiles</h4>
-                  <span className="text-[9px] font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
+                  <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
+                  <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
                 </div>
                 <button 
                   onClick={() => setShowClearConfirm(true)}
-                  className="text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 transition-all hover:bg-rose-500/10"
+                  className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 transition-all hover:bg-rose-500/10"
                 >
                   Clear All
                 </button>
@@ -288,9 +306,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                          {acc.businessName ? acc.businessName.charAt(0).toUpperCase() : acc.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0 relative z-10">
-                        <p className={`text-[15px] font-black truncate leading-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{acc.businessName || acc.username}</p>
+                        <p className={`text-[15px] font-black truncate leading-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{acc.businessName || acc.username}</p>
                         <div className="flex items-center gap-2">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">@{acc.username}</p>
+                          <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">@{acc.username}</p>
                         </div>
                       </div>
                       <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 relative z-10">
@@ -315,13 +333,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <button 
                   onClick={handleGoToSignup}
-                  className={`py-5 rounded-3xl border-2 border-dashed font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-500 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-400 hover:border-indigo-400 hover:text-indigo-600'}`}
+                  className={`py-5 rounded-3xl border-2 border-dashed font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}
                 >
                   + Register Node
                 </button>
                 <button 
                   onClick={handleGoToLogin}
-                  className={`py-5 rounded-3xl border-2 border-dashed font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-500 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-400 hover:border-indigo-400 hover:text-indigo-600'}`}
+                  className={`py-5 rounded-3xl border-2 border-dashed font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}
                 >
                   Manual Login
                 </button>
@@ -339,7 +357,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <button 
                   type="button"
                   onClick={view === 'signup' ? handleGoToLogin : (accounts.length > 0 ? handleGoToRecent : onBack)}
-                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform"
+                  className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
@@ -351,18 +369,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                    <div className="relative flex h-2 w-2">
                      <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500/50"></span>
                    </div>
-                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{view === 'signup' ? 'New Node' : 'Authorise Node'}</span>
+                   <span className="text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">{view === 'signup' ? 'New Node' : 'Authorise Node'}</span>
                 </div>
               </div>
 
                 <div className="space-y-6">
                 {view === 'signup' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Name</label>
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Business Name</label>
                     <input 
                       type="text"
                       required 
-                      className={`w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400'}`} 
+                      className={`w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`} 
                       value={businessName} 
                       onChange={e => setBusinessName(e.target.value)} 
                       placeholder="e.g. MahadNet"
@@ -370,11 +388,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Username / ID</label>
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Username / ID</label>
                   <input 
                     required 
                     disabled={!!selectedAccount && view === 'login'} 
-                    className={`w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400'} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} 
+                    className={`w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} 
                     value={username} 
                     onChange={e => setUsername(e.target.value)} 
                     placeholder="Enter unique ID"
@@ -383,10 +401,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
                 {view === 'signup' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Phone</label>
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Contact Phone</label>
                     <input 
                       required 
-                      className={`w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400'}`} 
+                      className={`w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`} 
                       value={phone} 
                       onChange={e => setPhone(e.target.value)} 
                       placeholder="03xxxxxxxxx" 
@@ -396,7 +414,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center ml-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Master Password</label>
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest">Master Password</label>
                   </div>
                   <div className="relative group">
                     <input 
@@ -409,7 +427,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                     <button 
                       type="button" 
                       onClick={() => setShowPassword(!showPassword)} 
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition-colors p-2"
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors p-2"
                     >
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
@@ -418,7 +436,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
                 {view === 'signup' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Master Password</label>
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Confirm Master Password</label>
                     <div className="relative group">
                       <input 
                         type={showConfirmPassword ? "text" : "password"}
@@ -430,13 +448,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                       <button 
                         type="button" 
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
-                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition-colors p-2"
+                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors p-2"
                       >
                         {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
                       </button>
                     </div>
                   </div>
                 )}
+
+                <div className="flex items-center gap-2 px-1">
+                  <input
+                    type="checkbox"
+                    id="rememberPassword"
+                    checked={rememberPassword}
+                    onChange={(e) => setRememberPassword(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-600 cursor-pointer"
+                  />
+                  <label htmlFor="rememberPassword" className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest cursor-pointer select-none">
+                    Save Password
+                  </label>
+                </div>
 
                 <div className="pt-2">
                 <button 
@@ -452,7 +483,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   <button 
                     type="button"
                     onClick={handleGoToSignup}
-                    className="w-full text-center text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-indigo-500 transition-colors"
+                    className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors"
                   >
                     Don't have a node? Create one now
                   </button>
@@ -462,7 +493,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           )}
         </div>
 
-        <p className="text-[9px] text-slate-500 dark:text-slate-600 font-bold text-center uppercase tracking-widest">
+        <p className="text-[9px] text-slate-700 dark:text-slate-300 font-bold text-center uppercase tracking-widest">
           {view === 'signup' ? 'Node encrypted using local storage hash' : 'Local node data remains strictly on this device'}
         </p>
       </div>

@@ -53,17 +53,17 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
           variants={containerVariants}
         >
           <motion.div variants={itemVariants} className="inline-block px-4 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 mb-6 md:mb-8">
-            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Next-Gen ISP Infrastructure</span>
+            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">Next-Gen ISP Infrastructure</span>
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl md:text-[10rem] font-black tracking-tighter leading-[1.1] md:leading-[0.8] mb-8 md:mb-12 text-slate-900 dark:text-white">
+          <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl md:text-[10rem] font-black tracking-tighter leading-[1.1] md:leading-[0.8] mb-8 md:mb-12 text-slate-900 dark:text-slate-50">
             THE FUTURE OF <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 animate-gradient-x">NETWORK</span> <br className="hidden md:block" />
             MANAGEMENT
           </motion.h1>
           
-          <motion.p variants={itemVariants} className="max-w-3xl mx-auto text-base md:text-2xl text-slate-500 dark:text-slate-400 font-medium mb-10 md:mb-16 leading-relaxed px-4">
-            Ledgerzo is the ultimate management suite for local ISPs. Automated billing, 
+          <motion.p variants={itemVariants} className="max-w-3xl mx-auto text-base md:text-2xl text-slate-700 dark:text-slate-300 font-medium mb-10 md:mb-16 leading-relaxed px-4">
+            MYISP is the ultimate management suite for local ISPs. Automated billing, 
             real-time recovery tracking, and professional digital receipts in one secure node.
           </motion.p>
           
@@ -109,13 +109,13 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-24">
             <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-6 text-slate-900 dark:text-white">Technical Infrastructure</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-[0.4em]">Engineered for 100% Uptime</p>
+            <p className="text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-[0.4em]">Engineered for 100% Uptime</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { title: 'Edge Computing', desc: 'Processing data at the edge for near-zero latency in billing and recoveries.', icon: <Cpu className="w-8 h-8" /> },
-              { title: 'Secure Nodes', desc: 'Each ISP operates as an independent, encrypted node within the Ledgerzo ecosystem.', icon: <Server className="w-8 h-8" /> },
+              { title: 'Secure Nodes', desc: 'Each ISP operates as an independent, encrypted node within the MYISP ecosystem.', icon: <Server className="w-8 h-8" /> },
               { title: 'Global Sync', desc: 'Real-time synchronization across all your management devices with offline-first support.', icon: <Globe className="w-8 h-8" /> },
             ].map((spec, idx) => (
               <motion.div 
@@ -129,7 +129,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   {spec.icon}
                 </div>
                 <h3 className="text-3xl font-black mb-6 uppercase tracking-tight text-slate-900 dark:text-white">{spec.title}</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-lg leading-relaxed font-medium">{spec.desc}</p>
+                <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed font-medium">{spec.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -156,7 +156,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   {feature.icon}
                 </div>
                 <h3 className="text-2xl font-black mb-4 uppercase tracking-tight text-slate-900 dark:text-white">{feature.title}</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">{feature.desc}</p>
+                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed font-medium">{feature.desc}</p>
               </motion.div>
             ))}
           </div>

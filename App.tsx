@@ -69,7 +69,6 @@ const App: React.FC = () => {
   const [isReminderBannerDismissed, setIsReminderBannerDismissed] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string>(new Date().toLocaleTimeString());
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
-  const [isInitializing, setIsInitializing] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   
   const lastActivityRef = useRef<number>(Date.now());
@@ -77,12 +76,6 @@ const App: React.FC = () => {
   useEffect(() => {
     // Basic initialization
     setIsAdmin(activeManager === 'admin');
-    
-    // Simulate a brief system check for UX
-    const timer = setTimeout(() => {
-      setIsInitializing(false);
-    }, 800);
-    return () => clearTimeout(timer);
   }, [activeManager]);
 
   useEffect(() => {
@@ -102,7 +95,7 @@ const App: React.FC = () => {
 
   const currentSettings: AppSettings = useMemo(() => {
     return activeCompany?.settings || state?.settings || {
-      businessName: 'Ledgerzo',
+      businessName: 'MYISP',
       businessPhone: '',
       businessEmail: '',
       businessAddress: 'Pakistan',
@@ -582,9 +575,35 @@ const App: React.FC = () => {
     });
   };
 
-  if (isInitializing) {
-    return <LoadingSpinner fullScreen theme={state?.theme || 'light'} message="Initializing Offline Node..." />;
-  }
+  const handleRecordLatePayment = (archiveId: string, receipt: Receipt) => {
+    setLoadingMessage("Recording Late Payment...");
+    setTimeout(() => {
+      setState(prev => {
+        const updatedArchives = prev.archives.map(arch => {
+          if (arch.id === archiveId) {
+            // Update the user record in the archive if necessary
+            // In our system, archives store the users as they were.
+            // But we might want to track that this user paid in the archive view.
+            const updatedUsers = arch.users.map(u => {
+              if (u.id === receipt.userId || u.username === receipt.username) {
+                return { ...u, balance: (u.balance || 0) - receipt.paidAmount };
+              }
+              return u;
+            });
+            return { ...arch, users: updatedUsers };
+          }
+          return arch;
+        });
+
+        return {
+          ...prev,
+          receipts: [...prev.receipts, { ...receipt, isLatePayment: true, companyId: prev.activeCompanyId }],
+          archives: updatedArchives
+        };
+      });
+      setLoadingMessage(null);
+    }, 600);
+  };
 
   if (!activeManager) {
     return (
@@ -685,6 +704,8 @@ const App: React.FC = () => {
               onBulkUpdateUsers={handleBulkUpdateUsers}
               onBack={() => setActiveTab('dashboard')} 
               setLoadingMessage={setLoadingMessage}
+              onRecordLatePayment={handleRecordLatePayment}
+              settings={currentSettings}
             />
           )}
           {activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}

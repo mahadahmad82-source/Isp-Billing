@@ -25,17 +25,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'bg-[#030712] text-white' : 'bg-white text-slate-900'}`}>
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] backdrop-blur-md border-b border-slate-200/10 px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-3">
-            <img 
-              src="/logo.png"
-              alt="Mahadnet Logo"
-              className="h-8 w-auto"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-            <span className="text-xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Myisp</span>
-          </Link>
+        <Link to="/" className="flex items-center gap-3">
+          <img src="/logo-v3.png" alt="MYISP Logo" className="w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />
+        </Link>
         
-        <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
           {navLinks.map((link) => (
             <Link 
               key={link.path} 
@@ -80,31 +74,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-24">
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-8">
-                <img 
-                  src="/logo.png" 
-                  alt="Myisp Logo" 
-                  className="w-12 h-12 object-contain" 
-                  referrerPolicy="no-referrer" 
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                />
-                <span className="text-2xl font-black tracking-tight uppercase text-slate-900 dark:text-white">Myisp</span>
+                <img src="/logo-v3.png" alt="MYISP Logo" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
               </div>
-              <p className="text-slate-500 dark:text-slate-400 max-w-sm font-medium text-lg">
+              <p className="text-slate-600 dark:text-slate-300 max-w-sm font-medium text-lg leading-relaxed">
                 The world's most advanced ISP management infrastructure. 
                 Built for speed, reliability, and absolute privacy.
               </p>
             </div>
             <div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-8">Platform</h4>
-              <ul className="space-y-5 text-sm font-bold text-slate-500 dark:text-slate-400">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-400 mb-8">Platform</h4>
+              <ul className="space-y-5 text-sm font-bold text-slate-600 dark:text-slate-400">
                 <li><Link to="/features" className="hover:text-indigo-500 transition-colors">Infrastructure</Link></li>
                 <li><a href="#" className="hover:text-indigo-500 transition-colors">Security</a></li>
                 <li><a href="#" className="hover:text-indigo-500 transition-colors">Status</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-8">Company</h4>
-              <ul className="space-y-5 text-sm font-bold text-slate-500 dark:text-slate-400">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-400 mb-8">Company</h4>
+              <ul className="space-y-5 text-sm font-bold text-slate-600 dark:text-slate-400">
                 <li><Link to="/about" className="hover:text-indigo-500 transition-colors">About Us</Link></li>
                 <li><a href="#" className="hover:text-indigo-500 transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-indigo-500 transition-colors">Contact</a></li>
@@ -112,7 +99,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
             </div>
           </div>
           <div className="pt-12 border-t border-slate-200/10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 Myisp Infrastructure. All rights reserved.</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 MYISP Infrastructure. All rights reserved.</p>
             <div className="flex gap-8">
               {['Twitter', 'GitHub', 'LinkedIn'].map(social => (
                 <a key={social} href="#" className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-500 transition-colors">{social}</a>

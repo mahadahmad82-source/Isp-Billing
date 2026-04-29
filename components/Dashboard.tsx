@@ -133,9 +133,11 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   return (
     <div className="space-y-6 animate-in fade-in duration-500 transition-colors">
       <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase leading-none">Dashboard Overview</h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Real-time Network Statistics</p>
+        <div className="flex items-center gap-4">
+          <div className="space-y-1">
+            <h3 className="text-3xl font-black text-black dark:text-white uppercase leading-none">Dashboard Overview</h3>
+            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.2em]">{settings.businessName} • Real-time Stats</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {isAdmin && (
@@ -149,9 +151,9 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           )}
           <button 
             onClick={onLogout}
-            className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-500/20 active:scale-90 active:rotate-1 transition-all flex items-center gap-2 group/logout"
+            className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-2 group/logout"
           >
-            <svg className="w-4 h-4 transition-transform group-hover/logout:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+            <svg className="w-4 h-4 transition-transform group-hover/logout:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
             Logout
           </button>
         </div>
@@ -193,13 +195,13 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
                   {stat.icon}
                 </div>
                 {stat.isMasked && (
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                     {stat.isVisible ? 'VISIBLE' : 'HIDDEN'}
                   </span>
                 )}
               </div>
               
-              <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{stat.label}</h3>
+              <h3 className="text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{stat.label}</h3>
               
               <div className="flex items-baseline gap-1">
                 <p className={`text-3xl font-black tracking-tight transition-all ${stat.isMasked && !stat.isVisible ? 'text-slate-800 select-none' : 'text-white'}`}>
@@ -211,12 +213,12 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
             <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between relative z-10">
                <button 
                  onClick={(e) => { e.stopPropagation(); stat.onToggle(); }} 
-                 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] hover:text-indigo-300 transition-colors"
+                 className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
                >
                  {stat.isMasked ? (stat.isVisible ? 'Hide Amount' : 'Show Amount') : (stat.footerLabel || 'Operational Stat')}
                </button>
                
-               <div className="text-slate-500">
+               <div className="text-slate-400 dark:text-white/20">
                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                  </svg>
@@ -227,18 +229,18 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-white/5">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Recent Transactions</h3>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Last 10 Payments Collected</p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Recent Transactions</h3>
+              <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Last 10 Payments Collected</p>
             </div>
-            <button onClick={() => setActiveTab('receipts')} className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">View Full Ledger</button>
+            <button onClick={() => setActiveTab('receipts')} className="text-[10px] bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">View Full Ledger</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest border-b border-slate-50 dark:border-slate-800">
+                <tr className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-50 dark:border-white/5">
                   <th className="pb-4">Customer</th>
                   <th className="pb-4">Date</th>
                   <th className="pb-4">Paid</th>
@@ -246,11 +248,11 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
                   <th className="pb-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
                 {(receipts || []).slice(-10).reverse().map((r) => (
-                  <tr key={r.id} className="text-sm group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-5 font-bold text-slate-800 dark:text-slate-100">{r.userName}</td>
-                    <td className="py-5 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">{new Date(r.date || new Date()).toLocaleDateString()}</td>
+                  <tr key={r.id} className="text-sm group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+                    <td className="py-5 font-bold text-slate-900 dark:text-slate-100">{r.userName}</td>
+                    <td className="py-5 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 tracking-wider">{new Date(r.date || new Date()).toLocaleDateString()}</td>
                     <td className="py-5 font-black text-slate-900 dark:text-white">Rs. {(r.paidAmount || 0).toLocaleString()}</td>
                     <td className="py-5">
                       <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
@@ -262,7 +264,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
                       </span>
                     </td>
                     <td className="py-5 text-right">
-                      <button onClick={(e) => { e.stopPropagation(); onDeleteReceipt(r.id); }} className="text-slate-300 dark:text-slate-600 hover:text-rose-600 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all">
+                      <button onClick={(e) => { e.stopPropagation(); onDeleteReceipt(r.id); }} className="text-slate-300 dark:text-white/20 hover:text-rose-600 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                       </button>
                     </td>
@@ -343,23 +345,23 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/5 relative z-10 flex flex-col max-h-[85vh]">
-            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-green-50/50 dark:bg-green-500/5 flex justify-between items-center">
+            <div className="p-8 border-b border-slate-100 dark:border-white/5 bg-green-50/50 dark:bg-green-500/5 flex justify-between items-center">
               <div>
-                <h4 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Revenue Log</h4>
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Complete History Collection</p>
+                <h4 className="text-2xl font-black text-slate-900 dark:text-slate-50 uppercase tracking-tight">Revenue Log</h4>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Complete History Collection</p>
               </div>
-              <button onClick={() => setActiveModal(null)} className="p-4 bg-white dark:bg-slate-800 rounded-[1.5rem] shadow-sm text-slate-400 font-bold">✕</button>
+              <button onClick={() => setActiveModal(null)} className="p-4 bg-white dark:bg-slate-800 rounded-[1.5rem] shadow-sm text-slate-500 dark:text-slate-400 font-bold">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
               <div className="bg-slate-900 dark:bg-slate-800 text-white p-8 rounded-[2rem] flex justify-between items-center shadow-2xl">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Total Collection</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-300">Total Collection</span>
                 <span className="text-3xl font-black">Rs. {(totalRevenue || 0).toLocaleString()}</span>
               </div>
               {receipts.filter(r => r.status === PaymentStatus.SUCCESS).slice(-20).reverse().map(r => (
                 <div key={r.id} className="p-5 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-white/5 rounded-2xl flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-black text-slate-800 dark:text-slate-100">{r.userName}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">{new Date(r.date || new Date()).toLocaleDateString()}</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-slate-50">{r.userName}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">{new Date(r.date || new Date()).toLocaleDateString()}</p>
                   </div>
                   <p className="font-black text-green-600 dark:text-green-400">Rs. {(r.paidAmount || 0).toLocaleString()}</p>
                 </div>
@@ -373,29 +375,29 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/5 relative z-10 flex flex-col max-h-[85vh]">
-            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-red-50/50 dark:bg-red-500/5 flex justify-between items-center">
+            <div className="p-8 border-b border-slate-100 dark:border-white/5 bg-red-50/50 dark:bg-red-500/5 flex justify-between items-center">
               <div>
-                <h4 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Outstanding Log</h4>
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Pending Recoveries</p>
+                <h4 className="text-2xl font-black text-slate-900 dark:text-slate-50 uppercase tracking-tight">Outstanding Log</h4>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Pending Recoveries</p>
               </div>
-              <button onClick={() => setActiveModal(null)} className="p-4 bg-white dark:bg-slate-800 rounded-[1.5rem] shadow-sm text-slate-400 font-bold">✕</button>
+              <button onClick={() => setActiveModal(null)} className="p-4 bg-white dark:bg-slate-800 rounded-[1.5rem] shadow-sm text-slate-500 dark:text-slate-400 font-bold">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
               <div className="bg-slate-900 dark:bg-slate-800 text-white p-8 rounded-[2rem] flex justify-between items-center shadow-2xl">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Total Arrears</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-300">Total Arrears</span>
                 <span className="text-3xl font-black">Rs. {(totalBalance || 0).toLocaleString()}</span>
               </div>
               {users.filter(u => (u.balance || 0) > 0).sort((a, b) => (b.balance || 0) - (a.balance || 0)).map(u => (
                 <div key={u.id} className="p-5 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-white/5 rounded-2xl flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-black text-slate-800 dark:text-slate-100">{u.name}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">@{u.username}</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-slate-50">{u.name}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">@{u.username}</p>
                   </div>
                   <p className="font-black text-red-600 dark:text-red-400">Rs. {(u.balance || 0).toLocaleString()}</p>
                 </div>
               ))}
               {users.filter(u => (u.balance || 0) > 0).length === 0 && (
-                <div className="text-center py-10 text-slate-400 text-xs">No outstanding balances found.</div>
+                <div className="text-center py-10 text-slate-500 dark:text-slate-400 text-xs">No outstanding balances found.</div>
               )}
             </div>
           </div>

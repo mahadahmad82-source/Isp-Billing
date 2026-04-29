@@ -40,6 +40,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const [paymentMethod, setPaymentMethod] = useState(PaymentMethod.CASH);
   const [paymentStatus, setPaymentStatus] = useState(PaymentStatus.SUCCESS);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [transactionRef, setTransactionRef] = useState('');
   const [activeReceipt, setActiveReceipt] = useState<Receipt | null>(null);
   const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [smsTemplate, setSmsTemplate] = useState('');
@@ -83,9 +84,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   }, [users, receipts, settings.planPrices, settings.globalNote]);
 
   useEffect(() => {
-    setBillingMonth(filterMonth);
-    setBillingYear(filterYear);
-  }, [filterMonth, filterYear]);
+    if (viewMode === 'create') {
+      if (editingReceiptId) {
+        const receipt = receipts.find(r => r.id === editingReceiptId);
+        setTransactionRef(receipt?.transactionRef || getNextSerial());
+      } else {
+        setTransactionRef(getNextSerial());
+      }
+    }
+  }, [viewMode, editingReceiptId, receipts]);
 
   // Validation: Ensure selected user is still valid for the new month/year
   useEffect(() => {
@@ -226,7 +233,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         period: `${billingMonth} ${billingYear}`,
         paymentMethod: paymentMethod,
         status: paymentStatus,
-        transactionRef: activeReceipt?.transactionRef || getNextSerial(),
+        transactionRef: transactionRef,
         description: description
       };
 
@@ -408,13 +415,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-4">
                    <div className="h-[60px] w-auto bg-white border-2 border-slate-900 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg p-2">
-                     <img 
-                       src="/logo.png" 
-                       alt="Ledgerzo Logo" 
-                       className="h-full w-auto object-contain" 
-                       referrerPolicy="no-referrer" 
-                       onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                     />
+                     {settings.businessLogo ? (
+                       <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                     ) : (
+                       <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                     )}
                    </div>
                    <div>
                      <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{settings.businessName}</h1>
@@ -435,6 +440,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="bg-slate-900 text-white px-5 py-2 rounded-xl mt-4">
                    <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60">Cycle: {activeReceipt.period}</p>
                 </div>
+                {activeReceipt.isLatePayment && (
+                  <div className="bg-rose-600 text-white px-5 py-2 rounded-xl mt-2 flex items-center gap-2">
+                     <span className="text-lg">⏰</span>
+                     <p className="text-[9px] font-black uppercase tracking-[0.2em]">Late Payment Received: {new Date(activeReceipt.actualPaymentDate || activeReceipt.date).toLocaleDateString()}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -575,9 +586,16 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       case ReceiptDesign.THERMAL:
         return (
           <div className="flex flex-col items-center text-center p-1 text-black leading-tight bg-white">
-            <img src="/logo.png" alt="Ledgerzo Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            {settings.businessLogo ? (
+              <img src={settings.businessLogo} alt="Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            ) : (
+              <img src="/logo-v3.png" alt="Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            )}
             <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>
-            <p className="text-[10px] font-bold">ISP SUBSCRIPTION RECEIPT</p>
+            <p className="text-[10px] font-bold">{activeReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP SUBSCRIPTION RECEIPT'}</p>
+            {activeReceipt.isLatePayment && (
+              <p className="text-[9px] font-black bg-black text-white px-2 py-0.5 mt-1">RCVD: {new Date(activeReceipt.actualPaymentDate || activeReceipt.date).toLocaleDateString()}</p>
+            )}
             <p className="text-[10px] mb-2">{settings.businessPhone}</p>
             <p className="text-[9px] border-y border-dashed border-slate-300 w-full py-1 mb-3 font-mono">-------------------------------------</p>
             <div className="w-full text-left space-y-1.5 mb-3">
@@ -610,17 +628,17 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             <div className="flex justify-between items-center mb-8 bg-indigo-600 p-6 rounded-[1.5rem] text-white">
               <div className="flex items-center gap-3">
                 <div className="h-[60px] w-auto bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm p-1">
-                  <img 
-                    src="/logo.png" 
-                    alt="Ledgerzo Logo" 
-                    className="h-full w-auto object-contain" 
-                    referrerPolicy="no-referrer" 
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                  />
+                  {settings.businessLogo ? (
+                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  )}
                 </div>
                 <div>
                   <h2 className="font-black text-lg leading-none">{settings.businessName}</h2>
-                  <p className="text-[9px] opacity-70 font-bold tracking-widest uppercase mt-1">Transaction Success</p>
+                  <p className="text-[9px] opacity-70 font-bold tracking-widest uppercase mt-1">
+                    {activeReceipt.isLatePayment ? 'Late Payment Entry' : 'Transaction Success'}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
@@ -672,11 +690,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         return (
           <div className="bg-white p-5 border-2 border-slate-100 text-slate-900 max-w-[300px] mx-auto rounded-none">
             <div className="flex justify-center mb-4">
-              <img src="/logo.png" alt="Ledgerzo Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              {settings.businessLogo ? (
+                <img src={settings.businessLogo} alt="Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" />
+              ) : (
+                <img src="/logo-v3.png" alt="Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" />
+              )}
             </div>
             <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-4">
               <h3 className="font-black text-sm uppercase leading-none">{settings.businessName}</h3>
-              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">Instant Payment Proof</p>
+              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{activeReceipt.isLatePayment ? 'Late Payment History' : 'Instant Payment Proof'}</p>
             </div>
             <div className="space-y-1.5 text-[11px] mb-4">
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Ref:</span><span className="font-black">{activeReceipt.transactionRef}</span></div>
@@ -705,17 +727,20 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             <div className="flex justify-between items-start mb-10 border-b-2 border-slate-50 pb-8">
               <div className="flex items-center gap-4">
                 <div className="h-[60px] w-auto bg-white border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-sm p-1">
-                  <img 
-                    src="/logo.png" 
-                    alt="Ledgerzo Logo" 
-                    className="h-full w-auto object-contain" 
-                    referrerPolicy="no-referrer" 
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                  />
+                  {settings.businessLogo ? (
+                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  )}
                 </div>
                 <div>
                   <h2 className="text-4xl font-black text-indigo-950 uppercase">{settings.businessName}</h2>
-                  <p className="text-[10px] text-indigo-50 font-black uppercase tracking-[0.15em] mt-2 bg-indigo-600 px-2 py-1 inline-block rounded">{settings.businessPhone}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-[10px] text-indigo-50 font-black uppercase tracking-[0.15em] bg-indigo-600 px-2 py-1 inline-block rounded">{settings.businessPhone}</p>
+                    {activeReceipt.isLatePayment && (
+                      <p className="text-[10px] text-white font-black uppercase tracking-[0.15em] bg-rose-500 px-2 py-1 inline-block rounded">Late Payment Received</p>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="text-right"><p className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-1">SN: {activeReceipt.transactionRef}</p><p className="text-[10px] font-bold text-slate-400">{new Date(activeReceipt.date).toLocaleDateString()}</p></div>
@@ -775,7 +800,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       <div className="space-y-6 animate-in fade-in duration-300">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Billing History</h3>
+            <h3 className="text-3xl font-black text-black dark:text-white uppercase tracking-tight">Billing History</h3>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Transaction Logs (Stored Offline)</p>
           </div>
           <button onClick={() => { setViewMode('create'); setActiveReceipt(null); setEditingReceiptId(null); setSelectedUserId(''); setCustomerSearchQuery(''); }} className="px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg text-xs uppercase tracking-widest flex items-center gap-2">
@@ -847,6 +872,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           {viewMode === 'create' && (
             <div className="bg-white dark:bg-[#0a1120] p-8 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-white-op5 space-y-6 no-print">
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Receipt ID</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none" 
+                    value={transactionRef} 
+                    onChange={e => setTransactionRef(e.target.value)} 
+                  />
+                </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Billing Month</label>
                   <select 

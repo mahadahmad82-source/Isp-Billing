@@ -58,23 +58,17 @@ const Layout: React.FC<LayoutProps> = ({
   }
 
   return (
-    <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+    <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* Sidebar - Desktop */}
       <aside className={`hidden md:flex flex-col w-64 p-6 shadow-xl transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-900 border-r border-slate-800 text-white' : 'bg-indigo-900 text-white'}`}>
         <div className="mb-10">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <div className="p-1 bg-white rounded-lg shadow-sm w-10 h-10 flex items-center justify-center overflow-hidden">
-              <img 
-                src="/logo.png" 
-                alt="Myisp Logo" 
-                className="w-full h-full object-contain" 
-                referrerPolicy="no-referrer" 
-                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-              />
+            <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden">
+              <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             <span className="text-white truncate">{businessName}</span>
           </h1>
-          <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-black ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-300'}`}>ISP MANAGER v2.5</p>
+          <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-black ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>ISP MANAGER v2.5</p>
         </div>
         
         <nav className="space-y-2 flex-1">
@@ -85,7 +79,7 @@ const Layout: React.FC<LayoutProps> = ({
               className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-all font-bold text-sm ${
                 activeTab === tab.id 
                   ? (theme === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-700 text-white shadow-inner') 
-                  : (theme === 'dark' ? 'text-slate-400 hover:bg-slate-800' : 'text-indigo-200 hover:bg-indigo-800')
+                  : (theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-white/60 hover:text-white hover:bg-indigo-800')
               }`}
             >
               <span>{tab.icon}</span>
@@ -101,7 +95,7 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-white uppercase tracking-wider truncate">{isAdmin ? 'ADMIN ACCOUNT' : 'MANAGER ACCOUNT'}</p>
-              <p className={`text-[9px] font-black truncate ${theme === 'dark' ? 'text-slate-500' : 'text-indigo-300'}`}>
+              <p className={`text-[9px] font-black truncate ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>
                 {businessName || 'SECURE OFFLINE NODE'}
               </p>
             </div>
@@ -133,62 +127,14 @@ const Layout: React.FC<LayoutProps> = ({
       <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 overflow-y-auto custom-scrollbar h-full">
         <header className="flex justify-between items-center mb-8 no-print">
           <div className="flex flex-col">
-            <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{activeTab}</h2>
+            <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
             {lastSavedTime && (
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mt-0.5">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-0.5">
                 Local Save Integrity Check: {lastSavedTime}
               </span>
             )}
           </div>
           <div className="flex items-center gap-3 md:gap-4">
-            {/* Company Switcher */}
-            <div className="relative">
-              <button 
-                onClick={() => setIsCompanyMenuOpen(!isCompanyMenuOpen)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all shadow-sm h-10 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
-              >
-                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">{businessName}</span>
-                <svg className={`w-3 h-3 transition-transform ${isCompanyMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </button>
-
-              {isCompanyMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-[110]" onClick={() => setIsCompanyMenuOpen(false)}></div>
-                  <div className={`absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl border z-[120] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-                    <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Switch ISP Company</p>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                      {companies.map((company) => (
-                        <button
-                          key={company.id}
-                          onClick={() => {
-                            onSwitchCompany?.(company.id);
-                            setIsCompanyMenuOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${activeCompanyId === company.id ? 'bg-indigo-50 dark:bg-indigo-500/10' : ''}`}
-                        >
-                          <span className={`text-xs font-bold ${activeCompanyId === company.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-300'}`}>{company.name}</span>
-                          {activeCompanyId === company.id && <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
-                        </button>
-                      ))}
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setShowAddCompany(true);
-                        setIsCompanyMenuOpen(false);
-                      }}
-                      className="w-full p-4 text-left flex items-center gap-3 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors border-t border-slate-100 dark:border-slate-800"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                      <span className="text-[10px] font-black uppercase tracking-widest">Add New ISP</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
             <button 
               onClick={() => setIsNotifOpen(true)}
               className={`p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 relative active:rotate-12 active:scale-90 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}

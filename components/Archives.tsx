@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { UserRecord, Archive } from '../types';
+import { UserRecord, Archive, AppSettings, PaymentMethod, PaymentStatus, Receipt } from '../types';
 import UserManagement from './UserManagement';
 import * as XLSX from 'xlsx';
 
@@ -12,6 +12,8 @@ interface ArchivesProps {
   onBulkUpdateUsers: (users: UserRecord[]) => void;
   onBack: () => void;
   setLoadingMessage: (msg: string | null) => void;
+  onRecordLatePayment: (archiveId: string, receipt: Receipt) => void;
+  settings: AppSettings;
 }
 
 const Archives: React.FC<ArchivesProps> = ({ 
@@ -22,9 +24,14 @@ const Archives: React.FC<ArchivesProps> = ({
   onBulkAddUsers,
   onBulkUpdateUsers,
   onBack,
-  setLoadingMessage
+  setLoadingMessage,
+  onRecordLatePayment,
+  settings
 }) => {
   const [selectedArchive, setSelectedArchive] = useState<Archive | null>(null);
+  const [latePaymentUser, setLatePaymentUser] = useState<UserRecord | null>(null);
+  const [latePaymentAmount, setLatePaymentAmount] = useState<number>(0);
+  const [latePaymentDate, setLatePaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isCreating, setIsCreating] = useState(false);
   const [isUploadingLegacy, setIsUploadingLegacy] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' } | null>(null);
@@ -169,6 +176,39 @@ const Archives: React.FC<ArchivesProps> = ({
     return groups;
   }, [archives]);
 
+  const handleRecordLatePaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedArchive || !latePaymentUser) return;
+
+    const receipt: Receipt = {
+      id: `late-${Date.now()}`,
+      userId: latePaymentUser.id,
+      username: latePaymentUser.username,
+      userName: latePaymentUser.name,
+      userPhone: latePaymentUser.phone,
+      totalAmount: (latePaymentUser.monthlyFee || 0) + (latePaymentUser.balance || 0),
+      paidAmount: latePaymentAmount,
+      balanceAmount: ((latePaymentUser.monthlyFee || 0) + (latePaymentUser.balance || 0)) - latePaymentAmount,
+      date: new Date().toISOString(),
+      period: selectedArchive.name,
+      paymentMethod: PaymentMethod.CASH,
+      status: PaymentStatus.SUCCESS,
+      transactionRef: `LATE-${Date.now()}`,
+      isLatePayment: true,
+      actualPaymentDate: latePaymentDate
+    };
+
+    onRecordLatePayment(selectedArchive.id, receipt);
+    setLatePaymentUser(null);
+    setLatePaymentAmount(0);
+    
+    setAlertConfig({
+      title: 'Late Payment Recorded',
+      message: `Payment of Rs. ${latePaymentAmount.toLocaleString()} has been added to ${selectedArchive.name} history.`,
+      type: 'success'
+    });
+  };
+
   if (selectedArchive) {
     return (
       <div className="space-y-4 animate-in fade-in slide-in-from-right duration-300">
@@ -211,11 +251,12 @@ const Archives: React.FC<ArchivesProps> = ({
                   <th className="px-8 py-6">Package</th>
                   <th className="px-8 py-6">Rate</th>
                   <th className="px-8 py-6">Status</th>
+                  <th className="px-8 py-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {selectedArchive.users.map(user => (
-                  <tr key={user.id} className="hover:bg-indigo-500/5 transition-colors">
+                  <tr key={user.id} className="hover:bg-indigo-500/5 transition-colors group">
                     <td className="px-8 py-6">
                       <input 
                         type="checkbox" 
@@ -230,6 +271,17 @@ const Archives: React.FC<ArchivesProps> = ({
                     <td className="px-8 py-6 text-sm font-black text-slate-800 dark:text-slate-200">Rs. {user.monthlyFee.toLocaleString()}</td>
                     <td className="px-8 py-6">
                       <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-full text-[9px] font-black uppercase tracking-widest">Archived</span>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <button 
+                        onClick={() => {
+                          setLatePaymentUser(user);
+                          setLatePaymentAmount(user.monthlyFee + (user.balance || 0));
+                        }}
+                        className="opacity-0 group-hover:opacity-100 px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                      >
+                        Record Late Payment
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -390,6 +442,60 @@ const Archives: React.FC<ArchivesProps> = ({
             >
               Continue
             </button>
+          </div>
+        </div>
+      )}
+
+      {latePaymentUser && selectedArchive && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setLatePaymentUser(null)}></div>
+          <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-white/5 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Late Payment</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entry for {selectedArchive.name}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleRecordLatePaymentSubmit} className="space-y-6">
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-white/5">
+                <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1">Subscriber</p>
+                <p className="text-lg font-black text-slate-900 dark:text-white">{latePaymentUser.name}</p>
+                <p className="text-xs font-bold text-slate-400 mt-1">@{latePaymentUser.username}</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Payment Amount (Rs.)</label>
+                  <input 
+                    type="number"
+                    required
+                    value={latePaymentAmount}
+                    onChange={(e) => setLatePaymentAmount(Number(e.target.value))}
+                    className="w-full p-5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 font-bold outline-none focus:border-indigo-500 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Actual Received Date</label>
+                  <input 
+                    type="date"
+                    required
+                    value={latePaymentDate}
+                    onChange={(e) => setLatePaymentDate(e.target.value)}
+                    className="w-full p-5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 font-bold outline-none focus:border-indigo-500 transition-all text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button type="submit" className="flex-1 bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Submit Late Entry</button>
+                <button type="button" onClick={() => setLatePaymentUser(null)} className="px-8 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

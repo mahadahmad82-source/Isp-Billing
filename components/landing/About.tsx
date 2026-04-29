@@ -19,7 +19,7 @@ const About: React.FC = () => {
             </div>
             <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter mb-10 leading-[0.9] text-slate-900 dark:text-white">Architecting <br /> Digital Trust</h2>
             <p className="text-slate-500 dark:text-slate-400 text-xl mb-10 leading-relaxed font-medium">
-              Ledgerzo was born out of the need for a robust, offline-first management system 
+              MYISP was born out of the need for a robust, offline-first management system 
               that doesn't compromise on speed or security. We understand the challenges of 
               managing a growing subscriber base, and we've built the tools to help you scale 
               with absolute precision.
@@ -52,7 +52,7 @@ const About: React.FC = () => {
                   <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
                     <Shield className="w-6 h-6" />
                   </div>
-                  <span className="text-xl font-black tracking-tight uppercase text-white">Ledgerzo Core</span>
+                  <span className="text-xl font-black tracking-tight uppercase text-white">MYISP Core</span>
                 </div>
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
@@ -99,7 +99,7 @@ const About: React.FC = () => {
             <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-20 text-slate-900 dark:text-white">Trusted by <br /> Network Engineers</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
-                { name: "Ahmad Khan", role: "ISP Owner", quote: "Ledgerzo transformed how we handle recoveries. The precision is unmatched." },
+                { name: "Ahmad Khan", role: "ISP Owner", quote: "MYISP transformed how we handle recoveries. The precision is unmatched." },
                 { name: "Sarah Malik", role: "Network Manager", quote: "The offline capability is a lifesaver for our field operations." },
                 { name: "Bilal Sheikh", role: "Operations Lead", quote: "Professional receipts have made us look credible and trustworthy." }
               ].map((t, idx) => (

@@ -1,6 +1,6 @@
 @import "tailwindcss";
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@custom-variant dark (&:is(.dark *));
 
 :root {
   --primary: #4f46e5;
@@ -91,11 +91,11 @@ html {
 
 body {
   font-family: var(--font-sans);
-  @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+  @apply bg-slate-50 text-slate-900 transition-colors duration-300 antialiased;
 }
 
 .dark body {
-  @apply bg-[#030712] text-white;
+  @apply bg-[#030712] text-slate-100;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
