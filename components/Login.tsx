@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount } from '../utils/storage';
+import { supabase } from '../lib/supabase';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -10,11 +11,8 @@ interface LoginProps {
   onToggleTheme: () => void;
 }
 
-// ==========================================
-// ADMIN CREDENTIALS (Hardcoded as requested)
-// ==========================================
+// Supabase auth handles credentials now - no hardcoded passwords
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'wancom#1'; // Change this as needed
 
 const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
@@ -51,16 +49,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
-      const loginUser = username;
-      
-      // 1. Check if Admin
-      if (loginUser === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        if (rememberPassword && !accounts.some(a => a.username === ADMIN_USERNAME && a.rememberPassword)) {
+      // Use Supabase authentication
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: username.includes('@') ? username : `${username}@myisp.local`,
+        password: password,
+      });
+
+      if (authError) throw new Error('Invalid username or password.');
+
+      if (data.user) {
+        const loginUser = username.includes('@') ? username.split('@')[0] : username;
+        setActiveSession(loginUser);
+        if (rememberPassword) {
           saveAccount({
-            username: ADMIN_USERNAME,
-            password: ADMIN_PASSWORD,
-            businessName: 'Admin Manager',
-            email: '',
+            username: loginUser,
+            password: '',
+            businessName: data.user.user_metadata?.full_name || loginUser,
+            email: data.user.email || '',
             phone: '',
             createdAt: new Date().toISOString(),
             rememberPassword: true
@@ -70,24 +75,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         return;
       }
 
-      // 2. Check if Manager in Local Storage
-      const accountIndex = accounts.findIndex(a => a.username === loginUser && a.password === password);
-      
-      if (accountIndex !== -1) {
-        const account = accounts[accountIndex];
-        if (rememberPassword && !account.rememberPassword) {
-          const updatedAccount = { ...account, rememberPassword: true };
-          saveAccount(updatedAccount);
-        } else if (!rememberPassword && account.rememberPassword) {
-          const updatedAccount = { ...account, rememberPassword: false };
-          saveAccount(updatedAccount);
-        }
-        onLogin(account.username);
-        return;
-      }
-
-      // 3. Fallback Error
-      throw new Error('Invalid username or password.');
+      throw new Error('Authentication failed. Please try again.');
       
     } catch (err: any) {
       setError(err.message || 'Authentication error occurred');
