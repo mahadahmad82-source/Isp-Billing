@@ -107,18 +107,36 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
+      // Create user in Supabase Auth
+      const email = `${username}@myisp.local`;
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: businessName || username }
+        }
+      });
+
+      if (authError) throw new Error(authError.message);
+
+      // Auto sign-in after signup (email confirmation disabled)
+      if (!authData.session) {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInErr) throw new Error('Account created but login failed. Try logging in manually.');
+      }
+
       const newAccount: ManagerAccount = {
         username: username,
         password: password,
         businessName: businessName || username,
-        email: '',
+        email: email,
         phone: phone,
         createdAt: new Date().toISOString(),
         rememberPassword: rememberPassword
       };
 
       saveAccount(newAccount);
-      setAccounts(getAccounts()); // Refresh local state
+      setAccounts(getAccounts());
       onLogin(username);
       
     } catch (err: any) {
