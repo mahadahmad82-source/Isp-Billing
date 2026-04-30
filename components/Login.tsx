@@ -107,22 +107,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
-      // Create user via Edge Function (admin API - no email confirmation needed)
+      // Create user in Supabase (DB trigger auto-confirms @myisp.local emails)
       const email = `${username}@myisp.local`;
-      const fnRes = await fetch(
-        'https://mzmajmjzopmkzboizrbm.supabase.co/functions/v1/create-manager',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, businessName, phone })
-        }
-      );
-      const fnData = await fnRes.json();
-      if (!fnRes.ok) throw new Error(fnData.error || 'Signup failed');
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: businessName || username } }
+      });
 
-      // Sign in after user created
+      if (signUpErr) throw new Error(signUpErr.message);
+      if (!signUpData.user) throw new Error('Signup failed. Try again.');
+
+      // Auto sign in right after
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInErr) throw new Error('Account created! Please login manually.');
+      if (signInErr) throw new Error('Account created! Ab login karein manually.');
 
       const newAccount: ManagerAccount = {
         username: username,
