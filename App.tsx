@@ -18,6 +18,7 @@ import Archives from './components/Archives';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
+import OnboardingTour from './components/OnboardingTour';
 
 interface ConfirmationConfig {
   title: string;
@@ -64,6 +65,7 @@ const App: React.FC = () => {
     return initialState;
   });
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showTour, setShowTour] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
@@ -93,6 +95,13 @@ const App: React.FC = () => {
           activeCompanyId: finalState.activeCompanyId || '',
           currentManager: activeManager
         });
+        // Show onboarding tour for new managers (not admin, first time)
+        if (activeManager !== 'admin') {
+          const tourKey = `tour_done_${activeManager}`;
+          if (!localStorage.getItem(tourKey)) {
+            setShowTour(true);
+          }
+        }
       });
     } else {
       setActiveSession(null);
@@ -723,6 +732,17 @@ const App: React.FC = () => {
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
         </Layout>
+        {showTour && (
+          <OnboardingTour
+            managerName={activeManager || 'Manager'}
+            onComplete={() => {
+              localStorage.setItem(`tour_done_${activeManager}`, 'true');
+              setShowTour(false);
+            }}
+            onNavigate={(tab) => setActiveTab(tab)}
+            theme={state.settings?.theme || 'light'}
+          />
+        )}
 
       {pendingRemindersCount > 0 && activeTab !== 'expiries' && !isReminderBannerDismissed && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[400] animate-in slide-in-from-top-10 flex items-center gap-2">
