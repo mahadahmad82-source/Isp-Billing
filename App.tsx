@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession } from './utils/storage';
-import { saveStateToSupabase, loadStateFromSupabase } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
@@ -82,25 +82,17 @@ const App: React.FC = () => {
   useEffect(() => {
     if (activeManager) {
       setActiveSession(activeManager);
-      // Try Supabase first, fallback to localStorage
-      loadStateFromSupabase(activeManager).then(supabaseState => {
-        if (supabaseState) {
-          setState({
-            ...supabaseState,
-            archives: supabaseState.archives || [],
-            dismissedNotificationIds: supabaseState.dismissedNotificationIds || [],
-            companies: supabaseState.companies || [],
-            activeCompanyId: supabaseState.activeCompanyId || '',
-            currentManager: activeManager
-          });
-        } else {
-          const newState = loadState(activeManager);
-          setState(newState);
-          // Migrate localStorage data to Supabase
-          if (newState.users?.length > 0 || newState.receipts?.length > 0) {
-            saveStateToSupabase(activeManager, newState);
-          }
-        }
+      // Smart sync: compare localStorage vs Supabase, use richer data
+      const localState = loadState(activeManager);
+      smartLoadAndSync(activeManager, localState).then(finalState => {
+        setState({
+          ...finalState,
+          archives: finalState.archives || [],
+          dismissedNotificationIds: finalState.dismissedNotificationIds || [],
+          companies: finalState.companies || [],
+          activeCompanyId: finalState.activeCompanyId || '',
+          currentManager: activeManager
+        });
       });
     } else {
       setActiveSession(null);
