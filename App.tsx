@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession } from './utils/storage';
+import { saveStateToSupabase, loadStateFromSupabase } from './utils/supabaseSync';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
@@ -81,8 +82,26 @@ const App: React.FC = () => {
   useEffect(() => {
     if (activeManager) {
       setActiveSession(activeManager);
-      const newState = loadState(activeManager);
-      setState(newState);
+      // Try Supabase first, fallback to localStorage
+      loadStateFromSupabase(activeManager).then(supabaseState => {
+        if (supabaseState) {
+          setState({
+            ...supabaseState,
+            archives: supabaseState.archives || [],
+            dismissedNotificationIds: supabaseState.dismissedNotificationIds || [],
+            companies: supabaseState.companies || [],
+            activeCompanyId: supabaseState.activeCompanyId || '',
+            currentManager: activeManager
+          });
+        } else {
+          const newState = loadState(activeManager);
+          setState(newState);
+          // Migrate localStorage data to Supabase
+          if (newState.users?.length > 0 || newState.receipts?.length > 0) {
+            saveStateToSupabase(activeManager, newState);
+          }
+        }
+      });
     } else {
       setActiveSession(null);
     }
@@ -122,7 +141,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       setState(prev => {
         const newState = { ...prev, activeCompanyId: companyId };
-        saveState(newState);
+        saveState(newState); saveStateToSupabase(newState.currentManager || activeManager || '', newState);
         return newState;
       });
       setLoadingMessage(null);
@@ -141,7 +160,7 @@ const App: React.FC = () => {
         companies: [...(prev.companies || []), newCompany],
         activeCompanyId: newCompany.id
       };
-      saveState(newState);
+      saveState(newState); saveStateToSupabase(newState.currentManager || activeManager || '', newState);
       return newState;
     });
   };
@@ -286,7 +305,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (activeManager) {
       // Always save to local storage immediately for data safety
-      saveState(state);
+      saveState(state); saveStateToSupabase(state.currentManager || activeManager || '', state);
       setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     }
     
@@ -558,7 +577,7 @@ const App: React.FC = () => {
         ...prev,
         dismissedNotificationIds: [...(prev.dismissedNotificationIds || []), id]
       };
-      saveState(newState);
+      saveState(newState); saveStateToSupabase(newState.currentManager || activeManager || '', newState);
       return newState;
     });
   };
@@ -570,7 +589,7 @@ const App: React.FC = () => {
         ...prev,
         dismissedNotificationIds: [...(prev.dismissedNotificationIds || []), ...allIds]
       };
-      saveState(newState);
+      saveState(newState); saveStateToSupabase(newState.currentManager || activeManager || '', newState);
       return newState;
     });
   };
