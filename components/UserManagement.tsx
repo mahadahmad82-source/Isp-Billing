@@ -19,6 +19,7 @@ interface UserManagementProps {
   onBulkUpdateUsers: (users: UserRecord[]) => void;
   readOnly?: boolean;
   setLoadingMessage: (msg: string | null) => void;
+  initialFilter?: 'all' | 'current_month';
 }
 
 type SortKey = 'account_id_asc' | 'reg_date_desc' | 'expiry_asc' | 'none';
@@ -35,11 +36,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
   onBulkDeleteUsers,
   onBulkUpdateUsers,
   readOnly = false,
-  setLoadingMessage
+  setLoadingMessage,
+  initialFilter = 'all'
 }) => {
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
-  const [showMonthlyFolders, setShowMonthlyFolders] = useState(true);
+  // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
+  const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
+  const [showAllUsers, setShowAllUsers] = useState(initialFilter === 'all');
   const [showForm, setShowForm] = useState(false);
   const [showImportHistory, setShowImportHistory] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -329,8 +333,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const filteredUsers = useMemo(() => {
-    // Filter by selected month first
-    let result = users.filter(user => (user.activatedMonths || []).includes(selectedMonth));
+    // If showAllUsers: show all users (for Total Users card)
+    // Otherwise: filter by selected month (activatedMonths)
+    let result = showAllUsers
+      ? [...users]
+      : users.filter(user => (user.activatedMonths || []).includes(selectedMonth));
 
     // Then apply search
     result = result.filter(user => 
@@ -348,7 +355,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
     
     return result;
-  }, [users, searchTerm, sortKey, selectedMonth]);
+  }, [users, searchTerm, sortKey, selectedMonth, showAllUsers]);
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-8rem)] bg-[#f8fafc] dark:bg-[#030712] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5">

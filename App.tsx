@@ -67,6 +67,7 @@ const App: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTour, setShowTour] = useState(false);
+  const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [showLanding, setShowLanding] = useState(true);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
@@ -694,13 +695,14 @@ const App: React.FC = () => {
               receipts={filteredReceipts} 
               settings={currentSettings} 
               onDeleteReceipt={handleDeleteReceipt} 
-              setActiveTab={setActiveTab} 
+              setActiveTab={setActiveTab}
+              onSetUserFilter={(filter: 'all' | 'current_month') => { setUserFilter(filter); setActiveTab('users'); }}
               pendingRemindersCount={pendingRemindersCount}
               onLogout={handleLogout}
               isAdmin={isAdmin}
             />
           )}
-          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} />}
+          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} />}
           {activeTab === 'receipts' && <ReceiptGenerator users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 

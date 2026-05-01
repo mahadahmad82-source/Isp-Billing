@@ -9,6 +9,7 @@ interface DashboardProps {
   settings: AppSettings;
   onDeleteReceipt: (id: string) => void;
   setActiveTab: (tab: string) => void;
+  onSetUserFilter?: (filter: 'all' | 'current_month') => void;
   pendingRemindersCount?: number;
   onLogout: () => void;
   isAdmin?: boolean;
@@ -16,7 +17,7 @@ interface DashboardProps {
 
 type ModalType = 'REVENUE' | 'BALANCE' | null;
 
-const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, pendingRemindersCount = 0, onLogout, isAdmin = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, pendingRemindersCount = 0, onLogout, isAdmin = false }) => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
@@ -101,8 +102,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>, 
       color: 'text-violet-500 bg-violet-500/10', 
       isMasked: false,
-      onToggle: () => setActiveTab('users'),
-      onViewDetails: () => setActiveTab('users'),
+      onToggle: () => onSetUserFilter ? onSetUserFilter('all') : setActiveTab('users'),
+      onViewDetails: () => onSetUserFilter ? onSetUserFilter('all') : setActiveTab('users'),
       footerLabel: 'All Time Users'
     },
     { 
@@ -112,9 +113,9 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, 
       color: 'text-blue-500 bg-blue-500/10', 
       isMasked: false,
-      onToggle: () => setActiveTab('users'),
-      onViewDetails: () => setActiveTab('users'),
-      footerLabel: 'Operational Stat'
+      onToggle: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
+      onViewDetails: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
+      footerLabel: 'Current Month'
     },
     { 
       id: 'ALERTS',
