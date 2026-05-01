@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Shield, ArrowRight, Zap, Smartphone, BarChart, Layout as LayoutIcon, Users, Lock, ChevronDown, Globe, Cpu, Server } from 'lucide-react';
 import NetworkVisualization from './NetworkVisualization';
@@ -9,6 +9,9 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
+
+  const [showSpecs, setShowSpecs] = useState(false);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -27,6 +30,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
   };
 
   return (
+    <>
     <div className="pt-20">
       {/* Hero Section */}
       <section className="relative pt-20 pb-20 md:pt-32 md:pb-32 px-6 overflow-hidden min-h-[80vh] flex items-center">
@@ -74,8 +78,8 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
             >
               Initialize Node <ArrowRight className="w-4 h-4" />
             </button>
-            <button className="w-full sm:w-auto bg-white dark:bg-slate-900 text-slate-900 dark:text-white px-8 md:px-12 py-4 md:py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] border border-slate-200 dark:border-white/10 shadow-xl transition-all hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95">
-              System Specs
+            <button onClick={() => setShowSpecs(true)} className="w-full sm:w-auto bg-white dark:bg-slate-900 text-slate-900 dark:text-white px-8 md:px-12 py-4 md:py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] border border-slate-200 dark:border-white/10 shadow-xl transition-all hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 flex items-center justify-center gap-3">
+              <Cpu className="w-4 h-4" /> System Specs
             </button>
           </motion.div>
         </motion.div>
@@ -163,7 +167,121 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
         </div>
       </section>
     </div>
-  );
-};
 
+      {/* System Specs Modal */}
+      {showSpecs && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6"
+          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowSpecs(false)}>
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-900 to-indigo-900 p-6 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-3xl -mr-32 -mt-32" />
+              </div>
+              <div className="relative z-10 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
+                  </div>
+                  <h2 className="text-2xl font-black text-white uppercase tracking-tight">MYISP System Specs</h2>
+                  <p className="text-slate-400 text-sm mt-1">Complete technical overview of the platform</p>
+                </div>
+                <button onClick={() => setShowSpecs(false)} className="text-white/60 hover:text-white text-2xl leading-none p-1">✕</button>
+              </div>
+            </div>
+
+            {/* Specs Grid */}
+            <div className="p-6 space-y-4">
+
+              {/* Platform */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5">
+                <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Cpu className="w-3 h-3" /> Platform & Architecture
+                </h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {[
+                    { label: 'Framework', value: 'React + TypeScript' },
+                    { label: 'Platform', value: 'Web + Mobile (PWA)' },
+                    { label: 'Hosting', value: 'Vercel Edge Network' },
+                    { label: 'Database', value: 'Supabase (PostgreSQL)' },
+                    { label: 'Auth', value: 'Supabase Auth (JWT)' },
+                    { label: 'Storage', value: 'Cloud Sync + Local' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5 last:border-0">
+                      <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{item.label}</span>
+                      <span className="text-slate-900 dark:text-white font-black text-xs">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Features */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5">
+                <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Zap className="w-3 h-3" /> Core Features
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    '✅ Multi-Manager Accounts',
+                    '✅ Customer Management',
+                    '✅ Digital Receipt Generator',
+                    '✅ Monthly Recovery Tracking',
+                    '✅ Expiry Alerts (3/7/30 days)',
+                    '✅ AI Business Insights',
+                    '✅ Cross-Device Cloud Sync',
+                    '✅ WhatsApp Share Integration',
+                    '✅ Dark / Light Theme',
+                    '✅ Onboarding Tour Guide',
+                    '✅ Feature Hint System',
+                    '✅ Role-Based Access (Admin/Manager)',
+                  ].map((feature, i) => (
+                    <div key={i} className="text-xs text-slate-700 dark:text-slate-300 font-medium py-1">{feature}</div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Performance */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5">
+                <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Server className="w-3 h-3" /> Performance & Security
+                </h3>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  {[
+                    { label: 'Uptime', value: '99.9%', color: 'text-emerald-500' },
+                    { label: 'Region', value: 'Mumbai', color: 'text-blue-500' },
+                    { label: 'Latency', value: '<50ms', color: 'text-indigo-500' },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-white dark:bg-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-white/5">
+                      <div className={`text-xl font-black ${stat.color}`}>{stat.value}</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-2"><Shield className="w-3 h-3 text-indigo-500" /> Row Level Security (RLS)</div>
+                  <div className="flex items-center gap-2"><Lock className="w-3 h-3 text-indigo-500" /> Encrypted Passwords</div>
+                  <div className="flex items-center gap-2"><Globe className="w-3 h-3 text-indigo-500" /> CDN Delivery (150+ cities)</div>
+                  <div className="flex items-center gap-2"><Smartphone className="w-3 h-3 text-indigo-500" /> Mobile Responsive</div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button onClick={() => { setShowSpecs(false); onGetStarted(); }}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2">
+                Initialize Node — Start Free <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </>
+  );
+}
 export default Home;
