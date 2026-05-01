@@ -19,6 +19,7 @@ import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
+import FeatureHint from './components/FeatureHint';
 
 interface ConfirmationConfig {
   title: string;
@@ -732,6 +733,11 @@ const App: React.FC = () => {
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
         </Layout>
+        <FeatureHint
+          activeTab={activeTab}
+          managerName={activeManager || ''}
+          theme={state.settings?.theme || 'light'}
+        />
         {showTour && (
           <OnboardingTour
             managerName={activeManager || 'Manager'}
