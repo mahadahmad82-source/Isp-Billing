@@ -42,9 +42,23 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then(reg => {
-            console.log('Offline Recovery Sync: Active');
+            console.log('[SW] Registered successfully');
+            // Naya version deploy hone pe automatically page reload karo
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'activated') {
+                    console.log('[SW] New version - reloading page...');
+                    window.location.reload(true);
+                  }
+                });
+              }
+            });
+            // Check for updates every 60 seconds
+            setInterval(() => reg.update(), 60000);
           }).catch(err => {
-            console.log('SW Registration failed: ', err);
+            console.log('[SW] Registration failed: ', err);
           });
         });
       }
