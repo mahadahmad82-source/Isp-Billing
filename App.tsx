@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
+import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
@@ -732,7 +733,7 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
-          {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} />}
+          {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
         </Layout>
         <FeatureHint

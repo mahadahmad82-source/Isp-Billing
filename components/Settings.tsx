@@ -1,11 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, sendPushNotification } from '../lib/pushNotifications';
 import { AppSettings, ReceiptDesign, AppState, UserRecord, ManagerAccount, DefaultPlanPricing, Receipt } from '../types';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
 
 interface SettingsProps {
   settings: AppSettings;
+  activeManager?: string;
   onUpdateSettings: (settings: AppSettings) => void;
   onRestoreState: (state: AppState) => void;
   onWipeData: () => void;
@@ -14,8 +16,34 @@ interface SettingsProps {
   onBulkUpdateUsers: (users: UserRecord[]) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushSupported] = useState(isPushSupported());
+
+  useEffect(() => {
+    isSubscribed().then(setPushEnabled);
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (!activeManager) return;
+    setPushLoading(true);
+    try {
+      if (pushEnabled) {
+        const ok = await unsubscribeFromPush(activeManager);
+        if (ok) setPushEnabled(false);
+      } else {
+        const ok = await subscribeToPush(activeManager);
+        if (ok) {
+          setPushEnabled(true);
+          await sendPushNotification(activeManager, '🔔 MYISP Notifications Active!', 'Aapko ab expiry aur payment alerts milenge!', 'test');
+        }
+      }
+    } finally {
+      setPushLoading(false);
+    }
+  };
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isCloudLoading, setIsCloudLoading] = useState(false);
   const [modalStatus, setModalStatus] = useState<{ title: string, message: string, type: 'success' | 'error' | 'info' } | null>(null);
@@ -725,6 +753,59 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </button>
           </div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+        </div>
+
+        {/* Push Notifications */}
+        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+              </div>
+              <div>
+                <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Push Notifications</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {pushEnabled ? '✅ Is device pe notifications ON hain' : pushSupported ? '❌ Notifications OFF hain' : '⚠️ Aapka browser support nahi karta'}
+                </p>
+              </div>
+            </div>
+            {pushSupported && (
+              <button
+                onClick={handleTogglePush}
+                disabled={pushLoading}
+                className={`relative w-16 h-8 rounded-full transition-all duration-300 focus:outline-none ${pushEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+              >
+                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${pushEnabled ? 'left-9' : 'left-1'}`}></div>
+              </button>
+            )}
+          </div>
+
+          {pushEnabled && (
+            <div className="mt-6 space-y-3">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aapko notifications milegi jab:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { icon: '⏰', text: 'Customer ka package aaj expire ho' },
+                  { icon: '🔴', text: '3 din mein expire hone wale customers' },
+                  { icon: '🧾', text: 'Receipt generate ho' },
+                  { icon: '👤', text: 'Naya customer add ho' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
+                    <span>{item.icon}</span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!pushEnabled && pushSupported && (
+            <div className="mt-6 bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
+              <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                💡 Toggle ON karo — browser permission maangega. "Allow" karo aur phir notifications shuru ho jayengi!
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Plan Catalog Management */}
