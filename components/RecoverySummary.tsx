@@ -133,7 +133,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         balance: balanceSum,
         expiryDate: u.expiryDate,
         ref: hasPaid ? userReceipts.map(r => r.transactionRef).join(', ') : '-',
-        date: hasPaid ? new Date(userReceipts[0].date).toLocaleDateString() : '-'
+        date: hasPaid ? new Date(userReceipts[0].date).toLocaleDateString() : '-',
+        dateRaw: hasPaid ? new Date(userReceipts[0].date).getTime() : 0,
+        statusSort: hasPaid ? 0 : 1, // 0=Paid first, 1=Pending
       };
     }).filter(item => 
       !detailSearchTerm || 
@@ -141,15 +143,39 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       item.username.toLowerCase().includes(detailSearchTerm.toLowerCase())
     );
 
+    // Add serial numbers BEFORE sorting
+    list = list.map((item, idx) => ({ ...item, serialNo: idx + 1 }));
+
     if (sortConfig !== null) {
       list.sort((a: any, b: any) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
+        const dir = sortConfig.direction === 'asc' ? 1 : -1;
+
+        switch(sortConfig.key) {
+          case 'serialNo':
+            return (a.serialNo - b.serialNo) * dir;
+
+          case 'username':
+          case 'name':
+            return (a[sortConfig.key] || '').toLowerCase().localeCompare(
+              (b[sortConfig.key] || '').toLowerCase()
+            ) * dir;
+
+          case 'hasPaid': // Status sort: Paid first or Pending first
+            return (a.statusSort - b.statusSort) * dir;
+
+          case 'date': // Date sort: use raw timestamp
+            return (a.dateRaw - b.dateRaw) * dir;
+
+          case 'paidAmount':
+          case 'advanceAmount':
+          case 'balance':
+            return ((a[sortConfig.key] || 0) - (b[sortConfig.key] || 0)) * dir;
+
+          default:
+            if (a[sortConfig.key] < b[sortConfig.key]) return -1 * dir;
+            if (a[sortConfig.key] > b[sortConfig.key]) return 1 * dir;
+            return 0;
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
       });
     }
 
@@ -819,39 +845,43 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             <table className="w-full text-left min-w-[1200px]">
               <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] uppercase font-black text-slate-500 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
                 <tr>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('username')}>
-                    Sub ID {sortConfig?.key === 'username' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-4 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('serialNo')}>
+                    Sr.# {sortConfig?.key === 'serialNo' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('name')}>
-                    Subscriber {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('username')}>
+                    Sub ID {sortConfig?.key === 'username' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('hasPaid')}>
-                    Status {sortConfig?.key === 'hasPaid' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('name')}>
+                    Subscriber {sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('paidAmount')}>
-                    Paid Amount {sortConfig?.key === 'paidAmount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('hasPaid')}>
+                    Status {sortConfig?.key === 'hasPaid' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('advanceAmount')}>
-                    Advance Amount {sortConfig?.key === 'advanceAmount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('paidAmount')}>
+                    Paid Amount {sortConfig?.key === 'paidAmount' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('balance')}>
-                    Balance Amount {sortConfig?.key === 'balance' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('advanceAmount')}>
+                    Advance Amount {sortConfig?.key === 'advanceAmount' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('expiryDate')}>
-                    Expiry Date {sortConfig?.key === 'expiryDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('balance')}>
+                    Balance Amount {sortConfig?.key === 'balance' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('expiryDate')}>
+                    Expiry Date {sortConfig?.key === 'expiryDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
                   <th className="px-8 py-5">Actions</th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('date')}>
-                    Payment Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('date')}>
+                    Payment Date {sortConfig?.key === 'date' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
-                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('ref')}>
-                    Reference {sortConfig?.key === 'ref' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('ref')}>
+                    Reference {sortConfig?.key === 'ref' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {detailedList.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-5"><span className="text-xs font-black text-slate-400 dark:text-slate-500">{(item as any).serialNo}</span></td>
                     <td className="px-8 py-5"><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">@{item.username}</span></td>
                     <td className="px-8 py-5">
                        <div className="flex flex-col">
