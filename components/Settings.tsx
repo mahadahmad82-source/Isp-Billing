@@ -545,6 +545,78 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
            </div>
         </div>
 
+        {/* Receipt Serial Number Settings */}
+        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-2xl flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path></svg>
+            </div>
+            <div>
+              <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Receipt Serial Number</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Apni marzi se serial number set karo — receipts yahan se start hongi</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Prefix */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Serial Prefix</label>
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="MN"
+                value={localSettings.receiptSerialPrefix || 'MN'}
+                onChange={e => setLocalSettings({ ...localSettings, receiptSerialPrefix: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 uppercase tracking-widest"
+              />
+              <p className="text-[10px] text-slate-400 mt-1.5 font-medium">Receipt pe prefix: <span className="font-black text-violet-500">{(localSettings.receiptSerialPrefix || 'MN').toUpperCase()}-0001</span></p>
+            </div>
+
+            {/* Starting Number */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Starting Serial No.</label>
+              <input
+                type="number"
+                min={1}
+                max={999999}
+                placeholder="1"
+                value={localSettings.receiptSerialStart || 1}
+                onChange={e => setLocalSettings({ ...localSettings, receiptSerialStart: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-1.5 font-medium">
+                Pehli receipt: <span className="font-black text-violet-500">
+                  {(localSettings.receiptSerialPrefix || 'MN').toUpperCase()}-{String(localSettings.receiptSerialStart || 1).padStart(Math.max(4, String(localSettings.receiptSerialStart || 1).length), '0')}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="bg-violet-50 dark:bg-violet-500/5 border border-violet-200 dark:border-violet-500/20 rounded-2xl p-5">
+            <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest mb-3">Serial Preview</p>
+            <div className="flex flex-wrap gap-2">
+              {[0, 1, 2, 3, 4].map(i => {
+                const prefix = (localSettings.receiptSerialPrefix || 'MN').toUpperCase();
+                const start = localSettings.receiptSerialStart || 1;
+                const padLen = Math.max(4, String(start).length);
+                const num = (start + i).toString().padStart(padLen, '0');
+                return (
+                  <span key={i} className="px-3 py-1.5 bg-white dark:bg-white/5 border border-violet-200 dark:border-violet-500/20 rounded-xl text-xs font-black text-violet-600 dark:text-violet-400">
+                    {prefix}-{num}
+                  </span>
+                );
+              })}
+              <span className="px-3 py-1.5 text-xs font-black text-slate-400">...</span>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
+            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">⚠️ Note</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Yeh starting number save hone ke baad <strong>naye receipts</strong> pe apply hoga. Receipt generate karte waqt aap manually bhi number change kar sakte hain.</p>
+          </div>
+        </div>
+
         {/* Receipt Design Selector */}
         <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
            <div className="flex items-center gap-3">

@@ -142,8 +142,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const nextMonthDuePreview = calculatedBalance + (monthlyFee - discount);
 
   const getNextSerial = () => {
-    const num = (receipts.length + 1).toString().padStart(4, '0');
-    return `MN-${num}`;
+    const prefix = settings.receiptSerialPrefix || 'MN';
+    const startFrom = settings.receiptSerialStart || 1;
+    // Count existing receipts and add to starting number
+    const nextNum = startFrom + receipts.length;
+    // Determine padding based on starting number digits
+    const padLength = Math.max(4, String(settings.receiptSerialStart || 1).length);
+    const num = nextNum.toString().padStart(padLength, '0');
+    return `${prefix}-${num}`;
   };
 
   const captureAndDownload = async (receipt: Receipt) => {
