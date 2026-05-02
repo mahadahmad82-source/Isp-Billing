@@ -200,28 +200,6 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
             {/* Specs Grid */}
             <div className="p-6 space-y-4">
 
-              {/* Platform */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5">
-                <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Cpu className="w-3 h-3" /> Platform & Architecture
-                </h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {[
-                    { label: 'Framework', value: 'React + TypeScript' },
-                    { label: 'Platform', value: 'Web + Mobile (PWA)' },
-                    { label: 'Hosting', value: 'Vercel Edge Network' },
-                    { label: 'Database', value: 'Supabase (PostgreSQL)' },
-                    { label: 'Auth', value: 'Supabase Auth (JWT)' },
-                    { label: 'Storage', value: 'Cloud Sync + Local' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5 last:border-0">
-                      <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{item.label}</span>
-                      <span className="text-slate-900 dark:text-white font-black text-xs">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Features */}
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5">
                 <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -244,31 +222,6 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   ].map((feature, i) => (
                     <div key={i} className="text-xs text-slate-700 dark:text-slate-300 font-medium py-1">{feature}</div>
                   ))}
-                </div>
-              </div>
-
-              {/* Performance */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5">
-                <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Server className="w-3 h-3" /> Performance & Security
-                </h3>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  {[
-                    { label: 'Uptime', value: '99.9%', color: 'text-emerald-500' },
-                    { label: 'Region', value: 'Mumbai', color: 'text-blue-500' },
-                    { label: 'Latency', value: '<50ms', color: 'text-indigo-500' },
-                  ].map((stat, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-white/5">
-                      <div className={`text-xl font-black ${stat.color}`}>{stat.value}</div>
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400">
-                  <div className="flex items-center gap-2"><Shield className="w-3 h-3 text-indigo-500" /> Row Level Security (RLS)</div>
-                  <div className="flex items-center gap-2"><Lock className="w-3 h-3 text-indigo-500" /> Encrypted Passwords</div>
-                  <div className="flex items-center gap-2"><Globe className="w-3 h-3 text-indigo-500" /> CDN Delivery (150+ cities)</div>
-                  <div className="flex items-center gap-2"><Smartphone className="w-3 h-3 text-indigo-500" /> Mobile Responsive</div>
                 </div>
               </div>
 
