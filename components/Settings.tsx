@@ -26,6 +26,59 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     isSubscribed().then(setPushEnabled);
   }, []);
 
+  // Employee accounts
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [empName, setEmpName] = useState('');
+  const [empUsername, setEmpUsername] = useState('');
+  const [empPassword, setEmpPassword] = useState('');
+  const [empLoading, setEmpLoading] = useState(false);
+  const [empMsg, setEmpMsg] = useState('');
+
+  useEffect(() => {
+    if (!activeManager) return;
+    // Load employees from Supabase
+    import('../lib/supabase').then(({ supabase }) => {
+      supabase.from('employee_accounts')
+        .select('*')
+        .eq('manager_id', activeManager)
+        .then(({ data }) => { if (data) setEmployees(data); });
+    });
+  }, [activeManager]);
+
+  const handleAddEmployee = async () => {
+    if (!empName.trim() || !empUsername.trim() || !empPassword.trim()) {
+      setEmpMsg('❌ Sab fields fill karo!'); return;
+    }
+    setEmpLoading(true);
+    setEmpMsg('');
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data, error } = await supabase.from('employee_accounts').insert({
+        manager_id: activeManager,
+        username: empUsername.toLowerCase().trim(),
+        password_hash: empPassword, // stored as plain for simplicity
+        full_name: empName.trim(),
+        is_active: true
+      }).select().single();
+      if (error) throw error;
+      setEmployees(prev => [...prev, data]);
+      setEmpMsg('✅ Employee account ban gaya!');
+      setEmpName(''); setEmpUsername(''); setEmpPassword('');
+      setTimeout(() => { setEmpMsg(''); setShowAddEmployee(false); }, 2000);
+    } catch (err: any) {
+      setEmpMsg('❌ ' + (err.message || 'Error occurred'));
+    } finally {
+      setEmpLoading(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    const { supabase } = await import('../lib/supabase');
+    await supabase.from('employee_accounts').delete().eq('id', id);
+    setEmployees(prev => prev.filter(e => e.id !== id));
+  };
+
   const handleTogglePush = async () => {
     if (!activeManager) return;
     setPushLoading(true);
@@ -807,6 +860,119 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
           )}
         </div>
+
+        {/* Employee Accounts */}
+        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              </div>
+              <div>
+                <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Accounts</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Recovery Ledger ke liye sub-accounts banao</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAddEmployee(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+            >
+              + Add
+            </button>
+          </div>
+
+          {/* Employee List */}
+          {employees.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Koi employee nahi — "Add" dabao</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {employees.map(emp => (
+                <div key={emp.id} className="flex items-center justify-between bg-slate-50 dark:bg-white/5 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 font-black text-xs">
+                      {emp.full_name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">{emp.full_name}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">@{emp.username}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                      Recovery Only
+                    </span>
+                    <button
+                      onClick={() => handleDeleteEmployee(emp.id)}
+                      className="w-7 h-7 flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="bg-blue-50 dark:bg-blue-500/5 border border-blue-200 dark:border-blue-500/20 rounded-2xl p-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+              💡 Employee sirf <strong>Recovery Ledger</strong> dekh sakta hai — koi total revenue, balance, ya customer details nahi dikhega. Login karne ke liye website pe "Employee Login" option use karo.
+            </p>
+          </div>
+        </div>
+
+        {/* Add Employee Modal */}
+        {showAddEmployee && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+            <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">New Employee Account</h3>
+              <p className="text-xs text-slate-500 mb-5">Recovery Ledger access ke liye sub-account</p>
+
+              <div className="space-y-3 mb-4">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={empName}
+                  onChange={e => setEmpName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Username (e.g. ali123)"
+                  value={empUsername}
+                  onChange={e => setEmpUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Password"
+                  value={empPassword}
+                  onChange={e => setEmpPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {empMsg && <p className="text-sm font-black mb-3 text-center">{empMsg}</p>}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowAddEmployee(false); setEmpName(''); setEmpUsername(''); setEmpPassword(''); setEmpMsg(''); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-black border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddEmployee}
+                  disabled={empLoading}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-black bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                >
+                  {empLoading ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Plan Catalog Management */}
         <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">

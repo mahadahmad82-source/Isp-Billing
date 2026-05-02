@@ -9,14 +9,20 @@ interface LoginProps {
   onBack?: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onEmployeeLogin?: (managerName: string, employeeName: string) => void;
 }
 
 // Supabase auth handles credentials now - no hardcoded passwords
 const ADMIN_USERNAME = 'admin';
 
-const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, onEmployeeLogin }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
-  const [view, setView] = useState<'recent' | 'login' | 'signup'>('login');
+  const [view, setView] = useState<'recent' | 'login' | 'signup' | 'employee'>('login');
+  const [empManager, setEmpManager] = useState('');
+  const [empUser, setEmpUser] = useState('');
+  const [empPass, setEmpPass] = useState('');
+  const [empError, setEmpError] = useState('');
+  const [empLoading, setEmpLoading] = useState(false);
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
@@ -82,6 +88,36 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       setTimeout(() => setError(''), 4000);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEmployeeLogin = async () => {
+    if (!empManager.trim() || !empUser.trim() || !empPass.trim()) {
+      setEmpError('Sab fields fill karo!'); return;
+    }
+    setEmpLoading(true);
+    setEmpError('');
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data, error } = await supabase
+        .from('employee_accounts')
+        .select('*')
+        .eq('manager_id', empManager.toLowerCase().trim())
+        .eq('username', empUser.toLowerCase().trim())
+        .eq('password_hash', empPass)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) throw new Error('Username ya password galat hai');
+
+      // Save employee session
+      const session = { managerName: empManager.toLowerCase().trim(), employeeName: data.full_name };
+      localStorage.setItem('employee_session', JSON.stringify(session));
+      if (onEmployeeLogin) onEmployeeLogin(session.managerName, session.employeeName);
+    } catch (err: any) {
+      setEmpError(err.message || 'Login failed');
+    } finally {
+      setEmpLoading(false);
     }
   };
 
@@ -377,7 +413,56 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               </div>
 
                 <div className="space-y-6">
-                {view === 'signup' && (
+                {view === 'employee' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Login</h3>
+            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
+          </div>
+
+          {empError && <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3">{empError}</p>}
+
+          <input
+            type="text"
+            placeholder="Manager Username"
+            value={empManager}
+            onChange={e => setEmpManager(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            placeholder="Your Username"
+            value={empUser}
+            onChange={e => setEmpUser(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={empPass}
+            onChange={e => setEmpPass(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleEmployeeLogin}
+            disabled={empLoading}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+          >
+            {empLoading ? 'Logging in...' : 'Login as Employee'}
+          </button>
+          <button
+            onClick={() => setView('login')}
+            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
+          >
+            ← Back to Manager Login
+          </button>
+        </div>
+      )}
+
+      {view === 'signup' && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Business Name</label>
                     <input 
@@ -402,7 +487,56 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   />
                 </div>
 
-                {view === 'signup' && (
+                {view === 'employee' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Login</h3>
+            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
+          </div>
+
+          {empError && <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3">{empError}</p>}
+
+          <input
+            type="text"
+            placeholder="Manager Username"
+            value={empManager}
+            onChange={e => setEmpManager(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            placeholder="Your Username"
+            value={empUser}
+            onChange={e => setEmpUser(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={empPass}
+            onChange={e => setEmpPass(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleEmployeeLogin}
+            disabled={empLoading}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+          >
+            {empLoading ? 'Logging in...' : 'Login as Employee'}
+          </button>
+          <button
+            onClick={() => setView('login')}
+            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
+          >
+            ← Back to Manager Login
+          </button>
+        </div>
+      )}
+
+      {view === 'signup' && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Contact Phone</label>
                     <input 
@@ -437,7 +571,56 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   </div>
                 </div>
 
-                {view === 'signup' && (
+                {view === 'employee' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Login</h3>
+            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
+          </div>
+
+          {empError && <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3">{empError}</p>}
+
+          <input
+            type="text"
+            placeholder="Manager Username"
+            value={empManager}
+            onChange={e => setEmpManager(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            placeholder="Your Username"
+            value={empUser}
+            onChange={e => setEmpUser(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={empPass}
+            onChange={e => setEmpPass(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleEmployeeLogin}
+            disabled={empLoading}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+          >
+            {empLoading ? 'Logging in...' : 'Login as Employee'}
+          </button>
+          <button
+            onClick={() => setView('login')}
+            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
+          >
+            ← Back to Manager Login
+          </button>
+        </div>
+      )}
+
+      {view === 'signup' && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1">Confirm Master Password</label>
                     <div className="relative group">

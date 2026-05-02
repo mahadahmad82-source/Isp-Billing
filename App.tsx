@@ -20,6 +20,7 @@ import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
+import EmployeePanel from './components/EmployeePanel';
 import FeatureHint from './components/FeatureHint';
 
 interface ConfirmationConfig {
@@ -69,6 +70,10 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTour, setShowTour] = useState(false);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
+  const [employeeSession, setEmployeeSession] = useState<{ managerName: string; employeeName: string } | null>(() => {
+    const saved = localStorage.getItem('employee_session');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [showLanding, setShowLanding] = useState(true);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);

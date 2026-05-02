@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAccounts, removeAccount, loadState } from '../utils/storage';
 import { ManagerAccount, AppState } from '../types';
+import { supabase } from '../lib/supabase';
 
 const AdminDashboard: React.FC = () => {
   const [managers, setManagers] = useState<ManagerAccount[]>([]);
@@ -9,6 +10,50 @@ const AdminDashboard: React.FC = () => {
   const [viewingManager, setViewingManager] = useState<{ username: string, state: AppState } | null>(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
+  const [supabaseManagers, setSupabaseManagers] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load managers from Supabase too
+    supabase.from('manager_data').select('manager_id, updated_at, data').then(({ data }) => {
+      if (data) setSupabaseManagers(data);
+    });
+  }, []);
+
+  const handleResetPassword = async () => {
+    if (!resetTarget || !newPassword.trim()) return;
+    setResetLoading(true);
+    setResetMsg('');
+    try {
+      const email = resetTarget.includes('@') ? resetTarget : `${resetTarget}@myisp.local`;
+      const { error } = await supabase.rpc('reset_manager_password', {
+        p_email: email,
+        p_password: newPassword
+      });
+      if (error) throw error;
+      setResetMsg('✅ Password reset ho gaya!');
+      setTimeout(() => { setResetTarget(null); setNewPassword(''); setResetMsg(''); }, 2000);
+    } catch (err: any) {
+      // Fallback: direct SQL update
+      const res = await fetch('https://mzmajmjzopmkzboizrbm.supabase.co/functions/v1/reset-manager-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: resetTarget, newPassword })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetMsg('✅ Password reset ho gaya!');
+        setTimeout(() => { setResetTarget(null); setNewPassword(''); setResetMsg(''); }, 2000);
+      } else {
+        setResetMsg('❌ Error: ' + (data.error || 'Failed'));
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const loadManagers = () => {
     setIsLoading(true);
@@ -136,6 +181,15 @@ const AdminDashboard: React.FC = () => {
                       <div>
                         <span className="font-bold text-slate-900 dark:text-white block leading-none">{manager.businessName}</span>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">@{manager.username}</span>
+                        {(() => {
+                          const sbData = supabaseManagers.find(s => s.manager_id === manager.username);
+                          if (sbData) {
+                            const userCount = sbData.data?.users?.length || 0;
+                            const receiptCount = sbData.data?.receipts?.length || 0;
+                            return <span className="text-[9px] text-indigo-400 font-black block mt-0.5">{userCount} customers · {receiptCount} receipts</span>;
+                          }
+                          return <span className="text-[9px] text-slate-500 font-black block mt-0.5">No cloud data</span>;
+                        })()}
                       </div>
                     </div>
                   </td>
@@ -151,6 +205,12 @@ const AdminDashboard: React.FC = () => {
                         className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
                       >
                         Inspect Node
+                      </button>
+                      <button
+                        onClick={() => { setResetTarget(manager.username); setNewPassword(''); setResetMsg(''); }}
+                        className="px-4 py-2 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
+                      >
+                        Reset Pass
                       </button>
                       <button 
                         onClick={() => setShowDeleteConfirm(manager.username)}
@@ -205,5 +265,33 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 };
+
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">Reset Password</h3>
+            <p className="text-xs text-slate-500 mb-4">Manager: <strong>@{resetTarget}</strong></p>
+            <input
+              type="text"
+              placeholder="Naya password dalein..."
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm font-medium text-slate-900 dark:text-white mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            {resetMsg && <p className="text-sm font-black mb-3 text-center">{resetMsg}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => { setResetTarget(null); setNewPassword(''); setResetMsg(''); }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-black border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white">
+                Cancel
+              </button>
+              <button onClick={handleResetPassword} disabled={resetLoading || !newPassword.trim()}
+                className="flex-1 py-2.5 rounded-xl text-sm font-black bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+                {resetLoading ? 'Resetting...' : 'Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 export default AdminDashboard;
