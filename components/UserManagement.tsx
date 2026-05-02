@@ -477,7 +477,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
           <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 mt-4">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[1000px]">
+              <table className="w-full text-left min-w-[900px]">
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 dark:text-slate-400">
                   <tr>
                     <th className="px-6 py-6 w-16">
@@ -554,7 +554,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           </td>
                           {!readOnly && (
                             <td className="px-6 py-6">
-                              <div className="flex items-center justify-center gap-3">
+                              <div className="flex items-center justify-center gap-2 flex-nowrap min-w-max">
                                 <button onClick={() => handleClearBalance(user)} className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-colors">CLEAR</button>
                                 <button className="text-lg hover:scale-125 transition-transform" title="SMS Reminder" onClick={() => handleSendReminder(user, 'sms')}>💬</button>
                                 <button className="text-xl hover:scale-125 transition-transform text-emerald-600 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" title="Direct WhatsApp Inbox" onClick={() => handleSendReminder(user, 'whatsapp')}>📱</button>
@@ -704,7 +704,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     Payment History
                   </h5>
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden shadow-sm">
-                    <table className="w-full text-left">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[420px]">
                       <thead className="bg-slate-50 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-slate-500">
                         <tr>
                           <th className="px-6 py-4">Date</th>
@@ -724,8 +725,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 <td className="px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300">
                                   {new Date(r.date).toLocaleDateString()}
                                 </td>
-                                <td className="px-6 py-4 text-[10px] font-mono text-slate-500">
-                                  {r.transactionRef}
+                                <td className="px-6 py-4 text-[10px] font-mono text-slate-500 max-w-[100px]">
+                                  <span className="block truncate" title={r.transactionRef}>{r.transactionRef}</span>
                                 </td>
                                 <td className="px-6 py-4 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400">
                                   {r.period}
@@ -751,6 +752,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               </div>
