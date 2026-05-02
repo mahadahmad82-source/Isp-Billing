@@ -262,9 +262,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
 
       {/* Reset Password Modal */}
       {resetTarget && (
@@ -293,5 +290,8 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
 
 export default AdminDashboard;
