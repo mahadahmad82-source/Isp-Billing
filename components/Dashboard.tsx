@@ -38,6 +38,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   // Real-time Recovery Stats (Current Month)
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
+  // Current month string — same format as UserManagement uses for activatedMonths
+  const currentMonthString = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   
   const monthlyRecovered = (receipts || [])
     .filter(r => {
@@ -58,14 +60,11 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const totalUsersCount = (users || []).length;
 
   // Active users — sirf current month mein naye add kiye gaye users
-  const currentMonthActiveUsers = (users || []).filter(u => {
-    const created = new Date(u.createdAt || u.joinDate || '');
-    return (
-      !isNaN(created.getTime()) &&
-      created.getMonth() === currentMonth &&
-      created.getFullYear() === currentYear
-    );
-  });
+  // New This Month = users who are in current month's activatedMonths folder
+  // This is the SAME filter UserManagement uses — consistent with monthly folders
+  const currentMonthActiveUsers = (users || []).filter(u => 
+    (u.activatedMonths || []).includes(currentMonthString)
+  );
   const activeUsersCount = currentMonthActiveUsers.length;
 
   const priorityReminders = (users || []).filter(u => getDaysUntilExpiry(u.expiryDate) === 3);
