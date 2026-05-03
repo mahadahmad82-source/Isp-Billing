@@ -28,6 +28,10 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
   // Employee accounts
   const [employees, setEmployees] = useState<any[]>([]);
+  const [resetEmpId, setResetEmpId] = useState<string | null>(null);
+  const [resetEmpPass, setResetEmpPass] = useState('');
+  const [resetEmpMsg, setResetEmpMsg] = useState('');
+  const [resetEmpLoading, setResetEmpLoading] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [empName, setEmpName] = useState('');
   const [empUsername, setEmpUsername] = useState('');
@@ -45,6 +49,26 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         .then(({ data }) => { if (data) setEmployees(data); });
     });
   }, [activeManager]);
+
+  const handleResetEmployeePassword = async () => {
+    if (!resetEmpPass.trim()) { setResetEmpMsg('❌ Password dalein!'); return; }
+    setResetEmpLoading(true);
+    setResetEmpMsg('');
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase
+        .from('employee_accounts')
+        .update({ password_hash: resetEmpPass, updated_at: new Date().toISOString() })
+        .eq('id', resetEmpId);
+      if (error) throw error;
+      setResetEmpMsg('✅ Password reset ho gaya!');
+      setTimeout(() => { setResetEmpId(null); setResetEmpPass(''); setResetEmpMsg(''); }, 2000);
+    } catch (err: any) {
+      setResetEmpMsg('❌ ' + err.message);
+    } finally {
+      setResetEmpLoading(false);
+    }
+  };
 
   const handleAddEmployee = async () => {
     if (!empName.trim() || !empUsername.trim() || !empPassword.trim()) {
@@ -904,6 +928,12 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                       Recovery Only
                     </span>
                     <button
+                      onClick={() => { setResetEmpId(emp.id); setResetEmpPass(''); setResetEmpMsg(''); }}
+                      className="px-2 py-1 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-colors text-[9px] font-black uppercase tracking-widest"
+                    >
+                      Reset
+                    </button>
+                    <button
                       onClick={() => handleDeleteEmployee(emp.id)}
                       className="w-7 h-7 flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
                     >
@@ -968,6 +998,41 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   className="flex-1 py-2.5 rounded-xl text-sm font-black bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
                   {empLoading ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reset Employee Password Modal */}
+        {resetEmpId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+            <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">Reset Employee Password</h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Employee: <strong>{employees.find(e => e.id === resetEmpId)?.full_name}</strong>
+              </p>
+              <input
+                type="text"
+                placeholder="Naya password dalein..."
+                value={resetEmpPass}
+                onChange={e => setResetEmpPass(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              {resetEmpMsg && <p className="text-sm font-black mb-3 text-center">{resetEmpMsg}</p>}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setResetEmpId(null); setResetEmpPass(''); setResetEmpMsg(''); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-black border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResetEmployeePassword}
+                  disabled={resetEmpLoading}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-black bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
+                >
+                  {resetEmpLoading ? 'Resetting...' : 'Reset'}
                 </button>
               </div>
             </div>
