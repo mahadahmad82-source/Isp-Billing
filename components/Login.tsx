@@ -92,26 +92,27 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
   };
 
   const handleEmployeeLogin = async () => {
-    if (!empManager.trim() || !empUser.trim() || !empPass.trim()) {
-      setEmpError('Sab fields fill karo!'); return;
+    if (!empUser.trim() || !empPass.trim()) {
+      setEmpError('Username aur password dalein!'); return;
     }
     setEmpLoading(true);
     setEmpError('');
     try {
       const { supabase } = await import('../lib/supabase');
+      // No manager field needed - username is globally unique
       const { data, error } = await supabase
         .from('employee_accounts')
         .select('*')
-        .eq('manager_id', empManager.toLowerCase().trim())
         .eq('username', empUser.toLowerCase().trim())
         .eq('password_hash', empPass)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) throw new Error('Username ya password galat hai');
+      if (error) throw new Error('Server error: ' + error.message);
+      if (!data) throw new Error('Username ya password galat hai');
 
-      // Save employee session
-      const session = { managerName: empManager.toLowerCase().trim(), employeeName: data.full_name };
+      // Save employee session with manager info from DB
+      const session = { managerName: data.manager_id, employeeName: data.full_name };
       localStorage.setItem('employee_session', JSON.stringify(session));
       if (onEmployeeLogin) onEmployeeLogin(session.managerName, session.employeeName);
     } catch (err: any) {
@@ -270,36 +271,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
           )}
 
           <div className="space-y-3 mb-5">
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Manager Ka Login ID</label>
-              <input
+            <input
               type="text"
-              placeholder="Jis manager ne aapka account banaya"
-              value={empManager}
-              onChange={e => setEmpManager(e.target.value)}
-              className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
-            />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Aapka Username</label>
-              <input
-              type="text"
-              placeholder="Settings mein diya hua username"
+              placeholder="Username (e.g. agent1)"
               value={empUser}
               onChange={e => setEmpUser(e.target.value)}
               className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
             />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Password</label>
-              <input
+            <input
               type="password"
               placeholder="Password"
               value={empPass}
               onChange={e => setEmpPass(e.target.value)}
               className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
             />
-            </div>
           </div>
 
           <button

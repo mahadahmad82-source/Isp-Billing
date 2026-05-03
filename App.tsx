@@ -633,6 +633,34 @@ const App: React.FC = () => {
     }, 600);
   };
 
+  // Employee session — show restricted panel
+  if (employeeSession) {
+    const empState = loadState(employeeSession.managerName);
+    const empSettings = empState?.settings || {} as any;
+    return (
+      <EmployeePanel
+        managerName={employeeSession.managerName}
+        employeeName={employeeSession.employeeName}
+        users={empState?.users || []}
+        receipts={empState?.receipts || []}
+        settings={empSettings}
+        onAddReceipt={(receipt) => {
+          const s = loadState(employeeSession.managerName);
+          if (s) {
+            const updated = { ...s, receipts: [...(s.receipts || []), receipt] };
+            saveState(updated);
+            saveStateToSupabase(employeeSession.managerName, updated);
+          }
+        }}
+        onLogout={() => {
+          localStorage.removeItem('employee_session');
+          setEmployeeSession(null);
+        }}
+        theme={theme}
+      />
+    );
+  }
+
   if (!activeManager) {
     return (
       <ErrorBoundary>
@@ -651,6 +679,11 @@ const App: React.FC = () => {
                   onBack={() => setShowLanding(true)} 
                   theme={state.theme || 'light'} 
                   onToggleTheme={handleToggleTheme}
+                  onEmployeeLogin={(mgr, emp) => {
+                    const session = { managerName: mgr, employeeName: emp };
+                    localStorage.setItem('employee_session', JSON.stringify(session));
+                    setEmployeeSession(session);
+                  }}
                 />
               )
             } />
