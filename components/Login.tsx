@@ -270,27 +270,36 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
           )}
 
           <div className="space-y-3 mb-5">
-            <input
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Manager Ka Login ID</label>
+              <input
               type="text"
-              placeholder="Manager ka Username"
+              placeholder="Jis manager ne aapka account banaya"
               value={empManager}
               onChange={e => setEmpManager(e.target.value)}
               className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
             />
-            <input
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Aapka Username</label>
+              <input
               type="text"
-              placeholder="Aapka Username"
+              placeholder="Settings mein diya hua username"
               value={empUser}
               onChange={e => setEmpUser(e.target.value)}
               className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
             />
-            <input
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Password</label>
+              <input
               type="password"
               placeholder="Password"
               value={empPass}
               onChange={e => setEmpPass(e.target.value)}
               className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
             />
+            </div>
           </div>
 
           <button
