@@ -250,6 +250,67 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
     </svg>
   );
 
+  // Employee login view - full screen separate UI
+  if (view === 'employee') {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-6 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
+        <div className={`w-full max-w-sm rounded-3xl p-8 border shadow-2xl ${theme === 'dark' ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200'}`}>
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+            </div>
+            <h3 className={`text-lg font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Employee Login</h3>
+            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
+          </div>
+
+          {empError && (
+            <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3 mb-4">{empError}</p>
+          )}
+
+          <div className="space-y-3 mb-5">
+            <input
+              type="text"
+              placeholder="Manager ka Username"
+              value={empManager}
+              onChange={e => setEmpManager(e.target.value)}
+              className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+            />
+            <input
+              type="text"
+              placeholder="Aapka Username"
+              value={empUser}
+              onChange={e => setEmpUser(e.target.value)}
+              className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={empPass}
+              onChange={e => setEmpPass(e.target.value)}
+              className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+            />
+          </div>
+
+          <button
+            onClick={handleEmployeeLogin}
+            disabled={empLoading}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 mb-3"
+          >
+            {empLoading ? 'Logging in...' : 'Login'}
+          </button>
+          <button
+            onClick={() => { setView('login'); setEmpError(''); }}
+            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
+          >
+            ← Manager Login pe Wapas
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
       
@@ -413,54 +474,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
               </div>
 
                 <div className="space-y-6">
-                {view === 'employee' && (
-        <div className="space-y-4 animate-in fade-in duration-300">
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Login</h3>
-            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
-          </div>
 
-          {empError && <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3">{empError}</p>}
-
-          <input
-            type="text"
-            placeholder="Manager Username"
-            value={empManager}
-            onChange={e => setEmpManager(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="text"
-            placeholder="Your Username"
-            value={empUser}
-            onChange={e => setEmpUser(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={empPass}
-            onChange={e => setEmpPass(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleEmployeeLogin}
-            disabled={empLoading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
-          >
-            {empLoading ? 'Logging in...' : 'Login as Employee'}
-          </button>
-          <button
-            onClick={() => setView('login')}
-            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
-          >
-            ← Back to Manager Login
-          </button>
-        </div>
-      )}
 
       {view === 'signup' && (
                   <div className="space-y-2">
@@ -487,54 +501,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
                   />
                 </div>
 
-                {view === 'employee' && (
-        <div className="space-y-4 animate-in fade-in duration-300">
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Login</h3>
-            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
-          </div>
 
-          {empError && <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3">{empError}</p>}
-
-          <input
-            type="text"
-            placeholder="Manager Username"
-            value={empManager}
-            onChange={e => setEmpManager(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="text"
-            placeholder="Your Username"
-            value={empUser}
-            onChange={e => setEmpUser(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={empPass}
-            onChange={e => setEmpPass(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleEmployeeLogin}
-            disabled={empLoading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
-          >
-            {empLoading ? 'Logging in...' : 'Login as Employee'}
-          </button>
-          <button
-            onClick={() => setView('login')}
-            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
-          >
-            ← Back to Manager Login
-          </button>
-        </div>
-      )}
 
       {view === 'signup' && (
                   <div className="space-y-2">
@@ -571,54 +538,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
                   </div>
                 </div>
 
-                {view === 'employee' && (
-        <div className="space-y-4 animate-in fade-in duration-300">
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Employee Login</h3>
-            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
-          </div>
 
-          {empError && <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3">{empError}</p>}
-
-          <input
-            type="text"
-            placeholder="Manager Username"
-            value={empManager}
-            onChange={e => setEmpManager(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="text"
-            placeholder="Your Username"
-            value={empUser}
-            onChange={e => setEmpUser(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={empPass}
-            onChange={e => setEmpPass(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleEmployeeLogin}
-            disabled={empLoading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
-          >
-            {empLoading ? 'Logging in...' : 'Login as Employee'}
-          </button>
-          <button
-            onClick={() => setView('login')}
-            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
-          >
-            ← Back to Manager Login
-          </button>
-        </div>
-      )}
 
       {view === 'signup' && (
                   <div className="space-y-2">
@@ -666,13 +586,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
                 </div>
                 
                 {view === 'login' && (
-                  <button 
-                    type="button"
-                    onClick={handleGoToSignup}
-                    className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors"
-                  >
-                    Don't have a node? Create one now
-                  </button>
+                  <div className="space-y-2">
+                    <button 
+                      type="button"
+                      onClick={handleGoToSignup}
+                      className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors"
+                    >
+                      Don't have a node? Create one now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setView('employee'); setEmpError(''); }}
+                      className="w-full text-center text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors py-1 border border-blue-500/20 rounded-xl"
+                    >
+                      👤 Employee Login
+                    </button>
+                  </div>
                 )}
               </div>
             </form>
