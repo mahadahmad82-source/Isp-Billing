@@ -9,20 +9,14 @@ interface LoginProps {
   onBack?: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  onEmployeeLogin?: (managerName: string, employeeName: string) => void;
 }
 
 // Supabase auth handles credentials now - no hardcoded passwords
 const ADMIN_USERNAME = 'admin';
 
-const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, onEmployeeLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
-  const [view, setView] = useState<'recent' | 'login' | 'signup' | 'employee'>('login');
-  const [empManager, setEmpManager] = useState('');
-  const [empUser, setEmpUser] = useState('');
-  const [empPass, setEmpPass] = useState('');
-  const [empError, setEmpError] = useState('');
-  const [empLoading, setEmpLoading] = useState(false);
+  const [view, setView] = useState<'recent' | 'login' | 'signup'>('login');
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
@@ -88,37 +82,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
       setTimeout(() => setError(''), 4000);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleEmployeeLogin = async () => {
-    if (!empUser.trim() || !empPass.trim()) {
-      setEmpError('Username aur password dalein!'); return;
-    }
-    setEmpLoading(true);
-    setEmpError('');
-    try {
-      const { supabase } = await import('../lib/supabase');
-      // No manager field needed - username is globally unique
-      const { data, error } = await supabase
-        .from('employee_accounts')
-        .select('*')
-        .eq('username', empUser.toLowerCase().trim())
-        .eq('password_hash', empPass)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (error) throw new Error('Server error: ' + error.message);
-      if (!data) throw new Error('Username ya password galat hai');
-
-      // Save employee session with manager info from DB
-      const session = { managerName: data.manager_id, employeeName: data.full_name };
-      localStorage.setItem('employee_session', JSON.stringify(session));
-      if (onEmployeeLogin) onEmployeeLogin(session.managerName, session.employeeName);
-    } catch (err: any) {
-      setEmpError(err.message || 'Login failed');
-    } finally {
-      setEmpLoading(false);
     }
   };
 
@@ -250,60 +213,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
     </svg>
   );
-
-  // Employee login view - full screen separate UI
-  if (view === 'employee') {
-    return (
-      <div className={`min-h-screen flex items-center justify-center p-6 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
-        <div className={`w-full max-w-sm rounded-3xl p-8 border shadow-2xl ${theme === 'dark' ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200'}`}>
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-              </svg>
-            </div>
-            <h3 className={`text-lg font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Employee Login</h3>
-            <p className="text-xs text-slate-500 mt-1">Recovery Ledger Access Only</p>
-          </div>
-
-          {empError && (
-            <p className="text-xs text-rose-500 font-black text-center bg-rose-50 dark:bg-rose-500/10 rounded-xl py-2 px-3 mb-4">{empError}</p>
-          )}
-
-          <div className="space-y-3 mb-5">
-            <input
-              type="text"
-              placeholder="Username (e.g. agent1)"
-              value={empUser}
-              onChange={e => setEmpUser(e.target.value)}
-              className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={empPass}
-              onChange={e => setEmpPass(e.target.value)}
-              className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
-            />
-          </div>
-
-          <button
-            onClick={handleEmployeeLogin}
-            disabled={empLoading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 mb-3"
-          >
-            {empLoading ? 'Logging in...' : 'Login'}
-          </button>
-          <button
-            onClick={() => { setView('login'); setEmpError(''); }}
-            className="w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors py-1"
-          >
-            ← Manager Login pe Wapas
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
@@ -588,13 +497,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme, on
                     >
                       Don't have a node? Create one now
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => { setView('employee'); setEmpError(''); }}
-                      className="w-full text-center text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors py-1 border border-blue-500/20 rounded-xl"
-                    >
-                      👤 Employee Login
-                    </button>
+
                   </div>
                 )}
               </div>

@@ -20,8 +20,6 @@ import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
-import EmployeePanel from './components/EmployeePanel';
-import EmployeeSessionLoader from './components/EmployeeSessionLoader';
 import FeatureHint from './components/FeatureHint';
 
 interface ConfirmationConfig {
@@ -71,10 +69,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTour, setShowTour] = useState(false);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
-  const [employeeSession, setEmployeeSession] = useState<{ managerName: string; employeeName: string } | null>(() => {
-    const saved = localStorage.getItem('employee_session');
-    return saved ? JSON.parse(saved) : null;
-  });
+
   const [showLanding, setShowLanding] = useState(true);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
@@ -634,19 +629,6 @@ const App: React.FC = () => {
     }, 600);
   };
 
-  // Employee session — show restricted panel
-  if (employeeSession) {
-    return (
-      <EmployeeSessionLoader
-        session={employeeSession}
-        theme={theme}
-        onLogout={() => {
-          localStorage.removeItem('employee_session');
-          setEmployeeSession(null);
-        }}
-      />
-    );
-  }
 
   if (!activeManager) {
     return (
@@ -666,11 +648,7 @@ const App: React.FC = () => {
                   onBack={() => setShowLanding(true)} 
                   theme={state.theme || 'light'} 
                   onToggleTheme={handleToggleTheme}
-                  onEmployeeLogin={(mgr, emp) => {
-                    const session = { managerName: mgr, employeeName: emp };
-                    localStorage.setItem('employee_session', JSON.stringify(session));
-                    setEmployeeSession(session);
-                  }}
+
                 />
               )
             } />
