@@ -21,6 +21,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
 import EmployeePanel from './components/EmployeePanel';
+import EmployeeSessionLoader from './components/EmployeeSessionLoader';
 import FeatureHint from './components/FeatureHint';
 
 interface ConfirmationConfig {
@@ -635,28 +636,14 @@ const App: React.FC = () => {
 
   // Employee session — show restricted panel
   if (employeeSession) {
-    const empState = loadState(employeeSession.managerName);
-    const empSettings = empState?.settings || {} as any;
     return (
-      <EmployeePanel
-        managerName={employeeSession.managerName}
-        employeeName={employeeSession.employeeName}
-        users={empState?.users || []}
-        receipts={empState?.receipts || []}
-        settings={empSettings}
-        onAddReceipt={(receipt) => {
-          const s = loadState(employeeSession.managerName);
-          if (s) {
-            const updated = { ...s, receipts: [...(s.receipts || []), receipt] };
-            saveState(updated);
-            saveStateToSupabase(employeeSession.managerName, updated);
-          }
-        }}
+      <EmployeeSessionLoader
+        session={employeeSession}
+        theme={theme}
         onLogout={() => {
           localStorage.removeItem('employee_session');
           setEmployeeSession(null);
         }}
-        theme={theme}
       />
     );
   }
