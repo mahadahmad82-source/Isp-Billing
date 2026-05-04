@@ -1,4 +1,5 @@
 
+import QuickActivate from './QuickActivate';
 import React, { useState, useRef, useMemo } from 'react';
 import { UserRecord, AppSettings, Receipt, PaymentStatus, Archive } from '../types';
 import { generateId } from '../utils/storage';
@@ -43,6 +44,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
   // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
   const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
+  const [showQuickActivate, setShowQuickActivate] = useState(false);
   const [showAllUsers, setShowAllUsers] = useState(initialFilter === 'all');
   const [showForm, setShowForm] = useState(false);
   const [showImportHistory, setShowImportHistory] = useState(false);
@@ -332,6 +334,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
+  const handleQuickActivate = (userIds: string[]) => {
+    userIds.forEach(id => {
+      const user = users.find(u => u.id === id);
+      if (!user) return;
+      const months = new Set(user.activatedMonths || []);
+      months.add(currentMonth);
+      onUpdateUser({
+        ...user,
+        activatedMonths: Array.from(months),
+        status: 'active',
+      });
+    });
+  };
+
   const filteredUsers = useMemo(() => {
     // If showAllUsers: show all users (for Total Users card)
     // Otherwise: filter by selected month (activatedMonths)
@@ -469,6 +485,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             {!readOnly && isCurrentMonth && (
               <>
                 <button onClick={() => { resetForm(); setShowForm(true); }} className="bg-[#5a4ff0] text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 hover:bg-[#4a3fdf] transition-colors active:scale-95 duration-200">➕ NEW CUSTOMER</button>
+                <button onClick={() => setShowQuickActivate(true)} className="bg-violet-600 hover:bg-violet-700 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 transition-colors active:scale-95 duration-200">⚡ QUICK ACTIVATE</button>
                 <button onClick={() => setShowImportHistory(true)} className="bg-white dark:bg-[#0f172a] text-indigo-600 dark:text-indigo-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors flex items-center justify-center gap-2 active:scale-95 duration-200">📥 IMPORT FROM HISTORY</button>
                 <button onClick={() => onBulkDeleteUsers(selectedIds)} disabled={selectedIds.length === 0} className="bg-slate-100 dark:bg-[#0f172a] text-slate-900 dark:text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg disabled:opacity-30 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#1e293b] active:scale-95 duration-200">DELETE ALL</button>
               </>
@@ -840,5 +857,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
     </div>
   );
 };
+
+      {showQuickActivate && (
+        <QuickActivate
+          users={users}
+          onActivateUsers={handleQuickActivate}
+          onClose={() => setShowQuickActivate(false)}
+          theme={settings.theme || 'light'}
+          currentMonth={currentMonth}
+        />
+      )}
 
 export default UserManagement;
