@@ -144,8 +144,6 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const overdueUsers = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // Current month string - same format as activatedMonths
-    const currentMonthStr = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
 
     return (users || []).filter(u => {
       // Must be expired
@@ -153,19 +151,44 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       const isExpired = !isNaN(expiry.getTime()) && expiry < today;
       if (!isExpired && u.status !== 'expired') return false;
 
-      // Check if user has paid in current month
-      const paidThisMonth = (receipts || []).some(r =>
+      // Get user's last active month (most recent in activatedMonths array)
+      const activatedMonths: string[] = u.activatedMonths || [];
+      if (activatedMonths.length === 0) return false;
+
+      // Sort months to get the latest one
+      const sortedMonths = [...activatedMonths].sort((a, b) => {
+        return new Date(a).getTime() - new Date(b).getTime();
+      });
+      const lastActiveMonth = sortedMonths[sortedMonths.length - 1];
+
+      // Check if user paid in their LAST ACTIVE month
+      const paidInLastMonth = (receipts || []).some(r =>
         r.userId === u.id &&
-        (r.activatedMonth === currentMonthStr || r.period === currentMonthStr) &&
+        (r.activatedMonth === lastActiveMonth || r.period === lastActiveMonth) &&
         r.status === 'SUCCESS'
       );
 
-      // Only overdue if NOT paid this month AND has balance
-      return !paidThisMonth && (u.balance || 0) > 0;
+      // Overdue = expired + NOT paid in last active month + has balance
+      return !paidInLastMonth && (u.balance || 0) > 0;
     });
   }, [users, receipts]);
 
-  const totalOverdueBalance = overdueUsers.reduce((sum, u) => sum + (u.balance || 0), 0);
+  // Calculate overdue balance from last active month receipts
+  const totalOverdueBalance = overdueUsers.reduce((sum, u) => {
+    // Get last active month balance from receipts
+    const activatedMonths: string[] = u.activatedMonths || [];
+    const sortedMonths = [...activatedMonths].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    const lastActiveMonth = sortedMonths[sortedMonths.length - 1];
+    const monthReceipts = (receipts || []).filter(r =>
+      r.userId === u.id &&
+      (r.activatedMonth === lastActiveMonth || r.period === lastActiveMonth) &&
+      r.status === 'SUCCESS'
+    );
+    const paid = monthReceipts.reduce((s, r) => s + (r.paidAmount || 0), 0);
+    const fee = u.monthlyFee || 0;
+    const outstanding = Math.max(0, fee - paid);
+    return sum + (outstanding || u.balance || 0);
+  }, 0);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 transition-colors">
