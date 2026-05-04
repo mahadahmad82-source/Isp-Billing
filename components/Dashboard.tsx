@@ -144,12 +144,26 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const overdueUsers = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    // Current month string - same format as activatedMonths
+    const currentMonthStr = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+
     return (users || []).filter(u => {
+      // Must be expired
       const expiry = new Date(u.expiryDate);
       const isExpired = !isNaN(expiry.getTime()) && expiry < today;
-      return (u.balance || 0) > 0 && (isExpired || u.status === 'expired');
+      if (!isExpired && u.status !== 'expired') return false;
+
+      // Check if user has paid in current month
+      const paidThisMonth = (receipts || []).some(r =>
+        r.userId === u.id &&
+        (r.activatedMonth === currentMonthStr || r.period === currentMonthStr) &&
+        r.status === 'SUCCESS'
+      );
+
+      // Only overdue if NOT paid this month AND has balance
+      return !paidThisMonth && (u.balance || 0) > 0;
     });
-  }, [users]);
+  }, [users, receipts]);
 
   const totalOverdueBalance = overdueUsers.reduce((sum, u) => sum + (u.balance || 0), 0);
 
