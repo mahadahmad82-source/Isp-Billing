@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { UserRecord } from '../types';
 
 interface QuickActivateProps {
@@ -13,11 +14,63 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
   users, onActivateUsers, onClose, theme, currentMonth
 }) => {
   const isDark = theme === 'dark';
-  const [tab, setTab] = useState<'paste' | 'select'>('paste');
+  const [tab, setTab] = useState<'paste' | 'select' | 'excel'>('paste');
   const [pastedUsernames, setPastedUsernames] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [result, setResult] = useState<{ found: string[]; notFound: string[] } | null>(null);
+  const [excelLoading, setExcelLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExcelLoading(true);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Extract all cell values, flatten, clean
+        const allValues = rows
+          .flat()
+          .map((v: any) => String(v || '').trim().toLowerCase())
+          .filter(v => v && v !== 'username' && v !== 'user' && v !== 'id' && v !== 'name');
+
+        // Match against users
+        const found: string[] = [];
+        const notFound: string[] = [];
+        const toActivate: string[] = [];
+
+        allValues.forEach(val => {
+          const user = users.find(u =>
+            u.username.toLowerCase() === val ||
+            u.name.toLowerCase() === val
+          );
+          if (user) {
+            found.push(user.username);
+            if (!alreadyActiveIds.has(user.id)) toActivate.push(user.id);
+          } else {
+            notFound.push(val);
+          }
+        });
+
+        setResult({ found, notFound });
+        if (toActivate.length > 0) onActivateUsers(toActivate);
+      } catch (err) {
+        alert('File read nahi hoi — Excel format check karein');
+      } finally {
+        setExcelLoading(false);
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
 
   // Already active this month
   const alreadyActiveIds = useMemo(() =>
@@ -120,6 +173,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
           {[
             { id: 'paste', label: '📋 Username Paste Karo' },
             { id: 'select', label: '☑️ List se Select Karo' },
+          { id: 'excel', label: '📊 Excel Upload' },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id as any)}
               className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
@@ -189,6 +243,75 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
               >
                 ⚡ Activate Karo
               </button>
+            </div>
+          )}
+
+          {/* EXCEL TAB */}
+          {!result && tab === 'excel' && (
+            <div className="space-y-4">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleExcelUpload}
+                className="hidden"
+              />
+
+              {/* Upload Area */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all
+                  ${isDark ? 'border-white/20 hover:border-indigo-500 hover:bg-indigo-500/5' : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50'}`}
+              >
+                {excelLoading ? (
+                  <div className="space-y-2">
+                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className={`text-xs font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Processing...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-4xl">📊</div>
+                    <div>
+                      <p className={`text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Excel / CSV File Upload Karo</p>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Click karein ya file drag karein</p>
+                    </div>
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>.xlsx · .xls · .csv</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Format Guide */}
+              <div className={`rounded-2xl p-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}>
+                <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>📋 Excel Format</p>
+                <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <table className="w-full text-xs">
+                    <thead className={`${isDark ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600'} font-black`}>
+                      <tr>
+                        <th className="px-3 py-2 text-left">A (Username)</th>
+                        <th className="px-3 py-2 text-left">B (Optional)</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <tr className={`border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                        <td className="px-3 py-1.5 font-mono">FC001</td>
+                        <td className="px-3 py-1.5 text-slate-400">Ali Hassan</td>
+                      </tr>
+                      <tr className={`border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                        <td className="px-3 py-1.5 font-mono">FC002</td>
+                        <td className="px-3 py-1.5 text-slate-400">Sara Khan</td>
+                      </tr>
+                      <tr className={`border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                        <td className="px-3 py-1.5 font-mono">FC003</td>
+                        <td className="px-3 py-1.5 text-slate-400">Ahmed Ali</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className={`text-[10px] mt-2 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                  💡 Sirf usernames hone chahiye — koi extra info zaroori nahi. System automatically match karega!
+                </p>
+              </div>
             </div>
           )}
 
