@@ -854,10 +854,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
       {showQuickActivate && (
         <QuickActivate
           users={users}
@@ -867,5 +863,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
           currentMonth={currentMonth}
         />
       )}
+    </div>
+  );
+};
 
 export default UserManagement;
