@@ -32,8 +32,35 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     return Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
   };
 
-  const totalRevenue = (receipts || []).reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-  const totalBalance = (users || []).reduce((sum, u) => sum + (u.balance || 0), 0);
+  const totalRevenue = (receipts || [])
+    .filter(r => r.status === PaymentStatus.SUCCESS)
+    .reduce((sum, r) => sum + (r.paidAmount || r.totalAmount || 0), 0);
+
+  // Outstanding Balance = sum of all users' actual outstanding
+  // Per user: their monthlyFee minus what they paid in their last active month
+  const totalBalance = (users || []).reduce((sum, u) => {
+    const activatedMonths: string[] = u.activatedMonths || [];
+    if (activatedMonths.length === 0) return sum;
+
+    // Get last active month
+    const sortedMonths = [...activatedMonths].sort((a, b) =>
+      new Date(a).getTime() - new Date(b).getTime()
+    );
+    const lastMonth = sortedMonths[sortedMonths.length - 1];
+
+    // What they paid in last active month
+    const monthPaid = (receipts || [])
+      .filter(r =>
+        r.userId === u.id &&
+        (r.activatedMonth === lastMonth || r.period === lastMonth) &&
+        r.status === PaymentStatus.SUCCESS
+      )
+      .reduce((s, r) => s + (r.paidAmount || r.totalAmount || 0), 0);
+
+    const fee = u.monthlyFee || settings.planPrices?.[u.plan] || 0;
+    const outstanding = Math.max(0, fee - monthPaid);
+    return sum + outstanding;
+  }, 0);
   
   // Real-time Recovery Stats (Current Month)
   const currentMonth = new Date().getMonth();
