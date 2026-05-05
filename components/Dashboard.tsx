@@ -32,9 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     return Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
   };
 
-  const totalRevenue = (receipts || [])
-    .filter(r => r.status === PaymentStatus.SUCCESS)
-    .reduce((sum, r) => sum + (r.paidAmount || r.totalAmount || 0), 0);
+  const totalRevenue = calcTotalRevenue(receipts || []);
 
   // Outstanding Balance = sum of all users' actual outstanding
   // Per user: their monthlyFee minus what they paid in their last active month
@@ -68,12 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   // Current month string — same format as UserManagement uses for activatedMonths
   const currentMonthString = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   
-  const monthlyRecovered = (receipts || [])
-    .filter(r => {
-      const d = new Date(r.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear && r.status === PaymentStatus.SUCCESS;
-    })
-    .reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+  const monthlyRecovered = calcMonthlyRevenue(receipts || [], currentMonthString);
 
   const monthlyTarget = (users || [])
     .filter(u => u.status === 'active')
