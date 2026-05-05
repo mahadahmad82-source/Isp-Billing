@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserRecord, Receipt, PaymentStatus, AppSettings } from '../types';
+import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
 import { shareToWhatsApp } from '../utils/whatsapp';
 
 interface DashboardProps {
