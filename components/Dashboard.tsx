@@ -96,25 +96,25 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     },
     { 
       id: 'TOTAL_USERS',
-      label: 'Total Users', 
+      label: 'Master Directory', 
       value: totalUsersCount.toString(), 
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>, 
       color: 'text-violet-500 bg-violet-500/10', 
       isMasked: false,
       onToggle: () => onSetUserFilter ? onSetUserFilter('all') : setActiveTab('users'),
       onViewDetails: () => onSetUserFilter ? onSetUserFilter('all') : setActiveTab('users'),
-      footerLabel: 'All Time Users'
+      footerLabel: 'Sab Registered Users'
     },
     { 
       id: 'CUSTOMERS',
-      label: 'New This Month', 
+      label: 'Active Customers', 
       value: activeUsersCount.toString(), 
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, 
       color: 'text-blue-500 bg-blue-500/10', 
       isMasked: false,
       onToggle: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
       onViewDetails: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
-      footerLabel: 'Current Month'
+      footerLabel: 'Current Month Active'
     },
     { 
       id: 'ALERTS',

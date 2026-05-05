@@ -129,14 +129,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (editingUser) {
       // Ensure current month is preserved in activatedMonths
       const currentActivated = new Set(editingUser.activatedMonths || []);
-      currentActivated.add(currentMonth);
+      // Don't auto-add current month on edit - only Quick Activate should do this
 
       onUpdateUser({ 
         ...editingUser, 
         ...formData, 
         monthlyFee: currentPrice, 
         expiryDate: finalExpiryDate,
-        activatedMonths: Array.from(currentActivated)
+        activatedMonths: Array.from(currentActivated) // Preserved as-is
       } as UserRecord);
     } else {
       const user: UserRecord = {
@@ -281,7 +281,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             createdAt: new Date().toISOString(),
             lastPaymentDate: new Date().toISOString(),
             status: 'active',
-            activatedMonths: [currentMonth]
+            activatedMonths: [] // Master Directory - no month assigned yet
           };
         }) as UserRecord[];
         
@@ -346,6 +346,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
         status: 'active',
       });
     });
+    // Switch to active customers view after activation
+    setShowAllUsers(false);
+    setSelectedMonth(currentMonth);
+    setShowMonthlyFolders(false);
+    setShowQuickActivate(false);
   };
 
   const filteredUsers = useMemo(() => {
@@ -428,13 +433,22 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="space-y-1 flex justify-between items-start">
             <div>
               <h3 className="text-3xl font-black text-black dark:text-white uppercase leading-none">
-                {selectedMonth === currentMonth ? 'Active Customers' : `Archive: ${selectedMonth}`}
+                {showAllUsers ? 'Master Directory' : selectedMonth === currentMonth ? 'Active Customers' : `Archive: ${selectedMonth}`}
               </h3>
               <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.2em]">
-                {selectedMonth === currentMonth ? 'Manage Current Month Subscribers' : 'Read-Only Historical Data'}
+                {showAllUsers ? `${users.length} Total Registered Users — Profiles Only` : selectedMonth === currentMonth ? 'Current Month Active Subscribers' : 'Read-Only Historical Data'}
               </p>
             </div>
-            {!showMonthlyFolders && (
+            {/* Master Directory mode mein Quick Activate button show karo */}
+            {showAllUsers && (
+              <button
+                onClick={() => setShowQuickActivate(true)}
+                className="flex px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest items-center gap-2 transition-all active:scale-95"
+              >
+                ⚡ Activate
+              </button>
+            )}
+            {!showAllUsers && !showMonthlyFolders && (
               <button 
                 onClick={() => setShowMonthlyFolders(true)}
                 className="hidden md:flex px-4 py-2 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-xl shadow-sm text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 transition-all items-center gap-2"
@@ -811,7 +825,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   newUsersToAdd.push({
                     ...sourceUser,
                     id: generateId(),
-                    activatedMonths: [currentMonth],
+                    activatedMonths: [], // Master Directory - no month assigned yet
                     createdAt: new Date().toISOString()
                   });
                 }
