@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserRecord, Receipt, AppSettings } from '../types';
+import { UserRecord, Receipt, AppSettings, PaymentStatus } from '../types';
 import { getReceiptAmount, calcTotalRevenue } from '../utils/revenueCalc';
 import { analyzeTrends } from '../services/geminiService';
 
@@ -49,7 +49,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
       });
 
       const collected = filtered
-        .filter(r => r.status === 'SUCCESS')
+        .filter(r => r.status === PaymentStatus.SUCCESS)
         .reduce((sum, r) => sum + getReceiptAmount(r), 0);
       const count = filtered.length;
 
@@ -211,7 +211,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
           <div className="space-y-3">
             <div className="flex justify-between items-center p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Avg Payment / Unit</span>
-              <span className="text-sm font-black text-slate-900 dark:text-white">Rs. {Math.round((receipts || []).length > 0 ? calcTotalRevenue(receipts || []) / receipts.filter(r => r.status === 'SUCCESS').length : 0).toLocaleString()}</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">Rs. {Math.round((receipts || []).length > 0 ? calcTotalRevenue(receipts || []) / receipts.filter(r => r.status === PaymentStatus.SUCCESS).length : 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Retention Target</span>
