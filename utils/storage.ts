@@ -107,3 +107,46 @@ export const loadState = (username: string | null): AppState => {
 };
 
 export const generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();
+
+// ─── Activity Logging ──────────────────────────────────────────────────────
+const LOGS_KEY = 'mahadnet_admin_logs';
+const MAX_LOGS = 500;
+
+export interface ActivityLog {
+  id: string;
+  timestamp: string;
+  username: string;
+  action: 'LOGIN' | 'LOGOUT' | 'SIGNUP' | 'DATA_SAVE' | 'CUSTOMER_ADD' | 'CUSTOMER_DELETE' | 'RECEIPT_CREATE' | 'SETTINGS_UPDATE' | 'BACKUP_RESTORE';
+  detail?: string;
+  userAgent?: string;
+  sessionId?: string;
+}
+
+export const writeLog = (entry: Omit<ActivityLog, 'id' | 'timestamp'>) => {
+  try {
+    const logs: ActivityLog[] = getLogs();
+    const newEntry: ActivityLog = {
+      id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      sessionId: sessionStorage.getItem('mahadnet_session_id') || undefined,
+      ...entry,
+    };
+    logs.unshift(newEntry);
+    if (logs.length > MAX_LOGS) logs.splice(MAX_LOGS);
+    localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+  } catch {}
+};
+
+export const getLogs = (): ActivityLog[] => {
+  try {
+    const raw = localStorage.getItem(LOGS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const clearLogs = () => {
+  localStorage.removeItem(LOGS_KEY);
+};

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
-import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount } from '../utils/storage';
+import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 
 interface LoginProps {
@@ -60,6 +60,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       if (data.user) {
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
         setActiveSession(loginUser);
+        writeLog({ username: loginUser, action: 'LOGIN', detail: `Login from ${navigator.userAgent.substring(0, 80)}` });
         if (rememberPassword) {
           saveAccount({
             username: loginUser,
@@ -134,6 +135,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
       saveAccount(newAccount);
       setAccounts(getAccounts());
+      writeLog({ username: username, action: 'SIGNUP', detail: `New account: ${businessName}` });
       onLogin(username);
       
     } catch (err: any) {
