@@ -70,7 +70,6 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
   const [isDark, setIsDark] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   useEffect(() => {
@@ -104,7 +103,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
     <div className="pt-20">
 
       {/* ─── HERO ─── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center"
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden"
         style={{ background: isDark ? '#020617' : '#f8faff' }}>
 
         <ThreeBackground isDark={isDark} />
@@ -122,7 +121,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
         }} />
 
         <motion.div className="relative z-10 text-center px-6 max-w-6xl mx-auto"
-          style={{ y: heroY, opacity: heroOpacity }}
+          style={{ opacity: heroOpacity }}
           initial="hidden" animate="visible" variants={containerVariants}>
 
           {/* Badge */}
