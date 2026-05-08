@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { ArrowRight, Zap, Smartphone, BarChart, Users, Lock, ChevronDown, Globe, Cpu, Server } from 'lucide-react';
 import ThreeBackground from './ThreeBackground';
 
@@ -68,9 +68,7 @@ const FeatureCard3D: React.FC<{ feat: any; isDark: boolean }> = ({ feat, isDark 
 const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
   const [showSpecs, setShowSpecs] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  
 
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -103,7 +101,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
     <div className="pt-20">
 
       {/* ─── HERO ─── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden"
         style={{ background: isDark ? '#020617' : '#f8faff' }}>
 
         <ThreeBackground isDark={isDark} />
@@ -121,11 +119,10 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
         }} />
 
         <motion.div className="relative z-10 text-center px-6 max-w-6xl mx-auto"
-          style={{ opacity: heroOpacity }}
           initial="hidden" animate="visible" variants={containerVariants}>
 
           {/* Badge */}
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 mb-8">
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 mb-4">
             <div className="px-4 py-1.5 rounded-full border backdrop-blur-sm"
               style={{ background: 'rgba(99,102,241,0.1)', borderColor: 'rgba(99,102,241,0.3)' }}>
               <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-indigo-400">
@@ -136,9 +133,9 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
           </motion.div>
 
           {/* Headline */}
-          <motion.h1 variants={itemVariants} className="font-black tracking-tighter leading-none mb-8 select-none"
+          <motion.h1 variants={itemVariants} className="font-black tracking-tighter leading-none mb-4 select-none"
             style={{
-              fontSize: 'clamp(3rem, 12vw, 9rem)',
+              fontSize: 'clamp(2.5rem, 7vw, 6rem)',
               color: isDark ? '#f1f5f9' : '#0f172a',
               textShadow: isDark ? '0 0 80px rgba(99,102,241,0.3)' : '0 2px 20px rgba(99,102,241,0.1)',
             }}>
@@ -157,7 +154,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
 
           {/* Subtitle */}
           <motion.p variants={itemVariants}
-            className="max-w-2xl mx-auto text-lg md:text-xl font-medium leading-relaxed mb-12"
+            className="max-w-2xl mx-auto text-base md:text-lg font-medium leading-relaxed mb-8"
             style={{ color: isDark ? '#94a3b8' : '#475569' }}>
             MYISP is the ultimate management suite for local ISPs. Automated billing,
             real-time recovery tracking, and professional receipts in one secure node.
@@ -189,7 +186,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
           </motion.div>
 
           {/* Scroll hint */}
-          <motion.div variants={itemVariants} className="mt-16 flex flex-col items-center gap-2 opacity-40">
+          <motion.div variants={itemVariants} className="mt-8 flex flex-col items-center gap-2 opacity-40">
             <span className="text-[9px] uppercase tracking-[0.3em]" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>Scroll to explore</span>
             <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
               <ChevronDown className="w-4 h-4" style={{ color: isDark ? '#64748b' : '#94a3b8' }} />
