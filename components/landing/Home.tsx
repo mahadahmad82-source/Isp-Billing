@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Zap, Smartphone, BarChart, Users, Lock, ChevronDown, Globe, Cpu, Server } from 'lucide-react';
 import ThreeBackground from './ThreeBackground';
