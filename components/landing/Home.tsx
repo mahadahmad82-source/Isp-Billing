@@ -101,10 +101,10 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
 
   return (
     <>
-    <div className="pt-20 overflow-hidden">
+    <div className="pt-20">
 
       {/* ─── HERO ─── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center"
         style={{ background: isDark ? '#020617' : '#f8faff' }}>
 
         <ThreeBackground isDark={isDark} />
