@@ -422,9 +422,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="flex items-center gap-4 mb-4">
                    <div className="h-[60px] w-auto bg-white border-2 border-slate-900 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg p-2">
                      {settings.businessLogo ? (
-                       <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                       <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                      ) : (
-                       <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                       <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                      )}
                    </div>
                    <div>
@@ -593,9 +593,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         return (
           <div className="flex flex-col items-center text-center p-1 text-black leading-tight bg-white">
             {settings.businessLogo ? (
-              <img src={settings.businessLogo} alt="Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+              <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
             ) : (
-              <img src="/logo-v3.png" alt="Logo" className="h-[50px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+              <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
             )}
             <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>
             <p className="text-[10px] font-bold">{activeReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP SUBSCRIPTION RECEIPT'}</p>
@@ -636,9 +636,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex items-center gap-3">
                 <div className="h-[60px] w-auto bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   {settings.businessLogo ? (
-                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                    <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   ) : (
-                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                    <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   )}
                 </div>
                 <div>
@@ -698,9 +698,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           <div className="bg-white p-5 border-2 border-slate-100 text-slate-900 max-w-[300px] mx-auto rounded-none">
             <div className="flex justify-center mb-4">
               {settings.businessLogo ? (
-                <img src={settings.businessLogo} alt="Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" />
+                <img src={settings.businessLogo} alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
               ) : (
-                <img src="/logo-v3.png" alt="Logo" className="h-[40px] w-auto object-contain" referrerPolicy="no-referrer" />
+                <img src="/logo-v3.png" alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
               )}
             </div>
             <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-4">
@@ -736,9 +736,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex items-center gap-4">
                 <div className="h-[60px] w-auto bg-white border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   {settings.businessLogo ? (
-                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                    <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   ) : (
-                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                    <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   )}
                 </div>
                 <div>

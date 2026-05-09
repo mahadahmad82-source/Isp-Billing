@@ -406,11 +406,20 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
           <div>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white leading-none mb-2">{localSettings.businessName}</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Manager Profile Settings</p>
               {localSettings.businessLogo && (
                 <button onClick={removeLogo} className="text-[8px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 ml-2">Remove Logo</button>
               )}
+            </div>
+            <div className="mt-2 flex items-start gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl px-3 py-2 max-w-xs">
+              <svg className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div>
+                <p className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest leading-tight">Best Logo Size for Receipts</p>
+                <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-tight mt-0.5">Square image recommended</p>
+                <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-tight">200×200 px to 500×500 px</p>
+                <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-tight">PNG / JPG · Max 2MB</p>
+              </div>
             </div>
           </div>
         </div>
