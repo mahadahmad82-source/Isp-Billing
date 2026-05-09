@@ -57,33 +57,61 @@ const Layout: React.FC<LayoutProps> = ({
     tabs.push({ id: 'admin', label: 'Admin', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> });
   }
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
     <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* Sidebar - Desktop */}
-      <aside className={`hidden md:flex flex-col w-64 p-6 shadow-xl transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-900 border-r border-slate-800 text-white' : 'bg-indigo-900 text-white'}`}>
-        <div className="mb-10">
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden">
+      <aside className={`hidden md:flex flex-col shadow-xl transition-all duration-300 ${sidebarCollapsed ? 'w-16 p-2' : 'w-64 p-6'} ${theme === 'dark' ? 'bg-slate-900 border-r border-slate-800 text-white' : 'bg-indigo-900 text-white'}`}>
+        {/* Toggle Button */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className={`self-end mb-4 p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400 hover:text-white' : 'hover:bg-indigo-800 text-indigo-200 hover:text-white'}`}
+          title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {sidebarCollapsed
+              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+            }
+          </svg>
+        </button>
+
+        {/* Logo + Name */}
+        {!sidebarCollapsed && (
+          <div className="mb-10">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              </div>
+              <span className="text-white truncate">{businessName}</span>
+            </h1>
+            <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-black ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>ISP MANAGER v2.5</p>
+          </div>
+        )}
+        {sidebarCollapsed && (
+          <div className="mb-6 flex justify-center">
+            <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
               <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
-            <span className="text-white truncate">{businessName}</span>
-          </h1>
-          <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-black ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>ISP MANAGER v2.5</p>
-        </div>
-        
-        <nav className="space-y-2 flex-1">
+          </div>
+        )}
+
+        <nav className="space-y-1 flex-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-all font-bold text-sm ${
-                activeTab === tab.id 
-                  ? (theme === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-700 text-white shadow-inner') 
+              title={sidebarCollapsed ? tab.label : ''}
+              className={`w-full text-left rounded-lg flex items-center transition-all font-bold text-sm
+                ${sidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3 gap-3'}
+                ${activeTab === tab.id
+                  ? (theme === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-700 text-white shadow-inner')
                   : (theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-white/60 hover:text-white hover:bg-indigo-800')
-              }`}
+                }`}
             >
-              <span>{tab.icon}</span>
-              {tab.label}
+              <span className="flex-shrink-0 text-lg">{tab.icon}</span>
+              {!sidebarCollapsed && tab.label}
             </button>
           ))}
         </nav>

@@ -160,15 +160,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
 
   const handleExportExcel = () => {
-    if (users.length === 0) {
+    if (filteredUsers.length === 0) {
       setAlertConfig({
         title: 'Export Rejected',
-        message: 'There are no customer records available to export at this time.',
+        message: `${selectedMonth} mein koi customer nahi mila export karne ke liye.`,
         type: 'info'
       });
       return;
     }
-    const dataToExport = users.map(u => ({
+    const dataToExport = filteredUsers.map(u => ({
       'Account ID': u.username,
       'Full Name': u.name,
       'Phone': u.phone,
@@ -179,13 +179,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
       'Balance': u.balance,
       'Discount': u.persistentDiscount || 0,
       'Expiry': new Date(u.expiryDate).toLocaleDateString(),
-      'Registration Date': u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'
+      'Registration Date': u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
+      'Month': selectedMonth,
     }));
     
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
-    XLSX.writeFile(workbook, `MahadNet_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, selectedMonth);
+    XLSX.writeFile(workbook, `MYISP_${selectedMonth.replace(' ', '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const downloadCustomerTemplate = () => {
@@ -537,11 +538,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
             {isCurrentMonth && (
               <>
                 <button onClick={downloadCustomerTemplate} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Download Template">📋</button>
-                <button onClick={() => fileInputRef.current?.click()} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Import Excel">📥</button>
+                <button onClick={() => fileInputRef.current?.click()} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Import Excel">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+</button>
                 <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImportExcel} />
               </>
             )}
-            <button onClick={handleExportExcel} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Export Excel">📤</button>
+            <button onClick={handleExportExcel} className="p-5 bg-white dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800" title="Export Excel">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -549,7 +554,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               <>
                 <button onClick={() => { resetForm(); setShowForm(true); }} className="bg-[#5a4ff0] text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 hover:bg-[#4a3fdf] transition-colors active:scale-95 duration-200">➕ NEW CUSTOMER</button>
                 <button onClick={() => setShowQuickActivate(true)} className="bg-violet-600 hover:bg-violet-700 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 transition-colors active:scale-95 duration-200">⚡ QUICK ACTIVATE</button>
-                <button onClick={() => setShowImportHistory(true)} className="bg-white dark:bg-[#0f172a] text-indigo-600 dark:text-indigo-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors flex items-center justify-center gap-2 active:scale-95 duration-200">📥 IMPORT FROM HISTORY</button>
+                <button onClick={() => setShowImportHistory(true)} className="bg-white dark:bg-[#0f172a] text-indigo-600 dark:text-indigo-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors flex items-center justify-center gap-2 active:scale-95 duration-200"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> IMPORT FROM HISTORY</button>
                 <button onClick={() => onBulkDeleteUsers(selectedIds)} disabled={selectedIds.length === 0} className="bg-slate-100 dark:bg-[#0f172a] text-slate-900 dark:text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg disabled:opacity-30 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#1e293b] active:scale-95 duration-200">DELETE ALL</button>
                 <button onClick={() => { if(selectedIds.length === 0){ setAlertConfig({title:'No Selection',message:'Pehle users select karein phir plan change karein.',type:'info'}); return; } setBulkNewPlan(availablePlans[0]||''); setShowBulkChangePlan(true); }} className="bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-amber-400 active:scale-95 duration-200 flex items-center justify-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> CHANGE PLAN {selectedIds.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{selectedIds.length}</span>}</button>
               </>
