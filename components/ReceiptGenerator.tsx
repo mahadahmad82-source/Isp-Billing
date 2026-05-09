@@ -609,6 +609,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex justify-between text-[11px]"><span className="font-bold">DATE:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
               <div className="flex justify-between text-[11px]"><span className="font-bold">PAYMENT:</span><span className="font-black uppercase">{activeReceipt.paymentMethod}</span></div>
               <div className="flex justify-between text-[11px]"><span className="font-bold">NAME:</span><span className="font-black whitespace-normal text-right flex-1 ml-2">{activeReceipt.userName}</span></div>
+              <div className="flex justify-between text-[11px]"><span className="font-bold">USER ID:</span><span className="font-black text-right">@{activeReceipt.username}</span></div>
               <div className="flex justify-between text-[11px]"><span className="font-bold">ADDR:</span><span className="font-bold text-[9px] whitespace-normal text-right flex-1 ml-2">{activeReceipt.userAddress || 'N/A'}</span></div>
               <div className="flex justify-between text-[11px]"><span className="font-bold">PERIOD:</span><span>{activeReceipt.period}</span></div>
             </div>
@@ -711,6 +712,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Date:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Mode:</span><span className="font-black uppercase">{activeReceipt.paymentMethod}</span></div>
               <div className="flex justify-between border-t border-slate-50 pt-1.5"><span className="text-slate-400 font-bold uppercase">User:</span><span className="font-black whitespace-normal text-right flex-1 ml-4">{activeReceipt.userName}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">User ID:</span><span className="font-black text-right text-indigo-600">@{activeReceipt.username}</span></div>
               {activeReceipt.userAddress && <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Addr:</span><span className="font-medium text-[9px] whitespace-normal text-right flex-1 ml-4">{activeReceipt.userAddress}</span></div>}
               {activeReceipt.advanceAmount > 0 ? <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Adv:</span><span className="font-black text-indigo-600">Rs. {(activeReceipt.advanceAmount || 0).toLocaleString()}</span></div> : null}
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Paid:</span><span className="font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span></div>

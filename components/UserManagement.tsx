@@ -55,6 +55,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ user: UserRecord; x: number; y: number } | null>(null);
+  const [showBulkChangePlan, setShowBulkChangePlan] = useState(false);
+  const [bulkNewPlan, setBulkNewPlan] = useState('');
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
@@ -353,6 +357,32 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setShowQuickActivate(false);
   };
 
+  // Long press handlers for context menu
+  const handleLongPressStart = (e: React.TouchEvent | React.MouseEvent, user: UserRecord) => {
+    if (readOnly) return;
+    longPressTimer.current = setTimeout(() => {
+      const touch = 'touches' in e ? e.touches[0] : e as React.MouseEvent;
+      setContextMenu({ user, x: touch.clientX, y: touch.clientY });
+    }, 500);
+  };
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  // Bulk change plan handler
+  const handleBulkChangePlan = () => {
+    if (!bulkNewPlan || selectedIds.length === 0) return;
+    const price = settings.planPrices?.[bulkNewPlan] || 0;
+    selectedIds.forEach(id => {
+      const user = users.find(u => u.id === id);
+      if (user) onUpdateUser({ ...user, plan: bulkNewPlan, monthlyFee: price });
+    });
+    setShowBulkChangePlan(false);
+    setBulkNewPlan('');
+    setSelectedIds([]);
+    setAlertConfig({ title: 'Plan Updated', message: `${selectedIds.length} users ka plan "${bulkNewPlan}" ho gaya — Rs. ${price}/mo.`, type: 'success' });
+  };
+
   const filteredUsers = useMemo(() => {
     // If showAllUsers: show all users (for Total Users card)
     // Otherwise: filter by selected month (activatedMonths)
@@ -502,6 +532,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <button onClick={() => setShowQuickActivate(true)} className="bg-violet-600 hover:bg-violet-700 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 transition-colors active:scale-95 duration-200">⚡ QUICK ACTIVATE</button>
                 <button onClick={() => setShowImportHistory(true)} className="bg-white dark:bg-[#0f172a] text-indigo-600 dark:text-indigo-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors flex items-center justify-center gap-2 active:scale-95 duration-200">📥 IMPORT FROM HISTORY</button>
                 <button onClick={() => onBulkDeleteUsers(selectedIds)} disabled={selectedIds.length === 0} className="bg-slate-100 dark:bg-[#0f172a] text-slate-900 dark:text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg disabled:opacity-30 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#1e293b] active:scale-95 duration-200">DELETE ALL</button>
+                <button onClick={() => { if(selectedIds.length === 0){ setAlertConfig({title:'No Selection',message:'Pehle users select karein phir plan change karein.',type:'info'}); return; } setBulkNewPlan(availablePlans[0]||''); setShowBulkChangePlan(true); }} className="bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-amber-400 active:scale-95 duration-200 flex items-center justify-center gap-2">🔄 CHANGE PLAN {selectedIds.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{selectedIds.length}</span>}</button>
               </>
             )}
           </div>
@@ -543,12 +574,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   ) : (
                     filteredUsers.map((user) => {
                       return (
-                        <tr key={user.id} className="hover:bg-indigo-500/5 transition-colors group">
+                        <tr key={user.id}
+                          className="hover:bg-indigo-500/5 transition-colors group select-none"
+                          onTouchStart={(e) => handleLongPressStart(e, user)}
+                          onTouchEnd={handleLongPressEnd}
+                          onTouchMove={handleLongPressEnd}
+                          onMouseDown={(e) => { if(e.button === 2) return; handleLongPressStart(e, user); }}
+                          onMouseUp={handleLongPressEnd}
+                          onMouseLeave={handleLongPressEnd}
+                          onContextMenu={(e) => { e.preventDefault(); setContextMenu({ user, x: e.clientX, y: e.clientY }); }}
+                        >
                           <td className="px-6 py-6">
                             {!readOnly && isCurrentMonth && <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" checked={selectedIds.includes(user.id)} onChange={() => setSelectedIds(prev => prev.includes(user.id) ? prev.filter(i => i !== user.id) : [...prev, user.id])} />}
                           </td>
                           <td className="px-6 py-6">
-                             <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">@{user.username}</span>
+                             <span
+                               className="text-sm font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                               onClick={() => isCurrentMonth && !readOnly ? handleEditClick(user) : undefined}
+                               title={isCurrentMonth && !readOnly ? "Click to edit profile" : user.username}
+                             >@{user.username}</span>
                           </td>
                           <td className="px-6 py-6">
                              <span className="text-sm font-black text-slate-900 dark:text-slate-100">{user.name}</span>
@@ -868,6 +912,126 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
         </div>
       )}
+      {/* Context Menu (Long Press / Right Click) */}
+      {contextMenu && (
+        <div className="fixed inset-0 z-[300]" onClick={() => setContextMenu(null)}>
+          <div
+            className="absolute bg-white dark:bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden min-w-[220px]"
+            style={{
+              left: Math.min(contextMenu.x, window.innerWidth - 230),
+              top: Math.min(contextMenu.y, window.innerHeight - 280),
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-indigo-600 text-white">
+              <p className="text-xs font-black uppercase tracking-widest truncate">{contextMenu.user.name}</p>
+              <p className="text-[10px] text-indigo-200">@{contextMenu.user.username}</p>
+            </div>
+            <div className="py-2">
+              {isCurrentMonth && !readOnly && (
+                <button
+                  onClick={() => { handleEditClick(contextMenu.user); setContextMenu(null); }}
+                  className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 flex items-center gap-3 transition-colors"
+                >
+                  ✏️ <span>Edit Profile</span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const u = contextMenu.user;
+                  const months = new Set(u.activatedMonths || []);
+                  months.add(currentMonth);
+                  onUpdateUser({ ...u, activatedMonths: Array.from(months), status: 'active' });
+                  setContextMenu(null);
+                  setAlertConfig({ title: 'Activated!', message: `${u.name} ko ${currentMonth} ke liye activate kar diya gaya.`, type: 'success' });
+                }}
+                className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center gap-3 transition-colors"
+              >
+                ⚡ <span>Activate User</span>
+              </button>
+              {isCurrentMonth && !readOnly && (
+                <div className="px-5 py-3.5 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Change Plan</p>
+                  <div className="flex gap-2">
+                    <select
+                      defaultValue={contextMenu.user.plan}
+                      onChange={e => {
+                        const newPlan = e.target.value;
+                        const price = settings.planPrices?.[newPlan] || 0;
+                        onUpdateUser({ ...contextMenu.user, plan: newPlan, monthlyFee: price });
+                        setContextMenu(null);
+                        setAlertConfig({ title: 'Plan Changed!', message: `${contextMenu.user.name} ka plan "${newPlan}" — Rs. ${price}/mo.`, type: 'success' });
+                      }}
+                      className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-xs font-black text-slate-800 dark:text-white outline-none"
+                    >
+                      {availablePlans.map(p => (
+                        <option key={p} value={p}>{p} — Rs.{settings.planPrices?.[p]}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => { setViewingLedgerUser(contextMenu.user); setContextMenu(null); }}
+                className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-3 transition-colors border-t border-slate-100 dark:border-white/5"
+              >
+                📜 <span>View Ledger</span>
+              </button>
+              {isCurrentMonth && !readOnly && (
+                <button
+                  onClick={() => { onDeleteUser(contextMenu.user.id); setContextMenu(null); }}
+                  className="w-full text-left px-5 py-3.5 text-sm font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center gap-3 transition-colors"
+                >
+                  🗑️ <span>Delete User</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Change Plan Modal */}
+      {showBulkChangePlan && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowBulkChangePlan(false)}></div>
+          <div className="relative z-10 w-full max-w-sm bg-white dark:bg-[#0f172a] rounded-[2.5rem] p-8 border border-slate-100 dark:border-white/5 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🔄</div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Bulk Change Plan</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{selectedIds.length} users selected</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest block mb-2">New Plan Select Karein</label>
+                <select
+                  value={bulkNewPlan}
+                  onChange={e => setBulkNewPlan(e.target.value)}
+                  className="w-full p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-sm font-black text-slate-800 dark:text-white outline-none"
+                >
+                  {availablePlans.map(p => (
+                    <option key={p} value={p}>{p} — Rs. {settings.planPrices?.[p]?.toLocaleString()}/mo</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowBulkChangePlan(false)}
+                  className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-[11px] uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkChangePlan}
+                  className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                >
+                  ✅ Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showQuickActivate && (
         <QuickActivate
           users={users}
