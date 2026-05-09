@@ -88,12 +88,15 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [custLoading, setCustLoading] = useState(false);
   const [expandedMgr, setExpandedMgr] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showResetModal, setShowResetModal] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const [expandedCustomers, setExpandedCustomers] = useState<Record<string, Customer[]>>({});
   const [searchMgr, setSearchMgr] = useState('');
   const [searchCust, setSearchCust] = useState('');
   const [custFilter, setCustFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [lastRefresh, setLastRefresh] = useState(new Date());
-
+  
   // ── Load all managers from Supabase ──────────────────────────────────────────
   const loadManagers = useCallback(async () => {
     setLoading(true);
