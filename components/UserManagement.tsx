@@ -510,30 +510,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white dark:bg-[#0f172a] px-5 py-4 rounded-2xl border border-slate-200 dark:border-white/5 shadow-lg">
-              <span className="text-slate-600 dark:text-slate-300 text-xs font-black">🔃 SORT BY</span>
-              <select 
-                className="bg-transparent text-slate-900 dark:text-slate-100 font-black text-[10px] uppercase tracking-widest outline-none w-full appearance-none cursor-pointer"
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as SortKey)}
-              >
-                <option value="none">DEFAULT</option>
-                <option value="account_id_asc">ID (A→Z)</option>
-                <option value="account_id_desc">ID (Z→A)</option>
-                <option value="name_asc">NAME (A→Z)</option>
-                <option value="name_desc">NAME (Z→A)</option>
-                <option value="paid_first">PAID FIRST</option>
-                <option value="pending_first">PENDING FIRST</option>
-                <option value="plan_asc">PLAN (A→Z)</option>
-                <option value="fee_desc">FEE (HIGH→LOW)</option>
-                <option value="fee_asc">FEE (LOW→HIGH)</option>
-                <option value="balance_desc">BALANCE (HIGH→LOW)</option>
-                <option value="expiry_asc">EXPIRY (EARLIEST)</option>
-                <option value="expiry_desc">EXPIRY (LATEST)</option>
-                <option value="reg_date_desc">REG DATE (NEWEST)</option>
-              </select>
-            </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div>
             
             {isCurrentMonth && (
               <>
@@ -552,8 +530,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {!readOnly && isCurrentMonth && (
               <>
-                <button onClick={() => { resetForm(); setShowForm(true); }} className="bg-[#5a4ff0] text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 hover:bg-[#4a3fdf] transition-colors active:scale-95 duration-200">➕ NEW CUSTOMER</button>
-                <button onClick={() => setShowQuickActivate(true)} className="bg-violet-600 hover:bg-violet-700 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 transition-colors active:scale-95 duration-200">⚡ QUICK ACTIVATE</button>
+                <button onClick={() => { resetForm(); setShowForm(true); }} style={{background:"var(--color-primary,#5a4ff0)"}} className="text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 active:scale-95 duration-200 hover:opacity-90 transition-opacity"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg> NEW CUSTOMER</button>
+                <button onClick={() => setShowQuickActivate(true)} style={{background:"var(--color-accent,#7c3aed)"}} className="text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 active:scale-95 duration-200 hover:opacity-90 transition-opacity"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> QUICK ACTIVATE</button>
                 <button onClick={() => setShowImportHistory(true)} className="bg-white dark:bg-[#0f172a] text-indigo-600 dark:text-indigo-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors flex items-center justify-center gap-2 active:scale-95 duration-200"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> IMPORT FROM HISTORY</button>
                 <button onClick={() => onBulkDeleteUsers(selectedIds)} disabled={selectedIds.length === 0} className="bg-slate-100 dark:bg-[#0f172a] text-slate-900 dark:text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg disabled:opacity-30 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#1e293b] active:scale-95 duration-200">DELETE ALL</button>
                 <button onClick={() => { if(selectedIds.length === 0){ setAlertConfig({title:'No Selection',message:'Pehle users select karein phir plan change karein.',type:'info'}); return; } setBulkNewPlan(availablePlans[0]||''); setShowBulkChangePlan(true); }} className="bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-amber-400 active:scale-95 duration-200 flex items-center justify-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> CHANGE PLAN {selectedIds.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{selectedIds.length}</span>}</button>
@@ -1121,6 +1099,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         />
       )}
     </div>
+  </div>
   );
 };
 

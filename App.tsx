@@ -327,6 +327,8 @@ const App: React.FC = () => {
     
     root.style.setProperty('--primary', primary);
     root.style.setProperty('--accent', accent);
+    root.style.setProperty('--color-primary', primary);
+    root.style.setProperty('--color-accent', accent);
     
     // Generate a lighter version for backgrounds (simplified)
     const primaryLight = primary + '1a'; // 10% opacity hex
