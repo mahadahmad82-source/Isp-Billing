@@ -69,3 +69,36 @@ self.addEventListener('fetch', (event) => {
     fetch(event.request).catch(() => caches.match(event.request))
   );
 });
+
+// ─── Push Notification Handler ────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let data = { title: 'MYISP', body: 'New notification', tag: 'myisp' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
+      tag: data.tag || 'myisp',
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
+      data: data,
+    })
+  );
+});
+
+// ─── Notification Click Handler ───────────────────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      if (clientList.length > 0) {
+        return clientList[0].focus();
+      }
+      return clients.openWindow('/');
+    })
+  );
+});

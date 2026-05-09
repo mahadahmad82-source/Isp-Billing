@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { showLocalNotification } from '../lib/pushNotifications';
 import { UserRecord, AppSettings } from '../types';
 import { generateProfessionalMessage } from '../services/geminiService';
 import { shareToWhatsApp } from '../utils/whatsapp';
@@ -16,6 +17,37 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
   const [isProcessingPriority, setIsProcessingPriority] = useState(false);
   const [isProcessingUpcoming, setIsProcessingUpcoming] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'info' | 'success' } | null>(null);
+
+  // Auto daily notification when app opens — expired/expiring users ka summary
+  useEffect(() => {
+    const lastCheck = localStorage.getItem('myisp_last_expiry_notify');
+    const today = new Date().toDateString();
+    if (lastCheck === today) return; // Already notified today
+
+    const expiredToday = users.filter(u => {
+      const days = getDaysUntilExpiry(u.expiryDate);
+      return days <= 0;
+    });
+    const expiringIn3 = users.filter(u => getDaysUntilExpiry(u.expiryDate) === 3);
+    const expiringIn7 = users.filter(u => {
+      const d = getDaysUntilExpiry(u.expiryDate);
+      return d > 0 && d <= 7 && d !== 3;
+    });
+
+    if (expiredToday.length > 0 || expiringIn3.length > 0) {
+      const parts: string[] = [];
+      if (expiredToday.length > 0) parts.push(`${expiredToday.length} users expire ho gaye`);
+      if (expiringIn3.length > 0) parts.push(`${expiringIn3.length} users 3 din mein expire honge`);
+      if (expiringIn7.length > 0) parts.push(`${expiringIn7.length} users 7 din mein expire honge`);
+
+      showLocalNotification(
+        '⚠️ MYISP — Expiry Alert',
+        parts.join(' | '),
+        'expiry-daily'
+      );
+      localStorage.setItem('myisp_last_expiry_notify', today);
+    }
+  }, [users]);
 
   const getDaysUntilExpiry = (dateStr: string) => {
     const exp = new Date(dateStr);
