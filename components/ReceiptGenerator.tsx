@@ -428,7 +428,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                      )}
                    </div>
                    <div>
-                     <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{settings.businessName}</h1>
+                     {(settings.showBusinessNameOnReceipt ?? true) && <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{settings.businessName}</h1>}
                      <p className="text-xs font-black uppercase text-indigo-600 tracking-[0.3em] mt-2">Digital Utility Infrastructure</p>
                    </div>
                 </div>
@@ -597,7 +597,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             ) : (
               <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
             )}
-            <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>
+            {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>}
             <p className="text-[10px] font-bold">{activeReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP SUBSCRIPTION RECEIPT'}</p>
             {activeReceipt.isLatePayment && (
               <p className="text-[9px] font-black bg-black text-white px-2 py-0.5 mt-1">RCVD: {new Date(activeReceipt.actualPaymentDate || activeReceipt.date).toLocaleDateString()}</p>
@@ -642,7 +642,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   )}
                 </div>
                 <div>
-                  <h2 className="font-black text-lg leading-none">{settings.businessName}</h2>
+                  {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="font-black text-lg leading-none">{settings.businessName}</h2>}
                   <p className="text-[9px] opacity-70 font-bold tracking-widest uppercase mt-1">
                     {activeReceipt.isLatePayment ? 'Late Payment Entry' : 'Transaction Success'}
                   </p>
@@ -704,7 +704,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               )}
             </div>
             <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-4">
-              <h3 className="font-black text-sm uppercase leading-none">{settings.businessName}</h3>
+              {(settings.showBusinessNameOnReceipt ?? true) && <h3 className="font-black text-sm uppercase leading-none">{settings.businessName}</h3>}
               <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{activeReceipt.isLatePayment ? 'Late Payment History' : 'Instant Payment Proof'}</p>
             </div>
             <div className="space-y-1.5 text-[11px] mb-4">
@@ -742,7 +742,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   )}
                 </div>
                 <div>
-                  <h2 className="text-4xl font-black text-indigo-950 uppercase">{settings.businessName}</h2>
+                  {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-4xl font-black text-indigo-950 uppercase">{settings.businessName}</h2>}
                   <div className="flex items-center gap-2 mt-2">
                     <p className="text-[10px] text-indigo-50 font-black uppercase tracking-[0.15em] bg-indigo-600 px-2 py-1 inline-block rounded">{settings.businessPhone}</p>
                     {activeReceipt.isLatePayment && (

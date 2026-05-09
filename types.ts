@@ -68,6 +68,7 @@ export interface AppSettings {
   themeAccentColor?: string;
   selectedThemeId?: string;
   businessLogo?: string; // Base64 string for the logo
+  showBusinessNameOnReceipt?: boolean; // Default true
   receiptSerialStart?: number; // Starting serial number for receipts (e.g. 1, 900, 5000)
   receiptSerialPrefix?: string; // Prefix for serial like MN, ISP, etc.
 }

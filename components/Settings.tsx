@@ -421,6 +421,21 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-tight">PNG / JPG · Max 2MB</p>
               </div>
             </div>
+            {/* Business Name on Receipt Toggle */}
+            <div className="mt-3 flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 max-w-xs">
+              <div>
+                <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest leading-tight">Show Business Name on Receipt</p>
+                <p className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
+                  {(localSettings.showBusinessNameOnReceipt ?? true) ? 'Name + Logo dono dikhenge' : 'Sirf Logo dikhega'}
+                </p>
+              </div>
+              <button
+                onClick={() => setLocalSettings(prev => ({ ...prev, showBusinessNameOnReceipt: !(prev.showBusinessNameOnReceipt ?? true) }))}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${(localSettings.showBusinessNameOnReceipt ?? true) ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${(localSettings.showBusinessNameOnReceipt ?? true) ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
