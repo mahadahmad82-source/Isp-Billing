@@ -23,7 +23,7 @@ interface UserManagementProps {
   initialFilter?: 'all' | 'current_month';
 }
 
-type SortKey = 'account_id_asc' | 'reg_date_desc' | 'expiry_asc' | 'none';
+type SortKey = 'account_id_asc' | 'account_id_desc' | 'name_asc' | 'name_desc' | 'reg_date_desc' | 'reg_date_asc' | 'expiry_asc' | 'expiry_desc' | 'plan_asc' | 'fee_asc' | 'fee_desc' | 'balance_asc' | 'balance_desc' | 'paid_first' | 'pending_first' | 'none';
 
 const UserManagement: React.FC<UserManagementProps> = ({ 
   users, 
@@ -397,13 +397,22 @@ const UserManagement: React.FC<UserManagementProps> = ({
       (user.phone || '').includes(searchTerm)
     );
     
-    if (sortKey === 'account_id_asc') {
-      result.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
-    } else if (sortKey === 'reg_date_desc') {
-      result.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    } else if (sortKey === 'expiry_asc') {
-      result.sort((a, b) => new Date(a.expiryDate || 0).getTime() - new Date(b.expiryDate || 0).getTime());
-    }
+    const hasPaid = (u: UserRecord) => receipts.some(r => r.userId === u.id && r.period && r.period.includes(selectedMonth.split(' ')[0]));
+    if (sortKey === 'account_id_asc') result.sort((a,b) => (a.username||'').localeCompare(b.username||''));
+    else if (sortKey === 'account_id_desc') result.sort((a,b) => (b.username||'').localeCompare(a.username||''));
+    else if (sortKey === 'name_asc') result.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+    else if (sortKey === 'name_desc') result.sort((a,b) => (b.name||'').localeCompare(a.name||''));
+    else if (sortKey === 'reg_date_desc') result.sort((a,b) => new Date(b.createdAt||0).getTime() - new Date(a.createdAt||0).getTime());
+    else if (sortKey === 'reg_date_asc') result.sort((a,b) => new Date(a.createdAt||0).getTime() - new Date(b.createdAt||0).getTime());
+    else if (sortKey === 'expiry_asc') result.sort((a,b) => new Date(a.expiryDate||0).getTime() - new Date(b.expiryDate||0).getTime());
+    else if (sortKey === 'expiry_desc') result.sort((a,b) => new Date(b.expiryDate||0).getTime() - new Date(a.expiryDate||0).getTime());
+    else if (sortKey === 'plan_asc') result.sort((a,b) => (a.plan||'').localeCompare(b.plan||''));
+    else if (sortKey === 'fee_asc') result.sort((a,b) => (a.monthlyFee||0) - (b.monthlyFee||0));
+    else if (sortKey === 'fee_desc') result.sort((a,b) => (b.monthlyFee||0) - (a.monthlyFee||0));
+    else if (sortKey === 'balance_asc') result.sort((a,b) => (a.balance||0) - (b.balance||0));
+    else if (sortKey === 'balance_desc') result.sort((a,b) => (b.balance||0) - (a.balance||0));
+    else if (sortKey === 'paid_first') result.sort((a,b) => (hasPaid(b)?1:0) - (hasPaid(a)?1:0));
+    else if (sortKey === 'pending_first') result.sort((a,b) => (hasPaid(a)?1:0) - (hasPaid(b)?1:0));
     
     return result;
   }, [users, searchTerm, sortKey, selectedMonth, showAllUsers]);
@@ -508,10 +517,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
               >
-                <option value="none" className="bg-white dark:bg-[#0f172a]">DEFAULT VIEW</option>
-                <option value="account_id_asc" className="bg-white dark:bg-[#0f172a]">ACCOUNT ID (A-Z)</option>
-                <option value="reg_date_desc" className="bg-white dark:bg-[#0f172a]">REGISTRATION (NEWEST)</option>
-                <option value="expiry_asc" className="bg-white dark:bg-[#0f172a]">EXPIRY (EARLIEST)</option>
+                <option value="none">DEFAULT</option>
+                <option value="account_id_asc">ID (A→Z)</option>
+                <option value="account_id_desc">ID (Z→A)</option>
+                <option value="name_asc">NAME (A→Z)</option>
+                <option value="name_desc">NAME (Z→A)</option>
+                <option value="paid_first">✅ PAID FIRST</option>
+                <option value="pending_first">⏳ PENDING FIRST</option>
+                <option value="plan_asc">PLAN (A→Z)</option>
+                <option value="fee_desc">FEE (HIGH→LOW)</option>
+                <option value="fee_asc">FEE (LOW→HIGH)</option>
+                <option value="balance_desc">BALANCE (HIGH→LOW)</option>
+                <option value="expiry_asc">EXPIRY (EARLIEST)</option>
+                <option value="expiry_desc">EXPIRY (LATEST)</option>
+                <option value="reg_date_desc">REG DATE (NEWEST)</option>
               </select>
             </div>
             
@@ -544,22 +563,40 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   <tr>
                     <th className="px-6 py-6 w-16">
                        {!readOnly && isCurrentMonth && (
-                         <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" 
+                         <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0"
                           checked={selectedIds.length > 0 && selectedIds.length === filteredUsers.length}
                           onChange={() => setSelectedIds(selectedIds.length === filteredUsers.length ? [] : filteredUsers.map(u => u.id))}
                          />
                        )}
                     </th>
-                    <th className="px-6 py-6">ACCOUNT ID</th>
-                    <th className="px-6 py-6 font-black">FULL NAME</th>
-                    <th className="px-6 py-6">PHONE</th>
-                    <th className="px-6 py-6">PHONE 2</th>
-                    <th className="px-6 py-6">ADDRESS</th>
-                    <th className="px-6 py-6">PLAN</th>
-                    <th className="px-6 py-6">MONTHLY FEE</th>
-                    <th className="px-6 py-6 text-center">BALANCE</th>
-                    <th className="px-6 py-6 text-center">DISCOUNT</th>
-                    <th className="px-6 py-6">EXPIRY</th>
+                    {([
+                      { label: 'ACCOUNT ID', asc: 'account_id_asc', desc: 'account_id_desc' },
+                      { label: 'FULL NAME', asc: 'name_asc', desc: 'name_desc' },
+                      { label: 'PHONE', asc: null, desc: null },
+                      { label: 'PHONE 2', asc: null, desc: null },
+                      { label: 'ADDRESS', asc: null, desc: null },
+                      { label: 'PLAN', asc: 'plan_asc', desc: 'plan_asc' },
+                      { label: 'MONTHLY FEE', asc: 'fee_asc', desc: 'fee_desc' },
+                      { label: 'STATUS', asc: 'paid_first', desc: 'pending_first', center: true },
+                      { label: 'DISCOUNT', asc: null, desc: null, center: true },
+                      { label: 'EXPIRY', asc: 'expiry_asc', desc: 'expiry_desc' },
+                    ] as { label: string; asc: SortKey | null; desc: SortKey | null; center?: boolean }[]).map(col => (
+                      <th key={col.label} className={`px-6 py-6 ${col.center ? 'text-center' : ''} ${col.asc ? 'cursor-pointer select-none group' : ''}`}
+                        onClick={() => {
+                          if (!col.asc) return;
+                          setSortKey(prev => prev === col.asc ? (col.desc || 'none') : (col.asc || 'none'));
+                        }}
+                      >
+                        <span className="flex items-center gap-1 whitespace-nowrap">
+                          {col.label}
+                          {col.asc && (
+                            <span className="text-[10px] opacity-40 group-hover:opacity-100 transition-opacity">
+                              {sortKey === col.asc ? '▲' : sortKey === col.desc ? '▼' : '⇅'}
+                            </span>
+                          )}
+                        </span>
+                      </th>
+                    ))}
                     {!readOnly && <th className="px-6 py-6 text-center">ACTION</th>}
                   </tr>
                 </thead>
