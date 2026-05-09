@@ -522,8 +522,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <option value="account_id_desc">ID (Z→A)</option>
                 <option value="name_asc">NAME (A→Z)</option>
                 <option value="name_desc">NAME (Z→A)</option>
-                <option value="paid_first">✅ PAID FIRST</option>
-                <option value="pending_first">⏳ PENDING FIRST</option>
+                <option value="paid_first">PAID FIRST</option>
+                <option value="pending_first">PENDING FIRST</option>
                 <option value="plan_asc">PLAN (A→Z)</option>
                 <option value="fee_desc">FEE (HIGH→LOW)</option>
                 <option value="fee_asc">FEE (LOW→HIGH)</option>
@@ -551,7 +551,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <button onClick={() => setShowQuickActivate(true)} className="bg-violet-600 hover:bg-violet-700 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 transition-colors active:scale-95 duration-200">⚡ QUICK ACTIVATE</button>
                 <button onClick={() => setShowImportHistory(true)} className="bg-white dark:bg-[#0f172a] text-indigo-600 dark:text-indigo-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-colors flex items-center justify-center gap-2 active:scale-95 duration-200">📥 IMPORT FROM HISTORY</button>
                 <button onClick={() => onBulkDeleteUsers(selectedIds)} disabled={selectedIds.length === 0} className="bg-slate-100 dark:bg-[#0f172a] text-slate-900 dark:text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg disabled:opacity-30 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#1e293b] active:scale-95 duration-200">DELETE ALL</button>
-                <button onClick={() => { if(selectedIds.length === 0){ setAlertConfig({title:'No Selection',message:'Pehle users select karein phir plan change karein.',type:'info'}); return; } setBulkNewPlan(availablePlans[0]||''); setShowBulkChangePlan(true); }} className="bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-amber-400 active:scale-95 duration-200 flex items-center justify-center gap-2">🔄 CHANGE PLAN {selectedIds.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{selectedIds.length}</span>}</button>
+                <button onClick={() => { if(selectedIds.length === 0){ setAlertConfig({title:'No Selection',message:'Pehle users select karein phir plan change karein.',type:'info'}); return; } setBulkNewPlan(availablePlans[0]||''); setShowBulkChangePlan(true); }} className="bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg border border-amber-400 active:scale-95 duration-200 flex items-center justify-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> CHANGE PLAN {selectedIds.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{selectedIds.length}</span>}</button>
               </>
             )}
           </div>
@@ -658,14 +658,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
                               if (hasReceipt) {
                                 return (
                                   <div className="flex flex-col items-center gap-1">
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">✅ Paid</span>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Paid</span>
                                     {bal > 0 && <span className="text-[10px] font-black text-rose-500">+Rs.{bal.toLocaleString()}</span>}
                                   </div>
                                 );
                               }
                               return (
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">⏳ Pending</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">Pending</span>
                                   {bal > 0 && <span className="text-[10px] font-black text-rose-500">Rs.{bal.toLocaleString()}</span>}
                                 </div>
                               );
@@ -985,7 +985,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   onClick={() => { handleEditClick(contextMenu.user); setContextMenu(null); }}
                   className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 flex items-center gap-3 transition-colors"
                 >
-                  ✏️ <span>Edit Profile</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> <span>Edit Profile</span>
                 </button>
               )}
               <button
@@ -999,7 +999,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 }}
                 className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center gap-3 transition-colors"
               >
-                ⚡ <span>Activate User</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> <span>Activate User</span>
               </button>
               {isCurrentMonth && !readOnly && (
                 <div className="px-5 py-3.5 border-t border-slate-100 dark:border-white/5">
@@ -1027,14 +1027,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 onClick={() => { setViewingLedgerUser(contextMenu.user); setContextMenu(null); }}
                 className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-3 transition-colors border-t border-slate-100 dark:border-white/5"
               >
-                📜 <span>View Ledger</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg> <span>View Ledger</span>
               </button>
               {isCurrentMonth && !readOnly && (
                 <button
                   onClick={() => { onDeleteUser(contextMenu.user.id); setContextMenu(null); }}
                   className="w-full text-left px-5 py-3.5 text-sm font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center gap-3 transition-colors"
                 >
-                  🗑️ <span>Delete User</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> <span>Delete User</span>
                 </button>
               )}
             </div>
@@ -1048,7 +1048,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowBulkChangePlan(false)}></div>
           <div className="relative z-10 w-full max-w-sm bg-white dark:bg-[#0f172a] rounded-[2.5rem] p-8 border border-slate-100 dark:border-white/5 shadow-2xl">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🔄</div>
+              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl"></div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Bulk Change Plan</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{selectedIds.length} users selected</p>
             </div>

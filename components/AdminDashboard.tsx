@@ -201,23 +201,23 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white">🛡️ Admin Control Center</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Admin Control Center</h1>
           <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-widest">
             Live Supabase Data · Synced: {lastRefresh.toLocaleTimeString()} · {totals.managers} managers · {totals.customers} customers
           </p>
         </div>
         <button onClick={loadManagers}
           className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30">
-          🔄 Refresh
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh
         </button>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>📊 Overview</TabBtn>
-        <TabBtn active={tab === 'managers'} onClick={() => setTab('managers')}>👥 Managers ({totals.managers})</TabBtn>
-        <TabBtn active={tab === 'customers'} onClick={() => setTab('customers')}>🧑‍💼 All Customers ({totals.customers})</TabBtn>
-        <TabBtn active={tab === 'system'} onClick={() => setTab('system')}>⚙️ System</TabBtn>
+        <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>Overview</TabBtn>
+        <TabBtn active={tab === 'managers'} onClick={() => setTab('managers')}>Managers ({totals.managers})</TabBtn>
+        <TabBtn active={tab === 'customers'} onClick={() => setTab('customers')}>All Customers ({totals.customers})</TabBtn>
+        <TabBtn active={tab === 'system'} onClick={() => setTab('system')}>System</TabBtn>
       </div>
 
       {/* Loading */}
@@ -233,7 +233,7 @@ const AdminDashboard: React.FC = () => {
         <div className="space-y-5">
           {/* KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <KpiCard icon="👥" label="Managers" value={totals.managers} color="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200" />
+            <KpiCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>} label="Managers" value={totals.managers} color="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200" />
             <KpiCard icon="🧑‍💼" label="Total Customers" value={totals.customers} color="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200" />
             <KpiCard icon="✅" label="Active" value={totals.active}
               sub={`${totals.customers ? Math.round(totals.active / totals.customers * 100) : 0}%`}
@@ -301,7 +301,7 @@ const AdminDashboard: React.FC = () => {
       {!loading && tab === 'managers' && (
         <div className="space-y-4">
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></span>
             <input type="text" placeholder="Manager name, username, email search..."
               value={searchMgr} onChange={e => setSearchMgr(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-400" />
@@ -321,14 +321,14 @@ const AdminDashboard: React.FC = () => {
                       <Badge color={m.user_count > 0
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                         : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}>
-                        {m.user_count > 0 ? '🟢 Active' : '⚪ Empty'}
+                        {m.user_count > 0 ? 'Active' : 'Empty'}
                       </Badge>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mt-0.5">
                       <span>@{m.username}</span>
-                      <span>📧 {m.email.replace('@myisp.local', '')}</span>
-                      <span>📅 Joined {fmtDate(m.joined_at)}</span>
-                      <span>🕐 Last login {fmtTime(m.last_login)}</span>
+                      <span>{m.email.replace('@myisp.local', '')}</span>
+                      <span>Joined {fmtDate(m.joined_at)}</span>
+                      <span>Last login {fmtTime(m.last_login)}</span>
                     </div>
                   </div>
                   {/* Stats Pills */}
@@ -419,7 +419,7 @@ const AdminDashboard: React.FC = () => {
         <div className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-48">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></span>
               <input type="text" placeholder="Name, username, phone, plan ya manager search..."
                 value={searchCust} onChange={e => setSearchCust(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-400" />
@@ -502,7 +502,7 @@ const AdminDashboard: React.FC = () => {
       {!loading && tab === 'system' && (
         <div className="space-y-4 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
-            <h3 className="font-black text-slate-800 dark:text-white text-sm">📊 Live Database Stats</h3>
+            <h3 className="font-black text-slate-800 dark:text-white text-sm">Live Database Stats</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               {[
                 { label: 'Total Managers', value: totals.managers },
@@ -523,7 +523,7 @@ const AdminDashboard: React.FC = () => {
           {/* All Managers Detail Table */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700">
-              <h3 className="font-black text-slate-800 dark:text-white text-sm">🔐 Manager Accounts (Supabase)</h3>
+              <h3 className="font-black text-slate-800 dark:text-white text-sm">Manager Accounts</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
