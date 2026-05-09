@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed } from '../lib/pushNotifications';
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, sendPushNotification } from '../lib/pushNotifications';
 import { AppSettings, ReceiptDesign, AppState, UserRecord, ManagerAccount, DefaultPlanPricing, Receipt } from '../types';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
@@ -13,9 +13,10 @@ interface SettingsProps {
   fullState: AppState;
   onLogout: () => void;
   onBulkUpdateUsers: (users: UserRecord[]) => void;
+  activeManager: string;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
