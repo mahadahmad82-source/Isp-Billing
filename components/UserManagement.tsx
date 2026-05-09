@@ -615,9 +615,24 @@ const UserManagement: React.FC<UserManagementProps> = ({
                              <span className="text-xs font-black text-slate-900 dark:text-slate-100">Rs. {(user.monthlyFee || 0).toLocaleString()}</span>
                           </td>
                           <td className="px-6 py-6 text-center">
-                            <span className={`text-xs font-black ${(user.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'}`}>
-                              {(user.balance || 0) > 0 ? `Rs. ${(user.balance || 0).toLocaleString()}` : '0'}
-                            </span>
+                            {(() => {
+                              const hasReceipt = receipts.some(r => r.userId === user.id && r.period && r.period.includes(selectedMonth.split(' ')[0]));
+                              const bal = user.balance || 0;
+                              if (hasReceipt) {
+                                return (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">✅ Paid</span>
+                                    {bal > 0 && <span className="text-[10px] font-black text-rose-500">+Rs.{bal.toLocaleString()}</span>}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">⏳ Pending</span>
+                                  {bal > 0 && <span className="text-[10px] font-black text-rose-500">Rs.{bal.toLocaleString()}</span>}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-6 py-6 text-center">
                              <span className="text-xs font-black text-emerald-600">Rs. {(user.persistentDiscount || 0).toLocaleString()}</span>
