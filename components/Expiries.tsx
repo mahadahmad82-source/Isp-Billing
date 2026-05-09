@@ -18,35 +18,28 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
   const [isProcessingUpcoming, setIsProcessingUpcoming] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'info' | 'success' } | null>(null);
 
-  // Auto daily notification when app opens — expired/expiring users ka summary
+  // Auto daily notification when app opens — ALL expired/expiring users
   useEffect(() => {
     const lastCheck = localStorage.getItem('myisp_last_expiry_notify');
     const today = new Date().toDateString();
-    if (lastCheck === today) return; // Already notified today
+    if (lastCheck === today) return;
 
-    const expiredToday = users.filter(u => {
-      const days = getDaysUntilExpiry(u.expiryDate);
-      return days <= 0;
-    });
-    const expiringIn3 = users.filter(u => getDaysUntilExpiry(u.expiryDate) === 3);
-    const expiringIn7 = users.filter(u => {
+    const allExpired = users.filter(u => getDaysUntilExpiry(u.expiryDate) <= 0);
+    const expiring7 = users.filter(u => {
       const d = getDaysUntilExpiry(u.expiryDate);
-      return d > 0 && d <= 7 && d !== 3;
+      return d > 0 && d <= 7;
     });
 
-    if (expiredToday.length > 0 || expiringIn3.length > 0) {
-      const parts: string[] = [];
-      if (expiredToday.length > 0) parts.push(`${expiredToday.length} users expire ho gaye`);
-      if (expiringIn3.length > 0) parts.push(`${expiringIn3.length} users 3 din mein expire honge`);
-      if (expiringIn7.length > 0) parts.push(`${expiringIn7.length} users 7 din mein expire honge`);
+    if (allExpired.length === 0 && expiring7.length === 0) return;
 
-      showLocalNotification(
-        '⚠️ MYISP — Expiry Alert',
-        parts.join(' | '),
-        'expiry-daily'
-      );
-      localStorage.setItem('myisp_last_expiry_notify', today);
-    }
+    const parts: string[] = [];
+    if (allExpired.length > 0)
+      parts.push(`${allExpired.length} users expire: ${allExpired.map(u => u.name).join(', ')}`);
+    if (expiring7.length > 0)
+      parts.push(`${expiring7.length} users 7 din mein expire honge: ${expiring7.map(u => u.name).join(', ')}`);
+
+    showLocalNotification('⚠️ MYISP — Expiry Alert', parts.join(' | '), 'expiry-daily');
+    localStorage.setItem('myisp_last_expiry_notify', today);
   }, [users]);
 
   const getDaysUntilExpiry = (dateStr: string) => {
