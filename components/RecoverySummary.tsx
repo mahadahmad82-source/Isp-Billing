@@ -325,7 +325,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             updatedUsersMap.set(user.id, currentUser);
           }
 
-          if (paidAmount > 0 || balanceAmount > 0) {
+          // FIXED: Only generate receipt if actual payment was made (paidAmount > 0)
+          // If user only has a balance (Not Paid), keep them in Pending state — no receipt
+          if (paidAmount > 0) {
             const receipt: Receipt = {
               id: `import-${Date.now()}-${index}`,
               userId: user.id,
@@ -339,10 +341,18 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               date: receiptDate.toISOString(),
               period: periodStr,
               paymentMethod: PaymentMethod.CASH,
-              status: paidAmount > 0 ? PaymentStatus.SUCCESS : PaymentStatus.PENDING,
+              status: PaymentStatus.SUCCESS,
               transactionRef: refVal ? String(refVal) : `IMP-${Date.now()}-${index}`
             };
             newReceipts.push(receipt);
+          } else if (balanceAmount > 0) {
+            // User has pending balance — update their balance in user record, no receipt
+            const existingUser = updatedUsersMap.get(user.id) || user;
+            updatedUsersMap.set(user.id, {
+              ...existingUser,
+              balance: (existingUser.balance || 0) + balanceAmount,
+              status: existingUser.status || 'active'
+            });
           }
         });
 
