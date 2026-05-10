@@ -32,7 +32,8 @@ export enum ReceiptDesign {
   COMPACT = 'Compact',
   MODERN = 'Modern',
   THERMAL = 'Thermal',
-  UTILITY = 'Utility'
+  UTILITY = 'Utility',
+  INVOICE = 'Invoice'
 }
 
 export interface ManagerAccount {
