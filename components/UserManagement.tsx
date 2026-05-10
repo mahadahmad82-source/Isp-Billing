@@ -511,38 +511,99 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
 
           {!readOnly && isCurrentMonth && (
-            <div className="space-y-2">
-              {/* Row 1: Main action buttons */}
-              <div className="flex gap-2">
-                <button onClick={() => { resetForm(); setShowForm(true); }} style={{background:"var(--color-primary,#5a4ff0)"}} className="flex-1 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 hover:opacity-90 transition-all shadow-lg">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg> New Customer
+            <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                {/* New Customer */}
+                <button
+                  onClick={() => { resetForm(); setShowForm(true); }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/20 active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-indigo-300 uppercase tracking-wide leading-tight text-center">New</span>
                 </button>
-                <button onClick={() => setShowQuickActivate(true)} style={{background:"var(--color-accent,#7c3aed)"}} className="flex-1 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 hover:opacity-90 transition-all shadow-lg">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Quick Activate
+
+                {/* Quick Activate */}
+                <button
+                  onClick={() => setShowQuickActivate(true)}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/20 active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-emerald-300 uppercase tracking-wide leading-tight text-center">Activate</span>
                 </button>
-                <button onClick={() => setShowImportHistory(true)} className="flex-1 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Import History
+
+                {/* Import History */}
+                <button
+                  onClick={() => setShowImportHistory(true)}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/20 active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-violet-300 uppercase tracking-wide leading-tight text-center">History</span>
                 </button>
-              </div>
-              {/* Row 2: Bulk + file actions */}
-              <div className="flex gap-2">
-                <button onClick={() => onBulkDeleteUsers(selectedIds)} disabled={selectedIds.length === 0} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest border border-slate-200 dark:border-white/5 disabled:opacity-30 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 active:scale-95 transition-all">
-                  Delete All
+
+                {/* Change Plan */}
+                <button
+                  onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Pehle users select karein.',type:'info'});return;} setBulkNewPlan(availablePlans[0]||'');setShowBulkChangePlan(true); }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/20 active:scale-95 transition-all group relative"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-amber-300 uppercase tracking-wide leading-tight text-center">
+                    Plan {selectedIds.length > 0 && <span className="ml-0.5 bg-amber-400/30 px-1 py-0.5 rounded-full text-[8px]">{selectedIds.length}</span>}
+                  </span>
                 </button>
-                <button onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Pehle users select karein.',type:'info'});return;} setBulkNewPlan(availablePlans[0]||'');setShowBulkChangePlan(true); }} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  Change Plan {selectedIds.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{selectedIds.length}</span>}
+
+                {/* Delete All */}
+                <button
+                  onClick={() => onBulkDeleteUsers(selectedIds)}
+                  disabled={selectedIds.length === 0}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/15 active:scale-95 transition-all disabled:opacity-25 group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-rose-400 uppercase tracking-wide leading-tight text-center">Delete</span>
                 </button>
-                {/* File icon buttons */}
-                <button onClick={downloadCustomerTemplate} title="Download Template" className="p-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-white active:scale-95 transition-all">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+
+                {/* Template */}
+                <button
+                  onClick={downloadCustomerTemplate}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-slate-500/10 hover:bg-slate-500/20 border border-slate-400/10 active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-slate-500/15 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide leading-tight text-center">Template</span>
                 </button>
-                <button onClick={() => fileInputRef.current?.click()} title="Import Excel" className="p-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl border border-slate-200 dark:border-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-95 transition-all">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+
+                {/* Import Excel */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/15 active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-cyan-400 uppercase tracking-wide leading-tight text-center">Import</span>
                 </button>
-                <button onClick={handleExportExcel} title="Export Excel" className="p-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl border border-slate-200 dark:border-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-95 transition-all">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+
+                {/* Export Excel */}
+                <button
+                  onClick={handleExportExcel}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-teal-500/10 hover:bg-teal-500/20 border border-teal-400/15 active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-teal-500/15 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-teal-400 uppercase tracking-wide leading-tight text-center">Export</span>
                 </button>
+
                 <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} />
               </div>
             </div>
