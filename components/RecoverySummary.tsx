@@ -949,15 +949,13 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                              </button>
                              {/* Generate Receipt button for Pending users */}
                              <button
-                               onClick={() => {
-                                 const month = selectedMonth || (selectedArchive ? selectedArchive.period : null);
-                                 if (onNavigateToReceipts && item.id && month) {
-                                   onNavigateToReceipts(item.id, month);
-                                 } else if (onNavigateToReceipts && item.id) {
-                                   onNavigateToReceipts(item.id, '');
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 if (onNavigateToReceipts) {
+                                   onNavigateToReceipts(item.id, selectedMonth || '');
                                  }
                                }}
-                               title="Generate Receipt for this user"
+                               title="Generate Receipt"
                                className="px-3 py-1.5 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all flex items-center gap-1"
                              >
                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>

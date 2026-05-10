@@ -710,7 +710,7 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} />}
-          {activeTab === 'receipts' && <ReceiptGenerator users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} />}
+          {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 
               users={filteredUsers} 

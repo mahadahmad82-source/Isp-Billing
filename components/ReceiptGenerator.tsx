@@ -309,15 +309,21 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // Auto-navigate from Recovery Ledger: pre-select user and switch to create mode
   useEffect(() => {
     if (!preSelectUser) return;
-    const user = users.find(u => u.id === preSelectUser.userId);
-    if (!user) return;
-    setSelectedUserId(preSelectUser.userId);
-    setCustomerSearchQuery(user.name);
+    // Find user by id OR by matching any way possible
+    const user = users.find(u => u.id === preSelectUser.userId) ||
+                 users.find(u => String(u.id) === String(preSelectUser.userId));
+    // Switch to create mode regardless - user selection will be handled
     setViewMode('create');
     setActiveReceipt(null);
     setEditingReceiptId(null);
+    if (user) {
+      setSelectedUserId(user.id);
+      setCustomerSearchQuery(user.name);
+    } else {
+      setSelectedUserId(preSelectUser.userId);
+    }
     onPreSelectConsumed?.();
-  }, [preSelectUser]);
+  }, [preSelectUser, users]);
 
   const handleWhatsAppShare = async () => {
     if (!activeReceipt) return;
