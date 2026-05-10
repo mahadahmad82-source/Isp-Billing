@@ -722,9 +722,9 @@ const App: React.FC = () => {
               onDeletePeriod={handleDeletePeriod} 
               onRenamePeriod={handleRenamePeriod}
               onNavigateToReceipts={(userId, month) => {
-                // Use localStorage as reliable bridge - avoids React timing issues
                 localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
-                setActiveTab('receipts');
+                // Small delay ensures localStorage write completes before tab switch
+                setTimeout(() => setActiveTab('receipts'), 50);
               }}
             />
           )}

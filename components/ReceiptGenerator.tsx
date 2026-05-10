@@ -308,23 +308,32 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
   // Auto-navigate from Recovery Ledger via localStorage bridge
   useEffect(() => {
-    const raw = localStorage.getItem('myisp_preselect_receipt');
-    if (!raw) return;
-    try {
-      const { userId, month, ts } = JSON.parse(raw);
-      // Only process if recent (within 5 seconds)
-      if (Date.now() - ts > 5000) { localStorage.removeItem('myisp_preselect_receipt'); return; }
-      localStorage.removeItem('myisp_preselect_receipt');
-      const user = users.find(u => u.id === userId) || users.find(u => String(u.id) === String(userId));
-      setViewMode('create');
-      setActiveReceipt(null);
-      setEditingReceiptId(null);
-      if (user) {
-        setSelectedUserId(user.id);
-        setCustomerSearchQuery(user.name);
-      }
-    } catch {}
-  }, [users]); // runs whenever users array is ready
+    const checkAndApply = () => {
+      const raw = localStorage.getItem('myisp_preselect_receipt');
+      if (!raw) return false;
+      try {
+        const { userId, month, ts } = JSON.parse(raw);
+        if (Date.now() - ts > 10000) { localStorage.removeItem('myisp_preselect_receipt'); return false; }
+        const user = users.find(u => u.id === userId) ||
+                     users.find(u => String(u.id) === String(userId));
+        if (!user && users.length === 0) return false; // wait for users to load
+        localStorage.removeItem('myisp_preselect_receipt');
+        setViewMode('create');
+        setActiveReceipt(null);
+        setEditingReceiptId(null);
+        if (user) {
+          setSelectedUserId(user.id);
+          setCustomerSearchQuery(user.name);
+        }
+        return true;
+      } catch { return false; }
+    };
+    // Try immediately, then retry after short delay if users not loaded yet
+    if (!checkAndApply()) {
+      const timer = setTimeout(checkAndApply, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [users]);
 
   const handleWhatsAppShare = async () => {
     if (!activeReceipt) return;
