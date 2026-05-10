@@ -958,10 +958,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                  window.dispatchEvent(new CustomEvent('myisp-goto-receipts', { detail: data }));
                                }}
                                title="Generate Receipt"
-                               className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 shadow-md z-50 relative"
+                               className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-1 shadow-md z-50 relative"
                              >
                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-                               + Receipt
+                               Receipt
                              </button>
                           </>
                         ) : (
