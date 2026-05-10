@@ -952,16 +952,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                onClick={(e) => {
                                  e.stopPropagation();
                                  e.preventDefault();
-                                 // Write to localStorage + dispatch custom event - independent of props
+                                 // ALWAYS use both localStorage + CustomEvent - no prop dependency
                                  const data = { userId: item.id, month: selectedMonth || '', ts: Date.now() };
                                  localStorage.setItem('myisp_preselect_receipt', JSON.stringify(data));
-                                 // Try prop first
-                                 if (onNavigateToReceipts) {
-                                   onNavigateToReceipts(item.id, selectedMonth || '');
-                                 } else {
-                                   // Fallback: fire custom DOM event
-                                   window.dispatchEvent(new CustomEvent('myisp-goto-receipts', { detail: data }));
-                                 }
+                                 window.dispatchEvent(new CustomEvent('myisp-goto-receipts', { detail: data }));
                                }}
                                title="Generate Receipt"
                                className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 shadow-md z-50 relative"

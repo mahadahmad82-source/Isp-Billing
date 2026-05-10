@@ -69,16 +69,16 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
 
-  // Listen for custom event from RecoverySummary (fallback when prop fails)
+  // Listen for custom event from RecoverySummary
   useEffect(() => {
     const handler = (e: Event) => {
       const { userId, month } = (e as CustomEvent).detail;
-      localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
-      setTimeout(() => setActiveTab('receipts'), 50);
+      // localStorage already written by button, just switch tab
+      setActiveTab('receipts');
     };
     window.addEventListener('myisp-goto-receipts', handler);
     return () => window.removeEventListener('myisp-goto-receipts', handler);
-  }, []);
+  }, [setActiveTab]);
   const [showTour, setShowTour] = useState(false);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
 
@@ -734,8 +734,7 @@ const App: React.FC = () => {
               onRenamePeriod={handleRenamePeriod}
               onNavigateToReceipts={(userId, month) => {
                 localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
-                // Small delay ensures localStorage write completes before tab switch
-                setTimeout(() => setActiveTab('receipts'), 50);
+                setActiveTab('receipts');
               }}
             />
           )}
