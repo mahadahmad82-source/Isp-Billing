@@ -15,6 +15,8 @@ interface ReceiptGeneratorProps {
   onUpdateUser: (userId: string, update: Partial<UserRecord>) => void;
   onDeleteReceipt: (id: string) => void;
   setLoadingMessage: (msg: string | null) => void;
+  preSelectUser?: { userId: string; month: string } | null;
+  onPreSelectConsumed?: () => void;
 }
 
 type ViewMode = 'list' | 'create' | 'view';
@@ -27,7 +29,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   onUpdateReceipt,
   onUpdateUser,
   onDeleteReceipt,
-  setLoadingMessage
+  setLoadingMessage,
+  preSelectUser,
+  onPreSelectConsumed,
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedUserId, setSelectedUserId] = useState('');

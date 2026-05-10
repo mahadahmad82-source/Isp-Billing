@@ -67,6 +67,7 @@ const App: React.FC = () => {
     return initialState;
   });
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
 
@@ -709,7 +710,7 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} />}
-          {activeTab === 'receipts' && <ReceiptGenerator users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} />}
+          {activeTab === 'receipts' && <ReceiptGenerator users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 
               users={filteredUsers} 
@@ -719,7 +720,11 @@ const App: React.FC = () => {
               onBulkAddUsers={handleBulkAddUsers}
               onBulkUpdateUsers={handleBulkUpdateUsers} 
               onDeletePeriod={handleDeletePeriod} 
-              onRenamePeriod={handleRenamePeriod} 
+              onRenamePeriod={handleRenamePeriod}
+              onNavigateToReceipts={(userId, month) => {
+                setPreSelectReceiptUser({ userId, month });
+                setActiveTab('receipts');
+              }}
             />
           )}
           {activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
