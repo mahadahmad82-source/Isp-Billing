@@ -68,6 +68,17 @@ const App: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
+
+  // Listen for custom event from RecoverySummary (fallback when prop fails)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { userId, month } = (e as CustomEvent).detail;
+      localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
+      setTimeout(() => setActiveTab('receipts'), 50);
+    };
+    window.addEventListener('myisp-goto-receipts', handler);
+    return () => window.removeEventListener('myisp-goto-receipts', handler);
+  }, []);
   const [showTour, setShowTour] = useState(false);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
 

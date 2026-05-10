@@ -951,15 +951,23 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                              <button
                                onClick={(e) => {
                                  e.stopPropagation();
+                                 e.preventDefault();
+                                 // Write to localStorage + dispatch custom event - independent of props
+                                 const data = { userId: item.id, month: selectedMonth || '', ts: Date.now() };
+                                 localStorage.setItem('myisp_preselect_receipt', JSON.stringify(data));
+                                 // Try prop first
                                  if (onNavigateToReceipts) {
                                    onNavigateToReceipts(item.id, selectedMonth || '');
+                                 } else {
+                                   // Fallback: fire custom DOM event
+                                   window.dispatchEvent(new CustomEvent('myisp-goto-receipts', { detail: data }));
                                  }
                                }}
                                title="Generate Receipt"
-                               className="px-3 py-1.5 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all flex items-center gap-1"
+                               className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 shadow-md z-50 relative"
                              >
                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-                               Receipt
+                               + Receipt
                              </button>
                           </>
                         ) : (
