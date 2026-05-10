@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { TiltCard, PushButton, MeshBackground } from './SpatialUI';
 import { UserRecord, Receipt, PaymentStatus, AppSettings } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
 import { shareToWhatsApp } from '../utils/whatsapp';
@@ -213,8 +212,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   }, 0);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 transition-colors relative">
-      <MeshBackground />
+    <div className="space-y-6 animate-in fade-in duration-500 transition-colors">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="space-y-1">
@@ -267,10 +265,10 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <TiltCard
+          <div
             key={stat.id}
             onClick={stat.onToggle}
-            className="bg-[#0b1120] p-8 rounded-[2rem] shadow-2xl border border-white/5 hover:border-indigo-500/40 group flex flex-col justify-between overflow-hidden relative"
+            className="bg-[#0b1120] p-8 rounded-[2rem] shadow-2xl border border-white/5 hover:border-indigo-500/40 cursor-pointer group flex flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all"
           >
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-6">
@@ -307,7 +305,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
                  </svg>
                </div>
             </div>
-          </TiltCard>
+          </div>
         ))}
       </div>
 

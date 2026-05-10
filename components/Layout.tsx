@@ -1,7 +1,5 @@
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { FloatingIcon } from './SpatialUI';
 import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
 
@@ -64,21 +62,7 @@ const Layout: React.FC<LayoutProps> = ({
   return (
     <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* Sidebar - Desktop */}
-      <aside className={`hidden md:flex flex-col shadow-2xl transition-all duration-300 relative z-20 ${sidebarCollapsed ? 'w-16 p-2' : 'w-64 p-6'} ${theme === 'dark'
-  ? 'bg-slate-900/80 backdrop-blur-2xl border-r border-white/5 text-white'
-  : 'bg-indigo-900/90 backdrop-blur-2xl border-r border-white/10 text-white'}`}>
-        {/* Sidebar ambient background */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-r-3xl">
-          <motion.div
-            animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
-            transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-            style={{
-              position:'absolute', inset:0,
-              backgroundImage:'radial-gradient(ellipse at 20% 30%, rgba(99,102,241,0.12) 0%, transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(139,92,246,0.08) 0%, transparent 60%)',
-              backgroundSize:'200% 200%',
-            }}
-          />
-        </div>
+      <aside className={`hidden md:flex flex-col shadow-xl transition-all duration-300 ${sidebarCollapsed ? 'w-16 p-2' : 'w-64 p-6'} ${theme === 'dark' ? 'bg-slate-900 border-r border-slate-800 text-white' : 'bg-indigo-900 text-white'}`}>
         {/* Toggle Button */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -126,18 +110,8 @@ const Layout: React.FC<LayoutProps> = ({
                   : (theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-white/60 hover:text-white hover:bg-indigo-800')
                 }`}
             >
-              <FloatingIcon delay={tabs.indexOf(tab) * 0.3}>
-                <span className="flex-shrink-0 text-lg">{tab.icon}</span>
-              </FloatingIcon>
-              {!sidebarCollapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 }}
-                >
-                  {tab.label}
-                </motion.span>
-              )}
+              <span className="flex-shrink-0 text-lg">{tab.icon}</span>
+              {!sidebarCollapsed && tab.label}
             </button>
           ))}
         </nav>
@@ -215,18 +189,7 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </header>
         <div className="w-full">
-           <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.995 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            style={{ willChange: 'transform, opacity' }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+           {children}
         </div>
       </main>
 
