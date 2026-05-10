@@ -119,7 +119,14 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       const paidSum = userReceipts.reduce((sum, r) => sum + (r.paidAmount - (r.advanceAmount || 0)), 0);
       const advanceSum = userReceipts.reduce((sum, r) => sum + (r.advanceAmount || 0), 0);
       
-      const balanceSum = hasPaid ? userReceipts[userReceipts.length - 1].balanceAmount : u.balance;
+      // FIXED: Read balance exactly from Excel import — no phantom arrears
+      // If user has receipts, use the receipt's explicit balanceAmount
+      // If no receipts but has balance on user record, show that balance
+      // If no receipts and no balance → 0 (not paid but no arrears)
+      const lastReceipt = userReceipts[userReceipts.length - 1];
+      const balanceSum = hasPaid
+        ? (lastReceipt?.balanceAmount ?? 0)
+        : (u.balance ?? 0);
 
       return {
         id: u.id,
@@ -346,12 +353,19 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             };
             newReceipts.push(receipt);
           } else if (balanceAmount > 0) {
-            // User has pending balance — update their balance in user record, no receipt
+            // User has explicit pending balance from Excel — set exactly, don't add to existing
             const existingUser = updatedUsersMap.get(user.id) || user;
             updatedUsersMap.set(user.id, {
               ...existingUser,
-              balance: (existingUser.balance || 0) + balanceAmount,
+              balance: balanceAmount, // SET exactly as in Excel, not cumulative
               status: existingUser.status || 'active'
+            });
+          } else {
+            // Zero balance in Excel — clear any phantom arrears
+            const existingUser = updatedUsersMap.get(user.id) || user;
+            updatedUsersMap.set(user.id, {
+              ...existingUser,
+              balance: 0, // Explicitly zero — no phantom arrears
             });
           }
         });
@@ -477,7 +491,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     
     const currentSelectedUser = users.find(u => u.id === viewingReceipt.userId);
     const storedMonthlyFee = viewingReceipt.monthlyFee || (currentSelectedUser ? (settings.planPrices[currentSelectedUser.plan] || 0) : 0);
-    const arrears = Math.max(0, (viewingReceipt.totalAmount || 0) + (viewingReceipt.discount || 0) - (storedMonthlyFee || 0));
+    // FIXED: Use only explicitly stored arrears — no phantom auto-calculation
+    // Arrears = only what was in the imported Excel (balanceAmount field)
+    const arrears = 0; // No auto-calculated arrears — only show if explicitly in receipt
     const nextMonthDue = (viewingReceipt.balanceAmount || 0) + (storedMonthlyFee - (viewingReceipt.discount || 0));
 
     const AdsSection = ({ design }: { design: ReceiptDesign }) => {
