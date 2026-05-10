@@ -306,24 +306,25 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
   }, [activeReceipt, settings.businessName]);
 
-  // Auto-navigate from Recovery Ledger: pre-select user and switch to create mode
+  // Auto-navigate from Recovery Ledger via localStorage bridge
   useEffect(() => {
-    if (!preSelectUser) return;
-    // Find user by id OR by matching any way possible
-    const user = users.find(u => u.id === preSelectUser.userId) ||
-                 users.find(u => String(u.id) === String(preSelectUser.userId));
-    // Switch to create mode regardless - user selection will be handled
-    setViewMode('create');
-    setActiveReceipt(null);
-    setEditingReceiptId(null);
-    if (user) {
-      setSelectedUserId(user.id);
-      setCustomerSearchQuery(user.name);
-    } else {
-      setSelectedUserId(preSelectUser.userId);
-    }
-    onPreSelectConsumed?.();
-  }, [preSelectUser, users]);
+    const raw = localStorage.getItem('myisp_preselect_receipt');
+    if (!raw) return;
+    try {
+      const { userId, month, ts } = JSON.parse(raw);
+      // Only process if recent (within 5 seconds)
+      if (Date.now() - ts > 5000) { localStorage.removeItem('myisp_preselect_receipt'); return; }
+      localStorage.removeItem('myisp_preselect_receipt');
+      const user = users.find(u => u.id === userId) || users.find(u => String(u.id) === String(userId));
+      setViewMode('create');
+      setActiveReceipt(null);
+      setEditingReceiptId(null);
+      if (user) {
+        setSelectedUserId(user.id);
+        setCustomerSearchQuery(user.name);
+      }
+    } catch {}
+  }, [users]); // runs whenever users array is ready
 
   const handleWhatsAppShare = async () => {
     if (!activeReceipt) return;

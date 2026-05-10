@@ -722,7 +722,8 @@ const App: React.FC = () => {
               onDeletePeriod={handleDeletePeriod} 
               onRenamePeriod={handleRenamePeriod}
               onNavigateToReceipts={(userId, month) => {
-                setPreSelectReceiptUser({ userId, month });
+                // Use localStorage as reliable bridge - avoids React timing issues
+                localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
                 setActiveTab('receipts');
               }}
             />
