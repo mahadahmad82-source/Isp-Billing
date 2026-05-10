@@ -1,11 +1,14 @@
 import { Receipt, PaymentStatus } from '../types';
 
 /**
- * Calculate actual paid amount from a receipt
- * Uses paidAmount first, falls back to totalAmount
+ * Calculate actual PAID amount from a receipt.
+ * Strictly uses paidAmount — no fallback to totalAmount (which includes balance/arrears).
+ * This ensures Past Records show exactly what was collected, not estimated totals.
  */
 export const getReceiptAmount = (r: Receipt): number => {
-  return r.paidAmount || (r as any).totalAmount || 0;
+  // paidAmount is the ONLY source of truth for collected revenue
+  // totalAmount = paidAmount + balanceAmount (includes pending dues — NOT revenue)
+  return typeof r.paidAmount === 'number' ? r.paidAmount : 0;
 };
 
 /**

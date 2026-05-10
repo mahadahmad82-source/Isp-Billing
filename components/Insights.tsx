@@ -43,14 +43,25 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
     ];
 
     const monthlyData = months.map(month => {
+      // Strict match: receipt must be SUCCESS AND period must match this month+year exactly
+      // This ensures Past Records use ONLY their stored paidAmount — no phantom recalculation
       const filtered = (receipts || []).filter(r => {
-        const rDate = new Date(r.date);
-        return rDate.getFullYear() === selectedYear && (r.period || '').includes(month);
+        if (r.status !== PaymentStatus.SUCCESS) return false;
+        const periodMatch = (r.period || '').includes(month) &&
+          (r.period || '').includes(String(selectedYear));
+        // Fallback: match by receipt date if period string doesn't have year
+        const dateMatch = (() => {
+          try {
+            const d = new Date(r.date);
+            return d.getFullYear() === selectedYear && (r.period || '').includes(month);
+          } catch { return false; }
+        })();
+        return periodMatch || dateMatch;
       });
 
-      const collected = filtered
-        .filter(r => r.status === PaymentStatus.SUCCESS)
-        .reduce((sum, r) => sum + getReceiptAmount(r), 0);
+      // Sum ONLY paidAmount — strictly what was collected, no totalAmount fallback
+      const collected = filtered.reduce((sum, r) =>
+        sum + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
       const count = filtered.length;
 
       return {
