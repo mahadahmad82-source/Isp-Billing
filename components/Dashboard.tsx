@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { TiltCard, PushButton, MeshBackground } from './SpatialUI';
 import { UserRecord, Receipt, PaymentStatus, AppSettings } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
 import { shareToWhatsApp } from '../utils/whatsapp';
@@ -212,7 +213,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   }, 0);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 transition-colors">
+    <div className="space-y-6 animate-in fade-in duration-500 transition-colors relative">
+      <MeshBackground />
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="space-y-1">
@@ -224,7 +226,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           {isAdmin && (
             <button 
               onClick={() => setActiveTab('admin')}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-90 active:-rotate-1 transition-all flex items-center gap-2 group/admin"
+              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 flex items-center gap-2 group/admin"
             >
               <svg className="w-4 h-4 transition-transform group-hover/admin:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
               Admin Panel
@@ -265,10 +267,10 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <div 
-            key={stat.id} 
-            className="bg-[#0b1120] p-8 rounded-[2rem] shadow-2xl border border-white/5 transition-all hover:border-indigo-500/40 cursor-pointer group flex flex-col justify-between overflow-hidden relative active:scale-95 duration-200"
+          <TiltCard
+            key={stat.id}
             onClick={stat.onToggle}
+            className="bg-[#0b1120] p-8 rounded-[2rem] shadow-2xl border border-white/5 hover:border-indigo-500/40 group flex flex-col justify-between overflow-hidden relative"
           >
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-6">
@@ -305,7 +307,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
                  </svg>
                </div>
             </div>
-          </div>
+          </TiltCard>
         ))}
       </div>
 
