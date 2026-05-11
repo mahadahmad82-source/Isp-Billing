@@ -706,6 +706,8 @@ const App: React.FC = () => {
           onSwitchCompany={handleSwitchCompany}
           onAddCompany={handleAddCompany}
           isAdmin={isAdmin}
+          activeManager={activeManager || ''}
+          onLogout={handleLogout}
         >
           {activeTab === 'dashboard' && (
             <Dashboard 

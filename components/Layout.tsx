@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import ProfileDialog from './ProfileDialog';
 import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
 
@@ -19,6 +20,8 @@ interface LayoutProps {
   onSwitchCompany?: (id: string) => void;
   onAddCompany?: (name: string) => void;
   isAdmin?: boolean;
+  activeManager?: string;
+  onLogout?: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -117,18 +120,36 @@ const Layout: React.FC<LayoutProps> = ({
         </nav>
 
         <div className={`mt-auto pt-6 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-indigo-800'}`}>
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-900">
+          <button
+            onClick={() => setProfileOpen(true)}
+            className="flex items-center gap-3 px-2 w-full hover:bg-white/10 rounded-2xl py-2 transition-colors group"
+          >
+            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-900 flex-shrink-0 group-hover:ring-2 group-hover:ring-white/30 transition-all">
               {(businessName?.charAt(0) || 'M').toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white uppercase tracking-wider truncate">{isAdmin ? 'ADMIN ACCOUNT' : 'MANAGER ACCOUNT'}</p>
-              <p className={`text-[9px] font-black truncate ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>
-                {businessName || 'SECURE OFFLINE NODE'}
-              </p>
-            </div>
-          </div>
+            {!sidebarCollapsed && (
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-xs font-bold text-white uppercase tracking-wider truncate">{isAdmin ? 'ADMIN ACCOUNT' : 'MANAGER ACCOUNT'}</p>
+                <p className={`text-[9px] font-black truncate ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>
+                  {businessName || 'SECURE OFFLINE NODE'}
+                </p>
+              </div>
+            )}
+            {!sidebarCollapsed && (
+              <svg className="w-3 h-3 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            )}
+          </button>
         </div>
+        <ProfileDialog
+          isOpen={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          businessName={businessName}
+          username={activeManager}
+          onLogout={onLogout}
+          theme={theme}
+        />
       </aside>
 
       {/* Bottom Nav - Mobile Optimization: Grid of 7 to prevent crowding */}
