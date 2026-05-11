@@ -39,7 +39,9 @@ const Layout: React.FC<LayoutProps> = ({
   activeCompanyId,
   onSwitchCompany,
   onAddCompany,
-  isAdmin = false
+  isAdmin = false,
+  activeManager = '',
+  onLogout = () => {},
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false);
