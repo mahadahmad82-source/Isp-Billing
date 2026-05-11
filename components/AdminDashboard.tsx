@@ -159,6 +159,40 @@ const AdminDashboard: React.FC = () => {
   };
 
   // ── Totals ────────────────────────────────────────────────────────────────────
+  const handleDelete = async (username: string) => {
+    try {
+      await supabase.rpc('admin_delete_manager', { p_username: username });
+    } catch {}
+    const accs = getRegisteredAccounts().filter((a: any) => a.username !== username);
+    saveRegisteredAccounts(accs);
+    localStorage.removeItem(`${DATA_PREFIX}${username}`);
+    setShowDeleteConfirm(null);
+    loadManagers();
+  };
+
+  const handleReset = async () => {
+    if (!showResetModal || !newPassword.trim()) return;
+    try {
+      const { data, error } = await supabase.rpc('admin_reset_manager_password', {
+        p_username: showResetModal,
+        p_new_password: newPassword.trim()
+      });
+      if (error || (data && !data.success)) {
+        alert('Error: ' + (error?.message || data?.error || 'Failed'));
+        return;
+      }
+    } catch (e: any) {
+      alert('Error: ' + e.message);
+      return;
+    }
+    saveRegisteredAccounts(getRegisteredAccounts().map((a: any) =>
+      a.username === showResetModal ? { ...a, password: newPassword.trim() } : a
+    ));
+    setShowResetModal(null);
+    setNewPassword('');
+    loadManagers();
+  };
+
   const totals = useMemo(() => ({
     managers: managers.length,
     customers: managers.reduce((s, m) => s + m.user_count, 0),
