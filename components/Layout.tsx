@@ -61,6 +61,7 @@ const Layout: React.FC<LayoutProps> = ({
   }
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   return (
     <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
