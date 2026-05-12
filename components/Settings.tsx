@@ -711,28 +711,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
            </div>
         </div>
 
-        {/* Credentials */}
-        {!isGlobalAdmin && (
-          <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
-             <div className="flex items-center gap-3">
-               <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
-                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-               </div>
-               <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Manager Login Credentials</h4>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Manager Username</label>
-                  <input className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all cursor-not-allowed opacity-50" value={localSettings.adminUsername || ''} disabled />
-                  <p className="text-[9px] font-bold text-slate-400 ml-1 mt-1">Username cannot be changed after registration.</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Account Password</label>
-                  <input type="password" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all" value={localSettings.adminPassword || ''} onChange={e => setLocalSettings({...localSettings, adminPassword: e.target.value})} />
-                </div>
-             </div>
-          </div>
-        )}
+
 
         {/* Data & Backup */}
         <div className="bg-[#0f172a] p-12 rounded-[3.5rem] border border-white/5 shadow-2xl space-y-10 text-white relative overflow-hidden group">

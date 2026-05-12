@@ -156,7 +156,8 @@ const Layout: React.FC<LayoutProps> = ({
       </aside>
 
       {/* Bottom Nav - Mobile Optimization: Grid of 7 to prevent crowding */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 border-t grid ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'} z-50 shadow-2xl no-print transition-colors ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 border-t grid z-50 shadow-2xl no-print transition-colors ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'} ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
+        style={{gridTemplateColumns: `repeat(${tabs.length}, 1fr) 40px`}}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -173,6 +174,16 @@ const Layout: React.FC<LayoutProps> = ({
             </span>
           </button>
         ))}
+        {/* Mobile Profile Icon */}
+        <button
+          onClick={() => setProfileOpen(true)}
+          className={`flex flex-col items-center justify-center py-3 px-0.5 transition-colors gap-0.5 ${theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-400 hover:text-indigo-600'}`}
+        >
+          <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center font-black text-white text-[10px]">
+            {businessName?.charAt(0)?.toUpperCase() || 'M'}
+          </div>
+          <span className="text-[7.5px] font-black uppercase tracking-tighter">Profile</span>
+        </button>
       </nav>
 
       {/* Main Content Area */}

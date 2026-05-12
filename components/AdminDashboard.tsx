@@ -610,9 +610,15 @@ const AdminDashboard: React.FC = () => {
             <p className="text-xs text-slate-400 mb-4">@{showResetModal} ka naya password set karein</p>
             <input type="password" placeholder="Naya password likhein" value={newPassword} onChange={e => setNewPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-400 mb-4" />
+            {newPassword.length > 0 && newPassword.length < 6 && (
+              <p className="text-xs text-amber-500 font-bold">⚠️ Password kam az kam 6 characters ka hona chahiye</p>
+            )}
             <div className="flex gap-2">
-              <button onClick={() => setShowResetModal(null)} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 text-xs font-black">Cancel</button>
-              <button onClick={handleReset} className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700">Save</button>
+              <button onClick={() => { setShowResetModal(null); setNewPassword(''); }} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 text-xs font-black">Cancel</button>
+              <button onClick={handleReset} disabled={!newPassword.trim() || newPassword.length < 6}
+                className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 disabled:opacity-40 active:scale-95 transition-all">
+                ✅ Update Password
+              </button>
             </div>
           </div>
         </div>
@@ -623,14 +629,38 @@ const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(null)} />
           <div className="relative z-10 w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 text-center">
-            <div className="w-14 h-14 bg-rose-100 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-7 h-7 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </div>
-            <h2 className="text-lg font-black text-slate-900 dark:text-white mb-2">Delete Manager?</h2>
-            <p className="text-xs text-slate-500 mb-6">@<span className="font-black text-rose-600">{showDeleteConfirm}</span> ka account aur poora data permanently delete ho jayega!</p>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white mb-1">Manager Delete Karein?</h2>
+            <p className="text-sm font-black text-rose-600 mb-2">@{showDeleteConfirm}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Yeh action <span className="font-black text-rose-600">permanent</span> hai aur undo nahi ho sakti.</p>
+            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl p-3 mb-5 text-left space-y-1">
+              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Yeh sab delete ho jayega:</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">• Manager account (login access)</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">• Tamam customers ka data</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">• Tamam receipts aur ledger</p>
+            </div>
+            <p className="text-[10px] text-slate-400 mb-4">Confirm karne ke liye "DELETE" type karein:</p>
+            <input
+              id="delete-confirm-input"
+              type="text"
+              placeholder="DELETE likhein..."
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-center font-black outline-none focus:ring-2 focus:ring-rose-400 mb-4 uppercase"
+            />
             <div className="flex gap-2">
-              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 text-xs font-black">Cancel</button>
-              <button onClick={() => handleDelete(showDeleteConfirm)} className="flex-1 py-3 rounded-2xl bg-rose-600 text-white text-xs font-black hover:bg-rose-700">Delete</button>
+              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-black">Cancel</button>
+              <button onClick={() => {
+                const inp = document.getElementById('delete-confirm-input') as HTMLInputElement;
+                if (inp?.value?.toUpperCase() === 'DELETE') {
+                  handleDelete(showDeleteConfirm);
+                } else {
+                  inp.classList.add('ring-2', 'ring-rose-500');
+                  setTimeout(() => inp.classList.remove('ring-2', 'ring-rose-500'), 1500);
+                }
+              }} className="flex-1 py-3 rounded-2xl bg-rose-600 text-white text-xs font-black hover:bg-rose-700 active:scale-95 transition-all">
+                🗑️ Confirm Delete
+              </button>
             </div>
           </div>
         </div>
