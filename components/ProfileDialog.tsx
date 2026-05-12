@@ -104,14 +104,14 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" />
 
       {/* Dialog */}
-      <div className={`relative z-10 w-full max-w-md rounded-3xl shadow-2xl border overflow-hidden ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+      <div className={`relative z-10 w-full max-w-md rounded-3xl shadow-2xl border overflow-hidden mb-16 md:mb-0 ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
 
         {/* Header */}
         <div className={`px-6 pt-6 pb-4 ${isDark ? 'bg-slate-800' : 'bg-indigo-600'}`}>
@@ -134,10 +134,14 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
 
           {/* Tabs */}
           <div className="flex gap-1 mt-4 bg-white/10 rounded-xl p-1">
-            {(['profile', 'security', 'session'] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${tab === t ? 'bg-white text-indigo-600 shadow' : 'text-white/70 hover:text-white'}`}>
-                {t === 'profile' ? '👤 Profile' : t === 'security' ? '🔐 Security' : '🚪 Session'}
+            {([
+              { id: 'profile', label: 'Profile', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> },
+              { id: 'security', label: 'Security', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> },
+              { id: 'session', label: 'Session', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> },
+            ] as const).map(t => (
+              <button key={t.id} onClick={() => setTab(t.id as any)}
+                className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${tab === t.id ? 'bg-white text-indigo-600 shadow' : 'text-white/70 hover:text-white'}`}>
+                {t.icon}{t.label}
               </button>
             ))}
           </div>
@@ -150,14 +154,14 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
           {tab === 'profile' && (
             <div className="space-y-4">
               {[
-                { label: 'Business Name', value: businessName, icon: '🏢' },
-                { label: 'Username', value: `@${username}`, icon: '👤' },
-                { label: 'Email', value: profile?.email || '...', icon: '📧' },
-                { label: 'Role', value: profile?.role || '...', icon: '🎯' },
-                { label: 'Member Since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '...', icon: '📅' },
+                { label: 'Business Name', value: businessName, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'/></svg> },
+                { label: 'Username', value: `@${username}`, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/></svg> },
+                { label: 'Email', value: profile?.email || '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'/></svg> },
+                { label: 'Role', value: profile?.role || '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> },
+                { label: 'Member Since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg> },
               ].map(item => (
                 <div key={item.label} className={`flex items-center gap-3 p-3 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                  <span className="text-lg flex-shrink-0">{item.icon}</span>
+                  <span className="flex-shrink-0">{item.icon}</span>
                   <div className="min-w-0">
                     <p className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{item.label}</p>
                     <p className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>{item.value}</p>
@@ -231,7 +235,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
               </div>
 
               <div className={`p-4 rounded-2xl border ${isDark ? 'bg-rose-900/10 border-rose-800' : 'bg-rose-50 border-rose-200'}`}>
-                <p className={`text-xs font-bold mb-1 ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>⚠️ Logout karne se session end ho jayega</p>
+                <p className={`text-xs font-bold mb-1 ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Logout karne se session end ho jayega</p>
                 <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Wapas login karna hoga. Aapka data safe rahega.</p>
               </div>
 
