@@ -8,10 +8,11 @@ interface ProfileDialogProps {
   username: string;
   onLogout: () => void;
   theme: 'light' | 'dark';
+  initialTab?: 'profile' | 'security' | 'session';
 }
 
 const ProfileDialog: React.FC<ProfileDialogProps> = ({
-  isOpen, onClose, businessName, username, onLogout, theme
+  isOpen, onClose, businessName, username, onLogout, theme, initialTab = 'profile'
 }) => {
   const [tab, setTab] = useState<'profile' | 'security' | 'session'>('profile');
   const [profile, setProfile] = useState<{ email: string; role: string; created_at: string } | null>(null);
@@ -26,7 +27,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
   // Load profile on open
   useEffect(() => {
     if (!isOpen) return;
-    setTab('profile');
+    setTab(initialTab || 'profile');
     setPwdError(''); setPwdSuccess('');
     setOldPwd(''); setNewPwd(''); setConfirmPwd('');
     loadProfile();

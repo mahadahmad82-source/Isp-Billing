@@ -65,6 +65,7 @@ const Layout: React.FC<LayoutProps> = ({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [profileInitialTab, setProfileInitialTab] = useState<'profile'|'security'|'session'>('profile');
 
   return (
     <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -153,6 +154,7 @@ const Layout: React.FC<LayoutProps> = ({
           username={activeManager}
           onLogout={onLogout}
           theme={theme}
+          initialTab={profileInitialTab}
         />
       </aside>
 
@@ -168,9 +170,9 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(d => !d)}
-            className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-black text-white text-sm shadow-lg"
+            className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
           >
-            {businessName?.charAt(0)?.toUpperCase() || 'M'}
+            <img src="/avatar-default.jpg" alt="Profile" className="w-full h-full object-cover" />
           </button>
           {dropdownOpen && (
             <>
@@ -182,12 +184,12 @@ const Layout: React.FC<LayoutProps> = ({
                   <p className="text-xs text-slate-400">@{activeManager}</p>
                 </div>
                 {/* Menu Items */}
-                <button onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}
+                <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
                   <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
                   Profile
                 </button>
-                <button onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}
+                <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('security'); setProfileOpen(true); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
                   <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
                   Change Password

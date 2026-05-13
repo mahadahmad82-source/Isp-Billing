@@ -445,58 +445,6 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       </div>
 
       <div className="grid grid-cols-1 gap-10">
-        {/* Manager Profile Details Section */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
-           <div className="flex items-center gap-3">
-             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
-               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-             </div>
-             <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Manager Profile Detail</h4>
-           </div>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Business / Brand Name</label>
-                <input 
-                  className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all" 
-                  value={localSettings.businessName} 
-                  onChange={e => setLocalSettings({...localSettings, businessName: e.target.value})} 
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Contact Phone Number</label>
-                <input 
-                  className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all" 
-                  value={localSettings.businessPhone} 
-                  onChange={e => setLocalSettings({...localSettings, businessPhone: e.target.value})} 
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Business Email Address</label>
-                <input 
-                  className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all" 
-                  value={localSettings.businessEmail} 
-                  onChange={e => setLocalSettings({...localSettings, businessEmail: e.target.value})} 
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Physical / Office Address</label>
-                <input 
-                  className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all" 
-                  value={localSettings.businessAddress} 
-                  onChange={e => setLocalSettings({...localSettings, businessAddress: e.target.value})} 
-                />
-              </div>
-           </div>
-           <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Global Receipt Note / Disclaimer</label>
-              <textarea 
-                className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] font-bold border border-slate-100 dark:border-white/5 outline-none text-slate-900 dark:text-white focus:border-indigo-500 transition-all min-h-[100px]" 
-                value={localSettings.globalNote || ''} 
-                onChange={e => setLocalSettings({...localSettings, globalNote: e.target.value})}
-              />
-           </div>
-        </div>
-
         {/* Visual Identity & Themes */}
         <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
            <div className="flex items-center gap-3">
