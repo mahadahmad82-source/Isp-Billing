@@ -596,9 +596,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <div className="bg-indigo-600 text-white p-8 rounded-[3rem] shadow-[8px_8px_0px_rgba(0,0,0,1)] border-[4px] border-slate-900 flex flex-col items-center text-center">
                      <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-70 mb-3">Amount Received</p>
                      <span className="text-5xl font-black tracking-tighter">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span>
-                  {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
-                     <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-4 py-1.5 px-6 bg-white-op20 rounded-full">Transaction Success</p>
+                     <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-4 py-1.5 px-6 bg-white/20 rounded-full">Transaction Success</p>
                   </div>
+                  {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between items-center w-full bg-rose-50 border border-rose-200 rounded-2xl px-4 py-2"><span className="font-black text-rose-600 uppercase text-xs">Remaining Due</span><span className="font-black text-rose-600">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
                   
                   <div className={`p-8 rounded-[2.5rem] border-[3px] border-slate-900 flex justify-between items-center ${nextMonthDue > 0 ? 'bg-rose-50' : 'bg-emerald-50'}`}>
                      <div>
@@ -656,7 +656,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex justify-between font-black border-t border-slate-100 pt-1"><span>Total Payable:</span><span>Rs. {(activeReceipt.totalAmount || 0).toLocaleString()}</span></div>
               <div className="pt-2"></div>
               <div className="flex justify-between text-indigo-700 font-bold"><span>Amount Paid:</span><span>Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span></div>
-              
+              {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between font-black text-red-600 border-t border-dashed border-slate-300 pt-1 mt-1"><span>REMAINING DUE:</span><span>Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
             </div>
             <AdsSection design={ReceiptDesign.THERMAL} />
             <p className="text-[9px] font-bold uppercase tracking-wider mt-2">Thank you!</p>
