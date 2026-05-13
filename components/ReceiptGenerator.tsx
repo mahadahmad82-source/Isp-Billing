@@ -596,6 +596,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <div className="bg-indigo-600 text-white p-8 rounded-[3rem] shadow-[8px_8px_0px_rgba(0,0,0,1)] border-[4px] border-slate-900 flex flex-col items-center text-center">
                      <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-70 mb-3">Amount Received</p>
                      <span className="text-5xl font-black tracking-tighter">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span>
+                  {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-4 py-1.5 px-6 bg-white-op20 rounded-full">Transaction Success</p>
                   </div>
                   
@@ -711,6 +712,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="bg-slate-50 p-6 rounded-[1.5rem] flex flex-col items-center gap-1 border border-slate-100 shadow-inner">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Amount Received</p>
                  <p className="text-3xl font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</p>
+                  {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
               </div>
 
               <div className="flex justify-between items-center pt-2">
@@ -748,6 +750,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               {activeReceipt.userAddress && <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Addr:</span><span className="font-medium text-[9px] whitespace-normal text-right flex-1 ml-4">{activeReceipt.userAddress}</span></div>}
               {activeReceipt.advanceAmount > 0 ? <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Adv:</span><span className="font-black text-indigo-600">Rs. {(activeReceipt.advanceAmount || 0).toLocaleString()}</span></div> : null}
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Paid:</span><span className="font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span></div>
+                  {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
               
             </div>
             {(settings.billAds || settings.billAdsImage) && (
@@ -824,6 +827,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             <div className="space-y-2 px-6 text-right">
               <div className="flex justify-between items-center"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Payable</span><span className="text-lg font-black text-slate-800">Rs. {(activeReceipt.totalAmount || 0).toLocaleString()}</span></div>
               <div className="flex justify-between items-center border-t border-slate-100 pt-2 mt-2"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Amount Received</span><span className="text-2xl font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span></div>
+                  {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
               
             </div>
             <AdsSection design={ReceiptDesign.PROFESSIONAL} />
@@ -921,6 +925,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <span className="font-black text-white text-sm uppercase tracking-wide">Amount Paid</span>
                   <span className="font-black text-white text-xl">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span>
                 </div>
+                {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between items-center mt-2 px-4 py-2 bg-rose-50 rounded-xl"><span className="font-black text-rose-600 text-xs uppercase">Remaining Due</span><span className="font-black text-rose-600">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
               </div>
             </div>
 
