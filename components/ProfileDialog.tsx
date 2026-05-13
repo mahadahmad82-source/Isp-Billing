@@ -16,6 +16,12 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
 }) => {
   const [tab, setTab] = useState<'profile' | 'security' | 'session'>('profile');
   const [profile, setProfile] = useState<{ email: string; role: string; created_at: string } | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editSuccess, setEditSuccess] = useState('');
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
@@ -49,8 +55,28 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
           role: user.email === 'admin@myisp.local' ? 'Admin' : 'Manager',
           created_at: user.created_at,
         });
+        setEditEmail(user.email || '');
       }
     } catch {}
+  };
+
+  const handleSaveProfile = async () => {
+    setEditSaving(true);
+    try {
+      // Save phone/address to localStorage settings
+      const raw = localStorage.getItem(`mahadnet_data_${username}`);
+      const state = raw ? JSON.parse(raw) : {};
+      if (!state.settings) state.settings = {};
+      state.settings.businessPhone = editPhone;
+      state.settings.businessAddress = editAddress;
+      if (state.companies?.length) {
+        state.companies[0].settings = { ...state.companies[0].settings, businessPhone: editPhone, businessAddress: editAddress };
+      }
+      localStorage.setItem(`mahadnet_data_${username}`, JSON.stringify(state));
+      setEditSuccess('Profile update ho gaya!');
+      setEditMode(false);
+    } catch (e: any) { alert('Error: ' + e.message); }
+    finally { setEditSaving(false); }
   };
 
   const handleChangePassword = async () => {
@@ -153,11 +179,11 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
 
           {/* PROFILE TAB */}
           {tab === 'profile' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
+              {/* Read-only fields */}
               {[
                 { label: 'Business Name', value: businessName, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'/></svg> },
                 { label: 'Username', value: `@${username}`, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/></svg> },
-                { label: 'Email', value: profile?.email || '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'/></svg> },
                 { label: 'Role', value: profile?.role || '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> },
                 { label: 'Member Since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg> },
               ].map(item => (
@@ -169,6 +195,33 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
                   </div>
                 </div>
               ))}
+
+              {/* Editable fields */}
+              {editSuccess && <p className="text-xs font-bold text-emerald-500 text-center py-1">{editSuccess}</p>}
+              {[
+                { label: 'Email', value: editEmail, setter: setEditEmail, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'/></svg>, placeholder: 'Email address' },
+                { label: 'Phone', value: editPhone, setter: setEditPhone, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z'/></svg>, placeholder: '03001234567' },
+                { label: 'Address', value: editAddress, setter: setEditAddress, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'/><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'/></svg>, placeholder: 'Office address' },
+              ].map(field => (
+                <div key={field.label} className={`flex items-center gap-3 p-3 rounded-2xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="flex-shrink-0">{field.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{field.label}</p>
+                    <input
+                      value={field.value}
+                      onChange={e => field.setter(e.target.value)}
+                      placeholder={field.placeholder}
+                      className={`w-full text-sm font-bold bg-transparent outline-none ${isDark ? 'text-white placeholder-slate-600' : 'text-slate-800 placeholder-slate-300'}`}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button onClick={handleSaveProfile} disabled={editSaving}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
+                {editSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>}
+                Save Profile
+              </button>
             </div>
           )}
 
