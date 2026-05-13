@@ -147,15 +147,7 @@ const Layout: React.FC<LayoutProps> = ({
             )}
           </button>
         </div>
-        <ProfileDialog
-          isOpen={profileOpen}
-          onClose={() => setProfileOpen(false)}
-          businessName={businessName}
-          username={activeManager}
-          onLogout={onLogout}
-          theme={theme}
-          initialTab={profileInitialTab}
-        />
+
       </aside>
 
       {/* Fixed Top Header - Mobile Only */}
@@ -164,7 +156,7 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="w-10" />
         {/* Center: Logo only */}
         <div className="flex items-center">
-          <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-xl" />
+          <img src="/logo-v3.png" alt="Logo" className="w-16 h-16 object-contain rounded-xl" />
         </div>
         {/* Right: Avatar + Dropdown */}
         <div className="relative">
@@ -330,6 +322,16 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
       )}
+    {/* ProfileDialog - top level z-index for both mobile & desktop */}
+    <ProfileDialog
+      isOpen={profileOpen}
+      onClose={() => setProfileOpen(false)}
+      businessName={businessName}
+      username={activeManager}
+      onLogout={onLogout}
+      theme={theme}
+      initialTab={profileInitialTab}
+    />
     </div>
   );
 };

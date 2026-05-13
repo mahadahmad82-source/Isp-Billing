@@ -89,7 +89,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
       const { error: updateError } = await supabase.auth.updateUser({ password: newPwd });
       if (updateError) throw updateError;
 
-      setPwdSuccess('Password successfully update ho gaya! ✅');
+      setPwdSuccess('Password successfully update ho gaya! ');
       setOldPwd(''); setNewPwd(''); setConfirmPwd('');
     } catch (err: any) {
       setPwdError(err.message || 'Password update fail hua.');
@@ -230,13 +230,16 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
                 <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'}`}>@{username}</p>
                 <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{profile?.email}</p>
                 <div className="flex items-center gap-1.5 mt-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"/>
                   <span className="text-xs font-bold text-emerald-500">Session Active</span>
                 </div>
               </div>
 
               <div className={`p-4 rounded-2xl border ${isDark ? 'bg-rose-900/10 border-rose-800' : 'bg-rose-50 border-rose-200'}`}>
-                <p className={`text-xs font-bold mb-1 ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Logout karne se session end ho jayega</p>
+                <div className="flex items-center gap-2 mb-1">
+                <svg className="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p className={`text-xs font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Logout karne se session end ho jayega</p>
+              </div>
                 <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Wapas login karna hoga. Aapka data safe rahega.</p>
               </div>
 
