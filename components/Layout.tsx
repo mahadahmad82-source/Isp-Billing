@@ -164,7 +164,7 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="w-10" />
         {/* Center: Logo only */}
         <div className="flex items-center">
-          <img src="/logo-v3.png" alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
+          <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-xl" />
         </div>
         {/* Right: Avatar + Dropdown */}
         <div className="relative">
@@ -172,7 +172,7 @@ const Layout: React.FC<LayoutProps> = ({
             onClick={() => setDropdownOpen(d => !d)}
             className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
           >
-            <img src="/avatar-default.jpg" alt="Profile" className="w-full h-full object-cover" />
+            <img src="/avatar-default.png" alt="Profile" className="w-full h-full object-cover" />
           </button>
           {dropdownOpen && (
             <>
