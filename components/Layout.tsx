@@ -157,13 +157,12 @@ const Layout: React.FC<LayoutProps> = ({
       </aside>
 
       {/* Fixed Top Header - Mobile Only */}
-      <div className={`md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 shadow-md ${theme === 'dark' ? 'bg-slate-900 border-b border-slate-800' : 'bg-white border-b border-slate-200'}`}>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-transparent">
         {/* Left: empty spacer */}
         <div className="w-10" />
-        {/* Center: Logo + Name */}
-        <div className="flex items-center gap-2">
-          <img src="/logo-v3.png" alt="Logo" className="w-7 h-7 object-contain rounded-lg" />
-          <span className={`font-black text-sm tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>MYISP</span>
+        {/* Center: Logo only */}
+        <div className="flex items-center">
+          <img src="/logo-v3.png" alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
         </div>
         {/* Right: Avatar + Dropdown */}
         <div className="relative">
@@ -183,18 +182,16 @@ const Layout: React.FC<LayoutProps> = ({
                   <p className="text-xs text-slate-400">@{activeManager}</p>
                 </div>
                 {/* Menu Items */}
-                {[
-                  { label: 'Profile', tab: 'profile', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> },
-                  { label: 'Change Password', tab: 'security', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg> },
-                ].map(item => (
-                  <button key={item.label}
-                    onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}
-                  >
-                    <span className="text-indigo-500">{item.icon}</span>
-                    {item.label}
-                  </button>
-                ))}
+                <button onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                  <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+                  Profile
+                </button>
+                <button onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                  <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
+                  Change Password
+                </button>
                 <div className={`border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
                   <button
                     onClick={() => { setDropdownOpen(false); onLogout(); }}
@@ -212,7 +209,7 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Bottom Nav - Mobile Optimization: Grid of 7 to prevent crowding */}
       <nav className={`md:hidden fixed bottom-0 left-0 right-0 border-t grid z-50 shadow-2xl no-print transition-colors ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'} ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
-        style={{gridTemplateColumns: `repeat(${tabs.length}, 1fr) 40px`}}>
+        style={{gridTemplateColumns: `repeat(${tabs.length}, 1fr)`}}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -229,16 +226,7 @@ const Layout: React.FC<LayoutProps> = ({
             </span>
           </button>
         ))}
-        {/* Mobile Profile Icon */}
-        <button
-          onClick={() => setProfileOpen(true)}
-          className={`flex flex-col items-center justify-center py-3 px-0.5 transition-colors gap-0.5 ${theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-400 hover:text-indigo-600'}`}
-        >
-          <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center font-black text-white text-[10px]">
-            {businessName?.charAt(0)?.toUpperCase() || 'M'}
-          </div>
-          <span className="text-[7.5px] font-black uppercase tracking-tighter">Profile</span>
-        </button>
+
       </nav>
 
       {/* Main Content Area */}

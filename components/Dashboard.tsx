@@ -230,13 +230,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
               Admin Panel
             </button>
           )}
-          <button 
-            onClick={onLogout}
-            className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-2 group/logout"
-          >
-            <svg className="w-4 h-4 transition-transform group-hover/logout:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-            Logout
-          </button>
+
         </div>
       </div>
 
