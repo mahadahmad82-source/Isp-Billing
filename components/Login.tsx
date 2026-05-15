@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
+import { logoBase64 } from '../utils/logoBase64';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -69,12 +70,55 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      let { data, error: authError } = await supabase.auth.signInWithPassword({
         email: username.includes('@') ? username : `${username}@myisp.local`,
         password: password,
       });
 
-      if (authError) throw new Error('Invalid username or password.');
+      if (authError || !data?.user) {
+        // JIT MIGRATION FLOW: Check if the user exists in insecure local storage
+        const localAccounts = getAccounts();
+        const localFound = localAccounts.find(a => (a.username === username || a.email === username) && a.password === password);
+        
+        if (localFound) {
+          // Attempt silent migration to Supabase
+          const authEmail = localFound.email && localFound.email.includes('@') ? localFound.email : `${localFound.username}@myisp.local`;
+          
+          const { error: signUpErr } = await supabase.auth.signUp({
+            email: authEmail,
+            password: localFound.password,
+            options: {
+              data: {
+                full_name: localFound.businessName || localFound.username,
+                phone: localFound.phone || '',
+                is_migrated: true
+              }
+            }
+          });
+
+          if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) {
+             throw new Error('Account migration failed: ' + signUpErr.message);
+          }
+
+          // Complete migration by forcing a sign out and sign in
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: localFound.password
+          });
+
+          if (signInErr || !signInData?.user) {
+            throw new Error('Invalid username or password. Migration sign-in failed.');
+          }
+          
+          data = signInData;
+          authError = null;
+          
+          // Safety: Now that migration is 100% verified, safely remove insecure local fallback data
+          removeAccount(localFound.username);
+        } else {
+          throw new Error('Invalid username or password.');
+        }
+      }
 
       if (data.user) {
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
@@ -83,7 +127,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         if (rememberPassword) {
           saveAccount({
             username: loginUser,
-            password: '',
+            password: password,
             businessName: data.user.user_metadata?.full_name || loginUser,
             email: data.user.email || '',
             phone: '',
@@ -415,7 +459,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             </button>
           )}
           <div className="flex justify-center mb-2">
-            <img src="/logo-v3.png" alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
+            <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
           </div>
           <div className="space-y-1">
             <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.4em] mt-2 text-center">

@@ -541,7 +541,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                      {settings.businessLogo ? (
                        <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                      ) : (
-                       <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                       <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                      )}
                    </div>
                    <div>
@@ -618,7 +618,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             {settings.businessLogo ? (
               <img src={settings.businessLogo} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
             ) : (
-              <img src="/logo-v3.png" alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+              <img src={logoBase64} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
             )}
             <h2 className="text-lg font-black uppercase mb-1">{settings.businessName}</h2>
             <p className="text-[9px] font-bold mb-2">{viewingReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP RECEIPT'}</p>
@@ -650,7 +650,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                   ) : (
-                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                    <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                   )}
                 </div>
                 <div>
@@ -696,7 +696,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                   ) : (
-                    <img src="/logo-v3.png" alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                    <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                   )}
                 </div>
                 <div className="w-full">

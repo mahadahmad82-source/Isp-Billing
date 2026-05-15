@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import ProfileDialog from './ProfileDialog';
 import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
+import { logoBase64 } from '../utils/logoBase64';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -90,7 +91,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="mb-10">
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
               </div>
               <span className="text-white truncate">{businessName}</span>
             </h1>
@@ -100,7 +101,7 @@ const Layout: React.FC<LayoutProps> = ({
         {sidebarCollapsed && (
           <div className="mb-6 flex justify-center">
             <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
-              <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           </div>
         )}
@@ -156,7 +157,7 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="w-10" />
         {/* Center: Logo only */}
         <div className="flex items-center">
-          <img src="/logo-v3.png" alt="Logo" className="w-16 h-16 object-contain rounded-xl" />
+          <img src={logoBase64} alt="Logo" className="w-16 h-16 object-contain rounded-xl" />
         </div>
         {/* Right: Avatar + Dropdown */}
         <div className="relative">

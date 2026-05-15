@@ -457,7 +457,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                      {settings.businessLogo ? (
                        <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                      ) : (
-                       <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
+                       <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                      )}
                    </div>
                    <div>
@@ -629,7 +629,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             {settings.businessLogo ? (
               <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
             ) : (
-              <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
+              <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
             )}
             {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>}
             <p className="text-[10px] font-bold">{activeReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP SUBSCRIPTION RECEIPT'}</p>
@@ -672,7 +672,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   ) : (
-                    <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
+                    <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   )}
                 </div>
                 <div>
@@ -734,7 +734,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               {settings.businessLogo ? (
                 <img src={settings.businessLogo} alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
               ) : (
-                <img src="/logo-v3.png" alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
+                <img src={logoBase64} alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
               )}
             </div>
             <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-4">
@@ -773,7 +773,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   ) : (
-                    <img src="/logo-v3.png" alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
+                    <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
                   )}
                 </div>
                 <div>
@@ -1046,12 +1046,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           {viewMode === 'create' && (
             <div className="bg-white dark:bg-[#0a1120] p-8 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-white-op5 space-y-6 no-print">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Receipt ID</label>
                   <input 
                     type="text" 
-                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none" 
+                    className="w-full p-5 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none shadow-inner placeholder-slate-300 dark:placeholder-slate-600" 
                     value={transactionRef} 
                     onChange={e => setTransactionRef(e.target.value)} 
                   />
@@ -1059,7 +1059,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Billing Month</label>
                   <select 
-                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    className="w-full p-5 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none shadow-inner"
                     value={billingMonth}
                     onChange={(e) => setBillingMonth(e.target.value)}
                   >
@@ -1069,7 +1069,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Billing Year</label>
                   <select 
-                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    className="w-full p-5 rounded-2xl border bg-slate-50 dark:bg-[#030712] border-slate-200 dark:border-white-op10 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none shadow-inner"
                     value={billingYear}
                     onChange={(e) => setBillingYear(e.target.value)}
                   >

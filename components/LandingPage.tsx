@@ -5,6 +5,7 @@ import { Shield, Sun, Moon } from 'lucide-react';
 import Home from './landing/Home';
 import About from './landing/About';
 import Features from './landing/Features';
+import { logoBase64 } from '../utils/logoBase64';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -26,7 +27,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] backdrop-blur-md border-b border-slate-200/10 px-6 py-4 flex justify-between items-center">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/logo-v3.png" alt="MYISP Logo" className="w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />
+          <img src={logoBase64} alt="MYISP Logo" className="w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />
         </Link>
         
         <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
@@ -74,7 +75,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-24">
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-8">
-                <img src="/logo-v3.png" alt="MYISP Logo" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+                <img src={logoBase64} alt="MYISP Logo" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
               </div>
               <p className="text-slate-600 dark:text-slate-300 max-w-sm font-medium text-lg leading-relaxed">
                 The world's most advanced ISP management infrastructure. 

@@ -4,6 +4,7 @@ import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, se
 import { AppSettings, ReceiptDesign, AppState, UserRecord, ManagerAccount, DefaultPlanPricing, Receipt } from '../types';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
+import { logoBase64 } from '../utils/logoBase64';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -395,7 +396,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             {localSettings.businessLogo ? (
               <img src={localSettings.businessLogo} alt="Logo" className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
             ) : (
-              <img src="/logo-v3.png" alt="Logo" className="w-14 h-14 object-contain" referrerPolicy="no-referrer" />
+              <img src={logoBase64} alt="Logo" className="w-14 h-14 object-contain" referrerPolicy="no-referrer" />
             )}
             <button 
               onClick={() => logoInputRef.current?.click()}
