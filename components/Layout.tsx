@@ -5,6 +5,8 @@ import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
 import { logoBase64 } from '../utils/logoBase64';
 
+import { avatarBase64 } from '../utils/avatarBase64';
+
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
@@ -165,7 +167,7 @@ const Layout: React.FC<LayoutProps> = ({
             onClick={() => setDropdownOpen(d => !d)}
             className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
           >
-            <img src="/avatar-default.png" alt="Profile" className="w-full h-full object-cover" />
+            <img src={avatarBase64} alt="Profile" className="w-full h-full object-cover" />
           </button>
           {dropdownOpen && (
             <>
