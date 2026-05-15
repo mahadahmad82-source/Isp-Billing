@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({
         )}
         {sidebarCollapsed && (
           <div className="mb-6 flex justify-center">
-            <div className="w-12 h-12 flex items-center justify-center overflow-hidden rounded-lg">
+            <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
               <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           </div>
@@ -151,68 +151,45 @@ const Layout: React.FC<LayoutProps> = ({
       </aside>
 
       {/* Fixed Top Header - Mobile Only */}
-      <div className={`md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 backdrop-blur-xl border-b shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950/75 border-slate-800/60' : 'bg-white/70 border-slate-200/60'}`}>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-transparent">
         {/* Left: empty spacer */}
         <div className="w-10" />
         {/* Center: Logo only */}
         <div className="flex items-center">
-          <img src="/logo-v3.png" alt="Logo" className="w-24 h-24 object-contain" />
+          <img src="/logo-v3.png" alt="Logo" className="w-16 h-16 object-contain rounded-xl" />
         </div>
         {/* Right: Avatar + Dropdown */}
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(d => !d)}
-            className="w-10 h-10 rounded-full overflow-hidden shadow-lg border-2 border-indigo-200 dark:border-slate-600"
+            className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
           >
-            <img
-              src="/avatar-default.png"
-              alt="Profile"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const t = e.currentTarget;
-                t.style.display = 'none';
-                const parent = t.parentElement;
-                if (parent) {
-                  parent.classList.add('bg-indigo-600', 'flex', 'items-center', 'justify-center');
-                  parent.innerHTML = `<span class="text-white font-black text-sm">${(businessName?.charAt(0) || 'M').toUpperCase()}</span>`;
-                }
-              }}
-            />
+            <img src="/avatar-default.png" alt="Profile" className="w-full h-full object-cover" />
           </button>
           {dropdownOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-              <div className={`absolute right-0 top-12 z-50 w-56 rounded-2xl shadow-2xl border overflow-visible ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+              <div className={`absolute right-0 top-11 z-50 w-52 rounded-2xl shadow-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
                 {/* User info */}
-                <div className={`px-4 py-3 border-b rounded-t-2xl ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'}`}>
+                <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'}`}>
                   <p className={`font-black text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{businessName}</p>
-                  <p className="text-xs text-slate-400 font-medium">@{activeManager}</p>
+                  <p className="text-xs text-slate-400">@{activeManager}</p>
                 </div>
-                {/* Profile */}
-                <button
-                  onClick={() => { setDropdownOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}
-                >
-                  <span className="text-indigo-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                  </span>
+                {/* Menu Items */}
+                <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                  <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
                   Profile
                 </button>
-                {/* Change Password */}
-                <button
-                  onClick={() => { setDropdownOpen(false); setProfileInitialTab('security'); setProfileOpen(true); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}
-                >
-                  <span className="text-indigo-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                  </span>
+                <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('security'); setProfileOpen(true); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                  <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
                   Change Password
                 </button>
-                {/* Logout */}
                 <div className={`border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
                   <button
                     onClick={() => { setDropdownOpen(false); onLogout(); }}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors rounded-b-2xl"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                     Logout
@@ -248,7 +225,7 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
-        <header className={`sticky top-0 z-40 flex justify-between items-center mb-8 no-print px-4 md:px-8 py-4 -mx-4 md:-mx-8 backdrop-blur-xl border-b transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950/70 border-slate-800/60' : 'bg-white/60 border-slate-200/60'}`}>
+        <header className="flex justify-between items-center mb-8 no-print">
           <div className="flex flex-col">
             <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
             {lastSavedTime && (
