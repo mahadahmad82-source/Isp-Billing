@@ -22,7 +22,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,13 +34,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [rememberPassword, setRememberPassword] = useState(false);
 
   // OTP states
-  const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
   const [pendingSignupData, setPendingSignupData] = useState<{username: string; businessName: string; phone: string; email: string; password: string} | null>(null);
 
   // Forgot password states
   const [forgotIdentifier, setForgotIdentifier] = useState('');
-  const [forgotIdType, setForgotIdType] = useState<'email' | 'phone'>('email');
   const [forgotOtp, setForgotOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -147,12 +144,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
   };
 
-  // ─── SIGNUP STEP 1: Submit form, send OTPs ────────────────────────────
-  // 3 cases:
-  //   A) Email + Phone  → Email OTP + SMS OTP dono
-  //   B) Email only     → Email OTP only
-  //   C) Phone only     → SMS OTP only (email optional hai)
-  //   D) Neither        → instant signup (username@myisp.local, no OTP)
+  // ─── SIGNUP STEP 1: Submit form, send Phone OTP ───────────────────────
+  // Phone number optional hai — agar diya to SMS OTP verify hoga
+  // Agar nahi diya to instant signup (no OTP)
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
@@ -162,57 +156,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       return;
     }
 
-    const hasRealEmail = email && email.includes('@') && !email.includes('@myisp.local');
     const hasPhone = phone && phone.trim().length >= 10;
-
-    // Validate: kam az kam ek contact zaroor
-    if (!hasRealEmail && !hasPhone) {
-      showError('Email ya Phone Number mein se kam az kam ek zaroori hai.');
-      return;
-    }
+    const authEmail = `${username}@myisp.local`;
 
     setIsLoading(true);
     setLoadingText('Initialising New Node...');
     setError('');
 
     try {
-
-      // ── CASE A & B: Real email provided ──────────────────────────────
-      if (hasRealEmail) {
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: businessName || username, username } }
-        });
-        if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData.user) throw new Error('Signup failed. Try again.');
-
-        // Also send SMS OTP if phone given (Case A)
-        if (hasPhone) {
-          const formattedPhone = phone.startsWith('+') ? phone : `+92${phone.replace(/^0/, '')}`;
-          await supabase.auth.signInWithOtp({ phone: formattedPhone });
-        }
-
-        setPendingSignupData({ username, businessName: businessName || username, phone, email, password });
-        setView('otp');
-        return;
-      }
-
-      // ── CASE C: Phone only — no email ────────────────────────────────
-      if (hasPhone && !hasRealEmail) {
+      if (hasPhone) {
+        // ── Phone provided → send SMS OTP ────────────────────────────
         const formattedPhone = phone.startsWith('+') ? phone : `+92${phone.replace(/^0/, '')}`;
         const { error: phoneOtpErr } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
         if (phoneOtpErr) throw new Error('Phone OTP send nahi hua: ' + phoneOtpErr.message);
 
-        // Use phone-derived local email as auth identifier
-        const phoneAuthEmail = `${username}@myisp.local`;
-        setPendingSignupData({ username, businessName: businessName || username, phone, email: phoneAuthEmail, password });
+        setPendingSignupData({ username, businessName: businessName || username, phone, email: authEmail, password });
         setView('otp');
         return;
       }
 
-      // ── CASE D: No email, no phone — instant signup (no OTP) ─────────
-      const authEmail = `${username}@myisp.local`;
+      // ── No phone → instant signup (no OTP) ───────────────────────
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: authEmail, password,
         options: { data: { full_name: businessName || username } }
@@ -239,7 +202,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
   };
 
-  // ─── SIGNUP STEP 2: Verify OTPs ───────────────────────────────────────
+  // ─── SIGNUP STEP 2: Verify Phone OTP ─────────────────────────────────
   const handleOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pendingSignupData) return;
@@ -247,66 +210,34 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setLoadingText('Verifying OTP...');
     setError('');
 
-    const isPhoneOnly = pendingSignupData.email.endsWith('@myisp.local');
-    const hasPhone = !!pendingSignupData.phone;
-
     try {
+      const formattedPhone = pendingSignupData.phone.startsWith('+')
+        ? pendingSignupData.phone
+        : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
 
-      // ── Phone-only signup: verify phone OTP → then create auth account ──
-      if (isPhoneOnly && hasPhone) {
-        const formattedPhone = pendingSignupData.phone.startsWith('+')
-          ? pendingSignupData.phone
-          : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
+      // Verify phone OTP
+      const { error: phoneErr } = await supabase.auth.verifyOtp({
+        phone: formattedPhone, token: phoneOtp, type: 'sms',
+      });
+      if (phoneErr) throw new Error('OTP galat hai ya expire ho gaya. Dobara check karein.');
 
-        const { error: phoneErr } = await supabase.auth.verifyOtp({
-          phone: formattedPhone, token: phoneOtp, type: 'sms',
-        });
-        if (phoneErr) throw new Error('Phone OTP galat hai ya expire ho gaya.');
-
-        // Now create Supabase auth account with local email
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: pendingSignupData.email,
-          password: pendingSignupData.password,
-          options: { data: { full_name: pendingSignupData.businessName, username: pendingSignupData.username } }
-        });
-        if (signUpErr && !signUpErr.message.includes('already registered')) {
-          throw new Error(signUpErr.message);
-        }
-
-        // Sign in
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: pendingSignupData.email, password: pendingSignupData.password,
-        });
-        if (signInErr) throw new Error('Phone verify ho gaya! Ab login karein.');
-
-      } else {
-        // ── Email OTP verify (email only OR email+phone) ─────────────────
-        const { error: emailErr } = await supabase.auth.verifyOtp({
-          email: pendingSignupData.email,
-          token: emailOtp,
-          type: 'signup',
-        });
-        if (emailErr) throw new Error('Email OTP galat hai ya expire ho gaya. Dobara check karein.');
-
-        // Also verify phone OTP if phone was provided
-        if (hasPhone && phoneOtp) {
-          const formattedPhone = pendingSignupData.phone.startsWith('+')
-            ? pendingSignupData.phone
-            : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
-          const { error: phoneErr } = await supabase.auth.verifyOtp({
-            phone: formattedPhone, token: phoneOtp, type: 'sms',
-          });
-          if (phoneErr) throw new Error('Phone OTP galat hai ya expire ho gaya.');
-        }
-
-        // Sign in after email verification
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: pendingSignupData.email, password: pendingSignupData.password,
-        });
-        if (signInErr) throw new Error('Verification hua! Ab login karein.');
+      // Create Supabase auth account after phone verification
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: pendingSignupData.email,
+        password: pendingSignupData.password,
+        options: { data: { full_name: pendingSignupData.businessName, username: pendingSignupData.username } }
+      });
+      if (signUpErr && !signUpErr.message.includes('already registered')) {
+        throw new Error(signUpErr.message);
       }
 
-      // ── Save account locally ─────────────────────────────────────────
+      // Sign in
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: pendingSignupData.email, password: pendingSignupData.password,
+      });
+      if (signInErr) throw new Error('Phone verify ho gaya! Ab login karein.');
+
+      // Save account locally
       const newAccount: ManagerAccount = {
         username: pendingSignupData.username,
         password: pendingSignupData.password,
@@ -318,7 +249,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       };
       saveAccount(newAccount);
       setAccounts(getAccounts());
-      writeLog({ username: pendingSignupData.username, action: 'SIGNUP_VERIFIED', detail: 'OTP verified' });
+      writeLog({ username: pendingSignupData.username, action: 'SIGNUP_VERIFIED', detail: 'Phone OTP verified' });
       onLogin(pendingSignupData.username);
 
     } catch (err: any) {
@@ -329,40 +260,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   };
 
   const handleResendOtp = async () => {
-    if (!pendingSignupData) return;
-    const isPhoneOnly = pendingSignupData.email.endsWith('@myisp.local');
-    if (isPhoneOnly && pendingSignupData.phone) {
-      const formattedPhone = pendingSignupData.phone.startsWith('+')
-        ? pendingSignupData.phone
-        : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
-      await supabase.auth.signInWithOtp({ phone: formattedPhone });
-      setError('Success: Phone OTP dobara bhej diya gaya! SMS check karein.');
-    } else {
-      await supabase.auth.resend({ type: 'signup', email: pendingSignupData.email });
-      setError('Success: Email OTP dobara bhej diya gaya! Email check karein.');
-    }
+    if (!pendingSignupData?.phone) return;
+    const formattedPhone = pendingSignupData.phone.startsWith('+')
+      ? pendingSignupData.phone
+      : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
+    await supabase.auth.signInWithOtp({ phone: formattedPhone });
+    setError('Success: OTP dobara bhej diya gaya! SMS check karein.');
   };
 
-  // ─── FORGOT PASSWORD ─────────────────────────────────────────────────
+  // ─── FORGOT PASSWORD — Phone OTP only ────────────────────────────────
   const handleForgotSend = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setLoadingText('OTP bhej raha hai...');
     setError('');
-
     try {
-      if (forgotIdType === 'email') {
-        const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier, {
-          redirectTo: `${window.location.origin}/`,
-        });
-        if (error) throw new Error(error.message);
-      } else {
-        const formattedPhone = forgotIdentifier.startsWith('+')
-          ? forgotIdentifier
-          : `+92${forgotIdentifier.replace(/^0/, '')}`;
-        const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
-        if (error) throw new Error(error.message);
-      }
+      const formattedPhone = forgotIdentifier.startsWith('+')
+        ? forgotIdentifier
+        : `+92${forgotIdentifier.replace(/^0/, '')}`;
+      const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
+      if (error) throw new Error(error.message);
       setView('forgot-otp');
     } catch (err: any) {
       showError('OTP send nahi hua: ' + err.message);
@@ -376,22 +293,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setIsLoading(true);
     setLoadingText('OTP verify ho raha hai...');
     setError('');
-
     try {
-      if (forgotIdType === 'email') {
-        const { error } = await supabase.auth.verifyOtp({
-          email: forgotIdentifier, token: forgotOtp, type: 'recovery',
-        });
-        if (error) throw new Error('OTP galat hai ya expire ho gaya.');
-      } else {
-        const formattedPhone = forgotIdentifier.startsWith('+')
-          ? forgotIdentifier
-          : `+92${forgotIdentifier.replace(/^0/, '')}`;
-        const { error } = await supabase.auth.verifyOtp({
-          phone: formattedPhone, token: forgotOtp, type: 'sms',
-        });
-        if (error) throw new Error('OTP galat hai ya expire ho gaya.');
-      }
+      const formattedPhone = forgotIdentifier.startsWith('+')
+        ? forgotIdentifier
+        : `+92${forgotIdentifier.replace(/^0/, '')}`;
+      const { error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone, token: forgotOtp, type: 'sms',
+      });
+      if (error) throw new Error('OTP galat hai ya expire ho gaya.');
       setView('forgot-newpass');
     } catch (err: any) {
       showError(err.message);
@@ -423,28 +332,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
   };
 
-  // ─── GOOGLE OAUTH ─────────────────────────────────────────────────────
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setLoadingText('Google se connect ho raha hai...');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
-    });
-    if (error) { showError('Google login failed: ' + error.message); setIsLoading(false); }
-  };
-
-  // ─── FACEBOOK OAUTH ───────────────────────────────────────────────────
-  const handleFacebookLogin = async () => {
-    setIsLoading(true);
-    setLoadingText('Facebook se connect ho raha hai...');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: { redirectTo: window.location.origin }
-    });
-    if (error) { showError('Facebook login failed: ' + error.message); setIsLoading(false); }
-  };
-
   // ─── UTILITY HANDLERS ─────────────────────────────────────────────────
   const handleSelectAccount = (acc: ManagerAccount) => {
     setSelectedAccount(acc.username);
@@ -455,9 +342,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   };
 
   const resetFields = () => {
-    setBusinessName(''); setUsername(''); setPhone(''); setEmail('');
+    setBusinessName(''); setUsername(''); setPhone('');
     setPassword(''); setConfirmPassword(''); setRememberPassword(false); setError('');
-    setEmailOtp(''); setPhoneOtp(''); setForgotIdentifier(''); setForgotOtp('');
+    setPhoneOtp(''); setForgotIdentifier(''); setForgotOtp('');
     setNewPassword(''); setConfirmNewPassword(''); setPendingSignupData(null);
   };
 
@@ -597,38 +484,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 </button>
                 <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Step 2 of 2</span>
               </div>
-              {/* Smart info box — phone-only vs email+phone */}
-              {pendingSignupData?.email.endsWith('@myisp.local') ? (
-                <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                  📱 Phone OTP bheja gaya: <strong>{pendingSignupData?.phone}</strong>
-                </div>
-              ) : (
-                <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                  📧 Email OTP: <strong>{pendingSignupData?.email}</strong><br/>
-                  {pendingSignupData?.phone && <>📱 Phone OTP: <strong>{pendingSignupData?.phone}</strong></>}
-                </div>
-              )}
-
-              {/* Phone-only: sirf phone OTP field */}
-              {pendingSignupData?.email.endsWith('@myisp.local') ? (
-                <div className="space-y-2">
-                  <label className={labelCls}>Phone OTP (6-digit)</label>
-                  <input className={inputCls} placeholder="SMS se mila OTP daalen" value={phoneOtp} onChange={e => setPhoneOtp(e.target.value)} maxLength={6} required />
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <label className={labelCls}>Email OTP (6-digit)</label>
-                    <input className={inputCls} placeholder="Email se mila OTP daalen" value={emailOtp} onChange={e => setEmailOtp(e.target.value)} maxLength={6} required />
-                  </div>
-                  {pendingSignupData?.phone && (
-                    <div className="space-y-2">
-                      <label className={labelCls}>Phone OTP (6-digit) <span className="text-slate-400 normal-case">(optional)</span></label>
-                      <input className={inputCls} placeholder="SMS se mila OTP daalen" value={phoneOtp} onChange={e => setPhoneOtp(e.target.value)} maxLength={6} />
-                    </div>
-                  )}
-                </>
-              )}
+              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                📱 SMS OTP bheja gaya: <strong>{pendingSignupData?.phone}</strong>
+              </div>
+              <div className="space-y-2">
+                <label className={labelCls}>Phone OTP (6-digit)</label>
+                <input className={inputCls} placeholder="SMS se mila OTP daalen" value={phoneOtp} onChange={e => setPhoneOtp(e.target.value)} maxLength={6} required inputMode="numeric" />
+              </div>
               <div className="pt-2">
                 <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all transform hover:-translate-y-1">
                   {isLoading ? loadingText : 'Verify & Activate Account'}
@@ -640,7 +502,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             </form>
           )}
 
-          {/* ── FORGOT PASSWORD: ENTER EMAIL/PHONE ── */}
+          {/* ── FORGOT PASSWORD: ENTER PHONE ── */}
           {view === 'forgot' && (
             <form onSubmit={handleForgotSend} className="p-10 space-y-6">
               <div className="flex items-center justify-between mb-4">
@@ -650,13 +512,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 </button>
                 <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
               </div>
-              <div className="flex gap-3 mb-2">
-                <button type="button" onClick={() => setForgotIdType('email')} className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border-2 transition-all ${forgotIdType === 'email' ? 'bg-indigo-600 border-indigo-600 text-white' : theme === 'dark' ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'}`}>📧 Email</button>
-                <button type="button" onClick={() => setForgotIdType('phone')} className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border-2 transition-all ${forgotIdType === 'phone' ? 'bg-indigo-600 border-indigo-600 text-white' : theme === 'dark' ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'}`}>📱 Phone</button>
-              </div>
               <div className="space-y-2">
-                <label className={labelCls}>{forgotIdType === 'email' ? 'Registered Email' : 'Registered Phone'}</label>
-                <input type={forgotIdType === 'email' ? 'email' : 'tel'} className={inputCls} placeholder={forgotIdType === 'email' ? 'email@example.com' : '03001234567'} value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value)} required />
+                <label className={labelCls}>📱 Registered Phone Number</label>
+                <input type="tel" className={inputCls} placeholder="03001234567" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value)} required />
               </div>
               <div className="pt-2">
                 <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all">
@@ -757,21 +615,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   <>
                     <div className="space-y-2">
                       <label className={labelCls}>
-                        Email Address
-                        <span className="ml-2 normal-case font-bold text-slate-400">(optional — Email ya Phone mein se ek zaroori)</span>
-                      </label>
-                      <input type="email" className={inputCls} value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className={labelCls}>
                         Phone Number
-                        <span className="ml-2 normal-case font-bold text-slate-400">(optional — Email ya Phone mein se ek zaroori)</span>
+                        <span className="ml-2 normal-case font-bold text-slate-400">(optional — SMS OTP ke liye)</span>
                       </label>
                       <input className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="03xxxxxxxxx" />
-                    </div>
-                    {/* Helper hint */}
-                    <div className={`text-[10px] font-bold px-2 py-2 rounded-xl text-center ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                      📧 Sirf Email → Email OTP &nbsp;|&nbsp; 📱 Sirf Phone → SMS OTP &nbsp;|&nbsp; Dono → Dono OTP
                     </div>
                   </>
                 )}
@@ -813,32 +660,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   <div className="space-y-3">
                     <button type="button" onClick={() => { resetFields(); setView('forgot'); }} className="w-full text-center text-[10px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
                       Forgot Password?
-                    </button>
-
-                    {/* Social Auth Divider */}
-                    <div className="flex items-center gap-3 py-1">
-                      <div className={`flex-1 h-px ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-200'}`}></div>
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Or continue with</span>
-                      <div className={`flex-1 h-px ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-200'}`}></div>
-                    </div>
-
-                    {/* Google Button */}
-                    <button type="button" onClick={handleGoogleLogin} disabled={isLoading} className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] ${theme === 'dark' ? 'bg-slate-800/60 border-white/10 text-slate-200 hover:border-white/20' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-                      <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                      </svg>
-                      Continue with Google
-                    </button>
-
-                    {/* Facebook Button */}
-                    <button type="button" onClick={handleFacebookLogin} disabled={isLoading} className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] ${theme === 'dark' ? 'bg-[#1877F2]/10 border-[#1877F2]/30 text-[#1877F2] hover:border-[#1877F2]/50' : 'bg-[#1877F2]/5 border-[#1877F2]/20 text-[#1877F2] hover:border-[#1877F2]/40'}`}>
-                      <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
-                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                      </svg>
-                      Continue with Facebook
                     </button>
 
                     <button type="button" onClick={handleGoToSignup} className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors pt-1">

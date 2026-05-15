@@ -285,43 +285,6 @@ const App: React.FC = () => {
     lastActivityRef.current = Date.now();
   };
 
-  // OAuth Social Login Handler (Google / Facebook)
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user && !activeManager) {
-        const user = session.user;
-        const provider = user.app_metadata?.provider;
-
-        // Only handle OAuth providers (not email/password)
-        if (provider && provider !== 'email') {
-          const userEmail = user.email || '';
-          // Derive username from email (e.g. john.doe@gmail.com → john.doe)
-          const derivedUsername = userEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_') || `user_${Date.now()}`;
-          const displayName = user.user_metadata?.full_name || derivedUsername;
-
-          // Save account to localStorage if not already saved
-          const { getAccounts, saveAccount, setActiveSession } = await import('./utils/storage');
-          const existing = getAccounts().find(a => a.email === userEmail || a.username === derivedUsername);
-          if (!existing) {
-            saveAccount({
-              username: derivedUsername,
-              password: '',
-              businessName: displayName,
-              email: userEmail,
-              phone: '',
-              createdAt: new Date().toISOString(),
-              rememberPassword: false,
-            });
-          }
-          setActiveSession(existing?.username || derivedUsername);
-          setActiveManager(existing?.username || derivedUsername);
-          lastActivityRef.current = Date.now();
-        }
-      }
-    });
-    return () => { authListener?.subscription?.unsubscribe(); };
-  }, [activeManager]);
-
   const handleLogout = useCallback(() => {
     setActiveSession(null);
     sessionStorage.clear();
