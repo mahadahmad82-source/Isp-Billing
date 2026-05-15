@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({
         )}
         {sidebarCollapsed && (
           <div className="mb-6 flex justify-center">
-            <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
+            <div className="w-12 h-12 flex items-center justify-center overflow-hidden rounded-lg">
               <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           </div>
@@ -151,7 +151,7 @@ const Layout: React.FC<LayoutProps> = ({
       </aside>
 
       {/* Fixed Top Header - Mobile Only */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-transparent">
+      <div className={`md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 backdrop-blur-xl border-b shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950/75 border-slate-800/60' : 'bg-white/70 border-slate-200/60'}`}>
         {/* Left: empty spacer */}
         <div className="w-10" />
         {/* Center: Logo only */}
@@ -225,7 +225,7 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
-        <header className="flex justify-between items-center mb-8 no-print">
+        <header className={`sticky top-0 z-40 flex justify-between items-center mb-8 no-print px-4 md:px-8 py-4 -mx-4 md:-mx-8 backdrop-blur-xl border-b transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950/70 border-slate-800/60' : 'bg-white/60 border-slate-200/60'}`}>
           <div className="flex flex-col">
             <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
             {lastSavedTime && (
