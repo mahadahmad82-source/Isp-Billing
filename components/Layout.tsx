@@ -88,8 +88,8 @@ const Layout: React.FC<LayoutProps> = ({
         {/* Logo + Name */}
         {!sidebarCollapsed && (
           <div className="mb-10">
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-              <div className="p-1 w-40 h-40 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
                 <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
               </div>
               <span className="text-white truncate">{businessName}</span>
@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({
         )}
         {sidebarCollapsed && (
           <div className="mb-6 flex justify-center">
-            <div className="w-12 h-12 flex items-center justify-center overflow-hidden rounded-lg">
+            <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
               <img src="/logo-v3.png" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           </div>
@@ -224,8 +224,8 @@ const Layout: React.FC<LayoutProps> = ({
       </nav>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-0 md:pt-0 overflow-y-auto custom-scrollbar h-full">
-        <header className={`sticky top-0 z-40 flex justify-between items-center mb-8 no-print px-4 md:px-8 py-4 -mx-4 md:-mx-8 backdrop-blur-xl border-b transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950/70 border-slate-800/60' : 'bg-white/60 border-slate-200/60'}`}>
+      <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
+        <header className="flex justify-between items-center mb-8 no-print">
           <div className="flex flex-col">
             <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
             {lastSavedTime && (
