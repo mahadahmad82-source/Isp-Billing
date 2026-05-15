@@ -59,6 +59,55 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [showBulkChangePlan, setShowBulkChangePlan] = useState(false);
   const [bulkNewPlan, setBulkNewPlan] = useState('');
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showColumnToggle, setShowColumnToggle] = useState(false);
+  const columnToggleRef = useRef<HTMLDivElement>(null);
+
+  const allColumns = [
+    { key: 'account_id', label: 'Account ID' },
+    { key: 'full_name', label: 'Full Name' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'phone2', label: 'Phone 2' },
+    { key: 'address', label: 'Address' },
+    { key: 'plan', label: 'Plan' },
+    { key: 'monthly_fee', label: 'Monthly Fee' },
+    { key: 'status', label: 'Status' },
+    { key: 'discount', label: 'Discount' },
+    { key: 'expiry', label: 'Expiry' },
+  ] as const;
+
+  type ColumnKey = typeof allColumns[number]['key'];
+
+  const getDefaultVisibleColumns = (): Record<ColumnKey, boolean> => ({
+    account_id: true, full_name: true, phone: true, phone2: false,
+    address: false, plan: true, monthly_fee: true, status: true,
+    discount: false, expiry: true,
+  });
+
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('um_visible_columns');
+      return saved ? JSON.parse(saved) : getDefaultVisibleColumns();
+    } catch { return getDefaultVisibleColumns(); }
+  });
+
+  const toggleColumn = (key: ColumnKey) => {
+    setVisibleColumns(prev => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('um_visible_columns', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  };
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (columnToggleRef.current && !columnToggleRef.current.contains(e.target as Node)) {
+        setShowColumnToggle(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
   
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
@@ -602,6 +651,54 @@ const UserManagement: React.FC<UserManagementProps> = ({
           )}
 
           <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 mt-4">
+            {/* Column Toggle Button */}
+            <div className="flex justify-end px-6 pt-4 pb-2">
+              <div className="relative" ref={columnToggleRef}>
+                <button
+                  onClick={() => setShowColumnToggle(prev => !prev)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all"
+                  title="Toggle Columns"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                  </svg>
+                  Columns
+                </button>
+                {showColumnToggle && (
+                  <div className="absolute right-0 top-full mt-2 z-50 w-52 bg-white dark:bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Show / Hide</span>
+                      <button
+                        onClick={() => {
+                          const all = getDefaultVisibleColumns();
+                          const allVisible = Object.fromEntries(allColumns.map(c => [c.key, true])) as Record<ColumnKey, boolean>;
+                          const anyHidden = Object.values(visibleColumns).some(v => !v);
+                          const updated = anyHidden ? allVisible : all;
+                          setVisibleColumns(updated);
+                          try { localStorage.setItem('um_visible_columns', JSON.stringify(updated)); } catch {}
+                        }}
+                        className="text-[9px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest"
+                      >
+                        {Object.values(visibleColumns).some(v => !v) ? 'All' : 'Default'}
+                      </button>
+                    </div>
+                    <div className="py-2 max-h-72 overflow-y-auto">
+                      {allColumns.map(col => (
+                        <label key={col.key} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns[col.key]}
+                            onChange={() => toggleColumn(col.key)}
+                            className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-blue-500 accent-blue-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{col.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left min-w-[900px]">
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 dark:text-slate-400">
@@ -615,17 +712,19 @@ const UserManagement: React.FC<UserManagementProps> = ({
                        )}
                     </th>
                     {([
-                      { label: 'ACCOUNT ID', asc: 'account_id_asc', desc: 'account_id_desc' },
-                      { label: 'FULL NAME', asc: 'name_asc', desc: 'name_desc' },
-                      { label: 'PHONE', asc: null, desc: null },
-                      { label: 'PHONE 2', asc: null, desc: null },
-                      { label: 'ADDRESS', asc: null, desc: null },
-                      { label: 'PLAN', asc: 'plan_asc', desc: 'plan_asc' },
-                      { label: 'MONTHLY FEE', asc: 'fee_asc', desc: 'fee_desc' },
-                      { label: 'STATUS', asc: 'paid_first', desc: 'pending_first', center: true },
-                      { label: 'DISCOUNT', asc: null, desc: null, center: true },
-                      { label: 'EXPIRY', asc: 'expiry_asc', desc: 'expiry_desc' },
-                    ] as { label: string; asc: SortKey | null; desc: SortKey | null; center?: boolean }[]).map(col => (
+                      { key: 'account_id', label: 'ACCOUNT ID', asc: 'account_id_asc', desc: 'account_id_desc' },
+                      { key: 'full_name', label: 'FULL NAME', asc: 'name_asc', desc: 'name_desc' },
+                      { key: 'phone', label: 'PHONE', asc: null, desc: null },
+                      { key: 'phone2', label: 'PHONE 2', asc: null, desc: null },
+                      { key: 'address', label: 'ADDRESS', asc: null, desc: null },
+                      { key: 'plan', label: 'PLAN', asc: 'plan_asc', desc: 'plan_asc' },
+                      { key: 'monthly_fee', label: 'MONTHLY FEE', asc: 'fee_asc', desc: 'fee_desc' },
+                      { key: 'status', label: 'STATUS', asc: 'paid_first', desc: 'pending_first', center: true },
+                      { key: 'discount', label: 'DISCOUNT', asc: null, desc: null, center: true },
+                      { key: 'expiry', label: 'EXPIRY', asc: 'expiry_asc', desc: 'expiry_desc' },
+                    ] as { key: ColumnKey; label: string; asc: SortKey | null; desc: SortKey | null; center?: boolean }[])
+                    .filter(col => visibleColumns[col.key])
+                    .map(col => (
                       <th key={col.label} className={`px-6 py-6 ${col.center ? 'text-center' : ''} ${col.asc ? 'cursor-pointer select-none group' : ''}`}
                         onClick={() => {
                           if (!col.asc) return;
@@ -669,45 +768,50 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           <td className="px-6 py-6">
                             {!readOnly && isCurrentMonth && <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" checked={selectedIds.includes(user.id)} onChange={() => setSelectedIds(prev => prev.includes(user.id) ? prev.filter(i => i !== user.id) : [...prev, user.id])} />}
                           </td>
+                          {visibleColumns.account_id && (
                           <td className="px-6 py-6">
-                             <span
-                               className="text-sm font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                             <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
                                onClick={() => isCurrentMonth && !readOnly ? handleEditClick(user) : undefined}
                                title={isCurrentMonth && !readOnly ? "Click to edit profile" : user.username}
                              >@{user.username}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.full_name && (
                           <td className="px-6 py-6">
                              <span className="text-sm font-black text-slate-900 dark:text-slate-100">{user.name}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.phone && (
                           <td className="px-6 py-6">
                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user.phone}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.phone2 && (
                           <td className="px-6 py-6">
                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user.phone2 || '-'}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.address && (
                           <td className="px-6 py-6">
                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 line-clamp-1 max-w-[150px]" title={user.address}>{user.address || '-'}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.plan && (
                           <td className="px-6 py-6">
                             <div className="flex items-center gap-2">
                               <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase">{user.plan}</span>
                             </div>
-                          </td>
+                          </td>)}
+                          {visibleColumns.monthly_fee && (
                           <td className="px-6 py-6">
                              <span className="text-xs font-black text-slate-900 dark:text-slate-100">Rs. {(user.monthlyFee || 0).toLocaleString()}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.status && (
                           <td className="px-6 py-6 text-center">
                             {(() => {
                               const hasReceipt = receipts.some(r => r.userId === user.id && r.period && r.period.includes(selectedMonth.split(' ')[0]));
                               const bal = user.balance || 0;
-                              if (hasReceipt) {
-                                return (
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Paid</span>
-                                    {bal > 0 && <span className="text-[10px] font-black text-rose-500">+Rs.{bal.toLocaleString()}</span>}
-                                  </div>
-                                );
-                              }
+                              if (hasReceipt) return (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Paid</span>
+                                  {bal > 0 && <span className="text-[10px] font-black text-rose-500">+Rs.{bal.toLocaleString()}</span>}
+                                </div>
+                              );
                               return (
                                 <div className="flex flex-col items-center gap-1">
                                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">Pending</span>
@@ -715,15 +819,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 </div>
                               );
                             })()}
-                          </td>
+                          </td>)}
+                          {visibleColumns.discount && (
                           <td className="px-6 py-6 text-center">
                              <span className="text-xs font-black text-emerald-600">Rs. {(user.persistentDiscount || 0).toLocaleString()}</span>
-                          </td>
+                          </td>)}
+                          {visibleColumns.expiry && (
                           <td className="px-6 py-6">
                              <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">
                                {new Date(user.expiryDate).toLocaleDateString()}
                              </span>
-                          </td>
+                          </td>)}
                           {!readOnly && (
                             <td className="px-6 py-6">
                               <div className="flex items-center justify-center gap-1.5 flex-nowrap min-w-max">
