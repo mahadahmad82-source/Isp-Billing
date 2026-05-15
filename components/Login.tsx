@@ -148,6 +148,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   };
 
   // ─── SIGNUP STEP 1: Submit form, send OTPs ────────────────────────────
+  // 3 cases:
+  //   A) Email + Phone  → Email OTP + SMS OTP dono
+  //   B) Email only     → Email OTP only
+  //   C) Phone only     → SMS OTP only (email optional hai)
+  //   D) Neither        → instant signup (username@myisp.local, no OTP)
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
@@ -157,61 +162,76 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       return;
     }
 
+    const hasRealEmail = email && email.includes('@') && !email.includes('@myisp.local');
+    const hasPhone = phone && phone.trim().length >= 10;
+
+    // Validate: kam az kam ek contact zaroor
+    if (!hasRealEmail && !hasPhone) {
+      showError('Email ya Phone Number mein se kam az kam ek zaroori hai.');
+      return;
+    }
+
     setIsLoading(true);
     setLoadingText('Initialising New Node...');
     setError('');
 
     try {
-      // Use real email if provided, otherwise use local pattern (no OTP)
-      const hasRealEmail = email && email.includes('@') && !email.includes('@myisp.local');
 
+      // ── CASE A & B: Real email provided ──────────────────────────────
       if (hasRealEmail) {
-        // NEW FLOW: Real email → OTP verification
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: email,
+          email,
           password,
-          options: { data: { full_name: businessName || username, username: username } }
+          options: { data: { full_name: businessName || username, username } }
         });
-
         if (signUpErr) throw new Error(signUpErr.message);
         if (!signUpData.user) throw new Error('Signup failed. Try again.');
 
-        // Send phone OTP if phone provided
-        if (phone) {
+        // Also send SMS OTP if phone given (Case A)
+        if (hasPhone) {
           const formattedPhone = phone.startsWith('+') ? phone : `+92${phone.replace(/^0/, '')}`;
           await supabase.auth.signInWithOtp({ phone: formattedPhone });
         }
 
-        // Save pending data for OTP step
         setPendingSignupData({ username, businessName: businessName || username, phone, email, password });
-        setIsLoading(false);
         setView('otp');
         return;
-
-      } else {
-        // EXISTING FLOW: username@myisp.local → instant signup (no OTP)
-        const authEmail = `${username}@myisp.local`;
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: authEmail,
-          password,
-          options: { data: { full_name: businessName || username } }
-        });
-
-        if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData.user) throw new Error('Signup failed. Try again.');
-
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
-        if (signInErr) throw new Error('Account created! Ab login karein.');
-
-        const newAccount: ManagerAccount = {
-          username, password, businessName: businessName || username,
-          email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword
-        };
-        saveAccount(newAccount);
-        setAccounts(getAccounts());
-        writeLog({ username, action: 'SIGNUP', detail: `New account: ${businessName}` });
-        onLogin(username);
       }
+
+      // ── CASE C: Phone only — no email ────────────────────────────────
+      if (hasPhone && !hasRealEmail) {
+        const formattedPhone = phone.startsWith('+') ? phone : `+92${phone.replace(/^0/, '')}`;
+        const { error: phoneOtpErr } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
+        if (phoneOtpErr) throw new Error('Phone OTP send nahi hua: ' + phoneOtpErr.message);
+
+        // Use phone-derived local email as auth identifier
+        const phoneAuthEmail = `${username}@myisp.local`;
+        setPendingSignupData({ username, businessName: businessName || username, phone, email: phoneAuthEmail, password });
+        setView('otp');
+        return;
+      }
+
+      // ── CASE D: No email, no phone — instant signup (no OTP) ─────────
+      const authEmail = `${username}@myisp.local`;
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: authEmail, password,
+        options: { data: { full_name: businessName || username } }
+      });
+      if (signUpErr) throw new Error(signUpErr.message);
+      if (!signUpData.user) throw new Error('Signup failed. Try again.');
+
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+      if (signInErr) throw new Error('Account created! Ab login karein.');
+
+      const newAccount: ManagerAccount = {
+        username, password, businessName: businessName || username,
+        email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword
+      };
+      saveAccount(newAccount);
+      setAccounts(getAccounts());
+      writeLog({ username, action: 'SIGNUP', detail: `New account: ${businessName}` });
+      onLogin(username);
+
     } catch (err: any) {
       showError(`Registration Failed: ${err.message}`);
     } finally {
@@ -227,32 +247,66 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setLoadingText('Verifying OTP...');
     setError('');
 
-    try {
-      // Verify email OTP
-      const { error: emailErr } = await supabase.auth.verifyOtp({
-        email: pendingSignupData.email,
-        token: emailOtp,
-        type: 'signup',
-      });
-      if (emailErr) throw new Error('Email OTP galat hai ya expire ho gaya. Dobara check karein.');
+    const isPhoneOnly = pendingSignupData.email.endsWith('@myisp.local');
+    const hasPhone = !!pendingSignupData.phone;
 
-      // Verify phone OTP (if phone provided)
-      if (pendingSignupData.phone && phoneOtp) {
+    try {
+
+      // ── Phone-only signup: verify phone OTP → then create auth account ──
+      if (isPhoneOnly && hasPhone) {
         const formattedPhone = pendingSignupData.phone.startsWith('+')
           ? pendingSignupData.phone
           : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
+
         const { error: phoneErr } = await supabase.auth.verifyOtp({
           phone: formattedPhone, token: phoneOtp, type: 'sms',
         });
         if (phoneErr) throw new Error('Phone OTP galat hai ya expire ho gaya.');
+
+        // Now create Supabase auth account with local email
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email: pendingSignupData.email,
+          password: pendingSignupData.password,
+          options: { data: { full_name: pendingSignupData.businessName, username: pendingSignupData.username } }
+        });
+        if (signUpErr && !signUpErr.message.includes('already registered')) {
+          throw new Error(signUpErr.message);
+        }
+
+        // Sign in
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: pendingSignupData.email, password: pendingSignupData.password,
+        });
+        if (signInErr) throw new Error('Phone verify ho gaya! Ab login karein.');
+
+      } else {
+        // ── Email OTP verify (email only OR email+phone) ─────────────────
+        const { error: emailErr } = await supabase.auth.verifyOtp({
+          email: pendingSignupData.email,
+          token: emailOtp,
+          type: 'signup',
+        });
+        if (emailErr) throw new Error('Email OTP galat hai ya expire ho gaya. Dobara check karein.');
+
+        // Also verify phone OTP if phone was provided
+        if (hasPhone && phoneOtp) {
+          const formattedPhone = pendingSignupData.phone.startsWith('+')
+            ? pendingSignupData.phone
+            : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
+          const { error: phoneErr } = await supabase.auth.verifyOtp({
+            phone: formattedPhone, token: phoneOtp, type: 'sms',
+          });
+          if (phoneErr) throw new Error('Phone OTP galat hai ya expire ho gaya.');
+        }
+
+        // Sign in after email verification
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: pendingSignupData.email, password: pendingSignupData.password,
+        });
+        if (signInErr) throw new Error('Verification hua! Ab login karein.');
       }
 
-      // Sign in after verification
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: pendingSignupData.email, password: pendingSignupData.password,
-      });
-      if (signInErr) throw new Error('Verification successful! Please login manually.');
-
+      // ── Save account locally ─────────────────────────────────────────
       const newAccount: ManagerAccount = {
         username: pendingSignupData.username,
         password: pendingSignupData.password,
@@ -276,8 +330,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
   const handleResendOtp = async () => {
     if (!pendingSignupData) return;
-    await supabase.auth.resend({ type: 'signup', email: pendingSignupData.email });
-    setError('Success: OTP dobara bhej diya gaya! Email check karein.');
+    const isPhoneOnly = pendingSignupData.email.endsWith('@myisp.local');
+    if (isPhoneOnly && pendingSignupData.phone) {
+      const formattedPhone = pendingSignupData.phone.startsWith('+')
+        ? pendingSignupData.phone
+        : `+92${pendingSignupData.phone.replace(/^0/, '')}`;
+      await supabase.auth.signInWithOtp({ phone: formattedPhone });
+      setError('Success: Phone OTP dobara bhej diya gaya! SMS check karein.');
+    } else {
+      await supabase.auth.resend({ type: 'signup', email: pendingSignupData.email });
+      setError('Success: Email OTP dobara bhej diya gaya! Email check karein.');
+    }
   };
 
   // ─── FORGOT PASSWORD ─────────────────────────────────────────────────
@@ -534,19 +597,37 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 </button>
                 <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Step 2 of 2</span>
               </div>
-              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                📧 Email OTP bheja gaya: <strong>{pendingSignupData?.email}</strong><br/>
-                {pendingSignupData?.phone && <>📱 Phone OTP: <strong>{pendingSignupData?.phone}</strong></>}
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Email OTP (6-digit)</label>
-                <input className={inputCls} placeholder="Email se mila OTP daalen" value={emailOtp} onChange={e => setEmailOtp(e.target.value)} maxLength={6} required />
-              </div>
-              {pendingSignupData?.phone && (
+              {/* Smart info box — phone-only vs email+phone */}
+              {pendingSignupData?.email.endsWith('@myisp.local') ? (
+                <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                  📱 Phone OTP bheja gaya: <strong>{pendingSignupData?.phone}</strong>
+                </div>
+              ) : (
+                <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                  📧 Email OTP: <strong>{pendingSignupData?.email}</strong><br/>
+                  {pendingSignupData?.phone && <>📱 Phone OTP: <strong>{pendingSignupData?.phone}</strong></>}
+                </div>
+              )}
+
+              {/* Phone-only: sirf phone OTP field */}
+              {pendingSignupData?.email.endsWith('@myisp.local') ? (
                 <div className="space-y-2">
                   <label className={labelCls}>Phone OTP (6-digit)</label>
-                  <input className={inputCls} placeholder="SMS se mila OTP daalen" value={phoneOtp} onChange={e => setPhoneOtp(e.target.value)} maxLength={6} />
+                  <input className={inputCls} placeholder="SMS se mila OTP daalen" value={phoneOtp} onChange={e => setPhoneOtp(e.target.value)} maxLength={6} required />
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <label className={labelCls}>Email OTP (6-digit)</label>
+                    <input className={inputCls} placeholder="Email se mila OTP daalen" value={emailOtp} onChange={e => setEmailOtp(e.target.value)} maxLength={6} required />
+                  </div>
+                  {pendingSignupData?.phone && (
+                    <div className="space-y-2">
+                      <label className={labelCls}>Phone OTP (6-digit) <span className="text-slate-400 normal-case">(optional)</span></label>
+                      <input className={inputCls} placeholder="SMS se mila OTP daalen" value={phoneOtp} onChange={e => setPhoneOtp(e.target.value)} maxLength={6} />
+                    </div>
+                  )}
+                </>
               )}
               <div className="pt-2">
                 <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all transform hover:-translate-y-1">
@@ -675,12 +756,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 {view === 'signup' && (
                   <>
                     <div className="space-y-2">
-                      <label className={labelCls}>Email Address <span className="text-indigo-400">(OTP verification ke liye)</span></label>
-                      <input type="email" className={inputCls} value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com (recommended)" />
+                      <label className={labelCls}>
+                        Email Address
+                        <span className="ml-2 normal-case font-bold text-slate-400">(optional — Email ya Phone mein se ek zaroori)</span>
+                      </label>
+                      <input type="email" className={inputCls} value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" />
                     </div>
                     <div className="space-y-2">
-                      <label className={labelCls}>Contact Phone</label>
-                      <input required className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="03xxxxxxxxx" />
+                      <label className={labelCls}>
+                        Phone Number
+                        <span className="ml-2 normal-case font-bold text-slate-400">(optional — Email ya Phone mein se ek zaroori)</span>
+                      </label>
+                      <input className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="03xxxxxxxxx" />
+                    </div>
+                    {/* Helper hint */}
+                    <div className={`text-[10px] font-bold px-2 py-2 rounded-xl text-center ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                      📧 Sirf Email → Email OTP &nbsp;|&nbsp; 📱 Sirf Phone → SMS OTP &nbsp;|&nbsp; Dono → Dono OTP
                     </div>
                   </>
                 )}
