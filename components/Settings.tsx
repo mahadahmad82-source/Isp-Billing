@@ -5,6 +5,7 @@ import { AppSettings, ReceiptDesign, AppState, UserRecord, ManagerAccount, Defau
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
 import { logoBase64 } from '../utils/logoBase64';
+import { supabase } from '../lib/supabase';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -63,6 +64,62 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
   const adImageInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Email Linking States
+  const [linkEmail, setLinkEmail] = useState('');
+  const [linkOtp, setLinkOtp] = useState('');
+  const [linkStep, setLinkStep] = useState<'idle' | 'otp'>('idle');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState('');
+  const [linkSuccess, setLinkSuccess] = useState('');
+
+  const activeAccount = getAccounts().find(a => a.username === activeManager);
+  const isFakeEmail = activeAccount && (!activeAccount.email || activeAccount.email.endsWith('@myisp.local'));
+
+  const handleSendLinkOtp = async () => {
+    if (!linkEmail.includes('@')) {
+      setLinkError('Valid email enter karein');
+      return;
+    }
+    setLinkLoading(true);
+    setLinkError('');
+    try {
+      const { error } = await supabase.auth.updateUser({ email: linkEmail });
+      if (error) throw new Error(error.message);
+      setLinkStep('otp');
+      setLinkSuccess('OTP sent to ' + linkEmail);
+      setTimeout(() => setLinkSuccess(''), 3000);
+    } catch(err: any) {
+      setLinkError('Error sending OTP: ' + err.message);
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const handleVerifyLinkOtp = async () => {
+    setLinkLoading(true);
+    setLinkError('');
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: linkEmail, token: linkOtp, type: 'email_change' });
+      if (error) throw new Error('OTP invalid or expired.');
+      
+      setLocalSettings(prev => ({ ...prev, businessEmail: linkEmail }));
+      onUpdateSettings({ ...localSettings, businessEmail: linkEmail });
+
+      if (activeAccount) {
+        const updated = { ...activeAccount, email: linkEmail };
+        saveAccount(updated);
+      }
+      
+      setLinkStep('idle');
+      setLinkSuccess('Email successfully linked!');
+      setTimeout(() => setLinkSuccess(''), 3000);
+    } catch(err: any) {
+      setLinkError('Verification failed: ' + err.message);
+    } finally {
+      setLinkLoading(false);
+    }
+  };
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -446,6 +503,77 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       </div>
 
       <div className="grid grid-cols-1 gap-10">
+        
+        {/* Account Security & Recovery (Only if phone-based login without email) */}
+        {isFakeEmail && (
+          <div className="bg-rose-50 dark:bg-rose-500/10 border-2 border-rose-500/30 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl"></div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  </div>
+                  <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Security Warning</h4>
+                </div>
+                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                  Please add and verify your Email Address for secure password recovery.
+                </p>
+              </div>
+
+              <div className="w-full md:w-[320px] bg-white dark:bg-[#030712] p-5 rounded-3xl border border-rose-200 dark:border-rose-500/20 shadow-lg">
+                <div className="space-y-4">
+                  {linkStep === 'idle' ? (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 ml-1">Recovery Email</label>
+                        <input
+                          type="email"
+                          className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-rose-500 transition-colors"
+                          placeholder="e.g. manager@example.com"
+                          value={linkEmail}
+                          onChange={e => setLinkEmail(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        onClick={handleSendLinkOtp}
+                        disabled={linkLoading || !linkEmail}
+                        className="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white p-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+                      >
+                        {linkLoading ? 'Sending...' : 'Send Verification OTP'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1 ml-1">Enter 6-digit OTP</label>
+                        <input
+                          type="text"
+                          className="w-full p-4 text-center rounded-2xl bg-white dark:bg-[#0f172a] border border-rose-500 text-2xl font-black tracking-[0.5em] text-slate-900 dark:text-white outline-none"
+                          placeholder="••••••"
+                          maxLength={6}
+                          value={linkOtp}
+                          onChange={e => setLinkOtp(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        onClick={handleVerifyLinkOtp}
+                        disabled={linkLoading || linkOtp.length !== 6}
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white p-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                      >
+                        {linkLoading ? 'Verifying...' : 'Verify & Link Email'}
+                      </button>
+                    </>
+                  )}
+                  {linkError && <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 text-center uppercase">{linkError}</p>}
+                  {linkSuccess && <p className="text-[10px] font-bold text-green-600 dark:text-green-400 text-center uppercase animate-pulse">{linkSuccess}</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Visual Identity & Themes */}
         <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
            <div className="flex items-center gap-3">

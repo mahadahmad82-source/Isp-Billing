@@ -21,6 +21,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [view, setView] = useState<ViewType>('login');
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,13 +33,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [rememberPassword, setRememberPassword] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
 
-  // OTP states
-  const [emailOtp, setEmailOtp] = useState('');
-  const [pendingSignupData, setPendingSignupData] = useState<{username: string; businessName: string; email: string; password: string} | null>(null);
+  // Removed OTP states
 
   // Forgot password states
-  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -63,54 +63,38 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     e.preventDefault();
     if (isLoading) return;
     setIsLoading(true);
-    setLoadingText('Authorising Node Access...');
+    setLoadingText('Authorising...');
     setError('');
 
     try {
+      let identifier = username;
+      // Note: If username has no "@", we assume it handles both old standard username and new Phone-Only pattern
+      const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
+
       let { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: username.includes('@') ? username : `${username}@myisp.local`,
+        email: authEmail,
         password: password,
       });
 
       if (authError || !data?.user) {
-        // JIT MIGRATION FLOW: Check if the user exists in insecure local storage
+        // Fallback local accounts migration logic remains unchanged...
         const localAccounts = getAccounts();
-        const localFound = localAccounts.find(a => (a.username === username || a.email === username) && a.password === password);
+        const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
         
         if (localFound) {
-          // Attempt silent migration to Supabase
-          const authEmail = localFound.email && localFound.email.includes('@') ? localFound.email : `${localFound.username}@myisp.local`;
-          
+          const fallbackEmail = localFound.email && localFound.email.includes('@') ? localFound.email : `${localFound.username}@myisp.local`;
           const { error: signUpErr } = await supabase.auth.signUp({
-            email: authEmail,
+            email: fallbackEmail,
             password: localFound.password,
-            options: {
-              data: {
-                full_name: localFound.businessName || localFound.username,
-                phone: localFound.phone || '',
-                is_migrated: true
-              }
-            }
+            options: { data: { full_name: localFound.businessName || localFound.username, phone: localFound.phone || '', is_migrated: true } }
           });
+          if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) throw new Error('Account migration failed: ' + signUpErr.message);
 
-          if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) {
-             throw new Error('Account migration failed: ' + signUpErr.message);
-          }
-
-          // Complete migration by forcing a sign out and sign in
-          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-            email: authEmail,
-            password: localFound.password
-          });
-
-          if (signInErr || !signInData?.user) {
-            throw new Error('Invalid username or password. Migration sign-in failed.');
-          }
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: localFound.password });
+          if (signInErr || !signInData?.user) throw new Error('Invalid username or password.');
           
           data = signInData;
           authError = null;
-          
-          // Safety: Now that migration is 100% verified, safely remove insecure local fallback data
           removeAccount(localFound.username);
         } else {
           throw new Error('Invalid username or password.');
@@ -120,14 +104,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       if (data.user) {
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
         setActiveSession(loginUser);
-        writeLog({ username: loginUser, action: 'LOGIN', detail: `Login from ${navigator.userAgent.substring(0, 80)}` });
         if (rememberPassword) {
           saveAccount({
             username: loginUser,
             password: password,
             businessName: data.user.user_metadata?.full_name || loginUser,
             email: data.user.email || '',
-            phone: '',
+            phone: data.user.user_metadata?.phone || '',
             createdAt: new Date().toISOString(),
             rememberPassword: true
           });
@@ -136,7 +119,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         return;
       }
 
-      throw new Error('Authentication failed. Please try again.');
+      throw new Error('Authentication failed.');
     } catch (err: any) {
       showError(err.message || 'Authentication error occurred');
     } finally {
@@ -144,13 +127,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
   };
 
-  // ─── SIGNUP STEP 1: Submit form, send OTPs ────────────────────────────
+  // ─── SIGNUP FLOW (Phone Only) ────────────────────────────
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
     if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
-    if (username === ADMIN_USERNAME || accounts.some(a => a.username === username)) {
-      showError('This Username/ID is already taken.');
+    if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) {
+      showError('This Phone Number is already taken.');
       return;
     }
 
@@ -159,79 +142,33 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
-      // Use real email if provided, otherwise use local pattern (no OTP)
-      const hasRealEmail = email && email.includes('@') && !email.includes('@myisp.local');
+      // Create a pseudo-email strictly tied to the phone number
+      const authEmail = `${phone}@myisp.local`;
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: authEmail,
+        password,
+        options: { data: { full_name: businessName || phone, phone: phone } }
+      });
 
-      if (hasRealEmail) {
-        // NEW FLOW: Real email → OTP verification
-        let { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: email,
-          password,
-          options: { data: { full_name: businessName || username, username: username } }
-        });
-
-        // Agar already registered aur confirmed hai, to direct login kara do (OTP skip)
-        if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) {
-          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (!signInErr && signInData?.session) {
-            const newAccount: ManagerAccount = {
-              username, password, businessName: businessName || username,
-              email, phone: '', createdAt: new Date().toISOString(), rememberPassword
-            };
-            saveAccount(newAccount);
-            setAccounts(getAccounts());
-            writeLog({ username, action: 'SIGNUP', detail: `Auto login for existing account: ${businessName}` });
-            onLogin(username);
-            return;
-          }
-        }
-
-        if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData?.user) throw new Error('Signup failed. Try again.');
-
-        // Agar bina OTP ke already session mil gaya (e.g. auto confirm enabled hai)
-        if (signUpData.session) {
-          const newAccount: ManagerAccount = {
-            username, password, businessName: businessName || username,
-            email, phone: '', createdAt: new Date().toISOString(), rememberPassword
-          };
-          saveAccount(newAccount);
-          setAccounts(getAccounts());
-          writeLog({ username, action: 'SIGNUP', detail: `Instant login: ${businessName}` });
-          onLogin(username);
-          return;
-        }
-
-        // Save pending data for OTP step
-        setPendingSignupData({ username, businessName: businessName || username, email, password });
-        setIsLoading(false);
-        setView('otp');
-        return;
-
-      } else {
-        // EXISTING FLOW: username@myisp.local → instant signup (no OTP)
-        const authEmail = `${username}@myisp.local`;
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: authEmail,
-          password,
-          options: { data: { full_name: businessName || username } }
-        });
-
-        if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData.user) throw new Error('Signup failed. Try again.');
-
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
-        if (signInErr) throw new Error('Account created! Ab login karein.');
-
-        const newAccount: ManagerAccount = {
-          username, password, businessName: businessName || username,
-          email: authEmail, phone: '', createdAt: new Date().toISOString(), rememberPassword
-        };
-        saveAccount(newAccount);
-        setAccounts(getAccounts());
-        writeLog({ username, action: 'SIGNUP', detail: `New account: ${businessName}` });
-        onLogin(username);
+      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) {
+         showError('This Phone Number is already registered.');
+         return;
       }
+      if (signUpErr) throw new Error(signUpErr.message);
+      if (!signUpData.user) throw new Error('Signup failed. Try again.');
+
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+      if (signInErr) throw new Error('Account created! Please login manually.');
+
+      const newAccount: ManagerAccount = {
+        username: phone, password, businessName: businessName || phone,
+        email: authEmail, phone: phone, createdAt: new Date().toISOString(), rememberPassword
+      };
+      saveAccount(newAccount);
+      setAccounts(getAccounts());
+      writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
+      onLogin(phone);
+
     } catch (err: any) {
       showError(`Registration Failed: ${err.message}`);
     } finally {
@@ -239,65 +176,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
   };
 
-  // ─── SIGNUP STEP 2: Verify OTPs ───────────────────────────────────────
-  const handleOtpVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pendingSignupData) return;
-    setIsLoading(true);
-    setLoadingText('Verifying OTP...');
-    setError('');
-
-    try {
-      // Verify email OTP
-      const { error: emailErr } = await supabase.auth.verifyOtp({
-        email: pendingSignupData.email,
-        token: emailOtp,
-        type: 'signup',
-      });
-      if (emailErr) throw new Error('Email OTP galat hai ya expire ho gaya. Dobara check karein.');
-
-      // Sign in after verification
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: pendingSignupData.email, password: pendingSignupData.password,
-      });
-      if (signInErr) throw new Error('Verification successful! Please login manually.');
-
-      const newAccount: ManagerAccount = {
-        username: pendingSignupData.username,
-        password: pendingSignupData.password,
-        businessName: pendingSignupData.businessName,
-        email: pendingSignupData.email,
-        phone: '',
-        createdAt: new Date().toISOString(),
-        rememberPassword: false
-      };
-      saveAccount(newAccount);
-      setAccounts(getAccounts());
-      writeLog({ username: pendingSignupData.username, action: 'SIGNUP', detail: 'OTP verified' });
-      onLogin(pendingSignupData.username);
-
-    } catch (err: any) {
-      showError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (!pendingSignupData) return;
-    await supabase.auth.resend({ type: 'signup', email: pendingSignupData.email });
-    setError('Success: OTP dobara bhej diya gaya! Email check karein.');
-  };
-
-  // ─── FORGOT PASSWORD ─────────────────────────────────────────────────
   const handleForgotSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setLoadingText('OTP bhej raha hai...');
     setError('');
 
+    if (!forgotIdentifier.includes('@')) {
+      // It's a phone number. Since they have no email linked, prompt Support Modal.
+      setShowSupportModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingText('OTP bhej raha hai...');
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier, {
         redirectTo: `${window.location.origin}/`,
       });
       if (error) throw new Error(error.message);
@@ -317,7 +209,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
     try {
       const { error } = await supabase.auth.verifyOtp({
-        email: forgotEmail, token: forgotOtp, type: 'recovery',
+        email: forgotIdentifier, token: forgotOtp, type: 'recovery',
       });
       if (error) throw new Error('OTP galat hai ya expire ho gaya.');
       setView('forgot-newpass');
@@ -361,10 +253,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   };
 
   const resetFields = () => {
-    setBusinessName(''); setUsername(''); setEmail('');
+    setBusinessName(''); setUsername(''); setEmail(''); setPhone('');
     setPassword(''); setConfirmPassword(''); setRememberPassword(false); setError('');
-    setEmailOtp(''); setForgotEmail(''); setForgotOtp('');
-    setNewPassword(''); setConfirmNewPassword(''); setPendingSignupData(null);
+    setForgotIdentifier(''); setForgotOtp('');
+    setNewPassword(''); setConfirmNewPassword('');
   };
 
   const handleGoToSignup = () => { resetFields(); setView('signup'); };
@@ -493,35 +385,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             </div>
           )}
 
-          {/* ── OTP VERIFICATION VIEW ── */}
-          {view === 'otp' && (
-            <form onSubmit={handleOtpVerify} className="p-10 space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <button type="button" onClick={() => setView('signup')} className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
-                  Back
-                </button>
-                <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Step 2 of 2</span>
-              </div>
-              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                📧 Email OTP bheja gaya: <strong>{pendingSignupData?.email}</strong>
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Email OTP (6-digit)</label>
-                <input className={inputCls} placeholder="Email se mila OTP daalen" value={emailOtp} onChange={e => setEmailOtp(e.target.value)} maxLength={6} required />
-              </div>
-              <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all transform hover:-translate-y-1">
-                  {isLoading ? loadingText : 'Verify & Activate Account'}
-                </button>
-              </div>
-              <button type="button" onClick={handleResendOtp} className="w-full text-center text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:text-indigo-500 transition-colors">
-                OTP nahi mila? Resend karein
-              </button>
-            </form>
-          )}
+          {/* OTP Verification Removed */}
 
-          {/* ── FORGOT PASSWORD: ENTER EMAIL ── */}
+          {/* ── FORGOT PASSWORD: ENTER EMAIL OR PHONE ── */}
           {view === 'forgot' && (
             <form onSubmit={handleForgotSend} className="p-10 space-y-6">
               <div className="flex items-center justify-between mb-4">
@@ -532,12 +398,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
               </div>
               <div className="space-y-2">
-                <label className={labelCls}>Registered Email</label>
-                <input type="email" className={inputCls} placeholder="email@example.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
+                <label className={labelCls}>Registered Email or Phone</label>
+                <input type="text" className={inputCls} placeholder="Email or Phone Number" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value)} required />
               </div>
               <div className="pt-2">
                 <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all">
-                  {isLoading ? loadingText : 'Send OTP'}
+                  {isLoading ? loadingText : 'Reset Password'}
                 </button>
               </div>
             </form>
@@ -554,7 +420,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 2 of 3</span>
               </div>
               <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                OTP bheja gaya hai: <strong>{forgotEmail}</strong>
+                OTP bheja gaya hai: <strong>{forgotIdentifier}</strong>
               </div>
               <div className="space-y-2">
                 <label className={labelCls}>6-Digit OTP</label>
@@ -625,18 +491,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <label className={labelCls}>Username / ID</label>
-                  <input required disabled={!!selectedAccount && view === 'login'} className={`${inputCls} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter unique ID" />
-                </div>
-
-                {view === 'signup' && (
-                  <>
-                    <div className="space-y-2">
-                      <label className={labelCls}>Email Address <span className="text-indigo-400">(OTP verification ke liye)</span></label>
-                      <input type="email" className={inputCls} value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com (recommended)" />
-                    </div>
-                  </>
+                {view === 'login' ? (
+                  <div className="space-y-2">
+                    <label className={labelCls}>Email or Phone Number</label>
+                    <input required disabled={!!selectedAccount && view === 'login'} className={`${inputCls} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter email or phone" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className={labelCls}>Phone Number</label>
+                    <input required type="tel" className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 03001234567" />
+                  </div>
                 )}
 
                 <div className="space-y-2">
@@ -700,6 +564,31 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           {view === 'signup' ? 'Node encrypted using local storage hash' : 'Local node data remains strictly on this device'}
         </p>
       </div>
+
+      {/* Support Message Modal */}
+      {showSupportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 ${theme === 'dark' ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
+              <h4 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Support Needed</h4>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Password recovery via SMS/Phone is currently unavailable. Please contact our support team to manually reset your account.</p>
+              
+              <div className="pt-2 flex flex-col gap-3">
+                <a 
+                  href="https://wa.me/923000000000?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." 
+                  target="_blank" rel="noopener noreferrer"
+                  className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-[#25D366]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0a12 12 0 00-10.19 18.25L.037 24l5.962-1.55A11.942 11.942 0 0011.944 24c6.627 0 12-5.373 12-12s-5.373-12-12-12zm6.342 17.202c-.288.814-1.42 1.488-2.203 1.583-.783.095-1.558.28-4.385-1.01-3.418-1.562-5.63-5.068-5.8-5.297-.17-.229-1.385-1.848-1.385-3.52 0-1.673.86-2.502 1.168-2.846.308-.344.67-.43.89-.43s.44 0 .633.01c.192.01.448-.076.7.534.252.61 1.092 2.65 1.188 2.846.095.196.16.425.02.653-.14.229-.21.37-.425.62-.215.25-.448.514-.64.715-.192.196-.394.412-.17.795.22.383.985 1.63 2.115 2.64 1.458 1.305 2.68 1.708 3.064 1.88.384.172.61.152.84-.112.23-.264.985-1.144 1.25-1.538.264-.394.528-.328.878-.196.35.132 2.215 1.042 2.59 1.232.375.19.625.286.715.446.09.16.09.936-.198 1.75z" /></svg>
+                  Click to WhatsApp Support
+                </a>
+                <button onClick={() => setShowSupportModal(false)} className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clear All Confirmation Modal */}
       {showClearConfirm && (
