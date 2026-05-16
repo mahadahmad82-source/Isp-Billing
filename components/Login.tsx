@@ -140,6 +140,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       if (!signUpData.user) throw new Error('Signup failed. Dobara try karein.');
 
       if (hasRealEmail) {
+        // Already confirmed hai? Seedha login karo (OTP skip)
+        if (signUpData.user?.email_confirmed_at || signUpData.session) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+          if (!signInErr) {
+            saveAccount({ username, password, businessName: businessName || username, email: authEmail, phone: '', createdAt: new Date().toISOString(), rememberPassword });
+            setAccounts(getAccounts());
+            writeLog({ username, action: 'SIGNUP', detail: businessName });
+            onLogin(username);
+            return;
+          }
+        }
         // Email diya → OTP verify step pe jao
         setPendingSignupData({ username, businessName: businessName || username, email: authEmail, password });
         setView('otp');
