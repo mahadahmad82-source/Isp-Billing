@@ -180,8 +180,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     e.preventDefault();
     setError('');
 
-    if (!forgotIdentifier.includes('@')) {
-      // It's a phone number. Since they have no email linked, prompt Support Modal.
+    if (!forgotIdentifier.includes('@') || forgotIdentifier.endsWith('@myisp.local')) {
+      // It's a phone number or auto-generated email. Since they have no real email linked, prompt Support Modal.
       setShowSupportModal(true);
       return;
     }
@@ -189,13 +189,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setIsLoading(true);
     setLoadingText('OTP bhej raha hai...');
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier, {
-        redirectTo: `${window.location.origin}/`,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier);
       if (error) throw new Error(error.message);
       setView('forgot-otp');
     } catch (err: any) {
-      showError('OTP send nahi hua: ' + err.message);
+      if (err.message === 'Failed to fetch') {
+        showError('Network error ya Supabase mein email recovery disabled hai. Support pe contact karein.');
+      } else {
+        showError('OTP send nahi hua: ' + err.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -576,7 +578,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               
               <div className="pt-2 flex flex-col gap-3">
                 <a 
-                  href="https://wa.me/923000000000?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." 
+                  href="https://wa.me/923042773453?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." 
                   target="_blank" rel="noopener noreferrer"
                   className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-[#25D366]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
