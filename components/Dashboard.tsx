@@ -22,6 +22,14 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
+  const [hideReminder, setHideReminder] = useState(() => {
+    return sessionStorage.getItem('dismissedReminderHub') === 'true';
+  });
+
+  const handleDismissReminder = () => {
+    setHideReminder(true);
+    sessionStorage.setItem('dismissedReminderHub', 'true');
+  };
 
   const getDaysUntilExpiry = (dateStr: string) => {
     if (!dateStr) return 999;
@@ -234,8 +242,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         </div>
       </div>
 
-      {pendingRemindersCount > 0 && (
-        <div className="bg-gradient-to-r from-orange-600 to-rose-600 p-8 rounded-[2.5rem] text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+      {pendingRemindersCount > 0 && !hideReminder && (
+        <div id="tour-reminder-hub" className="bg-gradient-to-r from-orange-600 to-rose-600 p-8 rounded-[2.5rem] text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
           <div className="relative z-10 flex gap-6 items-center">
             <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center text-white">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -253,11 +261,18 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           >
             Run Automation Sequence
           </button>
+          <button 
+            onClick={handleDismissReminder}
+            className="absolute top-4 right-4 z-20 p-2 text-white/70 hover:text-white bg-black/10 hover:bg-black/20 rounded-full transition-colors"
+            title="Dismiss Reminder"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
           <div
             key={stat.id}
@@ -304,7 +319,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-white/5">
+        <div id="tour-recent-transactions" className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-white/5">
           <div className="flex justify-between items-center mb-8">
             <div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Recent Transactions</h3>
@@ -351,7 +366,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         </div>
 
         <div className="space-y-6">
-          <div className="bg-slate-900 dark:bg-indigo-950 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group border border-slate-700 dark:border-indigo-500/20">
+          <div id="tour-recovery-alerts" className="bg-slate-900 dark:bg-indigo-950 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group border border-slate-700 dark:border-indigo-500/20">
             <h3 className="font-black text-lg mb-6 flex items-center gap-3 relative z-10 uppercase tracking-tight">
               <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               Recovery Alerts
@@ -373,7 +388,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           </div>
 
           {/* Overdue Collections Section */}
-          <div className="bg-rose-600 dark:bg-rose-950 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group border border-rose-500/20">
+          <div id="tour-overdue-collections" className="bg-rose-600 dark:bg-rose-950 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group border border-rose-500/20">
             <div className="flex justify-between items-start mb-6 relative z-10">
               <h3 className="font-black text-lg flex items-center gap-3 uppercase tracking-tight">
                 <svg className="w-6 h-6 text-rose-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>

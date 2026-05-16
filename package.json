@@ -13,6 +13,7 @@
     "@google/genai": "1.34.0",
     "@supabase/supabase-js": "^2.105.1",
     "@types/three": "^0.184.0",
+    "driver.js": "^1.4.0",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.7.0",
     "motion": "^12.38.0",

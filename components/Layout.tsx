@@ -108,7 +108,7 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         )}
 
-        <nav className="space-y-1 flex-1">
+        <nav id="tour-sidebar-nav" className="space-y-1 flex-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -127,7 +127,7 @@ const Layout: React.FC<LayoutProps> = ({
           ))}
         </nav>
 
-        <div className={`mt-auto pt-6 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-indigo-800'}`}>
+        <div id="tour-profile-menu" className={`mt-auto pt-6 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-indigo-800'}`}>
           <button
             onClick={() => setProfileOpen(true)}
             className="flex items-center gap-3 px-2 w-full hover:bg-white/10 rounded-2xl py-2 transition-colors group"
@@ -155,12 +155,19 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Fixed Top Header - Mobile Only */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-transparent">
-        {/* Left: empty spacer */}
-        <div className="w-10" />
-        {/* Center: Logo only */}
-        <div className="flex items-center">
-          <img src={logoBase64} alt="Logo" className="w-16 h-16 object-contain rounded-xl" />
+        {/* Left: empty spacer to balance the flex layout */}
+        <div className="w-10"></div>
+        
+        {/* Center: Increased size Logo */}
+        <div className="flex justify-center items-center px-2 py-1">
+          <img 
+            src={logoBase64} 
+            alt="Logo" 
+            className="w-[130px] h-auto max-h-[48px] object-contain drop-shadow-sm transition-transform duration-300"
+            style={{ objectFit: 'contain' }}
+          />
         </div>
+        
         {/* Right: Avatar + Dropdown */}
         <div className="relative">
           <button
@@ -228,16 +235,16 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
-        <header className="flex justify-between items-center mb-8 no-print">
+        <header id="tour-top-header" className="flex justify-between items-center mb-8 no-print">
           <div className="flex flex-col">
             <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
             {lastSavedTime && (
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-0.5">
-                Local Save Integrity Check: {lastSavedTime}
+                Secure Cloud Sync: {lastSavedTime}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 md:gap-4">
+          <div id="tour-header-actions" className="flex items-center gap-3 md:gap-4">
             <button 
               onClick={() => setIsNotifOpen(true)}
               className={`p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 relative active:rotate-12 active:scale-90 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}

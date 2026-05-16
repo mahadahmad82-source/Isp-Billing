@@ -114,10 +114,8 @@ const App: React.FC = () => {
         });
         // Show onboarding tour for new managers (not admin, first time)
         if (activeManager !== 'admin') {
-          const tourKey = `tour_done_${activeManager}`;
-          if (!localStorage.getItem(tourKey)) {
-            setShowTour(true);
-          }
+          // Temporarily removed the localStorage check for testing purposes
+          setShowTour(true);
         }
       });
     } else {
