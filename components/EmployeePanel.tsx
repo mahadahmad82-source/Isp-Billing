@@ -115,7 +115,7 @@ const EmployeePanel: React.FC<EmployeePanelProps> = ({
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-black text-xs">{employeeName.substring(0, 2).toUpperCase()}</span>
+              <span className="text-white font-bold text-xs">{employeeName.substring(0, 2).toUpperCase()}</span>
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-indigo-500">Employee Panel</p>

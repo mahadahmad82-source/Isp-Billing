@@ -179,7 +179,7 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
     return (
       <div className={`bg-white dark:bg-slate-900 p-6 rounded-[2rem] border transition-all hover:shadow-xl group relative overflow-hidden ${isPriority ? 'border-orange-200 dark:border-orange-500/20 shadow-sm' : 'border-slate-100 dark:border-white/5'}`}>
         {reminded && (
-          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-2xl z-10">
+          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-bl-2xl z-10">
             ✓ Reminded Today
           </div>
         )}

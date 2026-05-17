@@ -145,7 +145,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
         <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-white font-black text-lg uppercase tracking-tight">⚡ Quick Activate</h2>
+              <h2 className="text-white font-bold text-lg uppercase tracking-tight">⚡ Quick Activate</h2>
               <p className="text-white/70 text-xs mt-0.5">{currentMonth} ke liye users activate karo</p>
             </div>
             <button onClick={onClose} className="text-white/60 hover:text-white text-xl">✕</button>

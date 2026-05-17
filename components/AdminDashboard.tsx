@@ -46,7 +46,7 @@ interface Receipt {
 
 // ─── Helper Components ─────────────────────────────────────────────────────────
 const Badge = ({ children, color }: { children: React.ReactNode; color: string }) => (
-  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${color}`}>
+  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${color}`}>
     {children}
   </span>
 );

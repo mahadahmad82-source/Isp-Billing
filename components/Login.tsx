@@ -397,7 +397,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
                   Back to Login
                 </button>
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
+                <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
               </div>
               <div className="space-y-2">
                 <label className={labelCls}>Registered Email or Phone</label>

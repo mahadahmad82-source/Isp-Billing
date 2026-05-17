@@ -26,7 +26,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
       </div>
       
       <div className="mt-10 space-y-3">
-        <h3 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' || fullScreen ? 'text-slate-800 dark:text-white' : 'text-slate-800'}`}>
+        <h3 className={`text-xl font-bold uppercase tracking-tight ${theme === 'dark' || fullScreen ? 'text-slate-800 dark:text-white' : 'text-slate-800'}`}>
           {message}
         </h3>
         <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.4em] animate-pulse">

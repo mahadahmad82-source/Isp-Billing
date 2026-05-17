@@ -115,7 +115,7 @@ const ImportFromHistory: React.FC<ImportFromHistoryProps> = ({
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">📥</div>
             <div>
-              <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Import from History</h4>
+              <h4 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Import from History</h4>
               <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Bring back users from previous months</p>
             </div>
           </div>

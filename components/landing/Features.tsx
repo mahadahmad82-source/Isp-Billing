@@ -28,7 +28,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
             viewport={{ once: true }}
             className="inline-block px-4 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 mb-8"
           >
-            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">System Architecture</span>
+            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em]">System Architecture</span>
           </motion.div>
           <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter mb-8 leading-[0.9] text-slate-900 dark:text-white">Core <br /> Infrastructure</h1>
           <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg font-medium">

@@ -433,7 +433,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
              )}
              {hasText && (
                <div>
-                 <p className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">Exclusive Subscriber Offer</p>
+                 <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-[0.2em] mb-1">Exclusive Subscriber Offer</p>
                  <p className="text-xs font-bold text-slate-700 leading-relaxed italic">"{settings.billAds}"</p>
                </div>
              )}

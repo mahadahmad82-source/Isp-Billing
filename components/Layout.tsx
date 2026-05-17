@@ -225,7 +225,7 @@ const Layout: React.FC<LayoutProps> = ({
             <span className={`${activeTab === tab.id ? 'scale-110' : 'scale-100'} transition-transform`}>
               {tab.icon}
             </span>
-            <span className="text-[7.5px] font-black uppercase tracking-tighter truncate w-full text-center">
+            <span className="text-[7.5px] font-bold uppercase tracking-tighter truncate w-full text-center">
               {tab.label.split(' ')[0]}
             </span>
           </button>

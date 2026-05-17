@@ -46,7 +46,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       <div className={`relative w-full max-w-sm flex flex-col max-h-[85vh] shadow-2xl rounded-[2.5rem] border pointer-events-auto animate-in slide-in-from-right duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
           <div>
-            <h4 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Alert Center</h4>
+            <h4 className={`text-xl font-bold uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Alert Center</h4>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent System Notifications</p>
           </div>
           <div className="flex items-center gap-2">

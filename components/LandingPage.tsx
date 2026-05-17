@@ -30,7 +30,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, theme, onToggle
           <img src={logoBase64} alt="MYISP Logo" className="w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />
         </Link>
         
-        <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+        <div className="hidden md:flex items-center gap-8 text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
           {navLinks.map((link) => (
             <Link 
               key={link.path} 

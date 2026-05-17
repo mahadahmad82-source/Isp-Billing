@@ -144,7 +144,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         <div className={`px-6 pt-6 pb-4 ${isDark ? 'bg-slate-800' : 'bg-indigo-600'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-black text-white text-xl">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-white text-xl">
                 {businessName?.charAt(0)?.toUpperCase() || 'M'}
               </div>
               <div>

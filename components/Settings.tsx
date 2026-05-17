@@ -465,7 +465,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             <input type="file" ref={logoInputRef} className="hidden" accept=".png, .jpg, .jpeg, .svg" onChange={handleLogoUpload} />
           </div>
           <div>
-            <h3 className="text-3xl font-black text-slate-900 dark:text-white leading-none mb-2">{localSettings.businessName}</h3>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white leading-none mb-2">{localSettings.businessName}</h3>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Manager Profile Settings</p>
               {localSettings.businessLogo && (

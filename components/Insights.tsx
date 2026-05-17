@@ -90,7 +90,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
       <div className="bg-indigo-900 dark:bg-indigo-950 p-6 md:p-12 rounded-[2rem] md:rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row gap-8 md:gap-12 items-start md:items-center">
           <div className="flex-1">
-            <div className="inline-block px-4 py-1.5 bg-indigo-500/30 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-4 border border-indigo-400/20">
+            <div className="inline-block px-4 py-1.5 bg-indigo-500/30 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-4 border border-indigo-400/20">
               Enterprise Intelligence
             </div>
             <h3 className="text-3xl md:text-4xl font-black mb-4 tracking-tight leading-none uppercase">Business <br/>Performance</h3>

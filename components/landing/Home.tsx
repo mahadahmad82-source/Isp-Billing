@@ -52,7 +52,7 @@ const FeatureCard3D: React.FC<{ feat: any; isDark: boolean }> = ({ feat, isDark 
         }}>
         {feat.icon}
       </div>
-      <h3 className="text-lg font-black mb-3 uppercase tracking-tight"
+      <h3 className="text-lg font-bold mb-3 uppercase tracking-tight"
         style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
         {feat.title}
       </h3>
@@ -133,7 +133,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
           </motion.div>
 
           {/* Headline */}
-          <motion.h1 variants={itemVariants} className="font-black tracking-tighter leading-none mb-4 select-none"
+          <motion.h1 variants={itemVariants} className="font-bold tracking-tight leading-none mb-4 select-none"
             style={{
               fontSize: 'clamp(2.5rem, 7vw, 6rem)',
               color: isDark ? '#f1f5f9' : '#0f172a',
@@ -154,7 +154,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
 
           {/* Subtitle */}
           <motion.p variants={itemVariants}
-            className="max-w-2xl mx-auto text-base md:text-lg font-normal leading-relaxed mb-8"
+            className="max-w-2xl mx-auto text-base md:text-lg font-medium leading-relaxed mb-8"
             style={{ color: isDark ? '#94a3b8' : '#475569' }}>
             MYISP is the ultimate management suite for local ISPs. Automated billing,
             real-time recovery tracking, and professional receipts in one secure node.
@@ -306,7 +306,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                 </div>
                 <h3 className="text-2xl font-black mb-4 uppercase tracking-tight"
                   style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{spec.title}</h3>
-                <p className="leading-relaxed font-normal" style={{ color: '#64748b' }}>{spec.desc}</p>
+                <p className="leading-relaxed font-medium" style={{ color: '#64748b' }}>{spec.desc}</p>
                 <div className="absolute bottom-0 left-0 right-0 h-px"
                   style={{ background: `linear-gradient(90deg, transparent, ${spec.color}50, transparent)` }} />
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-10"
@@ -367,7 +367,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   '✅ Dark / Light Theme', '✅ Onboarding Tour Guide',
                   '✅ Feature Hint System', '✅ Role-Based Access (Admin/Manager)',
                 ].map((f, i) => (
-                  <div key={i} className="text-xs font-normal py-1"
+                  <div key={i} className="text-xs font-medium py-1"
                     style={{ color: isDark ? '#94a3b8' : '#475569' }}>{f}</div>
                 ))}
               </div>

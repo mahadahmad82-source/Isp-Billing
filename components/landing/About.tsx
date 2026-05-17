@@ -15,7 +15,7 @@ const About: React.FC = () => {
             viewport={{ once: true }}
           >
             <div className="inline-block px-4 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 mb-8">
-              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Our Mission</span>
+              <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em]">Our Mission</span>
             </div>
             <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter mb-10 leading-[0.9] text-slate-900 dark:text-white">Architecting <br /> Digital Trust</h2>
             <p className="text-slate-500 dark:text-slate-400 text-xl mb-10 leading-relaxed font-medium">

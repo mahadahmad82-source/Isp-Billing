@@ -218,7 +218,7 @@ const Archives: React.FC<ArchivesProps> = ({
               <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             </button>
             <div>
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{selectedArchive.name}</h3>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-white uppercase tracking-tight">{selectedArchive.name}</h3>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legacy Vault Record • {selectedArchive.users.length} Subscribers</p>
             </div>
           </div>

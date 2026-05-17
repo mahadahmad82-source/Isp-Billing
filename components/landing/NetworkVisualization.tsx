@@ -99,7 +99,7 @@ const NetworkVisualization: React.FC = () => {
         <div className="text-left">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Network Node Active</span>
+            <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Network Node Active</span>
           </div>
           <h3 className="text-3xl font-black text-white uppercase tracking-tight mb-2">Global Infrastructure</h3>
           <p className="text-slate-400 text-sm font-medium max-w-sm">

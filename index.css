@@ -120,7 +120,6 @@ html, body {
   position: relative;
   -webkit-tap-highlight-color: transparent;
   touch-action: pan-y;
-  font-weight: 400;
 }
 
 @media print {

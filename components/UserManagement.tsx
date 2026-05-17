@@ -473,7 +473,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <div className={`hidden md:flex flex-col transition-all duration-500 border-r border-slate-200 dark:border-white/5 bg-white dark:bg-[#0f172a] overflow-hidden ${showMonthlyFolders ? 'w-72 p-6' : 'w-0 p-0 border-r-0'}`}>
         <div className="mb-8 flex justify-between items-start min-w-[240px]">
           <div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Folders</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Monthly Folders</h3>
             <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest mt-1">Select Period to View</p>
           </div>
           <button 
