@@ -21,6 +21,8 @@ interface ReceiptGeneratorProps {
 
 type ViewMode = 'list' | 'create' | 'view';
 
+const logoBase64 = '';
+
 const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({ 
   users, 
   receipts, 

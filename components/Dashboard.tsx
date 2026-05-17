@@ -194,7 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       const paidInLastMonth = (receipts || []).some(r =>
         r.userId === u.id &&
         (r.activatedMonth === lastActiveMonth || r.period === lastActiveMonth) &&
-        r.status === 'SUCCESS'
+        r.status === PaymentStatus.SUCCESS
       );
 
       // Overdue = expired + NOT paid in last active month + has balance
@@ -211,7 +211,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     const monthReceipts = (receipts || []).filter(r =>
       r.userId === u.id &&
       (r.activatedMonth === lastActiveMonth || r.period === lastActiveMonth) &&
-      r.status === 'SUCCESS'
+      r.status === PaymentStatus.SUCCESS
     );
     const paid = monthReceipts.reduce((s, r) => s + (r.paidAmount || 0), 0);
     const fee = u.monthlyFee || 0;
@@ -224,8 +224,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="space-y-1">
-            <h3 className="text-3xl font-black text-black dark:text-white uppercase leading-none">Dashboard Overview</h3>
-            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.2em]">{settings.businessName} • Real-time Stats</p>
+            <h3 className="text-3xl font-bold text-black dark:text-white uppercase leading-none">Dashboard Overview</h3>
+            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.2em]">{settings.businessName} • Real-time Stats</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -244,12 +244,12 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
 
       {pendingRemindersCount > 0 && !hideReminder && (
         <div id="tour-reminder-hub" className="bg-gradient-to-r from-orange-600 to-rose-600 p-8 rounded-[2.5rem] text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
-          <div className="relative z-10 flex gap-6 items-center">
+            <div className="relative z-10 flex gap-6 items-center">
             <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center text-white">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
             <div>
-              <h2 className="text-3xl font-black mb-2 tracking-tight uppercase">3-Day Reminder Hub</h2>
+              <h2 className="text-3xl font-bold mb-2 tracking-tight uppercase">3-Day Reminder Hub</h2>
               <p className="text-sm font-bold opacity-90 max-w-md">
                 System has detected {pendingRemindersCount} users whose subscription expires exactly in 3 days. Run the automation cycle now.
               </p>
@@ -257,7 +257,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           </div>
           <button 
             onClick={() => setActiveTab('expiries')}
-            className="relative z-10 px-8 py-4 bg-white text-orange-600 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-105 active:scale-90 active:translate-y-1 transition-all whitespace-nowrap"
+            className="relative z-10 px-8 py-4 bg-white text-orange-600 rounded-2xl font-bold uppercase text-xs tracking-widest shadow-xl hover:scale-105 active:scale-90 active:translate-y-1 transition-all whitespace-nowrap"
           >
             Run Automation Sequence
           </button>

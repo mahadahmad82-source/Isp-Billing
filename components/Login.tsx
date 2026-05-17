@@ -291,8 +291,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     </svg>
   );
 
-  const inputCls = `w-full px-6 py-5 rounded-2xl border-2 font-black outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`;
-  const labelCls = "text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
+  const inputCls = `w-full px-6 py-5 rounded-2xl border-2 font-bold outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`;
+  const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
 
   return (
     <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
@@ -325,7 +325,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
           </div>
           <div className="space-y-1">
-            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.4em] mt-2 text-center">
+            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] mt-2 text-center">
               {view === 'signup' ? 'Local Node Registration' : view === 'recent' ? 'Recent Profiles' : view === 'otp' ? 'Verify Your Account' : view === 'forgot' ? 'Password Recovery' : view === 'forgot-otp' ? 'Enter OTP' : view === 'forgot-newpass' ? 'Set New Password' : 'Secure Manager Access'}
             </p>
           </div>
@@ -342,7 +342,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
           {error && (
             <div className="px-8 pt-8">
-              <div className={`p-4 border rounded-2xl text-[10px] font-black uppercase tracking-widest text-center ${error.startsWith('Success') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
+              <div className={`p-4 border rounded-2xl text-[10px] font-bold uppercase tracking-widest text-center ${error.startsWith('Success') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
                 {error}
               </div>
             </div>
@@ -353,22 +353,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             <div className="p-10 space-y-6">
               <div className="flex justify-between items-center px-1">
                 <div className="flex flex-col">
-                  <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
+                  <h4 className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
                   <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
                 </div>
-                <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 transition-all hover:bg-rose-500/10">Clear All</button>
+                <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-widest bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 transition-all hover:bg-rose-500/10">Clear All</button>
               </div>
               <div className="grid grid-cols-1 gap-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-2">
                 {accounts.map((acc, idx) => (
                   <div key={acc.username} className="relative group/wrapper">
                     <button onClick={() => handleSelectAccount(acc)} className={`w-full flex items-center gap-5 p-5 rounded-3xl border transition-all text-left group animate-in slide-in-from-bottom-4 duration-500 pr-12 relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900/40 border-white/5 hover:border-indigo-500/30' : 'bg-slate-50/50 border-slate-100 hover:border-indigo-200 hover:bg-white'}`} style={{ animationDelay: `${idx * 100}ms` }}>
                       <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                      <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center text-xl font-black group-hover:scale-105 transition-transform relative z-10 ${theme === 'dark' ? 'bg-slate-950 text-indigo-400' : 'bg-white text-indigo-600 border border-slate-100'}`}>
+                      <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform relative z-10 ${theme === 'dark' ? 'bg-slate-950 text-indigo-400' : 'bg-white text-indigo-600 border border-slate-100'}`}>
                         {acc.businessName ? acc.businessName.charAt(0).toUpperCase() : acc.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0 relative z-10">
-                        <p className={`text-[15px] font-black truncate leading-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{acc.businessName || acc.username}</p>
-                        <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">@{acc.username}</p>
+                        <p className={`text-[15px] font-bold truncate leading-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{acc.businessName || acc.username}</p>
+                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">@{acc.username}</p>
                       </div>
                       <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 relative z-10">
                         <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
@@ -381,8 +381,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-4 mt-4">
-                <button onClick={handleGoToSignup} className={`py-5 rounded-3xl border-2 border-dashed font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>+ Register Node</button>
-                <button onClick={handleGoToLogin} className={`py-5 rounded-3xl border-2 border-dashed font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>Manual Login</button>
+                <button onClick={handleGoToSignup} className={`py-5 rounded-3xl border-2 border-dashed font-bold text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>+ Register Node</button>
+                <button onClick={handleGoToLogin} className={`py-5 rounded-3xl border-2 border-dashed font-bold text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>Manual Login</button>
               </div>
             </div>
           )}
@@ -393,7 +393,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           {view === 'forgot' && (
             <form onSubmit={handleForgotSend} className="p-10 space-y-6">
               <div className="flex items-center justify-between mb-4">
-                <button type="button" onClick={handleGoToLogin} className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
+                <button type="button" onClick={handleGoToLogin} className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
                   Back to Login
                 </button>
@@ -544,7 +544,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                       Forgot Password?
                     </button>
 
-                    <button type="button" onClick={handleGoToSignup} className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors pt-1">
+                    <button type="button" onClick={handleGoToSignup} className="w-full text-center text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors pt-1">
                       Don't have a node? Create one now
                     </button>
                   </div>

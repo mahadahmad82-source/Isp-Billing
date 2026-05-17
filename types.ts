@@ -108,6 +108,8 @@ export interface Receipt {
   advanceAmount?: number;
   discount?: number;
   monthlyFee?: number;
+  plan?: string;
+  activatedMonth?: string;
   date: string;
   period: string;
   paymentMethod: PaymentMethod;

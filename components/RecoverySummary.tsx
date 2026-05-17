@@ -26,6 +26,8 @@ interface SummaryItem {
   activatedCount: number;
 }
 
+const logoBase64 = '';
+
 const RecoverySummary: React.FC<RecoverySummaryProps> = ({ 
   users, 
   receipts, 

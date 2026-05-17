@@ -21,7 +21,6 @@ import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
-import FeatureHint from './components/FeatureHint';
 
 interface ConfirmationConfig {
   title: string;
@@ -68,7 +67,31 @@ const App: React.FC = () => {
     return initialState;
   });
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showTour, setShowTour] = useState(false);
+  const [tourMode, setTourMode] = useState<string>('welcome');
+  const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
+
+  // Per-page Tour logic
+  useEffect(() => {
+    if (!activeManager || activeManager === 'admin' || showTour) return;
+
+    // Check master skip key first
+    const masterSkipKey = `tour_disabled_${activeManager}`;
+    if (localStorage.getItem(masterSkipKey) === 'true') return;
+
+    const tourKey = `tour_seen_${activeManager}_${activeTab}`;
+    const alreadySeen = localStorage.getItem(tourKey);
+
+    if (!alreadySeen) {
+      // Small delay for tab transition
+      const timer = setTimeout(() => {
+        setTourMode(activeTab);
+        setShowTour(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, activeManager, showTour]);
 
   // Listen for custom event from RecoverySummary
   useEffect(() => {
@@ -80,9 +103,6 @@ const App: React.FC = () => {
     window.addEventListener('myisp-goto-receipts', handler);
     return () => window.removeEventListener('myisp-goto-receipts', handler);
   }, [setActiveTab]);
-  const [showTour, setShowTour] = useState(false);
-  const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
-
   const [showLanding, setShowLanding] = useState(true);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
@@ -112,10 +132,13 @@ const App: React.FC = () => {
           activeCompanyId: finalState.activeCompanyId || '',
           currentManager: activeManager
         });
-        // Show onboarding tour for new managers (not admin, first time)
+        // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
-          // Temporarily removed the localStorage check for testing purposes
-          setShowTour(true);
+          const welcomeKey = `tour_seen_${activeManager}_welcome`;
+          if (!localStorage.getItem(welcomeKey)) {
+            setShowTour(true);
+            setTourMode('welcome');
+          }
         }
       });
     } else {
@@ -281,6 +304,15 @@ const App: React.FC = () => {
   const handleLogin = (username: string) => {
     setActiveManager(username);
     lastActivityRef.current = Date.now();
+    
+    // Explicitly check for tour on login
+    if (username !== 'admin') {
+      const welcomeKey = `tour_seen_${username}_welcome`;
+      if (!localStorage.getItem(welcomeKey)) {
+        setTourMode('welcome');
+        setShowTour(true);
+      }
+    }
   };
 
   // OAuth Social Login Handler (Google / Facebook)
@@ -717,7 +749,7 @@ const App: React.FC = () => {
               <div className="h-full bg-indigo-500 animate-[loading-bar_1.5s_infinite_linear] w-[40%] shadow-[0_0_15px_rgba(99,102,241,0.8)] rounded-full"></div>
             </div>
             <div className="flex justify-center mt-3">
-              <div className="bg-[#0b1120]/90 backdrop-blur-md text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 border border-white/5 flex items-center gap-3">
+            <div className="bg-[#0b1120]/90 backdrop-blur-md text-white px-6 py-2 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 border border-white/5 flex items-center gap-3">
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
@@ -795,22 +827,24 @@ const App: React.FC = () => {
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
         </Layout>
-        <FeatureHint
-          activeTab={activeTab}
-          managerName={activeManager || ''}
-          theme={state.settings?.theme || 'light'}
+
+      {showTour && (
+        <OnboardingTour 
+          onClose={() => {
+            setShowTour(false);
+            if (activeManager) {
+              localStorage.setItem(`tour_seen_${activeManager}_${tourMode}`, 'true');
+            }
+          }} 
+          onSkipAll={() => {
+            setShowTour(false);
+            if (activeManager) {
+              localStorage.setItem(`tour_disabled_${activeManager}`, 'true');
+            }
+          }}
+          activeTab={tourMode}
         />
-        {showTour && (
-          <OnboardingTour
-            managerName={activeManager || 'Manager'}
-            onComplete={() => {
-              localStorage.setItem(`tour_done_${activeManager}`, 'true');
-              setShowTour(false);
-            }}
-            onNavigate={(tab) => setActiveTab(tab)}
-            theme={state.settings?.theme || 'light'}
-          />
-        )}
+      )}
 
       {pendingRemindersCount > 0 && activeTab !== 'expiries' && !isReminderBannerDismissed && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[400] animate-in slide-in-from-top-10 flex items-center gap-2">
@@ -821,10 +855,10 @@ const App: React.FC = () => {
             >
               <span className="text-xl">🚀</span>
               <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 leading-none">Automation Ready</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 leading-none">Automation Ready</p>
                 <p className="text-sm font-bold">{pendingRemindersCount} Reminders Pending Today</p>
               </div>
-              <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase">Start Cycle</span>
+              <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase">Start Cycle</span>
             </button>
             <button 
               onClick={() => setIsReminderBannerDismissed(true)}
@@ -841,18 +875,18 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setConfirmConfig(null)}></div>
           <div className={`relative z-10 w-full max-sm:p-8 p-8 rounded-[2.5rem] shadow-2xl border text-center ${state.theme === 'dark' ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
-            <h2 className="text-xl font-black mb-2">{confirmConfig.title}</h2>
+            <h2 className="text-xl font-bold mb-2">{confirmConfig.title}</h2>
             <p className="text-xs text-slate-500 mb-8">{confirmConfig.message}</p>
             <div className="flex flex-col gap-3">
               <button 
                 onClick={() => { confirmConfig.onConfirm(); setConfirmConfig(null); }} 
-                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white ${confirmConfig.variant === 'danger' ? 'bg-red-600' : 'bg-indigo-600'}`}
+                className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-widest text-white ${confirmConfig.variant === 'danger' ? 'bg-red-600' : 'bg-indigo-600'}`}
               >
                 Execute Action
               </button>
               <button 
                 onClick={() => setConfirmConfig(null)} 
-                className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                className="w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 Dismiss
               </button>

@@ -1262,7 +1262,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           users={users}
           onActivateUsers={handleQuickActivate}
           onClose={() => setShowQuickActivate(false)}
-          theme={settings.theme || 'light'}
+          theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
           currentMonth={currentMonth}
         />
       )}

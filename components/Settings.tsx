@@ -331,6 +331,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         onRestoreState({
           users: users as UserRecord[],
           receipts: receipts as Receipt[],
+          archives: fullState.archives || [],
           settings: restoredSettings,
           theme: fullState.theme,
           currentManager: fullState.currentManager

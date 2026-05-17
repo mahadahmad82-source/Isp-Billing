@@ -97,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({
               </div>
               <span className="text-white truncate">{businessName}</span>
             </h1>
-            <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-black ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>ISP MANAGER v2.5</p>
+            <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>ISP MANAGER v2.5</p>
           </div>
         )}
         {sidebarCollapsed && (
@@ -138,7 +138,7 @@ const Layout: React.FC<LayoutProps> = ({
             {!sidebarCollapsed && (
               <div className="min-w-0 flex-1 text-left">
                 <p className="text-xs font-bold text-white uppercase tracking-wider truncate">{isAdmin ? 'ADMIN ACCOUNT' : 'MANAGER ACCOUNT'}</p>
-                <p className={`text-[9px] font-black truncate ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>
+                <p className={`text-[9px] font-bold truncate ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>
                   {businessName || 'SECURE OFFLINE NODE'}
                 </p>
               </div>
@@ -169,7 +169,7 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
         
         {/* Right: Avatar + Dropdown */}
-        <div className="relative">
+        <div className="relative" id="tour-mobile-profile">
           <button
             onClick={() => setDropdownOpen(d => !d)}
             className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
@@ -182,7 +182,7 @@ const Layout: React.FC<LayoutProps> = ({
               <div className={`absolute right-0 top-11 z-50 w-52 rounded-2xl shadow-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
                 {/* User info */}
                 <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'}`}>
-                  <p className={`font-black text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{businessName}</p>
+                  <p className={`font-bold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{businessName}</p>
                   <p className="text-xs text-slate-400">@{activeManager}</p>
                 </div>
                 {/* Menu Items */}
@@ -212,7 +212,7 @@ const Layout: React.FC<LayoutProps> = ({
       </div>
 
       {/* Bottom Nav - Mobile Optimization: Grid of 7 to prevent crowding */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 border-t grid z-50 shadow-2xl no-print transition-colors ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'} ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
+      <nav id="tour-mobile-nav" className={`md:hidden fixed bottom-0 left-0 right-0 border-t grid z-50 shadow-2xl no-print transition-colors ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'} ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
         style={{gridTemplateColumns: `repeat(${tabs.length}, 1fr)`}}>
         {tabs.map((tab) => (
           <button
@@ -237,9 +237,9 @@ const Layout: React.FC<LayoutProps> = ({
       <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
         <header id="tour-top-header" className="flex justify-between items-center mb-8 no-print">
           <div className="flex flex-col">
-            <h2 className={`text-2xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
+            <h2 className={`text-2xl font-bold uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
             {lastSavedTime && (
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-0.5">
                 Secure Cloud Sync: {lastSavedTime}
               </span>
             )}
@@ -252,7 +252,7 @@ const Layout: React.FC<LayoutProps> = ({
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-black flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
                   {notifications.length}
                 </span>
               )}
@@ -292,12 +292,12 @@ const Layout: React.FC<LayoutProps> = ({
       {showAddCompany && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className={`w-full max-w-md p-8 rounded-[2.5rem] border shadow-2xl ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-            <h3 className={`text-xl font-black uppercase tracking-tight mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Add New ISP</h3>
+            <h3 className={`text-xl font-bold uppercase tracking-tight mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Add New ISP</h3>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-8">Create a separate profile for another ISP company.</p>
             
             <div className="space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Company Name</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Company Name</label>
                 <input 
                   type="text"
                   value={newCompanyName}
@@ -310,7 +310,7 @@ const Layout: React.FC<LayoutProps> = ({
               <div className="flex gap-3">
                 <button 
                   onClick={() => setShowAddCompany(false)}
-                  className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                 >
                   Cancel
                 </button>
@@ -323,7 +323,7 @@ const Layout: React.FC<LayoutProps> = ({
                     }
                   }}
                   disabled={!newCompanyName.trim()}
-                  className="flex-1 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create ISP
                 </button>

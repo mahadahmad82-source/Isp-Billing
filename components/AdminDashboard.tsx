@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface ManagerStat {
@@ -50,7 +51,7 @@ const Badge = ({ children, color }: { children: React.ReactNode; color: string }
   </span>
 );
 
-const KpiCard = ({ icon, label, value, sub, color }: { icon: string; label: string; value: string | number; sub?: string; color: string }) => (
+const KpiCard = ({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; color: string }) => (
   <div className={`rounded-2xl p-4 ${color} flex flex-col gap-1.5`}>
     <span className="text-xl">{icon}</span>
     <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{label}</span>
@@ -163,9 +164,11 @@ const AdminDashboard: React.FC = () => {
     try {
       await supabase.rpc('admin_delete_manager', { p_username: username });
     } catch {}
-    const accs = getRegisteredAccounts().filter((a: any) => a.username !== username);
-    saveRegisteredAccounts(accs);
-    localStorage.removeItem(`${DATA_PREFIX}${username}`);
+    const accs = getAccounts().filter((a: any) => a.username !== username);
+    accs.forEach(acc => saveAccount(acc)); // Although we can't save the full array like this? Wait
+    // getRegisteredAccounts returns an array, removeAccount will achieve it:
+    removeAccount(username);
+    localStorage.removeItem(`mahadnet_data_${username}`);
     setShowDeleteConfirm(null);
     loadManagers();
   };
@@ -185,9 +188,12 @@ const AdminDashboard: React.FC = () => {
       alert('Error: ' + e.message);
       return;
     }
-    saveRegisteredAccounts(getRegisteredAccounts().map((a: any) =>
-      a.username === showResetModal ? { ...a, password: newPassword.trim() } : a
-    ));
+    const accs = getAccounts();
+    const existing = accs.find((a: any) => a.username === showResetModal);
+    if (existing) {
+       saveAccount({ ...existing, password: newPassword.trim() });
+    }
+
     setShowResetModal(null);
     setNewPassword('');
     loadManagers();
