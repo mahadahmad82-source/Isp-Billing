@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
+import { Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle, Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key, ChevronUp, ChevronDown } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface ManagerStat {
@@ -51,20 +52,24 @@ const Badge = ({ children, color }: { children: React.ReactNode; color: string }
   </span>
 );
 
-const KpiCard = ({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; color: string }) => (
-  <div className={`rounded-2xl p-4 ${color} flex flex-col gap-1.5`}>
-    <span className="text-xl">{icon}</span>
-    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{label}</span>
-    <span className="text-xl font-black leading-tight">{value}</span>
-    {sub && <span className="text-[10px] opacity-60">{sub}</span>}
+const KpiCard = ({ icon, label, value, sub, bgClass, valColor }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; bgClass: string; valColor?: string }) => (
+  <div className={`rounded-xl p-5 ${bgClass} flex flex-col justify-between shadow-sm border border-white/5 h-32`}>
+    <div className="flex flex-col mb-2">
+      <span className="text-2xl mb-1 text-white block">{icon}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{label}</span>
+    </div>
+    <div>
+      <span className={`text-[2rem] font-bold leading-none ${valColor || 'text-white'}`}>{value}</span>
+      {sub && <span className="text-xs text-slate-500 font-bold block mt-1">{sub}</span>}
+    </div>
   </div>
 );
 
 const TabBtn = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
   <button onClick={onClick}
-    className={`px-4 py-2.5 rounded-xl text-xs font-black whitespace-nowrap transition-all ${active
-      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+    className={`px-5 py-2 rounded-xl text-[11px] uppercase tracking-wide font-bold whitespace-nowrap transition-all ${active
+      ? 'bg-[#5a4ff0] text-white shadow-lg'
+      : 'text-slate-400 hover:text-slate-200'}`}>
     {children}
   </button>
 );
@@ -165,10 +170,9 @@ const AdminDashboard: React.FC = () => {
       await supabase.rpc('admin_delete_manager', { p_username: username });
     } catch {}
     const accs = getAccounts().filter((a: any) => a.username !== username);
-    accs.forEach(acc => saveAccount(acc)); // Although we can't save the full array like this? Wait
-    // getRegisteredAccounts returns an array, removeAccount will achieve it:
+    accs.forEach(acc => saveAccount(acc)); 
     removeAccount(username);
-    localStorage.removeItem(`mahadnet_data_${username}`);
+    localStorage.removeItem(`myisp_data_${username}`);
     setShowDeleteConfirm(null);
     loadManagers();
   };
@@ -239,24 +243,25 @@ const AdminDashboard: React.FC = () => {
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 space-y-8 max-w-[1400px] mx-auto bg-[#0b0f1a] min-h-screen text-slate-300">
 
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Admin Control Center</h1>
-          <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-widest">
-            Live Supabase Data · Synced: {lastRefresh.toLocaleTimeString()} · {totals.managers} managers · {totals.customers} customers
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Admin Control Center</h1>
+          <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-medium">
+            LIVE SUPABASE DATA • SYNCED: {lastRefresh.toLocaleTimeString()} • {totals.managers} MANAGERS • {totals.customers} CUSTOMERS
           </p>
         </div>
         <button onClick={loadManagers}
-          className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5a4ff0] text-white text-[11px] uppercase tracking-wider font-bold hover:bg-indigo-600 transition-colors shadow-lg active:scale-95">
+          <RefreshCcw className="w-4 h-4" />
+          Refresh
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-4 overflow-x-auto pb-1 mt-6">
         <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>Overview</TabBtn>
         <TabBtn active={tab === 'managers'} onClick={() => setTab('managers')}>Managers ({totals.managers})</TabBtn>
         <TabBtn active={tab === 'customers'} onClick={() => setTab('customers')}>All Customers ({totals.customers})</TabBtn>
@@ -266,74 +271,74 @@ const AdminDashboard: React.FC = () => {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20 gap-3">
-          <div className="w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-slate-500 font-bold text-sm">Supabase se data load ho raha hai...</span>
+          <div className="w-6 h-6 border-4 border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+          <span className="text-slate-400 font-bold text-sm">Supabase se data load ho raha hai...</span>
         </div>
       )}
 
       {/* ════════ OVERVIEW ════════ */}
       {!loading && tab === 'overview' && (
-        <div className="space-y-5">
+        <div className="space-y-8">
           {/* KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <KpiCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>} label="Managers" value={totals.managers} color="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200" />
-            <KpiCard icon="🧑‍💼" label="Total Customers" value={totals.customers} color="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200" />
-            <KpiCard icon="✅" label="Active" value={totals.active}
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            <KpiCard icon={<UserCheck className="w-6 h-6" />} label="Managers" value={totals.managers} bgClass="bg-[#12162a]" valColor="text-white" />
+            <KpiCard icon={<Users className="w-6 h-6" />} label="Total Customers" value={totals.customers} bgClass="bg-[#182035]" valColor="text-blue-100" />
+            <KpiCard icon={<CheckCircle2 className="w-6 h-6" />} label="Active" value={totals.active}
               sub={`${totals.customers ? Math.round(totals.active / totals.customers * 100) : 0}%`}
-              color="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200" />
-            <KpiCard icon="❌" label="Expired" value={totals.customers - totals.active} color="bg-rose-50 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200" />
-            <KpiCard icon="💰" label="Total Revenue"
+              bgClass="bg-[#0c241c]" valColor="text-[#2bd076]" />
+            <KpiCard icon={<XCircle className="w-6 h-6" />} label="Expired" value={totals.customers - totals.active} bgClass="bg-[#2d121b]" valColor="text-[#f16775]" />
+            <KpiCard icon={<Banknote className="w-6 h-6" />} label="Total Revenue"
               value={`Rs.${(totals.revenue / 1000).toFixed(0)}K`}
               sub={`Rs. ${totals.revenue.toLocaleString()}`}
-              color="bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200" />
-            <KpiCard icon="⚠️" label="Pending Dues"
+              bgClass="bg-[#2d1e15]" valColor="text-[#ffb752]" />
+            <KpiCard icon={<AlertTriangle className="w-6 h-6" />} label="Pending Dues"
               value={`Rs.${(totals.balance / 1000).toFixed(0)}K`}
               sub={`Rs. ${totals.balance.toLocaleString()}`}
-              color="bg-orange-50 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200" />
+              bgClass="bg-[#2d1b15]" valColor="text-[#ff9852]" />
           </div>
 
           {/* All Managers Table */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="font-black text-slate-800 dark:text-white text-sm">📋 All Managers — Live Data</h3>
-              <button onClick={() => setTab('managers')} className="text-xs text-indigo-500 font-bold">Details →</button>
+          <div className="bg-[#181d2f] rounded-[1.25rem] border border-white/5 overflow-hidden">
+            <div className="px-6 py-[1.1rem] flex items-center justify-between border-b border-white/[0.04]">
+              <h3 className="font-bold text-white text-[13px] flex items-center gap-2 tracking-wide">
+                <ClipboardList className="w-4 h-4 text-slate-400" /> All Managers — Live Data
+              </h3>
+              <button onClick={() => setTab('managers')} className="text-[11px] text-[#5a4ff0] font-bold hover:text-indigo-300">Details →</button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-[13px]">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-700/50">
+                  <tr className="bg-[#1b2237]">
                     {['#', 'Manager', 'Email', 'Customers', 'Active', 'Revenue', 'Dues', 'Last Login'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-6 py-4 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {managers.map((m, i) => (
-                    <tr key={m.username} className="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                      <td className="px-4 py-3 text-slate-400 font-black">{i + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xs flex-shrink-0">
-                            {m.business_name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-black text-slate-800 dark:text-white">{m.business_name}</p>
-                            <p className="text-slate-400">@{m.username}</p>
-                          </div>
+                    <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4 text-slate-500 font-bold">{i + 1}</td>
+                      <td className="px-6 py-4 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-[#5a4ff0]/20 flex items-center justify-center text-[#867bfb] font-bold text-xs flex-shrink-0">
+                          {m.business_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-100">{m.business_name}</p>
+                          <p className="text-[11px] text-slate-500">@{m.username}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{m.email.replace('@myisp.local', '')}</td>
-                      <td className="px-4 py-3 font-black text-slate-700 dark:text-slate-300">{m.user_count}</td>
-                      <td className="px-4 py-3 font-black text-emerald-600 dark:text-emerald-400">{m.active_count}</td>
-                      <td className="px-4 py-3 font-black text-amber-600">Rs. {Number(m.total_revenue).toLocaleString()}</td>
-                      <td className="px-4 py-3 font-black text-rose-500">{Number(m.total_balance) > 0 ? `Rs. ${Number(m.total_balance).toLocaleString()}` : '—'}</td>
-                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{fmtTime(m.last_login)}</td>
+                      <td className="px-6 py-4 text-slate-400">{m.email.replace('@myisp.local', '')}</td>
+                      <td className="px-6 py-4 font-bold text-slate-200">{m.user_count}</td>
+                      <td className="px-6 py-4 font-bold text-[#2bd076]">{m.active_count}</td>
+                      <td className="px-6 py-4 font-bold text-[#ffb752]">Rs. {Number(m.total_revenue).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-[#f16775]">{Number(m.total_balance) > 0 ? `Rs. ${Number(m.total_balance).toLocaleString()}` : '—'}</td>
+                      <td className="px-6 py-4 text-[11px] text-slate-500 whitespace-nowrap">{fmtTime(m.last_login)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {managers.length === 0 && !loading && (
-                <div className="text-center py-10 text-slate-400 text-sm">Koi manager nahi mila Supabase mein</div>
+                <div className="text-center py-10 text-slate-500 text-sm font-medium">Koi manager nahi mila Supabase mein</div>
               )}
             </div>
           </div>
@@ -343,111 +348,111 @@ const AdminDashboard: React.FC = () => {
       {/* ════════ MANAGERS ════════ */}
       {!loading && tab === 'managers' && (
         <div className="space-y-4">
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></span>
+          <div className="relative max-w-md">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+              <Search className="w-4 h-4" />
+            </span>
             <input type="text" placeholder="Manager name, username, email search..."
               value={searchMgr} onChange={e => setSearchMgr(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/5 bg-[#181d2f] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filteredMgrs.map(m => (
-              <div key={m.username} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div key={m.username} className="bg-[#181d2f] rounded-[1.25rem] border border-white/5 overflow-hidden">
                 {/* Manager Header Row */}
-                <div className="flex items-center gap-4 p-4">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center font-black text-indigo-600 dark:text-indigo-300 text-xl flex-shrink-0">
+                <div className="flex items-center gap-4 p-5">
+                  <div className="w-12 h-12 rounded-xl bg-[#5a4ff0]/20 flex items-center justify-center font-bold text-[#857cfb] text-xl flex-shrink-0">
                     {m.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-black text-slate-900 dark:text-white">{m.business_name}</p>
+                    <div className="flex items-center gap-3 mb-1">
+                      <p className="font-bold text-white text-base">{m.business_name}</p>
                       <Badge color={m.user_count > 0
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}>
+                        ? 'bg-[#0c241c] text-[#2bd076]'
+                        : 'bg-slate-800 text-slate-400'}>
                         {m.user_count > 0 ? 'Active' : 'Empty'}
                       </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mt-0.5">
-                      <span>@{m.username}</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
+                      <span className="font-bold text-[#867bfb]">@{m.username}</span>
                       <span>{m.email.replace('@myisp.local', '')}</span>
                       <span>Joined {fmtDate(m.joined_at)}</span>
                       <span>Last login {fmtTime(m.last_login)}</span>
                     </div>
                   </div>
                   {/* Stats Pills */}
-                  <div className="hidden sm:flex items-center gap-2 text-xs flex-wrap justify-end">
-                    <span className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-lg font-black">{m.user_count} customers</span>
-                    <span className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-lg font-black">{m.active_count} active</span>
-                    <span className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-lg font-black">Rs.{(Number(m.total_revenue) / 1000).toFixed(0)}K rev</span>
-                    <span className="bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-lg font-black">Rs.{(Number(m.total_balance) / 1000).toFixed(0)}K due</span>
-                    <span className="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-lg font-black">{m.receipt_count} receipts</span>
+                  <div className="hidden lg:flex items-center gap-3 text-[11px] flex-wrap justify-end mr-4">
+                    <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-md"><strong className="text-blue-300">{m.user_count}</strong> customers</span>
+                    <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-md"><strong className="text-[#2bd076]">{m.active_count}</strong> active</span>
+                    <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-md"><strong className="text-[#ffb752]">{(Number(m.total_revenue) / 1000).toFixed(0)}K</strong> rev</span>
+                    <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-md"><strong className="text-[#f16775]">{(Number(m.total_balance) / 1000).toFixed(0)}K</strong> due</span>
                   </div>
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => { setShowResetModal(m.username); setNewPassword(''); }} title="Reset Password"
-                      className="p-2 rounded-xl text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                      className="p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-[#867bfb] transition-all">
+                      <Key className="w-5 h-5" />
                     </button>
                     <button onClick={() => setShowDeleteConfirm(m.username)} title="Delete Manager"
-                      className="p-2 rounded-xl text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      className="p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-rose-400 transition-all">
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                   {/* Expand button */}
                   <button onClick={() => toggleExpand(m.username)}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-lg flex-shrink-0">
-                    {expandedMgr === m.username ? '▲' : '▼'}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors flex-shrink-0">
+                    {expandedMgr === m.username ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
 
                 {/* Expanded Customer List */}
                 {expandedMgr === m.username && (
-                  <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                    <div className="px-4 py-3 flex items-center justify-between">
-                      <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                  <div className="border-t border-white/5 bg-[#0b0f1a]">
+                    <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+                      <p className="text-[10px] font-bold text-[#8695b0] uppercase tracking-widest">
                         Customer List ({m.user_count})
                       </p>
-                      <div className="flex gap-3 text-xs">
-                        <span className="text-emerald-600 font-bold">{m.active_count} active</span>
-                        <span className="text-rose-500 font-bold">{m.user_count - m.active_count} expired</span>
-                        <span className="text-amber-600 font-bold">Rs. {Number(m.total_revenue).toLocaleString()} collected</span>
-                      </div>
                     </div>
 
                     {!expandedCustomers[m.username] ? (
                       <div className="flex items-center justify-center py-8 gap-2">
-                        <div className="w-5 h-5 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-3 border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
                         <span className="text-slate-400 text-xs">Loading customers...</span>
                       </div>
                     ) : expandedCustomers[m.username].length === 0 ? (
-                      <p className="px-4 pb-4 text-center text-slate-400 text-xs">Is manager ke abhi koi customers nahi hain</p>
+                      <p className="px-6 py-8 text-center text-slate-500 text-xs">Is manager ke abhi koi customers nahi hain</p>
                     ) : (
                       <div className="overflow-x-auto max-h-96 overflow-y-auto">
                         <table className="w-full text-xs">
-                          <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800/90">
+                          <thead className="sticky top-0 bg-[#0b0f1a] z-10 border-b border-white/5">
                             <tr>
                               {['#', 'Name', 'Username', 'Phone', 'Plan', 'Monthly', 'Balance', 'Expiry', 'Status'].map(h => (
-                                <th key={h} className="text-left px-4 py-2 font-black text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                <th key={h} className="text-left px-6 py-3 font-bold text-[#8695b0] uppercase tracking-widest text-[10px] whitespace-nowrap">{h}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {expandedCustomers[m.username].map((c, idx) => (
-                              <tr key={c.id || idx} className="border-t border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-colors">
-                                <td className="px-4 py-2 text-slate-400 font-bold">{idx + 1}</td>
-                                <td className="px-4 py-2 font-bold text-slate-800 dark:text-white whitespace-nowrap">{c.name}</td>
-                                <td className="px-4 py-2 text-slate-500">@{c.username}</td>
-                                <td className="px-4 py-2 text-slate-500">{c.phone || '—'}</td>
-                                <td className="px-4 py-2 text-slate-600 dark:text-slate-300 whitespace-nowrap">{c.plan}</td>
-                                <td className="px-4 py-2 font-black text-amber-600 whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
-                                <td className="px-4 py-2 font-black whitespace-nowrap">{c.balance > 0 ? <span className="text-rose-500">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-300">—</span>}</td>
-                                <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
-                                <td className="px-4 py-2">
+                              <tr key={c.id || idx} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                                <td className="px-6 py-3 text-slate-500 font-bold">{idx + 1}</td>
+                                <td className="px-6 py-3 font-bold text-slate-200 whitespace-nowrap">{c.name}</td>
+                                <td className="px-6 py-3 text-slate-400">@{c.username}</td>
+                                <td className="px-6 py-3 text-slate-400">{c.phone || '—'}</td>
+                                <td className="px-6 py-3 text-slate-300 whitespace-nowrap">{c.plan}</td>
+                                <td className="px-6 py-3 font-bold text-[#ffb752] whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
+                                <td className="px-6 py-3 font-bold whitespace-nowrap">{c.balance > 0 ? <span className="text-[#f16775]">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-500">—</span>}</td>
+                                <td className="px-6 py-3 text-slate-500 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
+                                <td className="px-6 py-3">
                                   <Badge color={c.status === 'active'
-                                    ? 'bg-emerald-100 text-emerald-700'
+                                    ? 'bg-[#0c241c] text-[#2bd076]'
                                     : c.status === 'expired'
-                                    ? 'bg-rose-100 text-rose-600'
-                                    : 'bg-slate-100 text-slate-500'}>
+                                    ? 'bg-[#2d121b] text-[#f16775]'
+                                    : 'bg-slate-800 text-slate-400'}>
                                     {c.status}
                                   </Badge>
                                 </td>
@@ -462,7 +467,10 @@ const AdminDashboard: React.FC = () => {
               </div>
             ))}
             {filteredMgrs.length === 0 && (
-              <div className="text-center py-16 text-slate-400"><p className="text-4xl mb-3">📭</p><p className="font-bold">Koi manager nahi mila</p></div>
+              <div className="text-center py-16 text-slate-500 flex flex-col items-center">
+                <Inbox className="w-12 h-12 mb-3 text-slate-600" />
+                <p className="font-medium">Koi manager nahi mila</p>
+              </div>
             )}
           </div>
         </div>
@@ -471,24 +479,26 @@ const AdminDashboard: React.FC = () => {
       {/* ════════ ALL CUSTOMERS ════════ */}
       {!loading && tab === 'customers' && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-48">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></span>
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="relative flex-1 min-w-48 max-w-md">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                <Search className="w-4 h-4" />
+              </span>
               <input type="text" placeholder="Name, username, phone, plan ya manager search..."
                 value={searchCust} onChange={e => setSearchCust(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/5 bg-[#181d2f] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
             </div>
-            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+            <div className="flex gap-1 bg-[#181d2f] border border-white/5 rounded-xl p-1">
               {(['all', 'active', 'expired'] as const).map(f => (
                 <button key={f} onClick={() => setCustFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black capitalize transition-all ${custFilter === f ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500'}`}>
+                  className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${custFilter === f ? 'bg-[#5a4ff0] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>
                   {f} ({f === 'all' ? allCustomers.length : allCustomers.filter(c => c.status === f).length})
                 </button>
               ))}
             </div>
             {allCustomers.length === 0 && !custLoading && (
               <button onClick={loadAllCustomers}
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors">
+                className="px-5 py-3 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-600 transition-colors">
                 Load All Customers
               </button>
             )}
@@ -496,49 +506,53 @@ const AdminDashboard: React.FC = () => {
 
           {custLoading ? (
             <div className="flex items-center justify-center py-20 gap-3">
-              <div className="w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-500 font-bold text-sm">Tamam managers ke customers load ho rahe hain...</span>
+              <div className="w-6 h-6 border-4 border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+              <span className="text-slate-400 font-bold text-sm">Tamam managers ke customers load ho rahe hain...</span>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700">
-                <p className="text-xs text-slate-400 font-bold">{filteredCusts.length} customers found (Total: {allCustomers.length})</p>
+            <div className="bg-[#181d2f] rounded-[1.25rem] border border-white/5 overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/[0.04] flex items-center justify-between">
+                <h3 className="font-bold text-white text-[13px] flex items-center gap-2">
+                  <Users className="w-4 h-4 text-slate-400" />
+                  Customer Directory
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{filteredCusts.length} shown</p>
               </div>
-              <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-700/90 z-10">
+                  <thead className="sticky top-0 bg-[#1b2237] z-10 border-b border-white/5 shadow-sm">
                     <tr>
                       {['#', 'Customer', 'Manager', 'Plan', 'Monthly', 'Balance', 'Expiry', 'Status'].map(h => (
-                        <th key={h} className="text-left px-4 py-3 font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className="text-left px-6 py-4 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCusts.length === 0 ? (
-                      <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                      <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                         {allCustomers.length === 0 ? 'Click "Load All Customers" button uppar' : 'Koi customer nahi mila is filter ke liye'}
                       </td></tr>
                     ) : filteredCusts.map((c, i) => (
-                      <tr key={`${c.id}-${i}`} className="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                        <td className="px-4 py-2.5 text-slate-400 font-bold">{i + 1}</td>
-                        <td className="px-4 py-2.5">
-                          <p className="font-black text-slate-800 dark:text-white whitespace-nowrap">{c.name}</p>
-                          <p className="text-slate-400">@{c.username}{c.phone ? ` · ${c.phone}` : ''}</p>
+                      <tr key={`${c.id}-${i}`} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                        <td className="px-6 py-4 text-slate-500 font-bold">{i + 1}</td>
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-slate-200 whitespace-nowrap">{c.name}</p>
+                          <p className="text-[11px] text-slate-400">@{c.username}{c.phone ? ` · ${c.phone}` : ''}</p>
                         </td>
-                        <td className="px-4 py-2.5">
-                          <p className="font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{c.managerBusiness}</p>
-                          <p className="text-slate-400">@{c.managerUsername}</p>
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-slate-300 whitespace-nowrap">{c.managerBusiness}</p>
+                          <p className="text-[11px] text-slate-400">@{c.managerUsername}</p>
                         </td>
-                        <td className="px-4 py-2.5 font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{c.plan}</td>
-                        <td className="px-4 py-2.5 font-black text-amber-600 whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
-                        <td className="px-4 py-2.5 font-black whitespace-nowrap">{c.balance > 0 ? <span className="text-rose-500">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-300">—</span>}</td>
-                        <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
-                        <td className="px-4 py-2.5">
+                        <td className="px-6 py-4 font-bold text-slate-300 whitespace-nowrap">{c.plan}</td>
+                        <td className="px-6 py-4 font-bold text-[#ffb752] whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
+                        <td className="px-6 py-4 font-bold whitespace-nowrap">{c.balance > 0 ? <span className="text-[#f16775]">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-500">—</span>}</td>
+                        <td className="px-6 py-4 text-[11px] text-slate-500 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
+                        <td className="px-6 py-4">
                           <Badge color={c.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            ? 'bg-[#0c241c] text-[#2bd076]'
                             : c.status === 'expired'
-                            ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}>
+                            ? 'bg-[#2d121b] text-[#f16775]'
+                            : 'bg-slate-800 text-slate-400'}>
                             {c.status}
                           </Badge>
                         </td>
@@ -554,10 +568,13 @@ const AdminDashboard: React.FC = () => {
 
       {/* ════════ SYSTEM ════════ */}
       {!loading && tab === 'system' && (
-        <div className="space-y-4 max-w-2xl">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
-            <h3 className="font-black text-slate-800 dark:text-white text-sm">Live Database Stats</h3>
-            <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="space-y-6 max-w-3xl">
+          <div className="bg-[#181d2f] rounded-[1.25rem] border border-white/5 p-6 space-y-6">
+            <h3 className="font-bold text-white text-[13px] flex items-center gap-2 tracking-wide">
+              <Server className="w-4 h-4 text-slate-400" />
+              Live Database Stats
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {[
                 { label: 'Total Managers', value: totals.managers },
                 { label: 'Total Customers', value: totals.customers },
@@ -566,38 +583,36 @@ const AdminDashboard: React.FC = () => {
                 { label: 'Total Revenue', value: `Rs. ${totals.revenue.toLocaleString()}` },
                 { label: 'Pending Dues', value: `Rs. ${totals.balance.toLocaleString()}` },
               ].map(item => (
-                <div key={item.label} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
-                  <p className="text-slate-400 uppercase tracking-wide text-[10px]">{item.label}</p>
-                  <p className="font-black text-slate-800 dark:text-white text-base">{item.value}</p>
+                <div key={item.label} className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
+                  <p className="text-[#8695b0] font-bold uppercase tracking-wider text-[10px] mb-2">{item.label}</p>
+                  <p className="font-bold text-white text-xl">{item.value}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* All Managers Detail Table */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700">
-              <h3 className="font-black text-slate-800 dark:text-white text-sm">Manager Accounts</h3>
+          <div className="bg-[#181d2f] rounded-[1.25rem] border border-white/5 overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/[0.04]">
+              <h3 className="font-bold text-white text-[13px] tracking-wide">Manager Accounts Log</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-700/50">
-                    {['Username', 'Business', 'Email', 'Joined', 'Last Login', 'Customers', 'Revenue'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <tr className="bg-[#1b2237]">
+                    {['Username', 'Business', 'Email', 'Joined', 'Last Login'].map(h => (
+                      <th key={h} className="text-left px-6 py-4 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {managers.map(m => (
-                    <tr key={m.username} className="border-t border-slate-100 dark:border-slate-700">
-                      <td className="px-4 py-2.5 font-black text-slate-800 dark:text-white">@{m.username}</td>
-                      <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{m.business_name}</td>
-                      <td className="px-4 py-2.5 text-slate-500">{m.email.replace('@myisp.local', '')}</td>
-                      <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{fmtDate(m.joined_at)}</td>
-                      <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{fmtTime(m.last_login)}</td>
-                      <td className="px-4 py-2.5 font-black text-blue-600">{m.user_count}</td>
-                      <td className="px-4 py-2.5 font-black text-amber-600">Rs. {Number(m.total_revenue).toLocaleString()}</td>
+                    <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
+                      <td className="px-6 py-4 font-bold text-[#867bfb]">@{m.username}</td>
+                      <td className="px-6 py-4 text-slate-300 font-bold">{m.business_name}</td>
+                      <td className="px-6 py-4 text-slate-400">{m.email.replace('@myisp.local', '')}</td>
+                      <td className="px-6 py-4 text-[11px] text-slate-500 whitespace-nowrap">{fmtDate(m.joined_at)}</td>
+                      <td className="px-6 py-4 text-[11px] text-slate-500 whitespace-nowrap">{fmtTime(m.last_login)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -610,20 +625,22 @@ const AdminDashboard: React.FC = () => {
       {/* Reset Password Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setShowResetModal(null)} />
-          <div className="relative z-10 w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white mb-1">Reset Password</h2>
-            <p className="text-xs text-slate-400 mb-4">@{showResetModal} ka naya password set karein</p>
-            <input type="password" placeholder="Naya password likhein" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-400 mb-4" />
+          <div className="absolute inset-0 bg-[#0a0f1c]/80 backdrop-blur-sm" onClick={() => setShowResetModal(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-[#12162a] rounded-[1.5rem] shadow-2xl border border-white/10 p-6">
+            <h2 className="text-xl font-bold text-white mb-1">Reset Password</h2>
+            <p className="text-xs text-slate-400 mb-6 font-medium">@{showResetModal} ka naya password set karein</p>
+            <input type="text" placeholder="Naya password likhein" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-white/10 bg-black/20 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-[#5a4ff0] mb-4" />
             {newPassword.length > 0 && newPassword.length < 6 && (
-              <p className="text-xs text-amber-500 font-bold">⚠️ Password kam az kam 6 characters ka hona chahiye</p>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-wider mb-4 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Password kam az kam 6 characters ka hona chahiye
+              </p>
             )}
-            <div className="flex gap-2">
-              <button onClick={() => { setShowResetModal(null); setNewPassword(''); }} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 text-xs font-black">Cancel</button>
+            <div className="flex gap-3 mt-2">
+              <button onClick={() => { setShowResetModal(null); setNewPassword(''); }} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
               <button onClick={handleReset} disabled={!newPassword.trim() || newPassword.length < 6}
-                className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 disabled:opacity-40 active:scale-95 transition-all">
-                ✅ Update Password
+                className="flex-1 py-3 rounded-xl bg-[#5a4ff0] text-white text-xs font-bold hover:bg-indigo-600 disabled:opacity-40 active:scale-95 transition-all">
+                Update Password
               </button>
             </div>
           </div>
@@ -633,29 +650,24 @@ const AdminDashboard: React.FC = () => {
       {/* Delete Confirm Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(null)} />
-          <div className="relative z-10 w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 text-center">
-            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <div className="absolute inset-0 bg-[#0a0f1c]/80 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-[#12162a] rounded-[1.5rem] shadow-2xl border border-rose-500/20 p-6 text-center">
+            <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8 text-rose-500" />
             </div>
-            <h2 className="text-lg font-black text-slate-900 dark:text-white mb-1">Manager Delete Karein?</h2>
-            <p className="text-sm font-black text-rose-600 mb-2">@{showDeleteConfirm}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Yeh action <span className="font-black text-rose-600">permanent</span> hai aur undo nahi ho sakti.</p>
-            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl p-3 mb-5 text-left space-y-1">
-              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Yeh sab delete ho jayega:</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300">• Manager account (login access)</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300">• Tamam customers ka data</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300">• Tamam receipts aur ledger</p>
-            </div>
-            <p className="text-[10px] text-slate-400 mb-4">Confirm karne ke liye "DELETE" type karein:</p>
+            <h2 className="text-xl font-bold text-white mb-1">Manager Delete Karein?</h2>
+            <p className="text-sm font-bold text-[#f16775] mb-2 border border-rose-500/20 bg-rose-500/5 inline-block px-3 py-1 rounded-lg">@{showDeleteConfirm}</p>
+            <p className="text-xs text-slate-400 mb-6">Yeh action <span className="font-bold text-[#f16775]">permanent</span> hai aur undo nahi ho sakti.</p>
+            
+            <p className="text-[10px] text-slate-500 mb-2 uppercase tracking-widest font-bold">Type "DELETE" to confirm:</p>
             <input
               id="delete-confirm-input"
               type="text"
-              placeholder="DELETE likhein..."
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-center font-black outline-none focus:ring-2 focus:ring-rose-400 mb-4 uppercase"
+              placeholder="DELETE"
+              className="w-full px-4 py-3 rounded-xl border border-white/10 bg-black/20 text-sm text-center font-bold text-white outline-none focus:ring-2 focus:ring-[#f16775] mb-6 uppercase tracking-wider"
             />
-            <div className="flex gap-2">
-              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-black">Cancel</button>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
               <button onClick={() => {
                 const inp = document.getElementById('delete-confirm-input') as HTMLInputElement;
                 if (inp?.value?.toUpperCase() === 'DELETE') {
@@ -664,8 +676,8 @@ const AdminDashboard: React.FC = () => {
                   inp.classList.add('ring-2', 'ring-rose-500');
                   setTimeout(() => inp.classList.remove('ring-2', 'ring-rose-500'), 1500);
                 }
-              }} className="flex-1 py-3 rounded-2xl bg-rose-600 text-white text-xs font-black hover:bg-rose-700 active:scale-95 transition-all">
-                🗑️ Confirm Delete
+              }} className="flex-1 py-3 rounded-xl bg-[#f16775] text-white text-xs font-bold hover:bg-rose-600 active:scale-95 transition-all">
+                Confirm Delete
               </button>
             </div>
           </div>
