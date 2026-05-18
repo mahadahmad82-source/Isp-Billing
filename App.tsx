@@ -19,6 +19,7 @@ import AdminDashboard from './components/AdminDashboard';
 import Archives from './components/Archives';
 import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
 import SubManagerManagement from './components/SubManager/SubManagerManagement';
+import { useSubManager } from './hooks/useSubManager';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -35,6 +36,20 @@ const INACTIVITY_LIMIT = 30 * 60 * 1000;
 
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
+
+  // ── Supabase-backed SubManager hook ──────────────────────────
+  const {
+    subManagers: sbSubManagers,
+    logs: sbAttendanceLogs,
+    loading: sbLoading,
+    updateDutyStatus: sbUpdateDutyStatus,
+    addAttendanceLog: sbAddAttendanceLog,
+    updateAttendanceLog: sbUpdateAttendanceLog,
+    deleteAttendanceLog: sbDeleteAttendanceLog,
+    editAgent: sbEditAgent,
+    removeAgent: sbRemoveAgent,
+    addAgent: sbAddAgent,
+  } = useSubManager(activeManager || '');
   const [state, setState] = useState<AppState>(() => {
     const loaded = loadState(activeManager);
     const initialState = { 
@@ -927,13 +942,13 @@ const App: React.FC = () => {
         ) : (
           <SubManagerDashboard 
             subManagerName={activeManager || 'Field Agent'}
-            agent={state.subManagers?.find(sm => sm.username === activeManager)}
-            agentId={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || ''}
+            agent={sbSubManagers.find(sm => sm.username === activeManager)}
+            agentId={sbSubManagers.find(sm => sm.username === activeManager)?.id || activeManager || ""}
             agentArea={agentArea}
             users={filteredUsers}
             receipts={filteredReceipts}
             settings={currentSettings}
-            attendanceLogs={state.attendanceLogs || []}
+            attendanceLogs={sbAttendanceLogs}
             onLogout={handleLogout}
             onAddAttendanceLog={handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
@@ -1063,112 +1078,32 @@ const App: React.FC = () => {
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
           {activeTab === 'team' && userRole === 'manager' && (
-            <SubManagerManagement 
-              subManagers={state.subManagers || []}
+            <SubManagerManagement
+              subManagers={sbSubManagers}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy).slice(-10)}
               managerId={activeManager || ''}
               onVoidReceipt={handleVoidReceipt}
               onEditReceiptAmount={handleEditReceiptAmount}
               onViewLogs={(id) => console.log('Logs for', id)}
               onAgentRecruited={(agent) => {
-                setSuccessToast("Agent Recruited Successfully! Use their email and password to log into the Agent Portal.");
+                sbAddAgent(agent);
+                setSuccessToast('Agent Recruited Successfully! Use their credentials to log in.');
                 setTimeout(() => setSuccessToast(null), 5000);
-                
-    const agentUsername = agent.username;
-    const agentId = generateId();
-
-    // Save to local accounts array so they can login directly via the main Login screen
-    saveAccount({
-      username: agentUsername,
-      password: agent.password, // The recruited agent's password from form
-      businessName: agent.name,
-      email: agent.email,
-      phone: agent.phone,
-      role: 'sub-manager',
-      managerUsername: activeManager || '',
-      createdAt: new Date().toISOString(),
-      rememberPassword: false // Require explicit remember
-    });
-
-    setState(prev => {
-      const newState = {
-        ...prev,
-        subManagers: [...(prev.subManagers || []), {
-          id: agentId,
-          name: agent.name,
-          username: agentUsername,
-          managerUsername: activeManager || '',
-          dutyStatus: 'offline' as const,
-          area: agent.area
-        }]
-      };
-      saveState(newState);
-      if (newState.currentManager || activeManager) {
-        saveStateToSupabase(newState.currentManager || activeManager || '', newState);
-      }
-      return newState;
-    });
               }}
-              onEditAgent={(id, updates) => {
-                const agent = state.subManagers?.find(a => a.id === id);
-                if (agent) {
-                  // If we need to update the agent's name in accounts
-                  const accounts = getAccounts();
-                  const targetAccount = accounts.find(a => a.username === agent.username);
-                  if (targetAccount) {
-                    const updatedAccount = { 
-                      ...targetAccount, 
-                      username: updates.username || targetAccount.username,
-                      businessName: updates.name || targetAccount.businessName,
-                      email: updates.email || targetAccount.email,
-                      phone: updates.phone || targetAccount.phone,
-                      password: updates.password || targetAccount.password,
-                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary
-                    };
-                    
-                    if (updates.username && updates.username !== agent.username) {
-                      removeAccount(agent.username);
-                    }
-                    saveAccount(updatedAccount as any);
-                  }
-                }
-                setState(prev => {
-                  const newState = {
-                    ...prev,
-                    subManagers: prev.subManagers?.map(sm => sm.id === id ? { ...sm, ...updates } : sm)
-                  };
-                  saveState(newState);
-                  if (newState.currentManager || activeManager) {
-                    saveStateToSupabase(newState.currentManager || activeManager || '', newState);
-                  }
-                  return newState;
-                });
-                setSuccessToast("Agent updated successfully");
+              onEditAgent={async (id, updates) => {
+                await sbEditAgent(id, updates);
+                setSuccessToast('Agent updated successfully');
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
-              onDeleteAgent={(id) => {
-                const agent = state.subManagers?.find(a => a.id === id);
-                if (agent) {
-                   removeAccount(agent.username);
-                }
-                setState(prev => {
-                  const newState = {
-                    ...prev,
-                    subManagers: prev.subManagers?.filter(sm => sm.id !== id)
-                  };
-                  saveState(newState);
-                  if (newState.currentManager || activeManager) {
-                    saveStateToSupabase(newState.currentManager || activeManager || '', newState);
-                  }
-                  return newState;
-                });
-                setSuccessToast("Agent deleted successfully");
+              onDeleteAgent={async (id) => {
+                await sbRemoveAgent(id);
+                setSuccessToast('Agent deleted successfully');
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
-              onAddAttendanceLog={handleAddAttendanceLog}
-              onUpdateAttendanceLog={handleUpdateAttendanceLog}
-              onDeleteAttendanceLog={handleDeleteAttendanceLog}
-              attendanceLogs={state.attendanceLogs || []}
+              onAddAttendanceLog={sbAddAttendanceLog}
+              onUpdateAttendanceLog={sbUpdateAttendanceLog}
+              onDeleteAttendanceLog={sbDeleteAttendanceLog}
+              attendanceLogs={sbAttendanceLogs}
             />
           )}
         </Layout>
