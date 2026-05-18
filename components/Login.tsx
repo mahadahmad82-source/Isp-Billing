@@ -77,9 +77,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         return;
       }
 
-      let identifier = username;
-      // Note: If username has no "@", we assume it handles both old standard username and new Phone-Only pattern
-      const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
+      // ── Agent username lookup: check sub_managers table first ──
+      let authEmail: string;
+      if (!username.includes('@')) {
+        // Could be agent username — look up their real email
+        const { data: agentLookup } = await supabase
+          .from('sub_managers')
+          .select('email, username')
+          .eq('username', username)
+          .maybeSingle();
+
+        if (agentLookup?.email && agentLookup.email.includes('@')) {
+          authEmail = agentLookup.email; // Use agent's real email
+        } else {
+          authEmail = `${username}@myisp.local`; // Manager fallback
+        }
+      } else {
+        authEmail = username; // Already an email
+      }
 
       let { data, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
