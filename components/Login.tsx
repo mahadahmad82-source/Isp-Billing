@@ -121,29 +121,54 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       }
 
       if (data.user) {
-        // Fetch profile to check for role (use maybeSingle to avoid crash on 0 rows for new offline migrations)
+        // 1) Check profiles table (managers/admins)
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('role, manager_id, name')
-          .eq('email', data.user.email)
+          .select('role, username, name')
+          .eq('id', data.user.id)
           .maybeSingle();
 
-        const role = profileData?.role || 'manager';
-        const loginUser = username.includes('@') ? username.split('@')[0] : username;
-        
+        // 2) Check sub_managers table (agents)
+        const { data: agentData } = await supabase
+          .from('sub_managers')
+          .select('id, username, name, manager_id, duty_status')
+          .eq('auth_user_id', data.user.id)
+          .maybeSingle();
+
+        let role: string;
+        let loginUser: string;
+
+        if (agentData) {
+          // ✅ Agent login
+          role = 'sub-manager';
+          loginUser = agentData.username;
+        } else if (profileData) {
+          // ✅ Manager/Admin login
+          role = profileData.role || 'manager';
+          loginUser = profileData.username || (username.includes('@') ? username.split('@')[0] : username);
+        } else {
+          // Fallback
+          role = 'manager';
+          loginUser = username.includes('@') ? username.split('@')[0] : username;
+        }
+
         setActiveSession(loginUser);
+
         if (rememberPassword) {
           saveAccount({
             username: loginUser,
-            password: password,
-            businessName: profileData?.name || data.user.user_metadata?.full_name || loginUser,
+            password,
+            businessName: agentData?.name || profileData?.name || data.user.user_metadata?.full_name || loginUser,
             email: data.user.email || '',
-            phone: data.user.user_metadata?.phone || '',
+            phone: '',
             role: role as 'admin' | 'manager' | 'sub-manager',
+            managerUsername: agentData?.manager_id || '',
             createdAt: new Date().toISOString(),
-            rememberPassword: true
+            rememberPassword: true,
           });
         }
+
+        writeLog({ username: loginUser, action: 'LOGIN', detail: `Role: ${role}` });
         onLogin(loginUser);
         return;
       }

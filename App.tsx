@@ -133,38 +133,43 @@ const App: React.FC = () => {
   const lastActivityRef = useRef<number>(Date.now());
 
   useEffect(() => {
-    // Basic initialization
-    setIsAdmin(activeManager === 'admin');
-    
-    // Check local accounts for role/area
-    const account = getAccounts().find(a => a.username === activeManager);
-    if (account?.role) {
-      setUserRole(account.role);
-      // For agents, we also need their area (which we added to profiles and likely saved meta)
-      // We might need to fetch this if not in account
-    } else if (activeManager === 'admin') {
-      setUserRole('admin');
-    } else if (activeManager?.startsWith('agent_')) {
-      setUserRole('sub-manager');
-    } else {
-      setUserRole('manager');
-    }
-  }, [activeManager]);
+    if (!activeManager) return;
 
-  useEffect(() => {
-    if (userRole === 'sub-manager' && activeManager) {
+    setIsAdmin(activeManager === 'admin');
+
+    // 1) Admin fast path
+    if (activeManager === 'admin') { setUserRole('admin'); return; }
+
+    // 2) Check local saved account role first (fast)
+    const account = getAccounts().find(a => a.username === activeManager);
+    if (account?.role === 'sub-manager') {
+      setUserRole('sub-manager');
+      return;
+    }
+    if (account?.role === 'admin') {
+      setUserRole('admin');
+      return;
+    }
+
+    // 3) Check Supabase — is this user an agent?
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { setUserRole('manager'); return; }
+
       supabase
-        .from('profiles')
-        .select('area')
-        .eq('email', getAccounts().find(a => a.username === activeManager)?.email || '')
-        .single()
-        .then(({ data }) => {
-          if (data?.area) {
-            setAgentArea(data.area);
+        .from('sub_managers')
+        .select('id, assigned_area, manager_id')
+        .eq('auth_user_id', user.id)
+        .maybeSingle()
+        .then(({ data: agentData }) => {
+          if (agentData) {
+            setUserRole('sub-manager');
+            if (agentData.assigned_area) setAgentArea(agentData.assigned_area);
+          } else {
+            setUserRole('manager');
           }
         });
-    }
-  }, [userRole, activeManager]);
+    });
+  }, [activeManager]);
 
   useEffect(() => {
     if (activeManager) {
@@ -942,7 +947,8 @@ const App: React.FC = () => {
         ) : (
           <SubManagerDashboard 
             subManagerName={activeManager || 'Field Agent'}
-            agent={sbSubManagers.find(sm => sm.username === activeManager)}
+            agent={sbSubManagers.find(sm => sm.username === activeManager) || 
+                   { id: activeManager || '', username: activeManager || '', name: activeManager || '', managerUsername: '', dutyStatus: 'offline' as const }}
             agentId={sbSubManagers.find(sm => sm.username === activeManager)?.id || activeManager || ""}
             agentArea={agentArea}
             users={filteredUsers}

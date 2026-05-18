@@ -62,7 +62,13 @@ export const recruitAgent = async (
       password: agentData.password,
       options: { data: { full_name: agentData.name, role: 'agent', manager_id: managerId } }
     });
-    if (!authErr && authData.user) authUserId = authData.user.id;
+    if (!authErr && authData.user) {
+      authUserId = authData.user.id;
+      // Auto-confirm email for agent accounts (manager creates them, no OTP needed)
+      await supabase.rpc('confirm_agent_email', { user_id: authUserId }).catch(() => {
+        // If RPC not available, SQL migration handles it
+      });
+    }
   }
 
   // 2) Insert into sub_managers table
