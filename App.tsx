@@ -175,11 +175,30 @@ const App: React.FC = () => {
     if (activeManager) {
       setActiveSession(activeManager);
       const account = getAccounts().find(a => a.username === activeManager);
-      const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Smart sync: compare localStorage vs Supabase, use richer data
-      const localState = loadState(activeManager);
-      smartLoadAndSync(dataOwner, localState).then(finalState => {
+      const loadData = async () => {
+        let dataOwner = activeManager;
+
+        // For sub-managers: find their parent manager from Supabase
+        if (account?.role === 'sub-manager' && account.managerUsername) {
+          dataOwner = account.managerUsername;
+        } else if (!account || account.role === 'sub-manager') {
+          // Check Supabase sub_managers table for manager_id
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: agentRow } = await supabase
+              .from('sub_managers')
+              .select('manager_id')
+              .eq('auth_user_id', user.id)
+              .maybeSingle();
+            if (agentRow?.manager_id) {
+              dataOwner = agentRow.manager_id;
+            }
+          }
+        }
+
+        const localState = loadState(activeManager);
+        const finalState = await smartLoadAndSync(dataOwner, localState);
         setState({
           ...finalState,
           archives: finalState.archives || [],
@@ -188,7 +207,7 @@ const App: React.FC = () => {
           activeCompanyId: finalState.activeCompanyId || '',
           currentManager: dataOwner
         });
-        // Show onboarding welcome for new managers
+
         if (activeManager !== 'admin') {
           const welcomeKey = `tour_seen_${activeManager}_welcome`;
           if (!localStorage.getItem(welcomeKey)) {
@@ -196,7 +215,9 @@ const App: React.FC = () => {
             setTourMode('welcome');
           }
         }
-      });
+      };
+
+      loadData();
     } else {
       setActiveSession(null);
     }
