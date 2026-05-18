@@ -453,9 +453,9 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center shadow-xl border border-slate-100 dark:border-white/5 overflow-hidden group relative">
             {localSettings.businessLogo ? (
               <img src={localSettings.businessLogo} alt="Logo" className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
-            ) : (
+            ) : logoBase64 ? (
               <img src={logoBase64} alt="Logo" className="w-14 h-14 object-contain" referrerPolicy="no-referrer" />
-            )}
+            ) : null}
             <button 
               onClick={() => logoInputRef.current?.click()}
               className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"

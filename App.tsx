@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive } from './types';
-import { loadState, saveState, getActiveSession, setActiveSession } from './utils/storage';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog } from './types';
+import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
@@ -17,6 +17,8 @@ import RecoverySummary from './components/RecoverySummary';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import Archives from './components/Archives';
+import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
+import SubManagerManagement from './components/SubManager/SubManagerManagement';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -109,6 +111,8 @@ const App: React.FC = () => {
   const [isReminderBannerDismissed, setIsReminderBannerDismissed] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string>(new Date().toLocaleTimeString());
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
+  const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
+  const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   
   const lastActivityRef = useRef<number>(Date.now());
@@ -116,21 +120,53 @@ const App: React.FC = () => {
   useEffect(() => {
     // Basic initialization
     setIsAdmin(activeManager === 'admin');
+    
+    // Check local accounts for role/area
+    const account = getAccounts().find(a => a.username === activeManager);
+    if (account?.role) {
+      setUserRole(account.role);
+      // For agents, we also need their area (which we added to profiles and likely saved meta)
+      // We might need to fetch this if not in account
+    } else if (activeManager === 'admin') {
+      setUserRole('admin');
+    } else if (activeManager?.startsWith('agent_')) {
+      setUserRole('sub-manager');
+    } else {
+      setUserRole('manager');
+    }
   }, [activeManager]);
+
+  useEffect(() => {
+    if (userRole === 'sub-manager' && activeManager) {
+      supabase
+        .from('profiles')
+        .select('area')
+        .eq('email', getAccounts().find(a => a.username === activeManager)?.email || '')
+        .single()
+        .then(({ data }) => {
+          if (data?.area) {
+            setAgentArea(data.area);
+          }
+        });
+    }
+  }, [userRole, activeManager]);
 
   useEffect(() => {
     if (activeManager) {
       setActiveSession(activeManager);
+      const account = getAccounts().find(a => a.username === activeManager);
+      const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
+
       // Smart sync: compare localStorage vs Supabase, use richer data
       const localState = loadState(activeManager);
-      smartLoadAndSync(activeManager, localState).then(finalState => {
+      smartLoadAndSync(dataOwner, localState).then(finalState => {
         setState({
           ...finalState,
           archives: finalState.archives || [],
           dismissedNotificationIds: finalState.dismissedNotificationIds || [],
           companies: finalState.companies || [],
           activeCompanyId: finalState.activeCompanyId || '',
-          currentManager: activeManager
+          currentManager: dataOwner
         });
         // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
@@ -559,6 +595,42 @@ const App: React.FC = () => {
     });
   };
 
+  const handleAddAttendanceLog = useCallback((log: Omit<AttendanceLog, 'id'>) => {
+    const newLog: AttendanceLog = {
+      ...log,
+      id: generateId()
+    };
+    setState(prev => ({
+      ...prev,
+      attendanceLogs: [...(prev.attendanceLogs || []), newLog]
+    }));
+  }, []);
+
+  const handleUpdateAttendanceLog = useCallback((logId: string, updates: Partial<AttendanceLog>) => {
+    setState(prev => ({
+      ...prev,
+      attendanceLogs: (prev.attendanceLogs || []).map(log => 
+        log.id === logId ? { ...log, ...updates } : log
+      )
+    }));
+  }, []);
+
+  const handleDeleteAttendanceLog = useCallback((logId: string) => {
+    setState(prev => ({
+      ...prev,
+      attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId)
+    }));
+  }, []);
+
+  const handleUpdateAgent = useCallback((agentId: string, updates: any) => {
+    setState(prev => ({
+      ...prev,
+      subManagers: (prev.subManagers || []).map(sm => 
+        sm.id === agentId ? { ...sm, ...updates } : sm
+      )
+    }));
+  }, []);
+
   const handleUpdateUser = (userId: string, update: Partial<UserRecord>) => {
     setState(prev => ({ ...prev, users: prev.users.map(u => u.id === userId ? { ...u, ...update } : u) }));
   };
@@ -681,6 +753,68 @@ const App: React.FC = () => {
     });
   };
 
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  const handleEditReceiptAmount = (id: string, newAmount: number) => {
+    setState(prev => {
+      const receipt = prev.receipts.find(r => r.id === id);
+      if (!receipt) return prev;
+      
+      const diff = newAmount - receipt.paidAmount;
+      
+      const updatedUsers = prev.users.map(u => {
+        if (u.id === receipt.userId) {
+          return { ...u, balance: (u.balance || 0) - diff };
+        }
+        return u;
+      });
+
+      const updatedReceipts = prev.receipts.map(r => {
+        if (r.id === id) {
+          return { ...r, paidAmount: newAmount };
+        }
+        return r;
+      });
+
+      return {
+        ...prev,
+        receipts: updatedReceipts,
+        users: updatedUsers
+      };
+    });
+    setSuccessToast("Receipt amount updated successfully");
+    setTimeout(() => setSuccessToast(null), 3000);
+  };
+
+  const handleVoidReceipt = (id: string) => {
+    setConfirmConfig({
+      title: 'Void Transaction',
+      message: 'This will mark the receipt as Pending and restore customer balance. Continue?',
+      variant: 'danger',
+      onConfirm: () => {
+        setState(prev => {
+          const receipt = prev.receipts.find(r => r.id === id);
+          if (!receipt) return prev;
+          
+          const updatedUsers = prev.users.map(u => {
+            if (u.id === receipt.userId) {
+              return { ...u, balance: (u.balance || 0) + receipt.paidAmount };
+            }
+            return u;
+          });
+          
+          return {
+            ...prev,
+            receipts: prev.receipts.map(r => r.id === id ? { ...r, status: PaymentStatus.PENDING, paidAmount: 0, balanceAmount: r.totalAmount } : r),
+            users: updatedUsers
+          };
+        });
+        setSuccessToast("Receipt has been voided and marked as Pending.");
+        setTimeout(() => setSuccessToast(null), 3000);
+      }
+    });
+  };
+
   const handleRecordLatePayment = (archiveId: string, receipt: Receipt) => {
     setLoadingMessage("Recording Late Payment...");
     setTimeout(() => {
@@ -740,6 +874,107 @@ const App: React.FC = () => {
     );
   }
 
+  if (userRole === 'sub-manager') {
+    return (
+      <ErrorBoundary>
+        {activeTab === 'receipts' ? (
+          <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300 flex flex-col">
+            <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
+              <button 
+                onClick={() => setActiveTab('team')}
+                className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all font-bold text-xs uppercase tracking-widest"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back to Dashboard
+              </button>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Agent Override Mode</div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 md:p-8">
+              <ReceiptGenerator 
+                users={state.users}
+                settings={currentSettings}
+                preSelectUser={preSelectReceiptUser || undefined}
+                onPreSelectConsumed={() => setPreSelectReceiptUser(null)}
+                hideHistory={true}
+                defaultCollectedBy={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || undefined}
+                onAddReceipt={(receipt) => {
+                  setState(prev => {
+                    const diff = receipt.paidAmount;
+                    const updatedUsers = prev.users.map(u => u.id === receipt.userId ? { ...u, balance: (u.balance || 0) - diff } : u);
+                    return { ...prev, receipts: [...prev.receipts, receipt], users: updatedUsers };
+                  });
+                  setSuccessToast("Collection logged successfully!");
+                  setTimeout(() => setSuccessToast(null), 3000);
+                }}
+                receipts={state.receipts}
+                onUpdateReceipt={(updatedReceipt) => {
+                  setState(prev => ({
+                    ...prev,
+                    receipts: prev.receipts.map(r => r.id === updatedReceipt.id ? updatedReceipt : r)
+                  }));
+                }}
+                onUpdateUser={(userId, update) => {
+                  setState(prev => ({
+                    ...prev,
+                    users: prev.users.map(u => u.id === userId ? { ...u, ...update } : u)
+                  }));
+                }}
+                onDeleteReceipt={() => {}}
+                setLoadingMessage={setLoadingMessage}
+              />
+            </div>
+          </div>
+        ) : (
+          <SubManagerDashboard 
+            subManagerName={activeManager || 'Field Agent'}
+            agent={state.subManagers?.find(sm => sm.username === activeManager)}
+            agentId={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || ''}
+            agentArea={agentArea}
+            users={filteredUsers}
+            receipts={filteredReceipts}
+            settings={currentSettings}
+            attendanceLogs={state.attendanceLogs || []}
+            onLogout={handleLogout}
+            onAddAttendanceLog={handleAddAttendanceLog}
+            onIssueInvoice={(userId, agentId) => {
+              setPreSelectReceiptUser({ 
+                userId, 
+                month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+                agentId: agentId
+              } as any);
+              setActiveTab('receipts');
+            }}
+            onViewReceipt={(receipt) => {
+              // We can reuse the receipts tab logic to view a specific receipt
+              // But we need a way to tell ReceiptGenerator to start in View mode
+              // Actually, ReceiptGenerator has activeReceipt state.
+              // For now, let's just set the tab and maybe we need a preSelectReceipt
+              setPreSelectReceiptUser({
+                userId: receipt.userId,
+                month: receipt.period,
+                receiptId: receipt.id // I might need to update ReceiptGenerator to handle this
+              } as any);
+              setActiveTab('receipts');
+            }}
+            onUpdateAgent={(agentId, updates) => {
+              setState(prev => {
+                const newState = {
+                  ...prev,
+                  subManagers: prev.subManagers?.map(sm => sm.id === agentId ? { ...sm, ...updates } : sm)
+                };
+                saveState(newState);
+                if (newState.currentManager || activeManager) {
+                  saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+                }
+                return newState;
+              });
+            }}
+          />
+        )}
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
@@ -774,6 +1009,7 @@ const App: React.FC = () => {
           onSwitchCompany={handleSwitchCompany}
           onAddCompany={handleAddCompany}
           isAdmin={isAdmin}
+          userRole={userRole}
           activeManager={activeManager || ''}
           onLogout={handleLogout}
         >
@@ -791,7 +1027,7 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} />}
-          {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} />}
+          {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 
               users={filteredUsers} 
@@ -826,7 +1062,125 @@ const App: React.FC = () => {
           {activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
+          {activeTab === 'team' && userRole === 'manager' && (
+            <SubManagerManagement 
+              subManagers={state.subManagers || []}
+              recentReceipts={filteredReceipts.filter(r => r.collectedBy).slice(-10)}
+              managerId={activeManager || ''}
+              onVoidReceipt={handleVoidReceipt}
+              onEditReceiptAmount={handleEditReceiptAmount}
+              onViewLogs={(id) => console.log('Logs for', id)}
+              onAgentRecruited={(agent) => {
+                setSuccessToast("Agent Recruited Successfully! Use their email and password to log into the Agent Portal.");
+                setTimeout(() => setSuccessToast(null), 5000);
+                
+    const agentUsername = agent.username;
+    const agentId = generateId();
+
+    // Save to local accounts array so they can login directly via the main Login screen
+    saveAccount({
+      username: agentUsername,
+      password: agent.password, // The recruited agent's password from form
+      businessName: agent.name,
+      email: agent.email,
+      phone: agent.phone,
+      role: 'sub-manager',
+      managerUsername: activeManager || '',
+      createdAt: new Date().toISOString(),
+      rememberPassword: false // Require explicit remember
+    });
+
+    setState(prev => {
+      const newState = {
+        ...prev,
+        subManagers: [...(prev.subManagers || []), {
+          id: agentId,
+          name: agent.name,
+          username: agentUsername,
+          managerUsername: activeManager || '',
+          dutyStatus: 'offline' as const,
+          area: agent.area
+        }]
+      };
+      saveState(newState);
+      if (newState.currentManager || activeManager) {
+        saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+      }
+      return newState;
+    });
+              }}
+              onEditAgent={(id, updates) => {
+                const agent = state.subManagers?.find(a => a.id === id);
+                if (agent) {
+                  // If we need to update the agent's name in accounts
+                  const accounts = getAccounts();
+                  const targetAccount = accounts.find(a => a.username === agent.username);
+                  if (targetAccount) {
+                    const updatedAccount = { 
+                      ...targetAccount, 
+                      username: updates.username || targetAccount.username,
+                      businessName: updates.name || targetAccount.businessName,
+                      email: updates.email || targetAccount.email,
+                      phone: updates.phone || targetAccount.phone,
+                      password: updates.password || targetAccount.password,
+                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary
+                    };
+                    
+                    if (updates.username && updates.username !== agent.username) {
+                      removeAccount(agent.username);
+                    }
+                    saveAccount(updatedAccount as any);
+                  }
+                }
+                setState(prev => {
+                  const newState = {
+                    ...prev,
+                    subManagers: prev.subManagers?.map(sm => sm.id === id ? { ...sm, ...updates } : sm)
+                  };
+                  saveState(newState);
+                  if (newState.currentManager || activeManager) {
+                    saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+                  }
+                  return newState;
+                });
+                setSuccessToast("Agent updated successfully");
+                setTimeout(() => setSuccessToast(null), 3000);
+              }}
+              onDeleteAgent={(id) => {
+                const agent = state.subManagers?.find(a => a.id === id);
+                if (agent) {
+                   removeAccount(agent.username);
+                }
+                setState(prev => {
+                  const newState = {
+                    ...prev,
+                    subManagers: prev.subManagers?.filter(sm => sm.id !== id)
+                  };
+                  saveState(newState);
+                  if (newState.currentManager || activeManager) {
+                    saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+                  }
+                  return newState;
+                });
+                setSuccessToast("Agent deleted successfully");
+                setTimeout(() => setSuccessToast(null), 3000);
+              }}
+              onAddAttendanceLog={handleAddAttendanceLog}
+              onUpdateAttendanceLog={handleUpdateAttendanceLog}
+              onDeleteAttendanceLog={handleDeleteAttendanceLog}
+              attendanceLogs={state.attendanceLogs || []}
+            />
+          )}
         </Layout>
+
+      {successToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-5 duration-300">
+          <div className="bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-emerald-600/20 flex items-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span className="text-sm font-bold tracking-tight">{successToast}</span>
+          </div>
+        </div>
+      )}
 
       {showTour && (
         <OnboardingTour 

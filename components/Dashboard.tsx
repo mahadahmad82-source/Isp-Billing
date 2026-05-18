@@ -77,6 +77,11 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   
   const monthlyRecovered = calcMonthlyRevenue(receipts || [], currentMonthString);
 
+  const todayStr = new Date().toDateString();
+  const todayCollection = (receipts || [])
+    .filter(r => r.status === PaymentStatus.SUCCESS && new Date(r.date).toDateString() === todayStr)
+    .reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+
   const monthlyTarget = (users || [])
     .filter(u => u.status === 'active')
     .reduce((sum, u) => sum + (settings.planPrices[u.plan] || u.monthlyFee || 0), 0);

@@ -17,11 +17,13 @@ interface ReceiptGeneratorProps {
   setLoadingMessage: (msg: string | null) => void;
   preSelectUser?: { userId: string; month: string } | null;
   onPreSelectConsumed?: () => void;
+  hideHistory?: boolean;
+  defaultCollectedBy?: string;
 }
 
 type ViewMode = 'list' | 'create' | 'view';
 
-const logoBase64 = '';
+import { logoBase64 } from '../utils/logoBase64';
 
 const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({ 
   users, 
@@ -34,9 +36,19 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   setLoadingMessage,
   preSelectUser,
   onPreSelectConsumed,
+  hideHistory = false,
+  defaultCollectedBy,
 }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>(hideHistory ? 'create' : 'list');
   const [selectedUserId, setSelectedUserId] = useState('');
+
+  // Prevent list view if hideHistory is enabled
+  useEffect(() => {
+    if (hideHistory && viewMode === 'list') {
+      setViewMode('create');
+    }
+  }, [hideHistory, viewMode]);
+  const [agentId, setAgentId] = useState<string | undefined>(defaultCollectedBy);
   const [monthlyFee, setMonthlyFee] = useState(0);
   const [previousBalance, setPreviousBalance] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0); 
@@ -141,6 +153,42 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
   };
 
+  // Handle pre-selection from dashboard
+  useEffect(() => {
+    if (preSelectUser) {
+      if ((preSelectUser as any).receiptId) {
+        const receipt = receipts.find(r => r.id === (preSelectUser as any).receiptId);
+        if (receipt) {
+          setActiveReceipt(receipt);
+          setViewMode('view');
+          onPreSelectConsumed?.();
+          return;
+        }
+      }
+
+      const user = users.find(u => u.id === preSelectUser.userId);
+      if (user) {
+        setSelectedUserId(user.id);
+        setCustomerSearchQuery(`${user.name} (@${user.username})`);
+        
+        const monthParts = preSelectUser.month.split(' ');
+        if (monthParts.length === 2) {
+          setBillingMonth(monthParts[0]);
+          setBillingYear(monthParts[1]);
+        }
+
+        // Handle agent ID if provided (from sub-manager dashboard)
+        if ((preSelectUser as any).agentId) {
+          setAgentId((preSelectUser as any).agentId);
+        }
+
+        setViewMode('create');
+        syncUserAmounts(user.id);
+        onPreSelectConsumed?.();
+      }
+    }
+  }, [preSelectUser, users, receipts, syncUserAmounts, onPreSelectConsumed]);
+
   const subTotal = (monthlyFee || 0) + (previousBalance || 0);
   const totalPayable = subTotal - (discount || 0);
   const calculatedBalance = totalPayable - ((amountPaid || 0) + (advanceAmount || 0));
@@ -227,7 +275,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     setIsGenerating(true);
 
     try {
-      const receiptDate = new Date(paymentDate);
+      // Split YYYY-MM-DD and create local date to avoid UTC shifts
+      const [year, month, day] = paymentDate.split('-').map(Number);
+      const receiptDate = new Date(year, month - 1, day);
+      // Preserve current time if it's actually today
+      const now = new Date();
+      if (receiptDate.toDateString() === now.toDateString()) {
+        receiptDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+      }
+
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
         userId: user.id,
@@ -246,7 +302,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         paymentMethod: paymentMethod,
         status: paymentStatus,
         transactionRef: transactionRef,
-        description: description
+        description: description,
+        collectedBy: agentId
       };
 
       if (editingReceiptId) {
@@ -428,7 +485,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           <div className="bg-indigo-50-op40 p-6 rounded-[2rem] border-2 border-indigo-100-op50 flex flex-col items-center text-center gap-4">
              {hasImage && (
                <div className="w-full max-h-[160px] overflow-hidden rounded-2xl shadow-sm border border-white">
-                  <img src={settings.billAdsImage} className="w-full h-full object-contain" alt="Promotional Banner" />
+                  {settings.billAdsImage ? (
+                    <img src={settings.billAdsImage} className="w-full h-full object-contain" alt="Promotional Banner" />
+                  ) : null}
                </div>
              )}
              {hasText && (
@@ -458,9 +517,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                    <div className="h-[60px] w-auto bg-white border-2 border-slate-900 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg p-2">
                      {settings.businessLogo ? (
                        <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
-                     ) : (
+                     ) : logoBase64 ? (
                        <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
-                     )}
+                     ) : null}
                    </div>
                    <div>
                      {(settings.showBusinessNameOnReceipt ?? true) && <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{settings.businessName}</h1>}
@@ -584,7 +643,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                        </div>
                        {settings.billAdsImage && (
                          <div className="w-full rounded-2xl overflow-hidden shadow-md border border-white">
-                           <img src={settings.billAdsImage} className="w-full h-auto" alt="Promotion" />
+                           {settings.billAdsImage ? (
+                            <img src={settings.billAdsImage} className="w-full h-auto" alt="Promotion" />
+                          ) : null}
                          </div>
                        )}
                        {settings.billAds && (
@@ -630,9 +691,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           <div className="flex flex-col items-center text-center p-1 text-black leading-tight bg-white">
             {settings.businessLogo ? (
               <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
-            ) : (
+            ) : logoBase64 ? (
               <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain mb-2 grayscale mx-auto" referrerPolicy="no-referrer" />
-            )}
+            ) : null}
             {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-xl font-black uppercase mb-1">{settings.businessName}</h2>}
             <p className="text-[10px] font-bold">{activeReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP SUBSCRIPTION RECEIPT'}</p>
             {activeReceipt.isLatePayment && (
@@ -673,9 +734,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="h-[60px] w-auto bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
-                  ) : (
+                  ) : logoBase64 ? (
                     <img src={logoBase64} alt="Logo" className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
-                  )}
+                  ) : null}
                 </div>
                 <div>
                   {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="font-black text-lg leading-none">{settings.businessName}</h2>}
@@ -735,9 +796,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             <div className="flex justify-center mb-4">
               {settings.businessLogo ? (
                 <img src={settings.businessLogo} alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
-              ) : (
+              ) : logoBase64 ? (
                 <img src={logoBase64} alt="Logo" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
-              )}
+              ) : null}
             </div>
             <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-4">
               {(settings.showBusinessNameOnReceipt ?? true) && <h3 className="font-black text-sm uppercase leading-none">{settings.businessName}</h3>}
@@ -847,6 +908,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div>
                 {settings.businessLogo ? (
                   <img src={settings.businessLogo} alt="Logo" className="w-16 h-16 object-contain mb-2 rounded-xl" />
+                ) : logoBase64 ? (
+                  <img src={logoBase64} alt="Logo" className="w-16 h-16 object-contain mb-2 rounded-xl" />
                 ) : (
                   <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mb-2">
                     <span className="text-white font-black text-2xl">{settings.businessName?.charAt(0)}</span>
@@ -1039,10 +1102,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300">
         <div className="flex items-center justify-between no-print">
           <div className="flex items-center gap-4">
-            <button onClick={() => setViewMode('list')} className="p-3 bg-white dark:bg-[#0a1120] border border-slate-200 dark:border-white-op5 rounded-2xl shadow-sm text-slate-400 transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            </button>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">New Invoice</h3>
+            {!hideHistory && (
+              <button onClick={() => setViewMode('list')} className="p-3 bg-white dark:bg-[#0a1120] border border-slate-200 dark:border-white-op5 rounded-2xl shadow-sm text-slate-400 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+              </button>
+            )}
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              {viewMode === 'view' ? 'Billing Document' : 'New Invoice'}
+            </h3>
           </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">

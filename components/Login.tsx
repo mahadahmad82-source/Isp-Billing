@@ -14,7 +14,7 @@ interface LoginProps {
 
 const ADMIN_USERNAME = 'admin';
 
-type ViewType = 'recent' | 'login' | 'signup' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass';
+type ViewType = 'recent' | 'login' | 'signup' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
 
 const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
@@ -67,6 +67,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
+      const localAccounts = getAccounts();
+      const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
+      
+      // Fast path for Field Agents and Admins
+      if (localFound && (localFound.role === 'sub-manager' || localFound.role === 'admin')) {
+        setActiveSession(localFound.username);
+        onLogin(localFound.username);
+        return;
+      }
+
       let identifier = username;
       // Note: If username has no "@", we assume it handles both old standard username and new Phone-Only pattern
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
@@ -77,40 +87,59 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       });
 
       if (authError || !data?.user) {
-        // Fallback local accounts migration logic remains unchanged...
-        const localAccounts = getAccounts();
-        const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
-        
         if (localFound) {
           const fallbackEmail = localFound.email && localFound.email.includes('@') ? localFound.email : `${localFound.username}@myisp.local`;
-          const { error: signUpErr } = await supabase.auth.signUp({
-            email: fallbackEmail,
-            password: localFound.password,
-            options: { data: { full_name: localFound.businessName || localFound.username, phone: localFound.phone || '', is_migrated: true } }
-          });
-          if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) throw new Error('Account migration failed: ' + signUpErr.message);
+          try {
+            const { error: signUpErr } = await supabase.auth.signUp({
+              email: fallbackEmail,
+              password: localFound.password,
+              options: { data: { full_name: localFound.businessName || localFound.username, phone: localFound.phone || '', is_migrated: true } }
+            });
+            if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) console.warn('Account migration warning: ' + signUpErr.message);
 
-          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: localFound.password });
-          if (signInErr || !signInData?.user) throw new Error('Invalid username or password.');
-          
-          data = signInData;
-          authError = null;
-          removeAccount(localFound.username);
+            const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: localFound.password });
+            
+            if (signInData?.user) {
+              data = signInData;
+              authError = null;
+              removeAccount(localFound.username); // Safely remove after successful migration
+            } else {
+              // Fallback to local session
+              setActiveSession(localFound.username);
+              onLogin(localFound.username);
+              return;
+            }
+          } catch {
+            // Fallback to local session if any Supabase error during migration
+            setActiveSession(localFound.username);
+            onLogin(localFound.username);
+            return;
+          }
         } else {
           throw new Error('Invalid username or password.');
         }
       }
 
       if (data.user) {
+        // Fetch profile to check for role (use maybeSingle to avoid crash on 0 rows for new offline migrations)
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role, manager_id, name')
+          .eq('email', data.user.email)
+          .maybeSingle();
+
+        const role = profileData?.role || 'manager';
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
+        
         setActiveSession(loginUser);
         if (rememberPassword) {
           saveAccount({
             username: loginUser,
             password: password,
-            businessName: data.user.user_metadata?.full_name || loginUser,
+            businessName: profileData?.name || data.user.user_metadata?.full_name || loginUser,
             email: data.user.email || '',
             phone: data.user.user_metadata?.phone || '',
+            role: role as 'admin' | 'manager' | 'sub-manager',
             createdAt: new Date().toISOString(),
             rememberPassword: true
           });
@@ -322,7 +351,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             </button>
           )}
           <div className="flex justify-center mb-2">
-            <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />
+            {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />}
           </div>
           <div className="space-y-1">
             <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] mt-2 text-center">
@@ -400,8 +429,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
               </div>
               <div className="space-y-2">
-                <label className={labelCls}>Registered Email or Phone</label>
-                <input type="text" className={inputCls} placeholder="Email or Phone Number" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value)} required />
+                <label className={labelCls}>Registered Email, Phone, or Username</label>
+                <input type="text" className={inputCls} placeholder="Email, Phone, or Username" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} required />
               </div>
               <div className="pt-2">
                 <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all">
@@ -495,8 +524,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
                 {view === 'login' ? (
                   <div className="space-y-2">
-                    <label className={labelCls}>Email or Phone Number</label>
-                    <input required disabled={!!selectedAccount && view === 'login'} className={`${inputCls} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter email or phone" />
+                    <label className={labelCls}>Login ID (Email, Phone, or Username)</label>
+                    <input required disabled={!!selectedAccount && view === 'login'} className={`${inputCls} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} value={username} onChange={e => setUsername(e.target.value.toLowerCase().trim())} placeholder="Enter your ID" />
                   </div>
                 ) : (
                   <div className="space-y-2">

@@ -62,19 +62,21 @@ export const loadState = (username: string | null): AppState => {
     isInitialized: false
   };
 
+  const account = getAccounts().find(a => a.username === activeUser);
+  const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeUser;
+
   const emptyState: AppState = { 
     users: [], 
     receipts: [], 
     archives: [],
     settings: defaultSettings,
-    currentManager: activeUser || undefined
+    currentManager: dataOwner || undefined
   };
 
   if (!activeUser) return emptyState;
 
-  const data = localStorage.getItem(`${DATA_PREFIX}${activeUser}`);
+  const data = localStorage.getItem(`${DATA_PREFIX}${dataOwner}`);
   if (!data) {
-    const account = getAccounts().find(a => a.username === activeUser);
     if (account) {
       return {
         ...emptyState,
@@ -99,7 +101,7 @@ export const loadState = (username: string | null): AppState => {
       users: parsed.users || [],
       receipts: parsed.receipts || [],
       archives: parsed.archives || [],
-      currentManager: activeUser
+      currentManager: dataOwner
     };
   } catch {
     return emptyState;

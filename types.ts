@@ -42,6 +42,8 @@ export interface ManagerAccount {
   businessName: string;
   email: string;
   phone: string;
+  role?: 'admin' | 'manager' | 'sub-manager';
+  managerUsername?: string;
   createdAt: string;
   rememberPassword?: boolean;
 }
@@ -93,6 +95,7 @@ export interface UserRecord {
   activatedMonths?: string[]; // Array of strings like "January 2024"
   status: 'active' | 'expired' | 'pending' | 'deleted';
   companyId?: string;
+  area?: string;
 }
 
 export interface Receipt {
@@ -119,6 +122,7 @@ export interface Receipt {
   companyId?: string;
   isLatePayment?: boolean;
   actualPaymentDate?: string;
+  collectedBy?: string;
 }
 
 export interface AppNotification {
@@ -142,6 +146,35 @@ export interface Archive {
   users: UserRecord[];
 }
 
+export interface SubManagerAccount {
+  id: string;
+  username: string;
+  name: string;
+  managerUsername: string;
+  dutyStatus: 'online' | 'offline';
+  lastCheckIn?: string;
+  lastCheckOut?: string;
+  lastLocation?: {
+    lat: number;
+    lng: number;
+    timestamp: string;
+  };
+  area?: string;
+  isLeave?: boolean;
+}
+
+export interface AttendanceLog {
+  id: string;
+  subManagerId: string;
+  type: 'check-in' | 'check-out' | 'leave';
+  timestamp: string;
+  reason?: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -152,6 +185,8 @@ export interface AppState {
   users: UserRecord[];
   receipts: Receipt[];
   archives: Archive[];
+  subManagers?: SubManagerAccount[];
+  attendanceLogs?: AttendanceLog[];
   companies?: Company[];
   activeCompanyId?: string;
   theme?: 'light' | 'dark';

@@ -26,7 +26,7 @@ interface SummaryItem {
   activatedCount: number;
 }
 
-const logoBase64 = '';
+import { logoBase64 } from '../utils/logoBase64';
 
 const RecoverySummary: React.FC<RecoverySummaryProps> = ({ 
   users, 
@@ -543,7 +543,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                      {settings.businessLogo ? (
                        <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                      ) : (
-                       <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                       logoBase64 ? <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" /> : null
                      )}
                    </div>
                    <div>
@@ -619,9 +619,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
           <div className="flex flex-col items-center text-center p-4 text-black leading-tight bg-white w-full max-w-[300px] mx-auto">
             {settings.businessLogo ? (
               <img src={settings.businessLogo} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
-            ) : (
+            ) : logoBase64 ? (
               <img src={logoBase64} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
-            )}
+            ) : null}
             <h2 className="text-lg font-black uppercase mb-1">{settings.businessName}</h2>
             <p className="text-[9px] font-bold mb-2">{viewingReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP RECEIPT'}</p>
             {viewingReceipt.isLatePayment && (
@@ -651,9 +651,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <div className="h-[40px] w-auto bg-white rounded-lg p-1">
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
-                  ) : (
+                  ) : logoBase64 ? (
                     <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
-                  )}
+                  ) : null}
                 </div>
                 <div>
                   <h2 className="font-black text-sm break-words">{settings.businessName}</h2>
@@ -697,9 +697,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <div className="h-[40px] md:h-[50px] w-auto bg-white border border-slate-100 rounded-xl p-1">
                   {settings.businessLogo ? (
                     <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
-                  ) : (
+                  ) : logoBase64 ? (
                     <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
-                  )}
+                  ) : null}
                 </div>
                 <div className="w-full">
                   <h2 className="text-xl md:text-2xl font-black text-indigo-950 uppercase break-words">{settings.businessName}</h2>

@@ -23,6 +23,7 @@ interface LayoutProps {
   onSwitchCompany?: (id: string) => void;
   onAddCompany?: (name: string) => void;
   isAdmin?: boolean;
+  userRole?: 'admin' | 'manager' | 'sub-manager';
   activeManager?: string;
   onLogout?: () => void;
 }
@@ -43,6 +44,7 @@ const Layout: React.FC<LayoutProps> = ({
   onSwitchCompany,
   onAddCompany,
   isAdmin = false,
+  userRole = 'manager',
   activeManager = '',
   onLogout = () => {},
 }) => {
@@ -63,6 +65,14 @@ const Layout: React.FC<LayoutProps> = ({
 
   if (isAdmin) {
     tabs.push({ id: 'admin', label: 'Admin', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> });
+  }
+
+  if (userRole === 'manager') {
+    tabs.splice(tabs.length - 1, 0, { 
+      id: 'team', 
+      label: 'Team Hub', 
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 
+    });
   }
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -93,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="mb-10">
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                {logoBase64 && <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />}
               </div>
               <span className="text-white truncate">{businessName}</span>
             </h1>
@@ -103,7 +113,7 @@ const Layout: React.FC<LayoutProps> = ({
         {sidebarCollapsed && (
           <div className="mb-6 flex justify-center">
             <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
-              <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              {logoBase64 && <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />}
             </div>
           </div>
         )}
@@ -160,12 +170,14 @@ const Layout: React.FC<LayoutProps> = ({
         
         {/* Center: Increased size Logo */}
         <div className="flex justify-center items-center px-2 py-1">
-          <img 
-            src={logoBase64} 
-            alt="Logo" 
-            className="w-[130px] h-auto max-h-[48px] object-contain drop-shadow-sm transition-transform duration-300"
-            style={{ objectFit: 'contain' }}
-          />
+          {logoBase64 && (
+            <img 
+              src={logoBase64} 
+              alt="Logo" 
+              className="w-[130px] h-auto max-h-[48px] object-contain drop-shadow-sm transition-transform duration-300"
+              style={{ objectFit: 'contain' }}
+            />
+          )}
         </div>
         
         {/* Right: Avatar + Dropdown */}
@@ -174,7 +186,7 @@ const Layout: React.FC<LayoutProps> = ({
             onClick={() => setDropdownOpen(d => !d)}
             className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
           >
-            <img src={avatarBase64} alt="Profile" className="w-full h-full object-cover" />
+            {avatarBase64 && <img src={avatarBase64} alt="Profile" className="w-full h-full object-cover" />}
           </button>
           {dropdownOpen && (
             <>
