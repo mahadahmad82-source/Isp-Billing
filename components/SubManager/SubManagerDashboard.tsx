@@ -227,27 +227,40 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
         ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
-      // Match manager's exact paid logic:
-      // A user is PAID if they have a receipt whose period includes current month name
-      // OR receipt date is in current month with SUCCESS status
-      const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()); // "May"
-      const hasPaidRecently = userReceipts.some(r => {
+      // EXACT same logic as manager's recovery ledger:
+      // PAID = receipt with period "May 2026" AND status "Success"
+      const hasPaidThisMonth = userReceipts.some(r =>
+        r.period === currentMonthLabel &&
+        r.status === PaymentStatus.SUCCESS
+      );
+
+      // Fallback: receipt date in current month with Success status
+      // (handles cases where period not set but date is current month)
+      const hasPaidByDate = !hasPaidThisMonth && userReceipts.some(r => {
         const rDate = new Date(r.date);
-        const periodMatch = r.period && (
-          r.period === currentMonthLabel ||           // exact "May 2026"
-          r.period.includes(currentMonthName)         // period has "May" in it
-        );
-        const dateMatch = r.status === PaymentStatus.SUCCESS &&
+        return r.status === PaymentStatus.SUCCESS &&
           rDate.getMonth() === currentMonth &&
           rDate.getFullYear() === currentYear;
-        return periodMatch || dateMatch;
       });
 
+      const hasPaidRecently = hasPaidThisMonth || hasPaidByDate;
+
+      // isClear ONLY if actually paid — do not use balance < 0 as paid indicator
       const balance   = u.balance || 0;
-      const isClear   = hasPaidRecently || balance < 0;
-      const planPrice = agentSettings?.planPrices?.[u.plan || ''] ||
-                        agentSettings?.planPrices?.['Standard'] || 1500;
-      const dues      = isClear ? 0 : (balance > 0 ? balance : planPrice);
+      const isClear   = hasPaidRecently;
+
+      // Plan price — handle both name formats (dash vs bracket)
+      // "Alpha-15mb" → "Alpha (15MB)", "Blue-20mb" → "Blue (20MB)"
+      const planKey = u.plan || '';
+      const normalizedKey = planKey
+        .replace(/-(\d+)mb$/i, (_: string, n: string) => ` (${n}MB)`)
+        .replace(/-(\d+)Mb$/i, (_: string, n: string) => ` (${n}MB)`);
+      const planPrice = agentSettings?.planPrices?.[planKey] ||
+                        agentSettings?.planPrices?.[normalizedKey] ||
+                        1500;
+      // Dues: if balance > 0 user owes that amount, otherwise show plan price
+      // balance = 0 and not paid = full plan price pending
+      const dues = isClear ? 0 : (balance > 0 ? balance : planPrice);
 
       return {
         ...u,
