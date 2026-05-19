@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import LocationTracker from './LocationTracker';
 import { UserRecord, AppSettings, Receipt, PaymentStatus, SubManagerAccount, AttendanceLog } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 interface SubManagerDashboardProps {
   subManagerName: string;
@@ -38,9 +39,79 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   const [dutyStatus, setDutyStatus] = useState<'online' | 'offline'>(agent?.dutyStatus || 'offline');
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState('');
-  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [filter, setFilter] = useState<'all' | 'paid' | 'pending'>('pending');
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord | 'displayStatus' | 'displayBalance', direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
+
+  // ── Direct Supabase load for agent — bypass App.tsx filters ──
+  const [agentUsers, setAgentUsers]       = useState<UserRecord[]>([]);
+  const [agentReceipts, setAgentReceipts] = useState<Receipt[]>([]);
+  const [agentSettings, setAgentSettings] = useState<AppSettings>(settings);
+  const [dataLoading, setDataLoading]     = useState(true);
+
+  useEffect(() => {
+    const loadManagerData = async () => {
+      setDataLoading(true);
+      try {
+        // Get agent's manager_id from Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setDataLoading(false); return; }
+
+        const { data: agentRow } = await supabase
+          .from('sub_managers')
+          .select('manager_id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+
+        const managerId = agentRow?.manager_id || agent?.managerUsername;
+        if (!managerId) { setDataLoading(false); return; }
+
+        // Load manager's full data from manager_data table
+        const { data: managerRow } = await supabase
+          .from('manager_data')
+          .select('data')
+          .eq('manager_id', managerId)
+          .maybeSingle();
+
+        if (managerRow?.data) {
+          const mData = managerRow.data as any;
+
+          // Get active company settings (same logic as App.tsx)
+          const companies = mData.companies || [];
+          const activeCompanyId = mData.activeCompanyId || '';
+          const activeCompany = companies.find((c: any) => c.id === activeCompanyId) || companies[0];
+          const mSettings: AppSettings = activeCompany?.settings || mData.settings || settings;
+
+          // Filter users by active company (match manager's view exactly)
+          const allUsers: UserRecord[] = mData.users || [];
+          const companyUsers = activeCompanyId
+            ? allUsers.filter((u: any) => !u.companyId || u.companyId === activeCompanyId)
+            : allUsers;
+
+          // Only active users (not deleted/suspended)
+          const activeUsers = companyUsers.filter((u: any) =>
+            u.status !== 'deleted' && u.status !== 'suspended'
+          );
+
+          // Filter receipts by active company
+          const allReceipts: Receipt[] = mData.receipts || [];
+          const companyReceipts = activeCompanyId
+            ? allReceipts.filter((r: any) => !r.companyId || r.companyId === activeCompanyId)
+            : allReceipts;
+
+          setAgentUsers(activeUsers);
+          setAgentReceipts(companyReceipts);
+          setAgentSettings(mSettings);
+        }
+      } catch (err) {
+        console.error('Agent data load error:', err);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    loadManagerData();
+  }, [agent?.managerUsername]);
 
   const handleSort = (key: keyof UserRecord | 'displayStatus' | 'displayBalance') => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -118,58 +189,52 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
 
   const dailyStats = useMemo(() => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD localish depends on how we stored it
-    
-    // Better comparison: check if toDateString() matches, which is generally what users expect (Today in their time)
     const currentDayStr = today.toDateString();
-
-    const agentReceipts = receipts.filter(r => {
+    const todayAgentReceipts = agentReceipts.filter(r => {
       const isCollectedByMe = (r.collectedBy === agentId || r.collectedBy === agent?.username);
-      const receiptDate = new Date(r.date);
-      const isToday = receiptDate.toDateString() === currentDayStr;
-      
-      return isCollectedByMe && isToday;
+      return isCollectedByMe && new Date(r.date).toDateString() === currentDayStr;
     });
-    
     return {
-      amount: agentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
-      count: agentReceipts.length
+      amount: todayAgentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
+      count: todayAgentReceipts.length
     };
-  }, [receipts, agentId, agent?.username]);
+  }, [agentReceipts, agentId, agent?.username]);
 
   const augmentedUsers = useMemo(() => {
     const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+    const currentMonth = new Date().getMonth();
+    const currentYear  = new Date().getFullYear();
 
-    return users.map((u) => {
-      // Find recent receipts
-      const userReceipts = receipts.filter(r => r.userId === u.id);
-      const latestReceipt = userReceipts.length > 0 
+    return agentUsers.map((u) => {
+      const userReceipts = agentReceipts.filter(r => r.userId === u.id);
+      const latestReceipt = userReceipts.length > 0
         ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
-      const hasPaidRecently = userReceipts.some(r => r.period === currentMonthLabel || (r.status === PaymentStatus.SUCCESS && new Date(r.date).getMonth() === new Date().getMonth()));
-      
-      const balance = u.balance || 0;
-      // User is clear ONLY if they have paid recently. 
-      // If we want to allow advance payments to mark them as clear, we could check balance <= 0, 
-      // but usually an ISP user is "current" only if they have a receipt for the current period.
-      const isClear = hasPaidRecently || (balance < 0); 
-      const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
-      
-      let dues = 0;
-      if (!isClear) {
-        // If pending, show their balance if they owe money, otherwise show the plan price (what they will owe)
-        dues = balance > 0 ? balance : planPrice;
-      }
+      const hasPaidRecently = userReceipts.some(r => {
+        const rDate = new Date(r.date);
+        return (
+          r.period === currentMonthLabel ||
+          (r.status === PaymentStatus.SUCCESS &&
+            rDate.getMonth() === currentMonth &&
+            rDate.getFullYear() === currentYear)
+        );
+      });
+
+      const balance   = u.balance || 0;
+      const isClear   = hasPaidRecently || balance < 0;
+      const planPrice = agentSettings?.planPrices?.[u.plan || ''] ||
+                        agentSettings?.planPrices?.['Standard'] || 1500;
+      const dues      = isClear ? 0 : (balance > 0 ? balance : planPrice);
 
       return {
         ...u,
         displayBalance: dues,
-        displayStatus: isClear ? 'clear' : 'pending',
-        latestReceipt: latestReceipt
+        displayStatus:  isClear ? 'clear' : 'pending',
+        latestReceipt,
       };
     });
-  }, [users, receipts, settings]);
+  }, [agentUsers, agentReceipts, agentSettings]);
 
   const sortedUsers = useMemo(() => {
     const list = augmentedUsers.filter(u => {
@@ -215,6 +280,16 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     { id: 'paid', label: `Paid (${counts.paid})` },
     { id: 'pending', label: `Pending (${counts.pending})` }
   ] as const;
+
+  // Loading state while fetching manager data from Supabase
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Loading customer data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300">
