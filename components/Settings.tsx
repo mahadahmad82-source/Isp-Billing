@@ -149,25 +149,49 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxWidth: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL((file.type === 'image/png' ? 'image/png' : 'image/jpeg'), 0.8));
+          } else {
+            resolve(event.target?.result as string);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       setModalStatus({
         title: 'File Too Large',
-        message: 'Please upload a logo smaller than 2MB.',
+        message: 'Please upload a logo smaller than 5MB.',
         type: 'error'
       });
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setLocalSettings(prev => ({ ...prev, businessLogo: base64 }));
-    };
-    reader.readAsDataURL(file);
+    const compressed = await compressImage(file, 400);
+    setLocalSettings(prev => ({ ...prev, businessLogo: compressed }));
   };
 
   const removeLogo = () => {
@@ -175,16 +199,11 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
-  const handleAdImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAdImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setLocalSettings(prev => ({ ...prev, billAdsImage: base64 }));
-    };
-    reader.readAsDataURL(file);
+    const compressed = await compressImage(file, 600);
+    setLocalSettings(prev => ({ ...prev, billAdsImage: compressed }));
   };
 
   const removeAdImage = () => {

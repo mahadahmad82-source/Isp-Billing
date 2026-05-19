@@ -45,7 +45,12 @@ export const clearAllAccounts = () => {
 
 export const saveState = (state: AppState) => {
   if (!state.currentManager) return;
-  localStorage.setItem(`${DATA_PREFIX}${state.currentManager}`, JSON.stringify(state));
+  try {
+    localStorage.setItem(`${DATA_PREFIX}${state.currentManager}`, JSON.stringify(state));
+  } catch (err: any) {
+    console.error("Local storage save error:", err);
+    alert("Failed to save data locally. The image or data might be too large. Please use a smaller image.");
+  }
 };
 
 export const loadState = (username: string | null): AppState => {
