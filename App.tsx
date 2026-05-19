@@ -1107,7 +1107,11 @@ const App: React.FC = () => {
           {activeTab === 'team' && userRole === 'manager' && (
             <SubManagerManagement
               subManagers={sbSubManagers}
-              recentReceipts={filteredReceipts.filter(r => r.collectedBy).slice(-10)}
+              recentReceipts={filteredReceipts.filter(r => {
+                if (!r.collectedBy) return false;
+                // Only receipts where collectedBy matches a known agent
+                return sbSubManagers.some(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
+              }).slice(-50)}
               managerId={activeManager || ''}
               onVoidReceipt={handleVoidReceipt}
               onEditReceiptAmount={handleEditReceiptAmount}

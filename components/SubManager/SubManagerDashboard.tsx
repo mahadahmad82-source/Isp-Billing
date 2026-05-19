@@ -53,20 +53,34 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     const loadManagerData = async () => {
       setDataLoading(true);
       try {
-        // Get agent's manager_id from Supabase
+        let managerId = agent?.managerUsername || '';
+
+        // Try Supabase — most reliable source
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { setDataLoading(false); return; }
+        if (user) {
+          // Try by auth_user_id first
+          const { data: agentRow } = await supabase
+            .from('sub_managers')
+            .select('manager_id')
+            .eq('auth_user_id', user.id)
+            .maybeSingle();
 
-        const { data: agentRow } = await supabase
-          .from('sub_managers')
-          .select('manager_id')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
+          if (agentRow?.manager_id) {
+            managerId = agentRow.manager_id;
+          } else {
+            // Fallback: try by username
+            const { data: agentRow2 } = await supabase
+              .from('sub_managers')
+              .select('manager_id')
+              .eq('username', subManagerName)
+              .maybeSingle();
+            if (agentRow2?.manager_id) managerId = agentRow2.manager_id;
+          }
+        }
 
-        const managerId = agentRow?.manager_id || agent?.managerUsername;
         if (!managerId) { setDataLoading(false); return; }
 
-        // Load manager's full data from manager_data table
+        // Load manager full data
         const { data: managerRow } = await supabase
           .from('manager_data')
           .select('data')
@@ -75,25 +89,19 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
 
         if (managerRow?.data) {
           const mData = managerRow.data as any;
-
-          // Get active company settings (same logic as App.tsx)
           const companies = mData.companies || [];
           const activeCompanyId = mData.activeCompanyId || '';
           const activeCompany = companies.find((c: any) => c.id === activeCompanyId) || companies[0];
           const mSettings: AppSettings = activeCompany?.settings || mData.settings || settings;
 
-          // Filter users by active company (match manager's view exactly)
           const allUsers: UserRecord[] = mData.users || [];
           const companyUsers = activeCompanyId
             ? allUsers.filter((u: any) => !u.companyId || u.companyId === activeCompanyId)
             : allUsers;
-
-          // Only active users (not deleted/suspended)
           const activeUsers = companyUsers.filter((u: any) =>
             u.status !== 'deleted' && u.status !== 'suspended'
           );
 
-          // Filter receipts by active company
           const allReceipts: Receipt[] = mData.receipts || [];
           const companyReceipts = activeCompanyId
             ? allReceipts.filter((r: any) => !r.companyId || r.companyId === activeCompanyId)
@@ -111,7 +119,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     };
 
     loadManagerData();
-  }, [agent?.managerUsername]);
+  }, [subManagerName, agent?.managerUsername]);
 
   const handleSort = (key: keyof UserRecord | 'displayStatus' | 'displayBalance') => {
     let direction: 'asc' | 'desc' | null = 'asc';

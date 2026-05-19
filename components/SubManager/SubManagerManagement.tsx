@@ -226,7 +226,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
               activeTab === 'overrides' ? 'bg-white dark:bg-indigo-600 dark:text-white shadow-md text-slate-900' : 'text-slate-500 opacity-60 hover:opacity-100'
             }`}
           >
-            Mistakes
+            Field Ops
           </button>
         </div>
       </div>
@@ -409,13 +409,19 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.03]">
-                {recentReceipts.length > 0 ? recentReceipts.map(rec => {
+                {(() => {
+                  // Only show receipts collected by known agents — exclude manager's own
+                  const agentReceipts = recentReceipts.filter(r => {
+                    if (!r.collectedBy) return false;
+                    return subManagers.some(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
+                  });
+                  return agentReceipts.length > 0 ? agentReceipts.map(rec => {
                   const agent = subManagers.find(sm => sm.id === rec.collectedBy || sm.username === rec.collectedBy);
                   return (
                     <tr key={rec.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
                       <td className="px-6 py-4">
                         <p className="font-bold text-slate-900 dark:text-white">{agent?.name || 'Field Agent'}</p>
-                        <p className="text-[10px] text-slate-400">@{rec.collectedBy || 'unknown'}</p>
+                        <p className="text-[10px] text-slate-400">@{agent?.username || rec.collectedBy}</p>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-bold text-slate-900 dark:text-white">{rec.userName}</p>
@@ -448,13 +454,16 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                       </td>
                     </tr>
                   );
-                }) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center opacity-30 text-xs font-bold uppercase tracking-widest">
-                       No field receipts found in stream
-                    </td>
-                  </tr>
-                )}
+                  }) : null;
+                  if (agentReceipts.length === 0) return (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center opacity-30 text-xs font-bold uppercase tracking-widest">
+                        No agent transactions yet
+                      </td>
+                    </tr>
+                  );
+                  return null;
+                })()}
               </tbody>
             </table>
           </div>
