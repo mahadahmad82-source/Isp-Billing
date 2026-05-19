@@ -42,17 +42,22 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
     }
   });
 
-  // 2. Add receipt collections
+  // 2. Add receipt collections (Filtered strictly for Agents)
   recentReceipts.forEach(r => {
     if (r.collectedBy) {
-      const agent = subManagers.find(sm => sm.id === r.collectedBy);
-      logs.push({
-        id: `rec-${r.id}`,
-        agentName: agent ? agent.name : 'Unknown Agent',
-        type: 'collection',
-        timestamp: r.date,
-        description: `Collected ${r.paidAmount} PKR from ${r.userName}`
-      });
+      // Find if collectedBy matches any subManager ID or Username
+      const agent = subManagers.find(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
+      
+      // ONLY push if an agent was found (excludes manager collections)
+      if (agent) {
+        logs.push({
+          id: `rec-${r.id}`,
+          agentName: agent.name,
+          type: 'collection',
+          timestamp: r.date,
+          description: `Collected ${r.paidAmount} PKR from ${r.userName}`
+        });
+      }
     }
   });
 

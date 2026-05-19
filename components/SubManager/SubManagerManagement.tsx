@@ -226,7 +226,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
               activeTab === 'overrides' ? 'bg-white dark:bg-indigo-600 dark:text-white shadow-md text-slate-900' : 'text-slate-500 opacity-60 hover:opacity-100'
             }`}
           >
-            Mistakes
+            Field Ops
           </button>
         </div>
       </div>
@@ -386,7 +386,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
         </div>
       )}
 
-      {/* MISTAKE OVERRIDE VIEW */}
+      {/* FIELD OPS VIEW (MISTAKE OVERRIDES) */}
       {activeTab === 'overrides' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">

@@ -60,6 +60,13 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
   const [editingPlanName, setEditingPlanName] = useState<string | null>(null);
   const [editingPriceValue, setEditingPriceValue] = useState<number | ''>('');
 
+  const personalLogs = React.useMemo(() => {
+    return (fullState.receipts || [])
+      .filter(r => r.collectedBy === activeManager || r.collectedBy === 'admin')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 50);
+  }, [fullState.receipts, activeManager]);
+
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
   const adImageInputRef = useRef<HTMLInputElement>(null);
@@ -984,6 +991,49 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Personal Activity Logs (Manager's own actions) */}
+        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <div>
+                <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">My Activity Logs</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Aapke apne collections aur personal accounts ki history</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+            {personalLogs.length > 0 ? (
+              personalLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 transition-all hover:border-emerald-500/30">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">Collected from {log.userName}</p>
+                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">{log.period} • {new Date(log.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">Rs. {log.paidAmount.toLocaleString()}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase">Success</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-10 text-center text-slate-500 font-bold bg-slate-50 dark:bg-white/5 rounded-[2.5rem]">
+                No personal logs found yet.
+              </div>
+            )}
           </div>
         </div>
 

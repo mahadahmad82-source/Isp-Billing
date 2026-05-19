@@ -155,28 +155,31 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     const currentYearNum = new Date().getFullYear();
 
     const activeThisMonthUsers = users.filter(u => {
-      if (u.status === 'deleted') return false;
+      // STRICT FILTER: Only 'active' status users (not deleted, not expired/others)
+      if (u.status !== 'active') return false;
       
       // Area Restriction: Still respect agent's area if defined
       if (agentArea && u.area && u.area !== agentArea) return false;
 
       // STRICTION: Only show users officially activated for this period in the Ledger
-      // Matching RecoverySummary.tsx line 115-118
-      const isActivatedForThisMonth = (u.activatedMonths || []).includes(currentMonthLabel);
-      const hasReceiptForThisMonth = receipts.some(r => r.userId === u.id && r.period === currentMonthLabel);
+      // Hardcoded to "May 2026" as requested for strictness
+      const strictlyMay2026 = "May 2026";
+      const isActivatedForThisMonth = (u.activatedMonths || []).includes(strictlyMay2026);
+      const hasReceiptForThisMonth = receipts.some(r => r.userId === u.id && r.period === strictlyMay2026);
       
       return isActivatedForThisMonth || hasReceiptForThisMonth;
     });
 
     return activeThisMonthUsers.map((u) => {
-      // Find recent receipts
+      // Find recent receipts for May 2026
+      const strictlyMay2026 = "May 2026";
       const userReceipts = receipts.filter(r => r.userId === u.id);
       const latestReceipt = userReceipts.length > 0 
         ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
       // STRICTION: Avoid marking previous months' payments as current month "Clear"
-      const hasPaidForCurrentMonth = userReceipts.some(r => r.period === currentMonthLabel && r.status === PaymentStatus.SUCCESS);
+      const hasPaidForCurrentMonth = userReceipts.some(r => r.period === strictlyMay2026 && r.status === PaymentStatus.SUCCESS);
       
       const balance = u.balance || 0;
       // User is clear ONLY if they have paid for the exact billing period
