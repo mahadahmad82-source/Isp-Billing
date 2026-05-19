@@ -181,20 +181,26 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       // STRICTION: Avoid marking previous months' payments as current month "Clear"
       const hasPaidForCurrentMonth = userReceipts.some(r => r.period === strictlyMay2026 && r.status === PaymentStatus.SUCCESS);
       
-      const balance = u.balance || 0;
-      // User is clear ONLY if they have paid for the exact billing period
-      const isClear = hasPaidForCurrentMonth || (balance < 0); 
       const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
+      
+      // Arrears is the balance from the latest receipt or the user's base balance
+      const arrears = latestReceipt ? (latestReceipt.balanceAmount || 0) : (u.balance || 0);
+      const discount = u.persistentDiscount || 0;
+      
+      // Total Outstanding Dues = (Current Monthly Bill + Arrears) - Applied Discount
+      const totalOutstanding = (planPrice + Math.max(0, arrears)) - discount;
+      
+      // User is clear ONLY if they have paid for the exact billing period OR they have credit
+      const isClear = hasPaidForCurrentMonth || (arrears < 0); 
       
       let dues = 0;
       if (!isClear) {
-        // If pending, show their balance if they owe money, otherwise show the plan price (what they will owe)
-        dues = balance > 0 ? balance : planPrice;
+        dues = totalOutstanding;
       }
 
       return {
         ...u,
-        displayBalance: dues,
+        displayBalance: Math.max(0, dues),
         displayStatus: isClear ? 'clear' : 'pending',
         latestReceipt: latestReceipt
       };

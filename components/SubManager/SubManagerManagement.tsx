@@ -43,6 +43,10 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   const [showRecruitModal, setShowRecruitModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
+  const [performanceAgentId, setPerformanceAgentId] = useState<string | null>(null);
+
+  const selectedAgentForPerformance = subManagers.find(sm => sm.id === performanceAgentId);
+  const agentReceipts = recentReceipts.filter(r => r.collectedBy === performanceAgentId || r.collectedBy === selectedAgentForPerformance?.username);
 
   const handleDelete = (id: string) => {
     setDeletingAgentId(id);
@@ -334,9 +338,9 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                   </button>
                   <button 
-                    onClick={() => onViewLogs(sm.id)}
-                    title="View History Logs"
-                    className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-emerald-500 transition-all hover:scale-110"
+                    onClick={() => setPerformanceAgentId(sm.id)}
+                    title="View Agent Performance"
+                    className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-emerald-500 transition-all hover:scale-110 active:scale-95"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                   </button>
@@ -383,6 +387,110 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
             </div>
             <p className="text-xs font-bold uppercase tracking-widest">Recruit Agent</p>
           </button>
+        </div>
+      )}
+
+      {/* Agent Performance / Receipt History Modal */}
+      {performanceAgentId && selectedAgentForPerformance && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setPerformanceAgentId(null)} />
+          <div className="relative w-full max-w-4xl bg-white dark:bg-[#0f172a] rounded-[3rem] shadow-2xl border border-slate-200 dark:border-white/5 overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
+            <div className="px-10 py-8 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center font-bold text-2xl">
+                  {selectedAgentForPerformance.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{selectedAgentForPerformance.name}</h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">Performance & Receipt History Terminal</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setPerformanceAgentId(null)}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-rose-500 transition-all hover:rotate-90"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div className="p-10 flex-1 overflow-y-auto space-y-8 custom-scrollbar">
+              {/* Agent Stats Summary */}
+              <div className="grid grid-cols-3 gap-6">
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Collections</p>
+                  <p className="text-2xl font-black text-emerald-500">Rs. {agentReceipts.reduce((sum, r) => sum + r.paidAmount, 0).toLocaleString()}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Bills Issued</p>
+                  <p className="text-2xl font-black text-indigo-500">{agentReceipts.length}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Agent Status</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className={`w-2 h-2 rounded-full ${selectedAgentForPerformance.dutyStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></div>
+                    <p className="text-lg font-black uppercase text-slate-700 dark:text-slate-200">{selectedAgentForPerformance.dutyStatus}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Receipt History Table */}
+              <div className="bg-white dark:bg-[#12162a] rounded-[2.5rem] border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01]">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Full Transaction Checklist</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 dark:border-white/5">
+                      <tr>
+                        <th className="px-6 py-4">Client Name</th>
+                        <th className="px-6 py-4">Date</th>
+                        <th className="px-6 py-4">Period</th>
+                        <th className="px-6 py-4">Amount</th>
+                        <th className="px-6 py-4 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-white/[0.02]">
+                      {agentReceipts.length > 0 ? (
+                        [...agentReceipts].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(rec => (
+                          <tr key={rec.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-all">
+                            <td className="px-6 py-4">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white uppercase">{rec.userName}</p>
+                              <p className="text-[9px] text-slate-500">@{rec.username}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-xs font-medium text-slate-500">{new Date(rec.date).toLocaleDateString()}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 opacity-80">{rec.period}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-black text-slate-700 dark:text-slate-300">Rs. {rec.paidAmount.toLocaleString()}</p>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">Success</span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-12 text-center opacity-30 text-xs font-bold uppercase tracking-widest italic">No issued receipts found</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-10 py-6 bg-slate-50 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/5 flex justify-end">
+              <button 
+                onClick={() => setPerformanceAgentId(null)}
+                className="px-8 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95"
+              >
+                Close Terminal
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

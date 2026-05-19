@@ -879,15 +879,21 @@ const App: React.FC = () => {
       <ErrorBoundary>
         {activeTab === 'receipts' ? (
           <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300 flex flex-col">
-            <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
-              <button 
-                onClick={() => setActiveTab('team')}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white transition-all font-bold text-sm uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 active:scale-95"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                Back to Dashboard
-              </button>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Agent Override Mode</div>
+            <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 sm:px-10">
+              <div className="flex items-center gap-5">
+                <button 
+                  onClick={() => setActiveTab('team')}
+                  className="w-12 h-12 flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 rounded-full transition-all active:scale-95 text-slate-500 dark:text-slate-400 group shadow-sm border border-slate-200 dark:border-white/10"
+                  title="Back to Dashboard"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">New Invoice</h2>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-0.5">Agent Terminal Node</p>
+                </div>
+              </div>
+              <div className="hidden sm:block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 opacity-60">System Override Protocol</div>
             </div>
             <div className="flex-1 overflow-auto p-4 md:p-8">
               <ReceiptGenerator 
