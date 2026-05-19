@@ -161,13 +161,6 @@ export interface SubManagerAccount {
   };
   area?: string;
   isLeave?: boolean;
-  // Supabase fields
-  email?: string;
-  contact?: string;
-  commissionRate?: number;
-  salary?: number;
-  totalCollections?: number;
-  authUserId?: string;
 }
 
 export interface AttendanceLog {

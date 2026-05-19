@@ -19,7 +19,6 @@ import AdminDashboard from './components/AdminDashboard';
 import Archives from './components/Archives';
 import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
 import SubManagerManagement from './components/SubManager/SubManagerManagement';
-import { useSubManager } from './hooks/useSubManager';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -36,20 +35,6 @@ const INACTIVITY_LIMIT = 30 * 60 * 1000;
 
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
-
-  // ── Supabase-backed SubManager hook ──────────────────────────
-  const {
-    subManagers: sbSubManagers,
-    logs: sbAttendanceLogs,
-    loading: sbLoading,
-    updateDutyStatus: sbUpdateDutyStatus,
-    addAttendanceLog: sbAddAttendanceLog,
-    updateAttendanceLog: sbUpdateAttendanceLog,
-    deleteAttendanceLog: sbDeleteAttendanceLog,
-    editAgent: sbEditAgent,
-    removeAgent: sbRemoveAgent,
-    addAgent: sbAddAgent,
-  } = useSubManager(activeManager || '');
   const [state, setState] = useState<AppState>(() => {
     const loaded = loadState(activeManager);
     const initialState = { 
@@ -133,72 +118,48 @@ const App: React.FC = () => {
   const lastActivityRef = useRef<number>(Date.now());
 
   useEffect(() => {
-    if (!activeManager) return;
-
+    // Basic initialization
     setIsAdmin(activeManager === 'admin');
-
-    // 1) Admin fast path
-    if (activeManager === 'admin') { setUserRole('admin'); return; }
-
-    // 2) Check local saved account role first (fast)
+    
+    // Check local accounts for role/area
     const account = getAccounts().find(a => a.username === activeManager);
-    if (account?.role === 'sub-manager') {
-      setUserRole('sub-manager');
-      return;
-    }
-    if (account?.role === 'admin') {
+    if (account?.role) {
+      setUserRole(account.role);
+      // For agents, we also need their area (which we added to profiles and likely saved meta)
+      // We might need to fetch this if not in account
+    } else if (activeManager === 'admin') {
       setUserRole('admin');
-      return;
+    } else if (activeManager?.startsWith('agent_')) {
+      setUserRole('sub-manager');
+    } else {
+      setUserRole('manager');
     }
+  }, [activeManager]);
 
-    // 3) Check Supabase — is this user an agent?
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) { setUserRole('manager'); return; }
-
+  useEffect(() => {
+    if (userRole === 'sub-manager' && activeManager) {
       supabase
-        .from('sub_managers')
-        .select('id, assigned_area, manager_id')
-        .eq('auth_user_id', user.id)
-        .maybeSingle()
-        .then(({ data: agentData }) => {
-          if (agentData) {
-            setUserRole('sub-manager');
-            if (agentData.assigned_area) setAgentArea(agentData.assigned_area);
-          } else {
-            setUserRole('manager');
+        .from('profiles')
+        .select('area')
+        .eq('email', getAccounts().find(a => a.username === activeManager)?.email || '')
+        .single()
+        .then(({ data }) => {
+          if (data?.area) {
+            setAgentArea(data.area);
           }
         });
-    });
-  }, [activeManager]);
+    }
+  }, [userRole, activeManager]);
 
   useEffect(() => {
     if (activeManager) {
       setActiveSession(activeManager);
       const account = getAccounts().find(a => a.username === activeManager);
+      const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      const loadData = async () => {
-        let dataOwner = activeManager;
-
-        // For sub-managers: find their parent manager from Supabase
-        if (account?.role === 'sub-manager' && account.managerUsername) {
-          dataOwner = account.managerUsername;
-        } else if (!account || account.role === 'sub-manager') {
-          // Check Supabase sub_managers table for manager_id
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: agentRow } = await supabase
-              .from('sub_managers')
-              .select('manager_id')
-              .eq('auth_user_id', user.id)
-              .maybeSingle();
-            if (agentRow?.manager_id) {
-              dataOwner = agentRow.manager_id;
-            }
-          }
-        }
-
-        const localState = loadState(activeManager);
-        const finalState = await smartLoadAndSync(dataOwner, localState);
+      // Smart sync: compare localStorage vs Supabase, use richer data
+      const localState = loadState(activeManager);
+      smartLoadAndSync(dataOwner, localState).then(finalState => {
         setState({
           ...finalState,
           archives: finalState.archives || [],
@@ -207,7 +168,7 @@ const App: React.FC = () => {
           activeCompanyId: finalState.activeCompanyId || '',
           currentManager: dataOwner
         });
-
+        // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
           const welcomeKey = `tour_seen_${activeManager}_welcome`;
           if (!localStorage.getItem(welcomeKey)) {
@@ -215,9 +176,7 @@ const App: React.FC = () => {
             setTourMode('welcome');
           }
         }
-      };
-
-      loadData();
+      });
     } else {
       setActiveSession(null);
     }
@@ -923,7 +882,7 @@ const App: React.FC = () => {
             <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
               <button 
                 onClick={() => setActiveTab('team')}
-                className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all font-bold text-xs uppercase tracking-widest"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-all font-bold text-xs uppercase tracking-widest rounded-xl"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 Back to Dashboard
@@ -968,14 +927,13 @@ const App: React.FC = () => {
         ) : (
           <SubManagerDashboard 
             subManagerName={activeManager || 'Field Agent'}
-            agent={sbSubManagers.find(sm => sm.username === activeManager) || 
-                   { id: activeManager || '', username: activeManager || '', name: activeManager || '', managerUsername: '', dutyStatus: 'offline' as const }}
-            agentId={sbSubManagers.find(sm => sm.username === activeManager)?.id || activeManager || ""}
+            agent={state.subManagers?.find(sm => sm.username === activeManager)}
+            agentId={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || ''}
             agentArea={agentArea}
             users={filteredUsers}
             receipts={filteredReceipts}
             settings={currentSettings}
-            attendanceLogs={sbAttendanceLogs}
+            attendanceLogs={state.attendanceLogs || []}
             onLogout={handleLogout}
             onAddAttendanceLog={handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
@@ -1105,36 +1063,112 @@ const App: React.FC = () => {
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
           {activeTab === 'team' && userRole === 'manager' && (
-            <SubManagerManagement
-              subManagers={sbSubManagers}
-              recentReceipts={filteredReceipts.filter(r => {
-                if (!r.collectedBy) return false;
-                // Only receipts where collectedBy matches a known agent
-                return sbSubManagers.some(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
-              }).slice(-50)}
+            <SubManagerManagement 
+              subManagers={state.subManagers || []}
+              recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
               managerId={activeManager || ''}
               onVoidReceipt={handleVoidReceipt}
               onEditReceiptAmount={handleEditReceiptAmount}
               onViewLogs={(id) => console.log('Logs for', id)}
               onAgentRecruited={(agent) => {
-                sbAddAgent(agent);
-                setSuccessToast('Agent Recruited Successfully! Use their credentials to log in.');
+                setSuccessToast("Agent Recruited Successfully! Use their email and password to log into the Agent Portal.");
                 setTimeout(() => setSuccessToast(null), 5000);
+                
+    const agentUsername = agent.username;
+    const agentId = generateId();
+
+    // Save to local accounts array so they can login directly via the main Login screen
+    saveAccount({
+      username: agentUsername,
+      password: agent.password, // The recruited agent's password from form
+      businessName: agent.name,
+      email: agent.email,
+      phone: agent.phone,
+      role: 'sub-manager',
+      managerUsername: activeManager || '',
+      createdAt: new Date().toISOString(),
+      rememberPassword: false // Require explicit remember
+    });
+
+    setState(prev => {
+      const newState = {
+        ...prev,
+        subManagers: [...(prev.subManagers || []), {
+          id: agentId,
+          name: agent.name,
+          username: agentUsername,
+          managerUsername: activeManager || '',
+          dutyStatus: 'offline' as const,
+          area: agent.area
+        }]
+      };
+      saveState(newState);
+      if (newState.currentManager || activeManager) {
+        saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+      }
+      return newState;
+    });
               }}
-              onEditAgent={async (id, updates) => {
-                await sbEditAgent(id, updates);
-                setSuccessToast('Agent updated successfully');
+              onEditAgent={(id, updates) => {
+                const agent = state.subManagers?.find(a => a.id === id);
+                if (agent) {
+                  // If we need to update the agent's name in accounts
+                  const accounts = getAccounts();
+                  const targetAccount = accounts.find(a => a.username === agent.username);
+                  if (targetAccount) {
+                    const updatedAccount = { 
+                      ...targetAccount, 
+                      username: updates.username || targetAccount.username,
+                      businessName: updates.name || targetAccount.businessName,
+                      email: updates.email || targetAccount.email,
+                      phone: updates.phone || targetAccount.phone,
+                      password: updates.password || targetAccount.password,
+                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary
+                    };
+                    
+                    if (updates.username && updates.username !== agent.username) {
+                      removeAccount(agent.username);
+                    }
+                    saveAccount(updatedAccount as any);
+                  }
+                }
+                setState(prev => {
+                  const newState = {
+                    ...prev,
+                    subManagers: prev.subManagers?.map(sm => sm.id === id ? { ...sm, ...updates } : sm)
+                  };
+                  saveState(newState);
+                  if (newState.currentManager || activeManager) {
+                    saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+                  }
+                  return newState;
+                });
+                setSuccessToast("Agent updated successfully");
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
-              onDeleteAgent={async (id) => {
-                await sbRemoveAgent(id);
-                setSuccessToast('Agent deleted successfully');
+              onDeleteAgent={(id) => {
+                const agent = state.subManagers?.find(a => a.id === id);
+                if (agent) {
+                   removeAccount(agent.username);
+                }
+                setState(prev => {
+                  const newState = {
+                    ...prev,
+                    subManagers: prev.subManagers?.filter(sm => sm.id !== id)
+                  };
+                  saveState(newState);
+                  if (newState.currentManager || activeManager) {
+                    saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+                  }
+                  return newState;
+                });
+                setSuccessToast("Agent deleted successfully");
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
-              onAddAttendanceLog={sbAddAttendanceLog}
-              onUpdateAttendanceLog={sbUpdateAttendanceLog}
-              onDeleteAttendanceLog={sbDeleteAttendanceLog}
-              attendanceLogs={sbAttendanceLogs}
+              onAddAttendanceLog={handleAddAttendanceLog}
+              onUpdateAttendanceLog={handleUpdateAttendanceLog}
+              onDeleteAttendanceLog={handleDeleteAttendanceLog}
+              attendanceLogs={state.attendanceLogs || []}
             />
           )}
         </Layout>

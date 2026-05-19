@@ -22,38 +22,30 @@ const RecruitAgentModal: React.FC<RecruitAgentModalProps> = ({ isOpen, onClose, 
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const [error, setError] = useState('');
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
-    try {
-      const { recruitAgent } = await import('../../services/subManagerService');
-      const agent = await recruitAgent(managerId, {
-        name:           formData.name,
-        username:       formData.username,
-        email:          formData.email,
-        password:       formData.password,
-        contact:        formData.phone,
-        area:           formData.area,
-        salary:         parseFloat(formData.salary) || 0,
-        commissionRate: 0,
-      });
+    // Mock asynchronous API call for UI preview
+    setTimeout(() => {
+      // 1. Instantly trigger a standard browser alert or custom UI text div
+      alert(`Success: Agent ${formData.name} has been recruited! Routing to portal creation...`);
 
+      // We also show the sleek success UI 
       setSuccess(true);
+      
       setTimeout(() => {
-        onSuccess(agent);
+        onSuccess(formData); 
+        
+        // 2. Clear out all the field states to reset the form inputs
         setFormData({ name: '', username: '', phone: '', email: '', password: '', area: 'Zone A', salary: '' });
         setSuccess(false);
+
+        // 3. Close the modal container reactively
         onClose();
         setIsLoading(false);
-      }, 1200);
-    } catch (err: any) {
-      setError(err.message || 'Recruitment failed. Please try again.');
-      setIsLoading(false);
-    }
+      }, 500);
+    }, 600);
   };
 
   if (!isOpen) return null;

@@ -77,24 +77,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         return;
       }
 
-      // ── Agent username lookup: check sub_managers table first ──
-      let authEmail: string;
-      if (!username.includes('@')) {
-        // Could be agent username — look up their real email
-        const { data: agentLookup } = await supabase
-          .from('sub_managers')
-          .select('email, username')
-          .eq('username', username)
-          .maybeSingle();
-
-        if (agentLookup?.email && agentLookup.email.includes('@')) {
-          authEmail = agentLookup.email; // Use agent's real email
-        } else {
-          authEmail = `${username}@myisp.local`; // Manager fallback
-        }
-      } else {
-        authEmail = username; // Already an email
-      }
+      let identifier = username;
+      // Note: If username has no "@", we assume it handles both old standard username and new Phone-Only pattern
+      const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
 
       let { data, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
@@ -136,54 +121,29 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       }
 
       if (data.user) {
-        // 1) Check profiles table (managers/admins)
+        // Fetch profile to check for role (use maybeSingle to avoid crash on 0 rows for new offline migrations)
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('role, username, name')
-          .eq('id', data.user.id)
+          .select('role, manager_id, name')
+          .eq('email', data.user.email)
           .maybeSingle();
 
-        // 2) Check sub_managers table (agents)
-        const { data: agentData } = await supabase
-          .from('sub_managers')
-          .select('id, username, name, manager_id, duty_status')
-          .eq('auth_user_id', data.user.id)
-          .maybeSingle();
-
-        let role: string;
-        let loginUser: string;
-
-        if (agentData) {
-          // ✅ Agent login
-          role = 'sub-manager';
-          loginUser = agentData.username;
-        } else if (profileData) {
-          // ✅ Manager/Admin login
-          role = profileData.role || 'manager';
-          loginUser = profileData.username || (username.includes('@') ? username.split('@')[0] : username);
-        } else {
-          // Fallback
-          role = 'manager';
-          loginUser = username.includes('@') ? username.split('@')[0] : username;
-        }
-
+        const role = profileData?.role || 'manager';
+        const loginUser = username.includes('@') ? username.split('@')[0] : username;
+        
         setActiveSession(loginUser);
-
         if (rememberPassword) {
           saveAccount({
             username: loginUser,
-            password,
-            businessName: agentData?.name || profileData?.name || data.user.user_metadata?.full_name || loginUser,
+            password: password,
+            businessName: profileData?.name || data.user.user_metadata?.full_name || loginUser,
             email: data.user.email || '',
-            phone: '',
+            phone: data.user.user_metadata?.phone || '',
             role: role as 'admin' | 'manager' | 'sub-manager',
-            managerUsername: agentData?.manager_id || '',
             createdAt: new Date().toISOString(),
-            rememberPassword: true,
+            rememberPassword: true
           });
         }
-
-        writeLog({ username: loginUser, action: 'LOGIN', detail: `Role: ${role}` });
         onLogin(loginUser);
         return;
       }

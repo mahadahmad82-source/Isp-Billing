@@ -17,16 +17,15 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
     return { total, count };
   }, [recentReceipts]);
   
-  // Create activity logs — ONLY from agent activities, not manager's own
+  // Create mock/derived activity logs
   const logs = [];
-
-  // 1. Agent checkins/checkouts from subManagers data
+  
+  // 1. Add agent checkins/checkouts
   subManagers.forEach(sm => {
     if (sm.lastCheckIn) {
       logs.push({
         id: `ci-${sm.id}`,
         agentName: sm.name,
-        agentUsername: sm.username,
         type: 'check_in',
         timestamp: sm.lastCheckIn,
         description: 'Started shift & checked in'
@@ -36,7 +35,6 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
       logs.push({
         id: `co-${sm.id}`,
         agentName: sm.name,
-        agentUsername: sm.username,
         type: 'check_out',
         timestamp: sm.lastCheckOut,
         description: 'Ended shift & checked out'
@@ -44,19 +42,18 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
     }
   });
 
-  // 2. Only receipts collected BY a known agent — exclude manager's own receipts
+  // 2. Add receipt collections
   recentReceipts.forEach(r => {
-    if (!r.collectedBy) return; // Skip manager's own receipts (no collectedBy)
-    const agent = subManagers.find(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
-    if (!agent) return; // Skip if collectedBy doesn't match any agent
-    logs.push({
-      id: `rec-${r.id}`,
-      agentName: agent.name,
-      agentUsername: agent.username,
-      type: 'collection',
-      timestamp: r.date,
-      description: `Collected ${r.paidAmount?.toLocaleString()} PKR from ${r.userName}`
-    });
+    if (r.collectedBy) {
+      const agent = subManagers.find(sm => sm.id === r.collectedBy);
+      logs.push({
+        id: `rec-${r.id}`,
+        agentName: agent ? agent.name : 'Unknown Agent',
+        type: 'collection',
+        timestamp: r.date,
+        description: `Collected ${r.paidAmount} PKR from ${r.userName}`
+      });
+    }
   });
 
   // Sort by timestamp desc
@@ -154,7 +151,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
                 </div>
                 <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-                    <span className="font-bold text-slate-800 dark:text-white">{log.agentName} <span className="text-[10px] font-bold text-indigo-400">@{log.agentUsername}</span></span>
+                    <span className="font-bold text-slate-800 dark:text-white">{log.agentName}</span>
                     <time className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {date.toLocaleDateString()}</time>
                   </div>
                   <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{log.description}</p>

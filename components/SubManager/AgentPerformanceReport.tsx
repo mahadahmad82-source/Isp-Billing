@@ -35,16 +35,26 @@ const AgentPerformanceReport: React.FC<AgentPerformanceReportProps> = ({
 }) => {
   // Aggregate data per agent
   const performanceData = useMemo(() => {
+    const currentMonthNum = new Date().getMonth();
+    const currentYearNum = new Date().getFullYear();
+
     return subManagers.map(agent => {
       // Collections
-      const agentReceipts = recentReceipts.filter(r => 
-        r.collectedBy === agent.id || r.collectedBy === agent.username
-      );
+      const agentReceipts = recentReceipts.filter(r => {
+        const isAgent = r.collectedBy === agent.id || r.collectedBy === agent.username;
+        const receiptDate = new Date(r.date);
+        const isCurrentMonth = receiptDate.getMonth() === currentMonthNum && receiptDate.getFullYear() === currentYearNum;
+        return isAgent && isCurrentMonth;
+      });
       const totalCollected = agentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
       const transactionCount = agentReceipts.length;
 
       // Attendance
-      const agentLogs = attendanceLogs.filter(l => l.subManagerId === agent.id);
+      const agentLogs = attendanceLogs.filter(l => {
+        if (l.subManagerId !== agent.id) return false;
+        const logDate = new Date(l.timestamp);
+        return logDate.getMonth() === currentMonthNum && logDate.getFullYear() === currentYearNum;
+      });
       const checkIns = agentLogs.filter(l => l.type === 'check-in').length;
       const leaves = agentLogs.filter(l => l.type === 'leave').length;
       

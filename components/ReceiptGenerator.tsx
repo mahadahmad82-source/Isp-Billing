@@ -49,6 +49,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
   }, [hideHistory, viewMode]);
   const [agentId, setAgentId] = useState<string | undefined>(defaultCollectedBy);
+
+  useEffect(() => {
+    if (defaultCollectedBy && !agentId) {
+      setAgentId(defaultCollectedBy);
+    }
+  }, [defaultCollectedBy, agentId]);
   const [monthlyFee, setMonthlyFee] = useState(0);
   const [previousBalance, setPreviousBalance] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0); 

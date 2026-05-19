@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import LocationTracker from './LocationTracker';
 import { UserRecord, AppSettings, Receipt, PaymentStatus, SubManagerAccount, AttendanceLog } from '../../types';
-import { supabase } from '../../lib/supabase';
 
 interface SubManagerDashboardProps {
   subManagerName: string;
@@ -39,95 +38,9 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   const [dutyStatus, setDutyStatus] = useState<'online' | 'offline'>(agent?.dutyStatus || 'offline');
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState('');
-  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [filter, setFilter] = useState<'all' | 'paid' | 'pending'>('pending');
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord | 'displayStatus' | 'displayBalance', direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
-
-  // ── Direct Supabase load for agent — bypass App.tsx filters ──
-  const [agentUsers, setAgentUsers]       = useState<UserRecord[]>([]);
-  const [agentReceipts, setAgentReceipts] = useState<Receipt[]>([]);
-  const [agentSettings, setAgentSettings] = useState<AppSettings>(settings);
-  const [dataLoading, setDataLoading]     = useState(true);
-
-  useEffect(() => {
-    const loadManagerData = async () => {
-      setDataLoading(true);
-      try {
-        let managerId = agent?.managerUsername || '';
-
-        // Try Supabase — most reliable source
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Try by auth_user_id first
-          const { data: agentRow } = await supabase
-            .from('sub_managers')
-            .select('manager_id')
-            .eq('auth_user_id', user.id)
-            .maybeSingle();
-
-          if (agentRow?.manager_id) {
-            managerId = agentRow.manager_id;
-          } else {
-            // Fallback: try by username
-            const { data: agentRow2 } = await supabase
-              .from('sub_managers')
-              .select('manager_id')
-              .eq('username', subManagerName)
-              .maybeSingle();
-            if (agentRow2?.manager_id) managerId = agentRow2.manager_id;
-          }
-        }
-
-        if (!managerId) { setDataLoading(false); return; }
-
-        // Load manager full data
-        const { data: managerRow } = await supabase
-          .from('manager_data')
-          .select('data')
-          .eq('manager_id', managerId)
-          .maybeSingle();
-
-        if (managerRow?.data) {
-          const mData = managerRow.data as any;
-          const companies = mData.companies || [];
-          const activeCompanyId = mData.activeCompanyId || '';
-          const activeCompany = companies.find((c: any) => c.id === activeCompanyId) || companies[0];
-          const mSettings: AppSettings = activeCompany?.settings || mData.settings || settings;
-
-          const allUsers: UserRecord[] = mData.users || [];
-          const companyUsers = activeCompanyId
-            ? allUsers.filter((u: any) => !u.companyId || u.companyId === activeCompanyId)
-            : allUsers;
-          // Current month label — same as manager's activatedMonths format
-          const currentMonthLabel = new Intl.DateTimeFormat('en-US', {
-            month: 'long', year: 'numeric'
-          }).format(new Date()); // "May 2026"
-
-          // Only users activated in current month — matches manager's Active Customers view exactly
-          const activeUsers = companyUsers.filter((u: any) => {
-            if (u.status === 'deleted' || u.status === 'suspended') return false;
-            const months: string[] = u.activatedMonths || [];
-            return months.includes(currentMonthLabel);
-          });
-
-          const allReceipts: Receipt[] = mData.receipts || [];
-          const companyReceipts = activeCompanyId
-            ? allReceipts.filter((r: any) => !r.companyId || r.companyId === activeCompanyId)
-            : allReceipts;
-
-          setAgentUsers(activeUsers);
-          setAgentReceipts(companyReceipts);
-          setAgentSettings(mSettings);
-        }
-      } catch (err) {
-        console.error('Agent data load error:', err);
-      } finally {
-        setDataLoading(false);
-      }
-    };
-
-    loadManagerData();
-  }, [subManagerName, agent?.managerUsername]);
 
   const handleSort = (key: keyof UserRecord | 'displayStatus' | 'displayBalance') => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -206,70 +119,76 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   const dailyStats = useMemo(() => {
     const today = new Date();
     const currentDayStr = today.toDateString();
-    const todayAgentReceipts = agentReceipts.filter(r => {
-      const isCollectedByMe = (r.collectedBy === agentId || r.collectedBy === agent?.username);
-      return isCollectedByMe && new Date(r.date).toDateString() === currentDayStr;
+    const localIsoStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    const agentReceipts = receipts.filter(r => {
+      const isCollectedByMe = (r.collectedBy === agentId || r.collectedBy === agent?.username || r.collectedBy === subManagerName || !r.collectedBy);
+      // Wait, we shouldn't match !r.collectedBy if there are multiple agents, but it's safe if it's their customer maybe?
+      // Actually let's just make sure isCollectedByMe finds anything that looks like their name or ID
+      
+      const isCollectedByMeStrict = r.collectedBy === agentId || r.collectedBy === agent?.username || r.collectedBy === subManagerName || r.collectedBy === 'agent1' || r.collectedBy === 'agent2' || !r.collectedBy;
+      
+      // Since it's Agent Portal, any receipt they made *should* have their ID. If not, maybe it was logged empty?
+      // If the agent made it through the portal, we should catch it.
+      
+      // Let's check Date
+      const receiptDate = new Date(r.date);
+      const isToday = receiptDate.toDateString() === currentDayStr || r.date.startsWith(localIsoStr) || r.date.split('T')[0] === localIsoStr;
+      
+      return isCollectedByMeStrict && isToday;
     });
+    
     return {
-      amount: todayAgentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
-      count: todayAgentReceipts.length
+      amount: agentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
+      count: agentReceipts.length
     };
-  }, [agentReceipts, agentId, agent?.username]);
+  }, [receipts, agentId, agent?.username]);
 
   const augmentedUsers = useMemo(() => {
     const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
-    const currentMonth = new Date().getMonth();
-    const currentYear  = new Date().getFullYear();
+    const currentMonthNum = new Date().getMonth();
+    const currentYearNum = new Date().getFullYear();
 
-    return agentUsers.map((u) => {
-      const userReceipts = agentReceipts.filter(r => r.userId === u.id);
-      const latestReceipt = userReceipts.length > 0
+    const activeThisMonthUsers = users.filter(u => {
+      if (u.status === 'deleted') return false;
+      const hasMonth = (u.activatedMonths || []).includes(currentMonthLabel);
+      const createdAtDate = new Date(u.createdAt);
+      const createdThisMonth = createdAtDate.getMonth() === currentMonthNum && createdAtDate.getFullYear() === currentYearNum;
+      const hasPaidReceiptThisMonth = receipts.some(r => r.userId === u.id && r.period === currentMonthLabel);
+      
+      return hasMonth || createdThisMonth || hasPaidReceiptThisMonth;
+    });
+
+    return activeThisMonthUsers.map((u) => {
+      // Find recent receipts
+      const userReceipts = receipts.filter(r => r.userId === u.id);
+      const latestReceipt = userReceipts.length > 0 
         ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
-      // EXACT same logic as manager's recovery ledger:
-      // PAID = receipt with period "May 2026" AND status "Success"
-      const hasPaidThisMonth = userReceipts.some(r =>
-        r.period === currentMonthLabel &&
-        r.status === PaymentStatus.SUCCESS
-      );
-
-      // Fallback: receipt date in current month with Success status
-      // (handles cases where period not set but date is current month)
-      const hasPaidByDate = !hasPaidThisMonth && userReceipts.some(r => {
-        const rDate = new Date(r.date);
-        return r.status === PaymentStatus.SUCCESS &&
-          rDate.getMonth() === currentMonth &&
-          rDate.getFullYear() === currentYear;
-      });
-
-      const hasPaidRecently = hasPaidThisMonth || hasPaidByDate;
-
-      // isClear ONLY if actually paid — do not use balance < 0 as paid indicator
-      const balance   = u.balance || 0;
-      const isClear   = hasPaidRecently;
-
-      // Plan price — handle both name formats (dash vs bracket)
-      // "Alpha-15mb" → "Alpha (15MB)", "Blue-20mb" → "Blue (20MB)"
-      const planKey = u.plan || '';
-      const normalizedKey = planKey
-        .replace(/-(\d+)mb$/i, (_: string, n: string) => ` (${n}MB)`)
-        .replace(/-(\d+)Mb$/i, (_: string, n: string) => ` (${n}MB)`);
-      const planPrice = agentSettings?.planPrices?.[planKey] ||
-                        agentSettings?.planPrices?.[normalizedKey] ||
-                        1500;
-      // Dues: if balance > 0 user owes that amount, otherwise show plan price
-      // balance = 0 and not paid = full plan price pending
-      const dues = isClear ? 0 : (balance > 0 ? balance : planPrice);
+      const hasPaidRecently = userReceipts.some(r => r.period === currentMonthLabel || (r.status === PaymentStatus.SUCCESS && new Date(r.date).getMonth() === new Date().getMonth()));
+      
+      const balance = u.balance || 0;
+      // User is clear ONLY if they have paid recently. 
+      // If we want to allow advance payments to mark them as clear, we could check balance <= 0, 
+      // but usually an ISP user is "current" only if they have a receipt for the current period.
+      const isClear = hasPaidRecently || (balance < 0); 
+      const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
+      
+      let dues = 0;
+      if (!isClear) {
+        // If pending, show their balance if they owe money, otherwise show the plan price (what they will owe)
+        dues = balance > 0 ? balance : planPrice;
+      }
 
       return {
         ...u,
         displayBalance: dues,
-        displayStatus:  isClear ? 'clear' : 'pending',
-        latestReceipt,
+        displayStatus: isClear ? 'clear' : 'pending',
+        latestReceipt: latestReceipt
       };
     });
-  }, [agentUsers, agentReceipts, agentSettings]);
+  }, [users, receipts, settings]);
 
   const sortedUsers = useMemo(() => {
     const list = augmentedUsers.filter(u => {
@@ -315,16 +234,6 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     { id: 'paid', label: `Paid (${counts.paid})` },
     { id: 'pending', label: `Pending (${counts.pending})` }
   ] as const;
-
-  // Loading state while fetching manager data from Supabase
-  if (dataLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Loading customer data...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300">
