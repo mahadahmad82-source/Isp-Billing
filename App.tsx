@@ -882,9 +882,9 @@ const App: React.FC = () => {
             <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
               <button 
                 onClick={() => setActiveTab('team')}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-all font-bold text-xs uppercase tracking-widest rounded-xl"
+                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white transition-all font-bold text-sm uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 active:scale-95"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 Back to Dashboard
               </button>
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Agent Override Mode</div>

@@ -118,22 +118,27 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
 
   const dailyStats = useMemo(() => {
     const today = new Date();
-    const currentDayStr = today.toDateString();
-    const localIsoStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    // Use local date components for robust matching
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentDate = today.getDate();
 
     const agentReceipts = receipts.filter(r => {
-      const isCollectedByMe = (r.collectedBy === agentId || r.collectedBy === agent?.username || r.collectedBy === subManagerName || !r.collectedBy);
-      // Wait, we shouldn't match !r.collectedBy if there are multiple agents, but it's safe if it's their customer maybe?
-      // Actually let's just make sure isCollectedByMe finds anything that looks like their name or ID
+      // 1. Ownership & Authority Check
+      const isCollectedByMeStrict = 
+        r.collectedBy === agentId || 
+        r.collectedBy === agent?.username || 
+        r.collectedBy === subManagerName || 
+        r.collectedBy === 'agent1' || 
+        r.collectedBy === 'agent2' || 
+        !r.collectedBy;
       
-      const isCollectedByMeStrict = r.collectedBy === agentId || r.collectedBy === agent?.username || r.collectedBy === subManagerName || r.collectedBy === 'agent1' || r.collectedBy === 'agent2' || !r.collectedBy;
-      
-      // Since it's Agent Portal, any receipt they made *should* have their ID. If not, maybe it was logged empty?
-      // If the agent made it through the portal, we should catch it.
-      
-      // Let's check Date
+      // 2. Exact Date Check (Local Time Component)
       const receiptDate = new Date(r.date);
-      const isToday = receiptDate.toDateString() === currentDayStr || r.date.startsWith(localIsoStr) || r.date.split('T')[0] === localIsoStr;
+      const isToday = 
+        receiptDate.getFullYear() === currentYear && 
+        receiptDate.getMonth() === currentMonth && 
+        receiptDate.getDate() === currentDate;
       
       return isCollectedByMeStrict && isToday;
     });
@@ -142,7 +147,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       amount: agentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
       count: agentReceipts.length
     };
-  }, [receipts, agentId, agent?.username]);
+  }, [receipts, agentId, agent?.username, subManagerName]);
 
   const augmentedUsers = useMemo(() => {
     const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
@@ -151,11 +156,16 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
 
     const activeThisMonthUsers = users.filter(u => {
       if (u.status === 'deleted') return false;
+      
+      // Strict Area Restriction: Only show users in the agent's assigned area
+      if (agentArea && u.area && u.area !== agentArea) return false;
+
       const hasMonth = (u.activatedMonths || []).includes(currentMonthLabel);
       const createdAtDate = new Date(u.createdAt);
       const createdThisMonth = createdAtDate.getMonth() === currentMonthNum && createdAtDate.getFullYear() === currentYearNum;
       const hasPaidReceiptThisMonth = receipts.some(r => r.userId === u.id && r.period === currentMonthLabel);
       
+      // Only show if activated for this month, created this month, or has a transaction for this month
       return hasMonth || createdThisMonth || hasPaidReceiptThisMonth;
     });
 
@@ -166,13 +176,12 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
         ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
-      const hasPaidRecently = userReceipts.some(r => r.period === currentMonthLabel || (r.status === PaymentStatus.SUCCESS && new Date(r.date).getMonth() === new Date().getMonth()));
+      // STRICTION: Avoid marking previous months' payments as current month "Clear"
+      const hasPaidForCurrentMonth = userReceipts.some(r => r.period === currentMonthLabel && r.status === PaymentStatus.SUCCESS);
       
       const balance = u.balance || 0;
-      // User is clear ONLY if they have paid recently. 
-      // If we want to allow advance payments to mark them as clear, we could check balance <= 0, 
-      // but usually an ISP user is "current" only if they have a receipt for the current period.
-      const isClear = hasPaidRecently || (balance < 0); 
+      // User is clear ONLY if they have paid for the exact billing period
+      const isClear = hasPaidForCurrentMonth || (balance < 0); 
       const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
       
       let dues = 0;
