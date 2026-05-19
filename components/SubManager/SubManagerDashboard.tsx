@@ -98,9 +98,17 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
           const companyUsers = activeCompanyId
             ? allUsers.filter((u: any) => !u.companyId || u.companyId === activeCompanyId)
             : allUsers;
-          const activeUsers = companyUsers.filter((u: any) =>
-            u.status !== 'deleted' && u.status !== 'suspended'
-          );
+          // Current month label — same as manager's activatedMonths format
+          const currentMonthLabel = new Intl.DateTimeFormat('en-US', {
+            month: 'long', year: 'numeric'
+          }).format(new Date()); // "May 2026"
+
+          // Only users activated in current month — matches manager's Active Customers view exactly
+          const activeUsers = companyUsers.filter((u: any) => {
+            if (u.status === 'deleted' || u.status === 'suspended') return false;
+            const months: string[] = u.activatedMonths || [];
+            return months.includes(currentMonthLabel);
+          });
 
           const allReceipts: Receipt[] = mData.receipts || [];
           const companyReceipts = activeCompanyId
@@ -219,14 +227,20 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
         ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
+      // Match manager's exact paid logic:
+      // A user is PAID if they have a receipt whose period includes current month name
+      // OR receipt date is in current month with SUCCESS status
+      const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()); // "May"
       const hasPaidRecently = userReceipts.some(r => {
         const rDate = new Date(r.date);
-        return (
-          r.period === currentMonthLabel ||
-          (r.status === PaymentStatus.SUCCESS &&
-            rDate.getMonth() === currentMonth &&
-            rDate.getFullYear() === currentYear)
+        const periodMatch = r.period && (
+          r.period === currentMonthLabel ||           // exact "May 2026"
+          r.period.includes(currentMonthName)         // period has "May" in it
         );
+        const dateMatch = r.status === PaymentStatus.SUCCESS &&
+          rDate.getMonth() === currentMonth &&
+          rDate.getFullYear() === currentYear;
+        return periodMatch || dateMatch;
       });
 
       const balance   = u.balance || 0;
