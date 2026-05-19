@@ -157,16 +157,15 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     const activeThisMonthUsers = users.filter(u => {
       if (u.status === 'deleted') return false;
       
-      // Strict Area Restriction: Only show users in the agent's assigned area
+      // Area Restriction: Still respect agent's area if defined
       if (agentArea && u.area && u.area !== agentArea) return false;
 
-      const hasMonth = (u.activatedMonths || []).includes(currentMonthLabel);
-      const createdAtDate = new Date(u.createdAt);
-      const createdThisMonth = createdAtDate.getMonth() === currentMonthNum && createdAtDate.getFullYear() === currentYearNum;
-      const hasPaidReceiptThisMonth = receipts.some(r => r.userId === u.id && r.period === currentMonthLabel);
+      // STRICTION: Only show users officially activated for this period in the Ledger
+      // Matching RecoverySummary.tsx line 115-118
+      const isActivatedForThisMonth = (u.activatedMonths || []).includes(currentMonthLabel);
+      const hasReceiptForThisMonth = receipts.some(r => r.userId === u.id && r.period === currentMonthLabel);
       
-      // Only show if activated for this month, created this month, or has a transaction for this month
-      return hasMonth || createdThisMonth || hasPaidReceiptThisMonth;
+      return isActivatedForThisMonth || hasReceiptForThisMonth;
     });
 
     return activeThisMonthUsers.map((u) => {
