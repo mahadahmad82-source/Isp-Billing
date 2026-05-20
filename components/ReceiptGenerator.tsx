@@ -90,18 +90,37 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       ? settings.planPrices[user.plan] 
       : (user.monthlyFee || 0);
     
-    // 2. Detect Arrears from Past Records (STRICT April 2026 Baseline)
+    // 2. Detect Arrears from Past Records (AGENT PORTAL RECURSIVE LOOKUP)
     const userReceipts = receipts.filter(r => r.userId === user.id);
-    const strictlyApril2026 = "April 2026";
-    const aprilReceipts = userReceipts.filter(r => r.period === strictlyApril2026 || r.period === "04/2026");
+    const isAgentPortal = !!agentId || !!defaultCollectedBy;
     
-    // Force evaluation of April 2026 first.
-    const latestAprilReceipt = aprilReceipts.length > 0 
-      ? [...aprilReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-      : null;
+    let balance = 0;
     
-    // If April is not found, we use the user's current persistent balance
-    const balance = latestAprilReceipt ? latestAprilReceipt.balanceAmount : (user.balance || 0);
+    if (isAgentPortal) {
+      const sortedReceipts = [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const lastActiveRecord = sortedReceipts[0];
+      
+      if (lastActiveRecord) {
+        if (lastActiveRecord.status === PaymentStatus.PENDING) {
+          // PENDING ARREARS & DISCOUNT MATRIX: (Past Monthly Bill + Past Arrears) - Past Applied Discount
+          // This matches the totalAmount field precisely.
+          balance = lastActiveRecord.totalAmount || 0;
+        } else {
+          // If PAID, default to remaining arrears on that receipt
+          balance = lastActiveRecord.balanceAmount || 0;
+        }
+      } else {
+        balance = user.balance || 0;
+      }
+    } else {
+      // MANAGER ACCOUNT: Maintain STRICT April 2026 Baseline as per standard ledger logic
+      const strictlyApril2026 = "April 2026";
+      const aprilReceipts = userReceipts.filter(r => r.period === strictlyApril2026 || r.period === "04/2026");
+      const latestAprilReceipt = aprilReceipts.length > 0 
+        ? [...aprilReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+        : null;
+      balance = latestAprilReceipt ? latestAprilReceipt.balanceAmount : (user.balance || 0);
+    }
     const persistentDisc = user.persistentDiscount || 0;
     
     setMonthlyFee(fee);
@@ -110,7 +129,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     setAmountPaid((fee + balance) - persistentDisc);
     setAdvanceAmount(0);
     setDescription(user.description || settings.globalNote || '');
-  }, [users, receipts, settings.planPrices, settings.globalNote]);
+  }, [users, receipts, settings.planPrices, settings.globalNote, agentId, defaultCollectedBy]);
 
   useEffect(() => {
     if (viewMode === 'create') {
