@@ -18,7 +18,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <div className="pt-32 pb-32 px-6">
+    <div className="pt-32 pb-32 px-6 relative z-10">
       <div className="max-w-7xl mx-auto">
         {/* Features Grid */}
         <div className="text-center mb-32">
@@ -28,10 +28,15 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
             viewport={{ once: true }}
             className="inline-block px-4 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 mb-8"
           >
-            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em]">System Architecture</span>
+            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em]">System Architecture</span>
           </motion.div>
-          <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter mb-8 leading-[0.9] text-slate-900 dark:text-white">Core <br /> Infrastructure</h1>
-          <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg font-medium">
+          <h1 className="font-bold tracking-tight leading-none mb-4 select-none"
+            style={{
+              fontSize: 'clamp(2.5rem, 7vw, 6rem)',
+              color: '#f1f5f9',
+              textShadow: '0 0 80px rgba(99,102,241,0.5)',
+            }}>Core <br /> Infrastructure</h1>
+          <p className="max-w-2xl mx-auto text-base md:text-lg font-medium leading-relaxed mb-8 drop-shadow-md text-slate-300">
             Engineered for high-performance ISP management. Every component is optimized 
             for speed, reliability, and absolute data privacy.
           </p>
@@ -48,7 +53,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
           ].map((feature, idx) => (
             <motion.div 
               key={idx} 
-              className="p-12 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-xl hover:border-indigo-500/50 transition-all group"
+              className="p-12 bg-white/10 backdrop-blur-md rounded-[3rem] border border-white/20 shadow-xl hover:border-indigo-500/50 transition-all group"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -57,8 +62,8 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
               <div className="w-20 h-20 bg-indigo-500/10 rounded-[2rem] flex items-center justify-center text-indigo-600 mb-10 group-hover:scale-110 transition-transform">
                 {feature.icon}
               </div>
-              <h3 className="text-3xl font-black mb-6 uppercase tracking-tight text-slate-900 dark:text-white">{feature.title}</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-lg leading-relaxed font-medium">{feature.desc}</p>
+              <h3 className="text-3xl font-black mb-6 uppercase tracking-tight text-white">{feature.title}</h3>
+              <p className="text-slate-300 text-lg leading-relaxed font-medium">{feature.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -66,13 +71,13 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
         {/* Advanced Capabilities */}
         <div className="mb-40">
           <div className="text-center mb-24">
-            <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter mb-6 text-slate-900 dark:text-white">Advanced <br /> Capabilities</h2>
-            <p className="text-indigo-500 font-bold uppercase text-[10px] tracking-[0.4em]">Enterprise-Grade Infrastructure</p>
+            <h2 className="text-5xl md:text-7xl font-bold uppercase tracking-tighter mb-6 text-white">Advanced <br /> Capabilities</h2>
+            <p className="text-indigo-300 font-bold uppercase text-[10px] tracking-[0.4em]">Enterprise-Grade Infrastructure</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <motion.div 
-              className="p-12 bg-indigo-600 rounded-[4rem] text-white relative overflow-hidden group shadow-2xl"
+              className="p-12 bg-white/10 backdrop-blur-md rounded-[4rem] text-white relative overflow-hidden group shadow-2xl border border-white/20"
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -83,7 +88,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                   <Activity className="w-8 h-8" />
                 </div>
                 <h3 className="text-4xl font-black mb-6 uppercase tracking-tight">AI Recovery Engine</h3>
-                <p className="text-indigo-100 text-lg leading-relaxed font-medium mb-8">
+                <p className="text-slate-100 text-lg leading-relaxed font-medium mb-8">
                   Our proprietary AI analyzes payment patterns to predict potential defaults before they happen, 
                   allowing you to take proactive measures.
                 </p>
@@ -95,7 +100,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
             </motion.div>
 
             <motion.div 
-              className="p-12 bg-slate-900 rounded-[4rem] text-white relative overflow-hidden group shadow-2xl border border-white/5"
+              className="p-12 bg-white/10 backdrop-blur-md rounded-[4rem] text-white relative overflow-hidden group shadow-2xl border border-white/20"
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -106,7 +111,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                   <Database className="w-8 h-8" />
                 </div>
                 <h3 className="text-4xl font-black mb-6 uppercase tracking-tight">Multi-Node Sync</h3>
-                <p className="text-slate-400 text-lg leading-relaxed font-medium mb-8">
+                <p className="text-slate-200 text-lg leading-relaxed font-medium mb-8">
                   Manage multiple ISP branches with real-time data synchronization. 
                   Every node stays updated across all your devices instantly.
                 </p>
@@ -126,7 +131,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
             ].map((item, idx) => (
               <motion.div 
                 key={idx}
-                className="p-10 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-xl hover:border-indigo-500/50 transition-all"
+                className="p-10 bg-white/10 backdrop-blur-md rounded-[3rem] border border-white/20 shadow-xl hover:border-indigo-500/50 transition-all"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -135,8 +140,8 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                 <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-600 mb-6">
                   {item.icon}
                 </div>
-                <h4 className="text-xl font-black mb-3 uppercase tracking-tight text-slate-900 dark:text-white">{item.title}</h4>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">{item.desc}</p>
+                <h4 className="text-xl font-black mb-3 uppercase tracking-tight text-white">{item.title}</h4>
+                <p className="text-slate-200 text-sm font-medium leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -145,14 +150,14 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
         {/* FAQ */}
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-24">
-            <h2 className="text-5xl font-black uppercase tracking-tighter mb-6 text-slate-900 dark:text-white">System FAQ</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-[0.4em]">Technical Support</p>
+            <h2 className="text-5xl font-black uppercase tracking-tighter mb-6 text-white">System FAQ</h2>
+            <p className="text-slate-200 font-bold uppercase text-[10px] tracking-[0.4em]">Technical Support</p>
           </div>
           <div className="space-y-6">
             {faqs.map((faq, idx) => (
               <motion.div 
                 key={idx} 
-                className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 overflow-hidden shadow-sm hover:border-indigo-500/30 transition-all"
+                className="bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 overflow-hidden shadow-sm hover:border-indigo-500/30 transition-all"
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -161,8 +166,8 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                   className="w-full p-10 text-left flex justify-between items-center group"
                   onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
                 >
-                  <span className="text-xl font-black uppercase tracking-tight group-hover:text-indigo-500 transition-colors text-slate-900 dark:text-white">{faq.q}</span>
-                  <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center transition-all ${activeFaq === idx ? 'rotate-180 bg-indigo-500 text-white' : 'text-slate-400'}`}>
+                  <span className="text-xl font-black uppercase tracking-tight group-hover:text-indigo-400 transition-colors text-white">{faq.q}</span>
+                  <div className={`w-10 h-10 rounded-xl bg-slate-800/80 flex items-center justify-center transition-all ${activeFaq === idx ? 'rotate-180 bg-indigo-500 text-white' : 'text-slate-400'}`}>
                     <ChevronDown className="w-6 h-6" />
                   </div>
                 </button>
@@ -170,7 +175,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                   <motion.div 
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
-                    className="px-10 pb-10 text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed"
+                    className="px-10 pb-10 text-slate-300 text-lg font-medium leading-relaxed"
                   >
                     {faq.a}
                   </motion.div>

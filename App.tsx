@@ -855,8 +855,6 @@ const App: React.FC = () => {
               showLanding ? (
                 <LandingPage 
                   onGetStarted={() => setShowLanding(false)} 
-                  theme={state.theme || 'light'} 
-                  onToggleTheme={handleToggleTheme}
                 />
               ) : (
                 <Login 

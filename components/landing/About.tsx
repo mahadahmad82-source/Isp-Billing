@@ -5,7 +5,7 @@ import { Shield, Target, Zap, Users, Globe, Cpu, Star } from 'lucide-react';
 
 const About: React.FC = () => {
   return (
-    <div className="pt-32 pb-32 px-6">
+    <div className="pt-32 pb-32 px-6 relative z-10">
       <div className="max-w-7xl mx-auto">
         {/* Mission Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center mb-40">
@@ -17,8 +17,13 @@ const About: React.FC = () => {
             <div className="inline-block px-4 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 mb-8">
               <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em]">Our Mission</span>
             </div>
-            <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter mb-10 leading-[0.9] text-slate-900 dark:text-white">Architecting <br /> Digital Trust</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-xl mb-10 leading-relaxed font-medium">
+            <h2 className="font-bold tracking-tight leading-none mb-10 select-none"
+              style={{
+                fontSize: 'clamp(2.5rem, 7vw, 6rem)',
+                color: '#f1f5f9',
+                textShadow: '0 0 80px rgba(99,102,241,0.5)',
+              }}>Architecting <br /> Digital Trust</h2>
+            <p className="max-w-2xl text-base md:text-lg font-medium leading-relaxed mb-10 drop-shadow-md text-slate-300">
               MYISP was born out of the need for a robust, offline-first management system 
               that doesn't compromise on speed or security. We understand the challenges of 
               managing a growing subscriber base, and we've built the tools to help you scale 
@@ -42,7 +47,7 @@ const About: React.FC = () => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
           >
-            <div className="aspect-square bg-slate-900 rounded-[4rem] border border-white/5 shadow-2xl overflow-hidden relative group">
+            <div className="aspect-square bg-white/10 backdrop-blur-md rounded-[4rem] border border-white/20 shadow-2xl overflow-hidden relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
               <div className="absolute inset-0 flex items-center justify-center">
                 <Shield className="w-40 h-40 text-indigo-500/20" />
@@ -79,12 +84,12 @@ const About: React.FC = () => {
             { title: 'High Performance', desc: 'Built with a high-speed processing engine to handle thousands of records instantly.', icon: <Zap className="w-6 h-6" /> },
             { title: 'User Centric', desc: 'Designed for ISP managers, by people who understand the network business.', icon: <Users className="w-6 h-6" /> },
           ].map((v, idx) => (
-            <div key={idx} className="p-12 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-xl">
+            <div key={idx} className="p-12 bg-white/10 backdrop-blur-md rounded-[3rem] border border-white/20 shadow-xl">
               <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-600 mb-8">
                 {v.icon}
               </div>
-              <h3 className="text-2xl font-black mb-4 uppercase tracking-tight text-slate-900 dark:text-white">{v.title}</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">{v.desc}</p>
+              <h3 className="text-2xl font-black mb-4 uppercase tracking-tight text-white">{v.title}</h3>
+              <p className="text-slate-200 text-sm font-medium leading-relaxed">{v.desc}</p>
             </div>
           ))}
         </div>
@@ -96,20 +101,25 @@ const About: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-20 text-slate-900 dark:text-white">Trusted by <br /> Network Engineers</h2>
+            <h2 className="font-bold tracking-tight leading-none mb-20 select-none"
+              style={{
+                fontSize: 'clamp(2.5rem, 7vw, 6rem)',
+                color: '#f1f5f9',
+                textShadow: '0 0 80px rgba(99,102,241,0.5)',
+              }}>Trusted by <br /> Network Engineers</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 { name: "Ahmad Khan", role: "ISP Owner", quote: "MYISP transformed how we handle recoveries. The precision is unmatched." },
                 { name: "Sarah Malik", role: "Network Manager", quote: "The offline capability is a lifesaver for our field operations." },
                 { name: "Bilal Sheikh", role: "Operations Lead", quote: "Professional receipts have made us look credible and trustworthy." }
               ].map((t, idx) => (
-                <div key={idx} className="p-10 bg-slate-50 dark:bg-slate-950/50 rounded-[3rem] text-left border border-slate-100 dark:border-white/5">
+                <div key={idx} className="p-10 bg-white/10 backdrop-blur-md rounded-[3rem] text-left border border-white/20 shadow-xl">
                   <div className="flex gap-1 mb-6">
                     {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />)}
                   </div>
-                  <p className="text-slate-600 dark:text-slate-300 font-medium mb-8 italic leading-relaxed">"{t.quote}"</p>
+                  <p className="text-slate-300 font-medium mb-8 italic leading-relaxed">"{t.quote}"</p>
                   <div>
-                    <p className="font-black uppercase tracking-tight text-sm text-slate-900 dark:text-white">{t.name}</p>
+                    <p className="font-black uppercase tracking-tight text-sm text-white">{t.name}</p>
                     <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{t.role}</p>
                   </div>
                 </div>

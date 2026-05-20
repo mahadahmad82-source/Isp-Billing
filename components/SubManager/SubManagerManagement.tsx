@@ -45,7 +45,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const [performanceAgentId, setPerformanceAgentId] = useState<string | null>(null);
 
-  const selectedAgentForPerformance = subManagers.find(sm => sm.id === performanceAgentId);
+  const selectedAgentForPerformance = subManagers.find(sm => sm.id === performanceAgentId || sm.username === performanceAgentId);
   const agentReceipts = recentReceipts.filter(r => r.collectedBy === performanceAgentId || r.collectedBy === selectedAgentForPerformance?.username);
 
   const handleDelete = (id: string) => {
@@ -294,7 +294,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
           {subManagers.map(sm => (
             <div key={sm.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
               {/* Background Status Glow */}
-              <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[64px] opacity-10 transition-colors ${sm.dutyStatus === 'online' ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
+              <div className={`absolute pointer-events-none -top-24 -right-24 w-48 h-48 rounded-full blur-[64px] opacity-10 transition-colors ${sm.dutyStatus === 'online' ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
               
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -314,7 +314,8 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const accounts = getAccounts();
                       const acc = accounts.find(a => a.username === sm.username);
                       setEditingAgent({
@@ -331,14 +332,20 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                   </button>
                   <button 
-                    onClick={() => handleDelete(sm.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(sm.id || sm.username);
+                    }}
                     title="Delete Agent"
                     className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-rose-500 transition-all hover:scale-110"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                   </button>
                   <button 
-                    onClick={() => setPerformanceAgentId(sm.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPerformanceAgentId(sm.id || sm.username);
+                    }}
                     title="View Agent Performance"
                     className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-emerald-500 transition-all hover:scale-110 active:scale-95"
                   >
@@ -418,7 +425,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
               <div className="grid grid-cols-3 gap-6">
                 <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Collections</p>
-                  <p className="text-2xl font-black text-emerald-500">Rs. {agentReceipts.reduce((sum, r) => sum + r.paidAmount, 0).toLocaleString()}</p>
+                  <p className="text-2xl font-black text-emerald-500">Rs. {agentReceipts.reduce((sum, r) => sum + (r.paidAmount || 0), 0).toLocaleString()}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Bills Issued</p>
@@ -464,7 +471,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                               <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 opacity-80">{rec.period}</p>
                             </td>
                             <td className="px-6 py-4">
-                              <p className="text-sm font-black text-slate-700 dark:text-slate-300">Rs. {rec.paidAmount.toLocaleString()}</p>
+                              <p className="text-sm font-black text-slate-700 dark:text-slate-300">Rs. {(rec.paidAmount || 0).toLocaleString()}</p>
                             </td>
                             <td className="px-6 py-4 text-right">
                               <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">Success</span>

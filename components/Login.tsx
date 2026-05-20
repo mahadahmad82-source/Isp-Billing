@@ -433,7 +433,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <input type="text" className={inputCls} placeholder="Email, Phone, or Username" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} required />
               </div>
               <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all">
+                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
                   {isLoading ? loadingText : 'Reset Password'}
                 </button>
               </div>
@@ -458,7 +458,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <input className={inputCls} placeholder="OTP yahan daalen" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} maxLength={6} required />
               </div>
               <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all">
+                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
                   {isLoading ? loadingText : 'Verify OTP'}
                 </button>
               </div>
@@ -491,7 +491,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 </div>
               </div>
               <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-emerald-500/20 active:scale-95 transition-all">
+                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-emerald-500/50 active:scale-95 transition-all hover:shadow-emerald-500/70 hover:-translate-y-0.5">
                   {isLoading ? loadingText : 'Update Password'}
                 </button>
               </div>
@@ -558,11 +558,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
                 <div className="flex items-center gap-2 px-1">
                   <input type="checkbox" id="rememberPassword" checked={rememberPassword} onChange={e => setRememberPassword(e.target.checked)} className="w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-600 cursor-pointer" />
-                  <label htmlFor="rememberPassword" className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest cursor-pointer select-none">Save Password</label>
+                  <label htmlFor="rememberPassword" className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest cursor-pointer select-none">Remember Me</label>
                 </div>
 
                 <div className="pt-2">
-                  <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all transform hover:-translate-y-1">
+                  <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all transform hover:shadow-indigo-500/70 hover:-translate-y-0.5">
                     {isLoading ? loadingText : (view === 'signup' ? 'Initialise Node' : 'Authorise Entry')}
                   </button>
                 </div>
