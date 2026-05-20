@@ -90,13 +90,18 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       ? settings.planPrices[user.plan] 
       : (user.monthlyFee || 0);
     
-    // 2. Detect Arrears from Past Records (Latest Receipt Balance)
+    // 2. Detect Arrears from Past Records (STRICT April 2026 Baseline)
     const userReceipts = receipts.filter(r => r.userId === user.id);
-    const latestReceipt = userReceipts.length > 0 
-      ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+    const strictlyApril2026 = "April 2026";
+    const aprilReceipts = userReceipts.filter(r => r.period === strictlyApril2026 || r.period === "04/2026");
+    
+    // Force evaluation of April 2026 first.
+    const latestAprilReceipt = aprilReceipts.length > 0 
+      ? [...aprilReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
       : null;
     
-    const balance = latestReceipt ? latestReceipt.balanceAmount : (user.balance || 0);
+    // If April is not found, we use the user's current persistent balance
+    const balance = latestAprilReceipt ? latestAprilReceipt.balanceAmount : (user.balance || 0);
     const persistentDisc = user.persistentDiscount || 0;
     
     setMonthlyFee(fee);

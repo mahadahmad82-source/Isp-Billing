@@ -184,10 +184,16 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
       
       // Arrears must load data dynamically based on the unpaid balance remaining at the end of April 2026
+      // STRICT ARREARS BASELINE: Hardcoded to April 2026 lookup
       const strictlyApril2026 = "April 2026";
-      const aprilReceipt = userReceipts.find(r => r.period === strictlyApril2026);
+      const aprilReceipts = userReceipts.filter(r => r.period === strictlyApril2026 || r.period === "04/2026");
       
-      const arrears = aprilReceipt ? (aprilReceipt.balanceAmount || 0) : (u.balance || 0);
+      // Prioritize April 2026 records. Do not allow skipping to older months unless April is found or confirmed empty.
+      const latestAprilReceipt = aprilReceipts.length > 0
+        ? [...aprilReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+        : null;
+      
+      const arrears = latestAprilReceipt ? (latestAprilReceipt.balanceAmount || 0) : (u.balance || 0);
       const discount = u.persistentDiscount || 0;
       
       // Total Outstanding Dues = (Current Monthly Bill + Arrears) - Applied Discount
