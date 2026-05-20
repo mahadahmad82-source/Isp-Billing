@@ -183,8 +183,11 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       
       const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
       
-      // Arrears is the balance from the latest receipt or the user's base balance
-      const arrears = latestReceipt ? (latestReceipt.balanceAmount || 0) : (u.balance || 0);
+      // Arrears must load data dynamically based on the unpaid balance remaining at the end of April 2026
+      const strictlyApril2026 = "April 2026";
+      const aprilReceipt = userReceipts.find(r => r.period === strictlyApril2026);
+      
+      const arrears = aprilReceipt ? (aprilReceipt.balanceAmount || 0) : (u.balance || 0);
       const discount = u.persistentDiscount || 0;
       
       // Total Outstanding Dues = (Current Monthly Bill + Arrears) - Applied Discount

@@ -708,13 +708,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             <p className="text-[10px] mb-2">{settings.businessPhone}</p>
             <p className="text-[9px] border-y border-dashed border-slate-300 w-full py-1 mb-3 font-mono">-------------------------------------</p>
             <div className="w-full text-left space-y-1.5 mb-3">
-              <div className="flex justify-between text-[11px]"><span className="font-bold">SERIAL:</span><span>{activeReceipt.transactionRef}</span></div>
-              <div className="flex justify-between text-[11px]"><span className="font-bold">DATE:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
-              <div className="flex justify-between text-[11px]"><span className="font-bold">PAYMENT:</span><span className="font-black uppercase">{activeReceipt.paymentMethod}</span></div>
-              <div className="flex justify-between text-[11px]"><span className="font-bold">NAME:</span><span className="font-black whitespace-normal text-right flex-1 ml-2">{activeReceipt.userName}</span></div>
-              <div className="flex justify-between text-[11px]"><span className="font-bold">USER ID:</span><span className="font-black text-right">@{activeReceipt.username}</span></div>
-              <div className="flex justify-between text-[11px]"><span className="font-bold">ADDR:</span><span className="font-bold text-[9px] whitespace-normal text-right flex-1 ml-2">{activeReceipt.userAddress || 'N/A'}</span></div>
-              <div className="flex justify-between text-[11px]"><span className="font-bold">PERIOD:</span><span>{activeReceipt.period}</span></div>
+              <div className="flex justify-between text-[11px]"><span>SERIAL:</span><span>{activeReceipt.transactionRef}</span></div>
+              <div className="flex justify-between text-[11px]"><span>DATE:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between text-[11px]"><span>PAYMENT:</span><span className="font-bold uppercase tracking-tight">{activeReceipt.paymentMethod}</span></div>
+              <div className="flex justify-between text-[11px]"><span>NAME:</span><span className="font-bold whitespace-normal text-right flex-1 ml-2">{activeReceipt.userName}</span></div>
+              <div className="flex justify-between text-[11px]"><span>USER ID:</span><span className="font-bold text-right text-indigo-700">@{activeReceipt.username}</span></div>
+              <div className="flex justify-between text-[11px]"><span>ADDR:</span><span className="text-[9px] whitespace-normal text-right flex-1 ml-2">{activeReceipt.userAddress || 'N/A'}</span></div>
+              <div className="flex justify-between text-[11px]"><span>PERIOD:</span><span>{activeReceipt.period}</span></div>
             </div>
             <p className="text-[9px] border-b border-dashed border-slate-300 w-full pb-1 mb-3 font-mono">-------------------------------------</p>
             <div className="w-full text-left space-y-1 mb-4 text-[11px]">
