@@ -319,6 +319,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                       // Prioritize data from state (sm), fallback to local accounts if needed
                       setEditingAgent({
                         ...sm,
+                        username: sm.username || sm.id || '', // Fallback for older data
                         email: sm.email || '',
                         phone: sm.phone || '',
                         password: sm.password || '',

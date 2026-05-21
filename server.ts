@@ -51,13 +51,18 @@ async function startServer() {
         for (const manager of managers) {
           const agents = (manager.data as any).subManagers || [];
           const agent = agents.find((sm: any) => {
-            const smName = (sm.username || '').toLowerCase().trim();
+            const smName = (sm.username || sm.id || '').toLowerCase().trim();
             const smEmail = (sm.email || '').toLowerCase().trim();
             const smPhone = (sm.phone || '').trim();
             const inputName = username.toLowerCase().trim();
+            const smPassword = (sm.password || '').trim();
+            const inputPassword = (password || '').trim();
             
-            return (smName === inputName || smEmail === inputName || smPhone === username) && 
-                   sm.password === password;
+            // Verifying credentials with expanded fallbacks
+            const nameMatch = smName === inputName || smEmail === inputName || smPhone === inputName;
+            const passwordMatch = smPassword === inputPassword;
+            
+            return nameMatch && passwordMatch;
           });
           
           if (agent) {

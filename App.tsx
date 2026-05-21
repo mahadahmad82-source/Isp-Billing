@@ -1126,12 +1126,12 @@ const App: React.FC = () => {
           username: agentUsername,
           managerUsername: activeManager || '',
           dutyStatus: 'offline' as const,
-          area: agent.area,
-          password: agent.password, // Keep password synced for remote lookups
-          email: agent.email,
-          phone: agent.phone,
-          salary: agent.salary
-        }]
+          area: agent.area || 'General',
+          password: agent.password, 
+          email: agent.email || '',
+          phone: agent.phone || '',
+          salary: agent.salary || ''
+        } as SubManagerAccount]
       };
       saveState(newState);
       if (newState.currentManager || activeManager) {
@@ -1141,9 +1141,8 @@ const App: React.FC = () => {
     });
               }}
               onEditAgent={(id, updates) => {
-                const agent = state.subManagers?.find(a => a.id === id);
+                const agent = state.subManagers?.find(a => a.id === id || a.username === id);
                 if (agent) {
-                  // If we need to update the agent's name in accounts
                   const accounts = getAccounts();
                   const targetAccount = accounts.find(a => a.username === agent.username);
                   if (targetAccount) {
@@ -1154,7 +1153,8 @@ const App: React.FC = () => {
                       email: updates.email || targetAccount.email,
                       phone: updates.phone || targetAccount.phone,
                       password: updates.password || targetAccount.password,
-                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary
+                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary,
+                      role: 'sub-manager'
                     };
                     
                     if (updates.username && updates.username !== agent.username) {
@@ -1166,7 +1166,7 @@ const App: React.FC = () => {
                 setState(prev => {
                   const newState = {
                     ...prev,
-                    subManagers: prev.subManagers?.map(sm => sm.id === id ? { ...sm, ...updates } : sm)
+                    subManagers: prev.subManagers?.map(sm => (sm.id === id || sm.username === id) ? { ...sm, ...updates } : sm)
                   };
                   saveState(newState);
                   if (newState.currentManager || activeManager) {
