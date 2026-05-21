@@ -57,6 +57,14 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         });
         setEditEmail(user.email || '');
       }
+
+      // Load saved settings
+      const raw = localStorage.getItem(`mahadnet_data_${username}`);
+      if (raw) {
+        const state = JSON.parse(raw);
+        if (state.settings?.businessPhone) setEditPhone(state.settings.businessPhone);
+        if (state.settings?.businessAddress) setEditAddress(state.settings.businessAddress);
+      }
     } catch {}
   };
 
@@ -73,7 +81,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         state.companies[0].settings = { ...state.companies[0].settings, businessPhone: editPhone, businessAddress: editAddress };
       }
       localStorage.setItem(`mahadnet_data_${username}`, JSON.stringify(state));
-      setEditSuccess('Profile update ho gaya!');
+      setEditSuccess('Profile updated successfully!');
       setEditMode(false);
     } catch (e: any) { alert('Error: ' + e.message); }
     finally { setEditSaving(false); }
@@ -83,16 +91,16 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
     setPwdError(''); setPwdSuccess('');
 
     if (!oldPwd.trim() || !newPwd.trim() || !confirmPwd.trim()) {
-      setPwdError('Sab fields fill karein.'); return;
+      setPwdError('Please fill all fields.'); return;
     }
     if (newPwd !== confirmPwd) {
-      setPwdError('New aur Confirm password match nahi karte!'); return;
+      setPwdError('New and confirm passwords do not match!'); return;
     }
     if (newPwd.length < 6) {
-      setPwdError('Password kam az kam 6 characters ka hona chahiye.'); return;
+      setPwdError('Password must be at least 6 characters.'); return;
     }
     if (oldPwd === newPwd) {
-      setPwdError('New password purane se alag hona chahiye.'); return;
+      setPwdError('New password must be different from current.'); return;
     }
 
     setLoading(true);
@@ -106,7 +114,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         password: oldPwd,
       });
       if (signInError) {
-        setPwdError('Current password galat hai!');
+        setPwdError('Current password is incorrect!');
         setLoading(false);
         return;
       }
@@ -115,10 +123,10 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
       const { error: updateError } = await supabase.auth.updateUser({ password: newPwd });
       if (updateError) throw updateError;
 
-      setPwdSuccess('Password successfully update ho gaya! ');
+      setPwdSuccess('Password updated successfully!');
       setOldPwd(''); setNewPwd(''); setConfirmPwd('');
     } catch (err: any) {
-      setPwdError(err.message || 'Password update fail hua.');
+      setPwdError(err.message || 'Failed to update password.');
     } finally {
       setLoading(false);
     }
@@ -179,46 +187,54 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
 
           {/* PROFILE TAB */}
           {tab === 'profile' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Read-only fields */}
-              {[
-                { label: 'Business Name', value: businessName, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'/></svg> },
-                { label: 'Username', value: `@${username}`, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/></svg> },
-                { label: 'Role', value: profile?.role || '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> },
-                { label: 'Member Since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg> },
-              ].map(item => (
-                <div key={item.label} className={`flex items-center gap-3 p-3 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  <div className="min-w-0">
-                    <p className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{item.label}</p>
-                    <p className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>{item.value}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  { label: 'Business Name', value: businessName, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'/></svg> },
+                  { label: 'Username', value: `@${username}`, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/></svg> },
+                  { label: 'Role', value: profile?.role || '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> },
+                  { label: 'Member Since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '...', icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg> },
+                ].map((item, idx) => (
+                  <div key={idx} className={`flex items-center gap-3 p-4 rounded-[1.25rem] border ${isDark ? 'bg-slate-800/50 border-slate-700/50 hover:border-indigo-500/30' : 'bg-slate-50 border-slate-100/50 hover:border-indigo-200'} transition-all`}>
+                    <div className={`p-2 rounded-xl flex-shrink-0 ${isDark ? 'bg-slate-900' : 'bg-white shadow-sm'}`}>
+                      {item.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.label}</p>
+                      <p className={`text-[13px] font-bold truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>{item.value}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
 
               {/* Editable fields */}
-              {editSuccess && <p className="text-xs font-bold text-emerald-500 text-center py-1">{editSuccess}</p>}
-              {[
-                { label: 'Email', value: editEmail, setter: setEditEmail, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'/></svg>, placeholder: 'Email address' },
-                { label: 'Phone', value: editPhone, setter: setEditPhone, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z'/></svg>, placeholder: '03001234567' },
-                { label: 'Address', value: editAddress, setter: setEditAddress, icon: <svg className='w-4 h-4 text-indigo-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'/><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'/></svg>, placeholder: 'Office address' },
-              ].map(field => (
-                <div key={field.label} className={`flex items-center gap-3 p-3 rounded-2xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="flex-shrink-0">{field.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{field.label}</p>
+              {editSuccess && <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold text-center rounded-2xl animate-fade-in"><span className="mr-2">🎉</span>{editSuccess}</div>}
+              <div className="space-y-3">
+                {[
+                  { label: 'Email', value: editEmail, setter: setEditEmail, icon: <svg className='w-4 h-4 text-indigo-500' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2.5' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'/></svg>, placeholder: 'Email address' },
+                  { label: 'Phone', value: editPhone, setter: setEditPhone, icon: <svg className='w-4 h-4 text-indigo-500' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2.5' d='M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z'/></svg>, placeholder: '+92 300 1234567' },
+                  { label: 'Address', value: editAddress, setter: setEditAddress, icon: <svg className='w-4 h-4 text-indigo-500' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2.5' d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'/><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2.5' d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'/></svg>, placeholder: 'Office address' },
+                ].map((field, idx) => (
+                  <div key={idx} className={`relative rounded-[1.25rem] border ${isDark ? 'bg-slate-800 border-slate-700/80 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/20' : 'bg-white border-slate-200 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100'} transition-all group overflow-hidden`}>
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 group-focus-within:bg-indigo-100 dark:group-focus-within:bg-indigo-900/50 transition-colors">
+                      {field.icon}
+                    </div>
                     <input
                       value={field.value}
                       onChange={e => field.setter(e.target.value)}
                       placeholder={field.placeholder}
-                      className={`w-full text-sm font-bold bg-transparent outline-none ${isDark ? 'text-white placeholder-slate-600' : 'text-slate-800 placeholder-slate-300'}`}
+                      className={`w-full pl-16 pr-5 py-4 text-sm font-bold bg-transparent outline-none ${isDark ? 'text-white placeholder-slate-600' : 'text-slate-900 placeholder-slate-400'} pt-7 transition-all`}
                     />
+                    <label className={`absolute left-16 top-3 text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {field.label}
+                    </label>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
 
               <button onClick={handleSaveProfile} disabled={editSaving}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
+                className="w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 hover:shadow-lg hover:shadow-indigo-600/30 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
                 {editSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>}
                 Save Profile
               </button>
@@ -228,44 +244,48 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
           {/* SECURITY TAB */}
           {tab === 'security' && (
             <div className="space-y-4">
-              <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Password change karne ke liye pehle current password verify hoga.
-              </p>
+              <div className={`p-4 rounded-xl border-l-4 ${isDark ? 'bg-sky-900/10 border-sky-500' : 'bg-sky-50 border-sky-400'}`}>
+                <p className={`text-[11px] font-bold ${isDark ? 'text-sky-300' : 'text-sky-700'} leading-relaxed`}>
+                  Verify your current password to update your security credentials.
+                </p>
+              </div>
 
-              {[
-                { label: 'Current Password', value: oldPwd, setter: setOldPwd, placeholder: 'Purana password' },
-                { label: 'New Password', value: newPwd, setter: setNewPwd, placeholder: 'Naya password (min 6 chars)' },
-                { label: 'Confirm New Password', value: confirmPwd, setter: setConfirmPwd, placeholder: 'Naya password dobara likhein' },
-              ].map(field => (
-                <div key={field.label}>
-                  <label className={`text-[9px] font-black uppercase tracking-widest block mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {field.label}
-                  </label>
-                  <input
-                    type="password"
-                    placeholder={field.placeholder}
-                    value={field.value}
-                    onChange={e => { field.setter(e.target.value); setPwdError(''); setPwdSuccess(''); }}
-                    className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none focus:ring-2 focus:ring-indigo-400 ${isDark ? 'bg-slate-800 border-slate-600 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'}`}
-                  />
-                </div>
-              ))}
+              <div className="space-y-3 mt-4">
+                {[
+                  { label: 'Current Password', value: oldPwd, setter: setOldPwd, placeholder: 'Enter current password' },
+                  { label: 'New Password', value: newPwd, setter: setNewPwd, placeholder: 'Enter new password (min 6 characters)' },
+                  { label: 'Confirm New Password', value: confirmPwd, setter: setConfirmPwd, placeholder: 'Confirm new password' },
+                ].map((field, idx) => (
+                  <div key={idx} className={`relative rounded-2xl border ${isDark ? 'bg-slate-800 border-slate-700 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/20' : 'bg-white border-slate-200 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100'} transition-all`}>
+                    <input
+                      type="password"
+                      placeholder={field.placeholder}
+                      value={field.value}
+                      onChange={e => { field.setter(e.target.value); setPwdError(''); setPwdSuccess(''); }}
+                      className={`w-full px-5 pt-6 pb-2 text-sm font-bold bg-transparent outline-none ${isDark ? 'text-white placeholder-slate-600' : 'text-slate-900 placeholder-slate-400'}`}
+                    />
+                    <label className={`absolute left-5 top-2.5 text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {field.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
 
               {pwdError && (
-                <div className="flex items-center gap-2 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl">
-                  <svg className="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  <p className="text-xs font-bold text-rose-600">{pwdError}</p>
+                <div className="flex items-center gap-2 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 rounded-2xl animate-fade-in">
+                  <svg className="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400">{pwdError}</p>
                 </div>
               )}
               {pwdSuccess && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
-                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
-                  <p className="text-xs font-bold text-emerald-600">{pwdSuccess}</p>
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl animate-fade-in">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{pwdSuccess}</p>
                 </div>
               )}
 
               <button onClick={handleChangePassword} disabled={loading}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2">
+                className="w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 hover:shadow-lg hover:shadow-indigo-600/30 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                 {loading ? (
                   <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> Verifying...</>
                 ) : (
@@ -278,29 +298,34 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
           {/* SESSION TAB */}
           {tab === 'session' && (
             <div className="space-y-4">
-              <div className={`p-4 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                <p className={`text-xs font-black uppercase tracking-widest mb-1 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Active Session</p>
-                <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'}`}>@{username}</p>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{profile?.email}</p>
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"/>
-                  <span className="text-xs font-bold text-emerald-500">Session Active</span>
+              <div className={`p-6 rounded-[1.25rem] border ${isDark ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-100'} text-center shadow-sm relative overflow-hidden`}>
+                <div className={`absolute top-0 inset-x-0 h-1 ${isDark ? 'bg-indigo-500/50' : 'bg-indigo-500'}`} />
+                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-2xl border-4 border-white dark:border-slate-800 shadow-sm">
+                  {businessName?.charAt(0)?.toUpperCase()}
+                </div>
+                <p className={`font-black text-xl mb-1 ${isDark ? 'text-white' : 'text-slate-800'}`}>@{username}</p>
+                <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{profile?.email}</p>
+                <div className="inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full border border-emerald-200 dark:border-emerald-800/50">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Current Session Active</span>
                 </div>
               </div>
 
-              <div className={`p-4 rounded-2xl border ${isDark ? 'bg-rose-900/10 border-rose-800' : 'bg-rose-50 border-rose-200'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                <svg className="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <p className={`text-xs font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Logout karne se session end ho jayega</p>
-              </div>
-                <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Wapas login karna hoga. Aapka data safe rahega.</p>
+              <div className={`p-4 rounded-2xl border ${isDark ? 'bg-rose-900/10 border-rose-800/50' : 'bg-rose-50 border-rose-200'}`}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <svg className="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <p className={`text-[11px] font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Logging out will end your current session</p>
+                </div>
+                <p className={`text-[10px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'} pl-6`}>
+                  You will need to re-authenticate to access your account. Your data remains perfectly safe.
+                </p>
               </div>
 
               <button
                 onClick={() => { onClose(); setTimeout(onLogout, 200); }}
-                className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2">
+                className="w-full mt-2 py-4 bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-600/20 hover:shadow-lg hover:shadow-rose-600/30 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                Logout
+                Sign Out
               </button>
             </div>
           )}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
-import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign } from '../types';
+import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign, SubManagerAccount } from '../types';
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
 import { shareToWhatsApp } from '../utils/whatsapp';
@@ -10,6 +10,7 @@ interface ReceiptGeneratorProps {
   users: UserRecord[];
   receipts: Receipt[];
   settings: AppSettings;
+  subManagers?: SubManagerAccount[];
   onAddReceipt: (receipt: Receipt) => void;
   onUpdateReceipt: (receipt: Receipt) => void;
   onUpdateUser: (userId: string, update: Partial<UserRecord>) => void;
@@ -29,6 +30,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   users, 
   receipts, 
   settings,
+  subManagers = [],
   onAddReceipt, 
   onUpdateReceipt,
   onUpdateUser,
@@ -49,6 +51,30 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
   }, [hideHistory, viewMode]);
   const [agentId, setAgentId] = useState<string | undefined>(defaultCollectedBy);
+
+  const getAgentDisplay = useCallback((collectedByValue: string, alignClass: string = 'items-end') => {
+    let agentName = collectedByValue;
+    let agentUsername = '';
+    
+    if (subManagers && subManagers.length) {
+      const agent = subManagers.find(sm => sm.id === collectedByValue || sm.username === collectedByValue);
+      if (agent && agent.name) {
+        agentName = agent.name;
+        agentUsername = `@${agent.username}`;
+      }
+    }
+
+    if (agentUsername) {
+      return (
+        <span className={`inline-flex flex-col leading-tight ${alignClass}`}>
+          <span className="text-black">{agentName}</span>
+          <span className="text-blue-600">{agentUsername}</span>
+        </span>
+      );
+    }
+    
+    return <span className="text-black">{agentName}</span>;
+  }, [subManagers]);
 
   useEffect(() => {
     if (defaultCollectedBy && !agentId) {
@@ -229,17 +255,22 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
 
     try {
+      const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
       const canvas = await html2canvas(element, { 
         scale: 4, 
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
         logging: false,
+        windowWidth: isThermal ? window.innerWidth : 800,
         onclone: (clonedDoc) => {
           // Additional safety for Android Gallery Export errors (oklch)
           const area = clonedDoc.getElementById('receipt-download-area');
           if (area) {
             area.style.boxShadow = 'none';
+            if (!isThermal) {
+               area.style.minWidth = '800px';
+            }
             // Ensure any modern color mix or oklch isn't tripping the legacy parser
             const allElements = area.getElementsByTagName('*');
             for (let i = 0; i < allElements.length; i++) {
@@ -413,7 +444,22 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     try {
       const element = document.getElementById('receipt-download-area');
       if (!element) return;
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' });
+      
+      const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        windowWidth: isThermal ? window.innerWidth : 800,
+        onclone: (clonedDoc) => {
+          const area = clonedDoc.getElementById('receipt-download-area');
+          if (area) {
+            area.style.boxShadow = 'none';
+            if (!isThermal) {
+               area.style.minWidth = '800px';
+            }
+          }
+        }
+      });
       
       canvas.toBlob(async (blob: Blob | null) => {
         if (blob && navigator.share) {
@@ -718,8 +764,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <div className="flex justify-between text-[11px]"><span>PAYMENT:</span><span className="font-bold uppercase tracking-tight">{activeReceipt.paymentMethod}</span></div>
               <div className="flex justify-between text-[11px]"><span>NAME:</span><span className="font-bold whitespace-normal text-right flex-1 ml-2">{activeReceipt.userName}</span></div>
               <div className="flex justify-between text-[11px]"><span>USER ID:</span><span className="font-bold text-right text-indigo-700">@{activeReceipt.username}</span></div>
-              <div className="flex justify-between text-[11px]"><span>ADDR:</span><span className="text-[9px] whitespace-normal text-right flex-1 ml-2">{activeReceipt.userAddress || 'N/A'}</span></div>
-              <div className="flex justify-between text-[11px]"><span>PERIOD:</span><span>{activeReceipt.period}</span></div>
+              <div className="flex justify-between text-[11px] items-start"><span>ADDR:</span><span className="text-[9px] whitespace-normal text-right flex-1 ml-2">{activeReceipt.userAddress || 'N/A'}</span></div>
+              <div className="flex justify-between text-[11px] items-start"><span>PERIOD:</span><span>{activeReceipt.period}</span></div>
+              <div className="flex justify-between text-[11px] items-start"><span>ISSUED BY:</span><span className="font-bold uppercase tracking-tight">{getAgentDisplay(activeReceipt.collectedBy || defaultCollectedBy || 'Agent')}</span></div>
             </div>
             <p className="text-[9px] border-b border-dashed border-slate-300 w-full pb-1 mb-3 font-mono">-------------------------------------</p>
             <div className="w-full text-left space-y-1 mb-4 text-[11px]">
@@ -739,8 +786,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
       case ReceiptDesign.MODERN:
         return (
-          <div className="bg-white p-6 rounded-[2rem] text-slate-900 font-sans shadow-sm border border-slate-100">
-            <div className="flex justify-between items-center mb-8 bg-indigo-600 p-6 rounded-[1.5rem] text-white">
+          <div className="bg-white p-4 sm:p-6 rounded-[2rem] text-slate-900 font-sans shadow-sm border border-slate-100">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 bg-indigo-600 p-6 rounded-[1.5rem] text-white gap-4 sm:gap-0">
               <div className="flex items-center gap-3">
                 <div className="h-[60px] w-auto bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   {settings.businessLogo ? (
@@ -756,44 +803,49 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-[10px] font-black opacity-60">SN: {activeReceipt.transactionRef}</p>
                 <p className="text-[9px] font-bold mt-1 opacity-80">{new Date(activeReceipt.date).toLocaleDateString()}</p>
               </div>
             </div>
             
-            <div className="space-y-6 px-2">
-              <div className="flex justify-between items-end border-b border-slate-50 pb-4">
-                <div>
+            <div className="space-y-6 px-1 sm:px-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-50 pb-4 gap-4 sm:gap-0">
+                <div className="w-full sm:w-auto break-all sm:break-normal">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Customer</p>
                   <p className="text-lg font-black">{activeReceipt.userName}</p>
                   <p className="text-xs font-bold text-indigo-600">@{activeReceipt.username}</p>
                   <p className="text-[10px] font-medium text-slate-500 mt-1">{activeReceipt.userAddress}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Payment Method</p>
-                  <p className="text-xs font-black text-slate-700 uppercase tracking-tight">{activeReceipt.paymentMethod}</p>
+                <div className="text-left sm:text-right flex flex-row sm:flex-col justify-between w-full sm:w-auto">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Payment Method</p>
+                    <p className="text-xs font-black text-slate-700 uppercase tracking-tight">{activeReceipt.paymentMethod}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 mt-0 sm:mt-2">Collected By</p>
+                    <p className="text-[10px] font-black uppercase tracking-tight sm:text-right">{getAgentDisplay(activeReceipt.collectedBy || defaultCollectedBy || 'Agent', 'items-start sm:items-end')}</p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2 py-2">
-                <div className="flex justify-between text-sm"><span className="text-slate-500 font-medium">Monthly Plan ({activeReceipt.period})</span><span className="font-black">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
-                {arrears > 0 && <div className="flex justify-between text-sm"><span className="text-slate-500 font-medium">Previous Arrears</span><span className="font-black text-rose-500">Rs. {arrears.toLocaleString()}</span></div>}
-                {activeReceipt.advanceAmount > 0 ? <div className="flex justify-between text-sm"><span className="text-indigo-600 font-bold">Advance Payment</span><span className="font-black text-indigo-600">Rs. {activeReceipt.advanceAmount.toLocaleString()}</span></div> : null}
-                {activeReceipt.discount && activeReceipt.discount > 0 ? <div className="flex justify-between text-sm"><span className="text-emerald-600 font-bold">Discount Applied</span><span className="font-black text-emerald-600">-Rs. {activeReceipt.discount.toLocaleString()}</span></div> : null}
+                <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Monthly Plan ({activeReceipt.period})</span><span className="font-black">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
+                {arrears > 0 && <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Previous Arrears</span><span className="font-black text-rose-500">Rs. {arrears.toLocaleString()}</span></div>}
+                {activeReceipt.advanceAmount > 0 ? <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-indigo-600 font-bold">Advance Payment</span><span className="font-black text-indigo-600">Rs. {activeReceipt.advanceAmount.toLocaleString()}</span></div> : null}
+                {activeReceipt.discount && activeReceipt.discount > 0 ? <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-emerald-600 font-bold">Discount Applied</span><span className="font-black text-emerald-600">-Rs. {activeReceipt.discount.toLocaleString()}</span></div> : null}
               </div>
 
-              <div className="bg-slate-50 p-6 rounded-[1.5rem] flex flex-col items-center gap-1 border border-slate-100 shadow-inner">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-[1.5rem] flex flex-col items-center gap-1 border border-slate-100 shadow-inner">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Amount Received</p>
-                 <p className="text-3xl font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</p>
+                 <p className="text-2xl sm:text-3xl font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</p>
                   {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
               </div>
 
-              <div className="flex justify-between items-center pt-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-2 gap-4 sm:gap-0">
                  <div className="text-left">
-
                  </div>
-                 <div className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest">Paid</div>
+                 <div className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest self-end sm:self-auto">Paid</div>
               </div>
               <AdsSection design={ReceiptDesign.MODERN} />
             </div>
@@ -817,9 +869,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
             <div className="space-y-1.5 text-[11px] mb-4">
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Ref:</span><span className="font-black">{activeReceipt.transactionRef}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Date:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Mode:</span><span className="font-black uppercase">{activeReceipt.paymentMethod}</span></div>
-              <div className="flex justify-between border-t border-slate-50 pt-1.5"><span className="text-slate-400 font-bold uppercase">User:</span><span className="font-black whitespace-normal text-right flex-1 ml-4">{activeReceipt.userName}</span></div>
+              <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Date:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Mode:</span><span className="font-black uppercase">{activeReceipt.paymentMethod}</span></div>
+              <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Issued By:</span><span className="font-black uppercase">{getAgentDisplay(activeReceipt.collectedBy || defaultCollectedBy || 'Agent')}</span></div>
+              <div className="flex justify-between items-start border-t border-slate-50 pt-1.5"><span className="text-slate-400 font-bold uppercase">User:</span><span className="font-black whitespace-normal text-right flex-1 ml-4">{activeReceipt.userName}</span></div>
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">User ID:</span><span className="font-black text-right text-indigo-600">@{activeReceipt.username}</span></div>
               {activeReceipt.userAddress && <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Addr:</span><span className="font-medium text-[9px] whitespace-normal text-right flex-1 ml-4">{activeReceipt.userAddress}</span></div>}
               {activeReceipt.advanceAmount > 0 ? <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Adv:</span><span className="font-black text-indigo-600">Rs. {(activeReceipt.advanceAmount || 0).toLocaleString()}</span></div> : null}
@@ -840,8 +893,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       case ReceiptDesign.PROFESSIONAL:
       default:
         return (
-          <div className="text-black bg-white p-2">
-            <div className="flex justify-between items-start mb-10 border-b-2 border-slate-50 pb-8">
+          <div className="text-black bg-white p-2 sm:p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start mb-6 sm:mb-10 border-b-2 border-slate-50 pb-6 sm:pb-8 gap-4 sm:gap-0">
               <div className="flex items-center gap-4">
                 <div className="h-[60px] w-auto bg-white border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-sm p-1">
                   {settings.businessLogo ? (
@@ -851,8 +904,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   )}
                 </div>
                 <div>
-                  {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-4xl font-black text-indigo-950 uppercase">{settings.businessName}</h2>}
-                  <div className="flex items-center gap-2 mt-2">
+                  {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-2xl sm:text-4xl font-black text-indigo-950 uppercase break-all sm:break-normal leading-none">{settings.businessName}</h2>}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
                     <p className="text-[10px] text-indigo-50 font-black uppercase tracking-[0.15em] bg-indigo-600 px-2 py-1 inline-block rounded">{settings.businessPhone}</p>
                     {activeReceipt.isLatePayment && (
                       <p className="text-[10px] text-white font-black uppercase tracking-[0.15em] bg-rose-500 px-2 py-1 inline-block rounded">Late Payment Received</p>
@@ -860,19 +913,19 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="text-right"><p className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-1">SN: {activeReceipt.transactionRef}</p><p className="text-[10px] font-bold text-slate-400">{new Date(activeReceipt.date).toLocaleDateString()}</p></div>
+              <div className="text-left sm:text-right mt-4 sm:mt-0"><p className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-1">SN: {activeReceipt.transactionRef}</p><p className="text-[10px] font-bold text-slate-400">{new Date(activeReceipt.date).toLocaleDateString()}</p></div>
             </div>
-            <div className="grid grid-cols-2 gap-10 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10 mb-8">
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill To</p>
                 <div>
-                  <p className="text-xl font-black text-black leading-none">{activeReceipt.userName}</p>
-                  <p className="text-xs font-black text-indigo-600 uppercase tracking-tight mt-1">@{activeReceipt.username}</p>
+                  <p className="text-xl font-black text-black leading-none break-all sm:break-normal">{activeReceipt.userName}</p>
+                  <p className="text-xs font-black text-indigo-600 uppercase tracking-tight mt-1 break-all sm:break-normal">@{activeReceipt.username}</p>
                 </div>
-                <p className="text-xs text-slate-500 font-bold">{activeReceipt.userPhone}</p>
+                <p className="text-xs text-slate-500 font-bold break-all sm:break-normal">{activeReceipt.userPhone}</p>
                 <p className="text-xs text-slate-500 font-medium">{activeReceipt.userAddress}</p>
               </div>
-              <div className="text-right space-y-4">
+              <div className="text-left sm:text-right space-y-4">
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Period</p>
                   <p className="text-sm font-bold text-black">{activeReceipt.period}</p>
@@ -881,9 +934,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Method</p>
                   <p className="text-sm font-black text-indigo-600 uppercase tracking-tight">{activeReceipt.paymentMethod}</p>
                 </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Collected By</p>
+                  <p className="text-sm font-black uppercase tracking-tight">{getAgentDisplay(activeReceipt.collectedBy || defaultCollectedBy || 'Agent', 'items-start sm:items-end')}</p>
+                </div>
               </div>
             </div>
-            <div className="bg-slate-50 rounded-[2rem] p-8 mb-6 border border-slate-100">
+            <div className="bg-slate-50 rounded-2xl sm:rounded-[2rem] p-4 sm:p-8 mb-6 border border-slate-100">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-slate-200 text-black"><th className="text-left pb-4 font-bold uppercase text-[10px] tracking-widest">Description</th><th className="text-right pb-4 font-bold uppercase text-[10px] tracking-widest">Amount</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
@@ -898,24 +955,24 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 </tbody>
               </table>
             </div>
-            <div className="space-y-2 px-6 text-right">
+            <div className="space-y-2 px-2 sm:px-6 text-left sm:text-right">
               <div className="flex justify-between items-center"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Payable</span><span className="text-lg font-black text-slate-800">Rs. {(activeReceipt.totalAmount || 0).toLocaleString()}</span></div>
               <div className="flex justify-between items-center border-t border-slate-100 pt-2 mt-2"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Amount Received</span><span className="text-2xl font-black text-indigo-600">Rs. {(activeReceipt.paidAmount || 0).toLocaleString()}</span></div>
                   {(activeReceipt.balanceAmount || 0) > 0 && <div className="flex justify-between mt-1"><span className="font-black text-rose-600 uppercase text-sm">Remaining Due:</span><span className="font-black text-rose-600 text-sm">Rs. {(activeReceipt.balanceAmount || 0).toLocaleString()}</span></div>}
               
             </div>
             <AdsSection design={ReceiptDesign.PROFESSIONAL} />
-            <div className="mt-12 pt-8 border-t border-slate-50 text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">{settings.globalNote || 'Thank you for choosing MahadNet!'}</p>
+            <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-50 text-center">
+              <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">{settings.globalNote || 'Thank you for choosing MahadNet!'}</p>
             </div>
           </div>
         );
 
       case ReceiptDesign.INVOICE:
         return (
-          <div id="receipt-download-area" className="bg-white text-slate-900 w-full max-w-2xl mx-auto font-sans shadow-2xl">
+          <div className="bg-white text-slate-900 w-full max-w-2xl mx-auto font-sans shadow-2xl overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-start px-10 pt-10 pb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start px-6 sm:px-10 pt-6 sm:pt-10 pb-6 gap-6 sm:gap-0">
               <div>
                 {settings.businessLogo ? (
                   <img src={settings.businessLogo} alt="Logo" className="w-16 h-16 object-contain mb-2 rounded-xl" />
@@ -926,13 +983,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                     <span className="text-white font-black text-2xl">{settings.businessName?.charAt(0)}</span>
                   </div>
                 )}
-                {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-lg font-black text-slate-800 mt-1">{settings.businessName}</h2>}
-                {settings.businessAddress && <p className="text-xs text-slate-400 mt-0.5">{settings.businessAddress}</p>}
+                {(settings.showBusinessNameOnReceipt ?? true) && <h2 className="text-lg font-black text-slate-800 mt-1 break-all sm:break-normal">{settings.businessName}</h2>}
+                {settings.businessAddress && <p className="text-xs text-slate-400 mt-0.5 max-w-sm">{settings.businessAddress}</p>}
                 {settings.businessPhone && <p className="text-xs text-slate-400">{settings.businessPhone}</p>}
               </div>
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-1">INTERNET</p>
-                <h1 className="text-4xl font-black text-slate-900 leading-none">INVOICE</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 leading-none">INVOICE</h1>
                 <div className="mt-3 text-xs text-slate-500 space-y-0.5">
                   <p><span className="font-bold text-slate-700">INVOICE NO:</span> #{activeReceipt.transactionRef}</p>
                   <p><span className="font-bold text-slate-700">DATE:</span> {new Date(activeReceipt.date).toLocaleDateString('en-GB')}</p>
@@ -942,15 +999,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
 
             {/* Bill To */}
-            <div className="mx-10 mb-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+            <div className="mx-6 sm:mx-10 mb-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
               <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Bill To</p>
-              <p className="font-black text-slate-900 text-base">{activeReceipt.userName}</p>
-              {activeReceipt.username && <p className="text-xs text-slate-500">@{activeReceipt.username}</p>}
+              <p className="font-black text-slate-900 text-base break-words">{activeReceipt.userName}</p>
+              {activeReceipt.username && <p className="text-xs text-slate-500 break-all sm:break-normal">@{activeReceipt.username}</p>}
               {activeReceipt.userPhone && <p className="text-xs text-slate-500">{activeReceipt.userPhone}</p>}
             </div>
 
             {/* Service Table */}
-            <div className="mx-10 mb-4">
+            <div className="mx-6 sm:mx-10 mb-4">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-800 text-white">
@@ -987,8 +1044,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
 
             {/* Totals */}
-            <div className="mx-10 mb-6 flex justify-end">
-              <div className="w-64 space-y-1">
+            <div className="mx-6 sm:mx-10 mb-6 flex justify-start sm:justify-end">
+              <div className="w-full sm:w-64 space-y-1">
                 <div className="flex justify-between text-sm py-1 border-b border-slate-100">
                   <span className="text-slate-500 font-bold">Monthly Fee</span>
                   <span className="font-bold text-slate-700">Rs. {(activeReceipt.monthlyFee || 0).toLocaleString()}</span>
@@ -1006,12 +1063,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
 
             {/* Payment + Terms */}
-            <div className="mx-10 mb-6 grid grid-cols-2 gap-4 text-xs">
+            <div className="mx-6 sm:mx-10 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <div className="bg-orange-500 text-white px-4 py-2 rounded-t-xl"><p className="text-[10px] font-black uppercase tracking-widest">Payment Method</p></div>
                 <div className="border border-orange-200 rounded-b-xl px-4 py-3 space-y-1">
                   <p><span className="font-bold text-slate-600">Method:</span> {activeReceipt.paymentMethod || 'Cash'}</p>
-                  <p><span className="font-bold text-slate-600">Ref:</span> {activeReceipt.transactionRef}</p>
+                  <p className="flex items-start gap-1"><span className="font-bold text-slate-600 pt-[1px]">Issued By:</span> {getAgentDisplay(activeReceipt.collectedBy || defaultCollectedBy || 'Agent', 'items-start')}</p>
+                  <p><span className="font-bold text-slate-600 break-all">Ref: {activeReceipt.transactionRef}</span></p>
                   <p><span className="font-bold text-slate-600">Date:</span> {new Date(activeReceipt.date).toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
@@ -1023,8 +1081,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               </div>
             </div>
 
+            <AdsSection design={ReceiptDesign.INVOICE} />
             {/* Footer */}
-            <div className="bg-blue-600 text-white px-10 py-4 flex justify-between items-center text-xs">
+            <div className="bg-blue-600 text-white px-6 sm:px-10 py-4 flex flex-col sm:flex-row justify-between items-center text-xs gap-2 sm:gap-0">
               <span className="font-black">{settings.businessName}</span>
               {settings.businessPhone && <span>{settings.businessPhone}</span>}
               {settings.businessAddress && <span>{settings.businessAddress}</span>}
@@ -1274,24 +1333,24 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                     ⚡ Preparing Download...
                   </div>
                 )}
-                <div id="receipt-download-area" className={`bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-200 ${settings.receiptDesign === ReceiptDesign.THERMAL ? 'max-w-[350px] mx-auto rounded-none border-0' : ''}`}>
+                <div id="receipt-download-area" className={`bg-white p-4 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-200 overflow-x-hidden ${settings.receiptDesign === ReceiptDesign.THERMAL ? 'max-w-[350px] mx-auto rounded-none border-0 p-1 sm:p-1' : ''}`}>
                     {renderReceiptBody()}
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print px-4">
-                    <button onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print px-0 sm:px-4">
+                    <button onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
+                      <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                       Print
                     </button>
-                    <button onClick={handleSaveAsImageManual} disabled={isDownloading} className="bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5 disabled:opacity-50">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                      {isDownloading ? 'Downloading...' : 'Download Receipt'}
+                    <button onClick={handleSaveAsImageManual} disabled={isDownloading} className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5 disabled:opacity-50">
+                      <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                      {isDownloading ? 'Downloading...' : 'Download Image'}
                     </button>
-                    <button onClick={handleWhatsAppShare} disabled={isSharing} className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
+                    <button onClick={handleWhatsAppShare} disabled={isSharing} className="bg-green-600 hover:bg-green-700 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
+                      <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
                       WhatsApp
                     </button>
-                    <button onClick={() => window.location.href = `sms:${activeReceipt.userPhone}?body=${encodeURIComponent(shareMessage.replace(/\*/g, ''))}`} className="bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    <button onClick={() => window.location.href = `sms:${activeReceipt.userPhone}?body=${encodeURIComponent(shareMessage.replace(/\*/g, ''))}`} className="bg-slate-900 hover:bg-slate-800 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
+                      <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                       Send SMS
                     </button>
                 </div>

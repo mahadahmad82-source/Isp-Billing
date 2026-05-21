@@ -41,6 +41,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [filter, setFilter] = useState<'all' | 'paid' | 'pending'>('pending');
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord | 'displayStatus' | 'displayBalance', direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
+  const [toastMsg, setToastMsg] = useState('');
 
   const handleSort = (key: keyof UserRecord | 'displayStatus' | 'displayBalance') => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -174,8 +175,10 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       // Find recent receipts for May 2026
       const strictlyMay2026 = "May 2026";
       const userReceipts = receipts.filter(r => r.userId === u.id);
-      const latestReceipt = userReceipts.length > 0 
-        ? [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+      
+      const successfulReceipts = userReceipts.filter(r => r.status === PaymentStatus.SUCCESS);
+      const latestReceipt = successfulReceipts.length > 0 
+        ? [...successfulReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
       // STRICTION: Avoid marking previous months' payments as current month "Clear"
@@ -263,6 +266,13 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300">
+      {toastMsg && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 bg-rose-600 border border-white/20 text-white rounded-full shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-4 whitespace-nowrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {toastMsg}
+        </div>
+      )}
+
       {/* Dynamic Header - Hidden on mobile if bottom nav is enough, but keeping simple one for identity */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 py-3 px-4 sm:py-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -466,8 +476,15 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                             )}
                             <button 
                               disabled={user.displayStatus === 'clear'}
-                              onClick={() => onIssueInvoice(user.id, agentId)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale"
+                              onClick={() => {
+                                if (dutyStatus !== 'online') {
+                                  setToastMsg('Access Denied: Please Check-In/Mark Attendance first to collect payments.');
+                                  setTimeout(() => setToastMsg(''), 4000);
+                                  return;
+                                }
+                                onIssueInvoice(user.id, agentId);
+                              }}
+                              className={`inline-flex items-center gap-2 px-4 py-2 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 disabled:grayscale ${dutyStatus !== 'online' ? 'bg-slate-500 opacity-50 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                               Issue invoice
@@ -531,8 +548,15 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                     )}
                     <button 
                       disabled={user.displayStatus === 'clear'}
-                      onClick={() => onIssueInvoice(user.id, agentId)}
-                      className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest disabled:opacity-30 active:scale-95 transition-all"
+                      onClick={() => {
+                        if (dutyStatus !== 'online') {
+                          setToastMsg('Access Denied: Please Check-In/Mark Attendance first to collect payments.');
+                          setTimeout(() => setToastMsg(''), 4000);
+                          return;
+                        }
+                        onIssueInvoice(user.id, agentId);
+                      }}
+                      className={`flex-[2] flex items-center justify-center gap-2 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest disabled:opacity-30 active:scale-95 transition-all ${dutyStatus !== 'online' ? 'bg-slate-500 opacity-50 cursor-not-allowed' : 'bg-indigo-600'}`}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                       {user.displayStatus === 'clear' ? 'Paid' : 'Issue Bill'}
