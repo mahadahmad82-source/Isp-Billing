@@ -1,40 +1,35 @@
 import { supabase } from '../lib/supabase';
 import { AppState } from '../types';
 
-// Save app state to Supabase
+// Save app state to Supabase via server-side proxy (bypasses RLS issues)
 export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
   if (!managerId) return;
   try {
-    const { error } = await supabase
-      .from('manager_data')
-      .upsert(
-        { manager_id: managerId, data: state, updated_at: new Date().toISOString() },
-        { onConflict: 'manager_id' }
-      );
-    if (error) console.error('Supabase save error:', error.message);
+    const response = await fetch('/api/sync/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ managerId, state })
+    });
+    
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Supabase sync-proxy error:', err.error);
+    }
   } catch (err) {
-    console.error('Supabase save exception:', err);
+    console.error('Supabase sync-proxy exception:', err);
   }
 };
 
-// Load app state from Supabase
+// Load app state from Supabase via server-side proxy
 export const loadStateFromSupabase = async (managerId: string): Promise<AppState | null> => {
   if (!managerId) return null;
   try {
-    const { data, error } = await supabase
-      .from('manager_data')
-      .select('data')
-      .eq('manager_id', managerId)
-      .maybeSingle(); // maybeSingle() does NOT throw error when 0 rows found
-
-    if (error) {
-      console.error('Supabase load error:', error.message);
-      return null;
-    }
-    if (!data) return null;
-    return data.data as AppState;
+    const response = await fetch(`/api/sync/load/${encodeURIComponent(managerId)}`);
+    if (!response.ok) return null;
+    const { data } = await response.json();
+    return data as AppState;
   } catch (err) {
-    console.error('Supabase load exception:', err);
+    console.error('Supabase sync-proxy load exception:', err);
     return null;
   }
 };
@@ -72,6 +67,8 @@ export const smartLoadAndSync = async (
       receipts: supabaseState.receipts || [],
       archives: supabaseState.archives || [],
       companies: supabaseState.companies || [],
+      subManagers: supabaseState.subManagers || [],
+      attendanceLogs: supabaseState.attendanceLogs || [],
       activeCompanyId: supabaseState.activeCompanyId || '',
       dismissedNotificationIds: supabaseState.dismissedNotificationIds || [],
       currentManager: managerId,

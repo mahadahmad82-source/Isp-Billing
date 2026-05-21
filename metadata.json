@@ -1,5 +1,6 @@
 {
   "name": "MYISP Billing & Receipt",
   "description": "Professional ISP management terminal. Advanced receipts, automated billing cycles, field agent tracking, and secure cloud synchronization.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

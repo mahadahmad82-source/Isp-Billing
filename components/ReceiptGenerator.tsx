@@ -1333,7 +1333,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                     ⚡ Preparing Download...
                   </div>
                 )}
-                <div id="receipt-download-area" className={`bg-white p-4 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-200 overflow-x-hidden ${settings.receiptDesign === ReceiptDesign.THERMAL ? 'max-w-[350px] mx-auto rounded-none border-0 p-1 sm:p-1' : ''}`}>
+                <div id="receipt-download-area" className={`bg-white p-4 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-200 overflow-x-hidden ${settings.receiptDesign === ReceiptDesign.THERMAL ? 'max-w-[350px] mx-auto rounded-none border-0 p-1 sm:p-1' : 'w-full lg:max-w-4xl mx-auto'}`}>
                     {renderReceiptBody()}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print px-0 sm:px-4">

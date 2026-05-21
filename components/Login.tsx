@@ -116,6 +116,39 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             return;
           }
         } else {
+          // If Supabase Auth fails and no local account, try searching the manager_data JSON for a sub-manager match via secure server-side API
+          // This allows field agents recruited by managers to log in even on a fresh device
+          setLoadingText('Searching Remote Nodes...');
+          
+          try {
+            const authRes = await fetch('/api/auth/search-agent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password })
+            });
+
+            if (authRes.ok) {
+              const { agent } = await authRes.json();
+              const agentUsername = agent.username;
+              setActiveSession(agentUsername);
+              saveAccount({
+                username: agentUsername,
+                password: password,
+                businessName: agent.name,
+                email: agent.email || '',
+                phone: agent.phone || '',
+                role: 'sub-manager',
+                managerUsername: agent.managerId,
+                createdAt: new Date().toISOString(),
+                rememberPassword: true
+              });
+              onLogin(agentUsername);
+              return;
+            }
+          } catch (apiErr) {
+            console.error("Server-side auth search failed:", apiErr);
+          }
+
           throw new Error('Invalid username or password.');
         }
       }

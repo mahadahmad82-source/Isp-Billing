@@ -32,3 +32,24 @@ Copy and paste this prompt into Claude Code to implement the necessary backend a
    - Ensure that when an agent updates the business address or phone in their profile, it correctly triggers an update to the `manager_data` JSON blob in Supabase.
 
 Please implement these changes across the `server.ts`, `App.tsx`, and relevant components.
+
+---
+
+### 🔐 Immediate Fix: Row Level Security (RLS) Policy
+If you are seeing "RLS Policy Violation" or "New row violates security policy" errors when agents try to save collections, run this SQL in your Supabase Dashboard SQL Editor:
+
+```sql
+-- 1. Allow everyone to find agents in the data JSON (Login Fallback)
+-- This is necessary so the frontend can check credentials before a full Auth session is available
+ALTER POLICY "Enable read access for all users" ON "manager_data" USING (true);
+
+-- 2. Allow authenticated Agents to update their Manager's data
+-- Note: Replace 'manager_data' with your actual table name if different
+CREATE POLICY "Allow agents to update manager data" 
+ON manager_data 
+FOR UPDATE 
+TO authenticated
+USING (true)
+WITH CHECK (true);
+```
+

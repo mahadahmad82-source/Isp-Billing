@@ -4,17 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "1.34.0",
     "@supabase/supabase-js": "^2.105.1",
+    "@types/express": "^5.0.6",
     "@types/three": "^0.184.0",
     "@vis.gl/react-google-maps": "^1.8.3",
     "driver.js": "^1.4.0",
+    "esbuild": "^0.28.0",
+    "express": "^5.2.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.7.0",
     "motion": "^12.38.0",
@@ -24,6 +27,7 @@
     "react-router-dom": "^7.14.0",
     "recharts": "^3.8.1",
     "three": "^0.184.0",
+    "tsx": "^4.22.3",
     "xlsx": "0.18.5"
   },
   "devDependencies": {
