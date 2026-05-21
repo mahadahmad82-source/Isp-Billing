@@ -50,15 +50,18 @@ async function startServer() {
       if (managers) {
         for (const manager of managers) {
           const agents = (manager.data as any).subManagers || [];
-          const agent = agents.find((sm: any) => 
-            (sm.username?.toLowerCase() === username.toLowerCase() || 
-             sm.email?.toLowerCase() === username.toLowerCase() || 
-             sm.phone === username) && 
-            sm.password === password
-          );
+          const agent = agents.find((sm: any) => {
+            const smName = (sm.username || '').toLowerCase().trim();
+            const smEmail = (sm.email || '').toLowerCase().trim();
+            const smPhone = (sm.phone || '').trim();
+            const inputName = username.toLowerCase().trim();
+            
+            return (smName === inputName || smEmail === inputName || smPhone === username) && 
+                   sm.password === password;
+          });
           
           if (agent) {
-            console.log(`[Auth] Found agent: ${agent.username} under manager: ${manager.manager_id}`);
+            console.log(`[Auth] SUCCESS: Found agent: ${agent.username} under manager: ${manager.manager_id}`);
             return res.json({ 
               success: true, 
               agent: {
@@ -73,7 +76,7 @@ async function startServer() {
         }
       }
       
-      console.warn(`[Auth] No agent found for credentials: ${username}`);
+      console.warn(`[Auth] FAILED: No agent found for: ${username}`);
       res.status(401).json({ success: false, message: "Invalid credentials" });
     } catch (err: any) {
       console.error("[Auth] Exception:", err);

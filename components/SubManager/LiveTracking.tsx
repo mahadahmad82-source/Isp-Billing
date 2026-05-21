@@ -48,8 +48,11 @@ const MapContent = ({ activeAgents }: { activeAgents: any[] }) => {
 };
 
 const LiveTracking: React.FC<{ subManagers: SubManagerAccount[] }> = ({ subManagers }) => {
-  // Use a placeholder key or allow user to set it
-  const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || ''; // Must have vite config setup
+  // Respecting Google Maps skill constitution for AI Studio
+  const API_KEY = 
+    process.env.GOOGLE_MAPS_PLATFORM_KEY || 
+    (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+    ''; 
   const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
   
   const activeAgents = subManagers

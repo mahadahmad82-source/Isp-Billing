@@ -38,18 +38,10 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ status, lastCheckIn, 
               lng: watchPos.coords.longitude
             };
             onLocationUpdate(newLoc);
-            // Setup an interval to mock sending these coordinates to a tracking database
-            console.log('Live Coord update ready to sync:', newLoc);
           },
           (err) => console.error("Watch error:", err),
-          { enableHighAccuracy: true, maximumAge: 10000 }
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
         );
-
-        // Setup an interval to mock sending these coordinates to a tracking database every 10 seconds
-        (window as any).locationSyncInterval = setInterval(() => {
-          console.log('MOCK SYNC: Broadcasting coordinates to secure server...', loc);
-        }, 10000); // 10 seconds
-
       },
       (err) => {
         setError("Permission denied or location unavailable");
@@ -62,9 +54,6 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ status, lastCheckIn, 
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
-    }
-    if ((window as any).locationSyncInterval) {
-      clearInterval((window as any).locationSyncInterval);
     }
     onStatusChange('offline');
   };

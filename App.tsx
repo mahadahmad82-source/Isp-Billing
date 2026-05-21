@@ -148,12 +148,8 @@ const App: React.FC = () => {
     const account = getAccounts().find(a => a.username === activeManager);
     if (account?.role) {
       setUserRole(account.role);
-      // For agents, we also need their area (which we added to profiles and likely saved meta)
-      // We might need to fetch this if not in account
     } else if (activeManager === 'admin') {
       setUserRole('admin');
-    } else if (activeManager?.startsWith('agent_')) {
-      setUserRole('sub-manager');
     } else {
       setUserRole('manager');
     }
@@ -1133,7 +1129,8 @@ const App: React.FC = () => {
           area: agent.area,
           password: agent.password, // Keep password synced for remote lookups
           email: agent.email,
-          phone: agent.phone
+          phone: agent.phone,
+          salary: agent.salary
         }]
       };
       saveState(newState);

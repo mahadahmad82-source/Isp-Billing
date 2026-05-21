@@ -53,21 +53,25 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     setSortConfig({ key, direction });
   };
 
-  const handleDutyStatusChange = (status: 'online' | 'offline') => {
+  const handleDutyStatusChange = (status: 'online' | 'offline', location?: { lat: number, lng: number }) => {
     if (status === dutyStatus) return;
     
     setDutyStatus(status);
     if (agentId) {
       const updates: any = { dutyStatus: status };
       if (status === 'online') {
-        updates.lastCheckIn = new Date().toISOString();
+        const now = new Date().toISOString();
+        updates.lastCheckIn = now;
         updates.isLeave = false;
+        if (location) {
+          updates.lastLocation = { ...location, timestamp: now };
+        }
         
         onAddAttendanceLog({
           subManagerId: agentId,
           type: 'check-in',
-          timestamp: new Date().toISOString(),
-          location: agent?.lastLocation ? { lat: agent.lastLocation.lat, lng: agent.lastLocation.lng } : undefined
+          timestamp: now,
+          location: location || (agent?.lastLocation ? { lat: agent.lastLocation.lat, lng: agent.lastLocation.lng } : undefined)
         });
       } else {
         updates.lastCheckOut = new Date().toISOString();
