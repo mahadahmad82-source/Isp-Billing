@@ -1,5 +1,5 @@
 {
-  "name": "ISP Billing",
-  "description": "The ultimate ISP management ledger. Professional receipts, automated billing, and offline-first recovery tracking for modern network providers.",
+  "name": "MYISP Billing & Receipt",
+  "description": "Professional ISP management terminal. Advanced receipts, automated billing cycles, field agent tracking, and secure cloud synchronization.",
   "requestFramePermissions": []
 }

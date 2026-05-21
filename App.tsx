@@ -73,6 +73,29 @@ const App: React.FC = () => {
   const [tourMode, setTourMode] = useState<string>('welcome');
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+
+  const handleUpdateProfile = (updates: { businessPhone?: string; businessAddress?: string }) => {
+    setState(prev => {
+      const newState = {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          ...updates
+        },
+        companies: prev.companies.map(c => 
+          c.id === prev.activeCompanyId 
+            ? { ...c, settings: { ...c.settings, ...updates } } 
+            : c
+        )
+      };
+      saveState(newState);
+      if (prev.currentManager) {
+        saveStateToSupabase(prev.currentManager, newState);
+      }
+      return newState;
+    });
+  };
 
   // Per-page Tour logic
   useEffect(() => {
@@ -1017,6 +1040,9 @@ const App: React.FC = () => {
           userRole={userRole}
           activeManager={activeManager || ''}
           onLogout={handleLogout}
+          onUpdateProfile={handleUpdateProfile}
+          currentPhone={currentSettings.businessPhone}
+          currentAddress={currentSettings.businessAddress}
         >
           {activeTab === 'dashboard' && (
             <Dashboard 
@@ -1104,7 +1130,10 @@ const App: React.FC = () => {
           username: agentUsername,
           managerUsername: activeManager || '',
           dutyStatus: 'offline' as const,
-          area: agent.area
+          area: agent.area,
+          password: agent.password, // Keep password synced for remote lookups
+          email: agent.email,
+          phone: agent.phone
         }]
       };
       saveState(newState);

@@ -1322,7 +1322,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         )}
         <div className={`space-y-6 ${viewMode === 'view' ? 'lg:col-span-2 flex flex-col items-center' : ''}`}>
           {activeReceipt ? (
-            <div className="flex flex-col gap-6 max-w-2xl w-full">
+            <div className="flex flex-col gap-6 w-full">
                 {showSaveSuccess && (
                   <div className="bg-emerald-500 text-white p-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center shadow-lg animate-in fade-in slide-in-from-top-4">
                     ✓ Receipt Downloaded Successfully

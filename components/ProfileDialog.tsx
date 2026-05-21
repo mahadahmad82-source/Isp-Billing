@@ -9,10 +9,13 @@ interface ProfileDialogProps {
   onLogout: () => void;
   theme: 'light' | 'dark';
   initialTab?: 'profile' | 'security' | 'session';
+  onUpdateProfile: (updates: { businessPhone?: string; businessAddress?: string }) => void;
+  currentPhone?: string;
+  currentAddress?: string;
 }
 
 const ProfileDialog: React.FC<ProfileDialogProps> = ({
-  isOpen, onClose, businessName, username, onLogout, theme, initialTab = 'profile'
+  isOpen, onClose, businessName, username, onLogout, theme, initialTab = 'profile', onUpdateProfile, currentPhone = '', currentAddress = ''
 }) => {
   const [tab, setTab] = useState<'profile' | 'security' | 'session'>('profile');
   const [profile, setProfile] = useState<{ email: string; role: string; created_at: string } | null>(null);
@@ -58,29 +61,20 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         setEditEmail(user.email || '');
       }
 
-      // Load saved settings
-      const raw = localStorage.getItem(`mahadnet_data_${username}`);
-      if (raw) {
-        const state = JSON.parse(raw);
-        if (state.settings?.businessPhone) setEditPhone(state.settings.businessPhone);
-        if (state.settings?.businessAddress) setEditAddress(state.settings.businessAddress);
-      }
+      setEditPhone(currentPhone);
+      setEditAddress(currentAddress);
     } catch {}
   };
 
   const handleSaveProfile = async () => {
     setEditSaving(true);
     try {
-      // Save phone/address to localStorage settings
-      const raw = localStorage.getItem(`mahadnet_data_${username}`);
-      const state = raw ? JSON.parse(raw) : {};
-      if (!state.settings) state.settings = {};
-      state.settings.businessPhone = editPhone;
-      state.settings.businessAddress = editAddress;
-      if (state.companies?.length) {
-        state.companies[0].settings = { ...state.companies[0].settings, businessPhone: editPhone, businessAddress: editAddress };
-      }
-      localStorage.setItem(`mahadnet_data_${username}`, JSON.stringify(state));
+      // Call parent to update state and sync to Supabase
+      onUpdateProfile({ 
+        businessPhone: editPhone, 
+        businessAddress: editAddress 
+      });
+      
       setEditSuccess('Profile updated successfully!');
       setEditMode(false);
     } catch (e: any) { alert('Error: ' + e.message); }

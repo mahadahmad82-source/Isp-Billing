@@ -26,6 +26,9 @@ interface LayoutProps {
   userRole?: 'admin' | 'manager' | 'sub-manager';
   activeManager?: string;
   onLogout?: () => void;
+  onUpdateProfile?: (updates: { businessPhone?: string; businessAddress?: string }) => void;
+  currentPhone?: string;
+  currentAddress?: string;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -47,6 +50,9 @@ const Layout: React.FC<LayoutProps> = ({
   userRole = 'manager',
   activeManager = '',
   onLogout = () => {},
+  onUpdateProfile = () => {},
+  currentPhone = '',
+  currentAddress = '',
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false);
@@ -353,6 +359,9 @@ const Layout: React.FC<LayoutProps> = ({
       onLogout={onLogout}
       theme={theme}
       initialTab={profileInitialTab}
+      onUpdateProfile={onUpdateProfile}
+      currentPhone={currentPhone}
+      currentAddress={currentAddress}
     />
     </div>
   );

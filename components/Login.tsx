@@ -140,6 +140,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             email: data.user.email || '',
             phone: data.user.user_metadata?.phone || '',
             role: role as 'admin' | 'manager' | 'sub-manager',
+            managerUsername: profileData?.manager_id || '',
             createdAt: new Date().toISOString(),
             rememberPassword: true
           });
@@ -216,7 +217,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
 
     setIsLoading(true);
-    setLoadingText('OTP bhej raha hai...');
+    setLoadingText('Sending OTP...');
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier);
       if (error) throw new Error(error.message);
@@ -235,14 +236,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const handleForgotOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setLoadingText('OTP verify ho raha hai...');
+    setLoadingText('Verifying OTP...');
     setError('');
 
     try {
       const { error } = await supabase.auth.verifyOtp({
         email: forgotIdentifier, token: forgotOtp, type: 'recovery',
       });
-      if (error) throw new Error('OTP galat hai ya expire ho gaya.');
+      if (error) throw new Error('Invalid OTP or it has expired.');
       setView('forgot-newpass');
     } catch (err: any) {
       showError(err.message);
@@ -253,16 +254,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmNewPassword) { showError('Passwords match nahi karte.'); return; }
-    if (newPassword.length < 4) { showError('Password kam az kam 4 characters ka hona chahiye.'); return; }
+    if (newPassword !== confirmNewPassword) { showError('Passwords do not match.'); return; }
+    if (newPassword.length < 4) { showError('Password must be at least 4 characters.'); return; }
     setIsLoading(true);
-    setLoadingText('Password update ho raha hai...');
+    setLoadingText('Updating password...');
     setError('');
 
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw new Error(error.message);
-      setError('Success: Password update ho gaya! Ab login karein.');
+      setError('Success: Password updated! You can now login.');
       setTimeout(() => {
         resetFields();
         setView('login');
@@ -451,11 +452,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 2 of 3</span>
               </div>
               <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                OTP bheja gaya hai: <strong>{forgotIdentifier}</strong>
+                OTP has been sent to: <strong>{forgotIdentifier}</strong>
               </div>
               <div className="space-y-2">
                 <label className={labelCls}>6-Digit OTP</label>
-                <input className={inputCls} placeholder="OTP yahan daalen" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} maxLength={6} required />
+                <input className={inputCls} placeholder="Enter OTP here" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} maxLength={6} required />
               </div>
               <div className="pt-2">
                 <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
@@ -475,7 +476,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               <div className="space-y-2">
                 <label className={labelCls}>New Password</label>
                 <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} className={inputCls} placeholder="Naya password (min 4 characters)" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={4} required />
+                  <input type={showPassword ? 'text' : 'password'} className={inputCls} placeholder="New password (min 4 characters)" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={4} required />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-500 transition-colors p-2">
                     {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
@@ -484,7 +485,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               <div className="space-y-2">
                 <label className={labelCls}>Confirm New Password</label>
                 <div className="relative">
-                  <input type={showConfirmPassword ? 'text' : 'password'} className={inputCls} placeholder="Dobara daalen" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required />
+                  <input type={showConfirmPassword ? 'text' : 'password'} className={inputCls} placeholder="Enter password again" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-500 transition-colors p-2">
                     {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
