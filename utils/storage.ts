@@ -8,7 +8,30 @@ const DATA_PREFIX = 'mahadnet_data_';
 // ─── Account Management ───────────────────────────────────────────────────────
 export const getAccounts = (): ManagerAccount[] => {
   const data = localStorage.getItem(ACCOUNTS_KEY);
-  return data ? JSON.parse(data) : [];
+  const accounts: ManagerAccount[] = data ? JSON.parse(data) : [];
+
+  // Also include agent session from sessionStorage (agents are NOT saved in localStorage)
+  try {
+    const agentSession = sessionStorage.getItem('agent_temp_session');
+    if (agentSession) {
+      const sess = JSON.parse(agentSession);
+      if (sess.username && !accounts.find((a: ManagerAccount) => a.username === sess.username)) {
+        accounts.push({
+          username: sess.username,
+          password: '',
+          businessName: sess.businessName || sess.username,
+          email: sess.email || '',
+          phone: sess.phone || '',
+          role: 'sub-manager',
+          managerUsername: sess.managerUsername,
+          createdAt: new Date().toISOString(),
+          rememberPassword: false
+        });
+      }
+    }
+  } catch {}
+
+  return accounts;
 };
 
 export const saveAccount = (account: ManagerAccount) => {
