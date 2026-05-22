@@ -619,35 +619,55 @@ const App: React.FC = () => {
       ...log,
       id: generateId()
     };
-    setState(prev => ({
-      ...prev,
-      attendanceLogs: [...(prev.attendanceLogs || []), newLog]
-    }));
+    setState(prev => {
+      const newState = {
+        ...prev,
+        attendanceLogs: [...(prev.attendanceLogs || []), newLog]
+      };
+      saveState(newState);
+      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
+      return newState;
+    });
   }, []);
 
   const handleUpdateAttendanceLog = useCallback((logId: string, updates: Partial<AttendanceLog>) => {
-    setState(prev => ({
-      ...prev,
-      attendanceLogs: (prev.attendanceLogs || []).map(log => 
-        log.id === logId ? { ...log, ...updates } : log
-      )
-    }));
+    setState(prev => {
+      const newState = {
+        ...prev,
+        attendanceLogs: (prev.attendanceLogs || []).map(log =>
+          log.id === logId ? { ...log, ...updates } : log
+        )
+      };
+      saveState(newState);
+      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
+      return newState;
+    });
   }, []);
 
   const handleDeleteAttendanceLog = useCallback((logId: string) => {
-    setState(prev => ({
-      ...prev,
-      attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId)
-    }));
+    setState(prev => {
+      const newState = {
+        ...prev,
+        attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId)
+      };
+      saveState(newState);
+      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
+      return newState;
+    });
   }, []);
 
   const handleUpdateAgent = useCallback((agentId: string, updates: any) => {
-    setState(prev => ({
-      ...prev,
-      subManagers: (prev.subManagers || []).map(sm => 
-        sm.id === agentId ? { ...sm, ...updates } : sm
-      )
-    }));
+    setState(prev => {
+      const newState = {
+        ...prev,
+        subManagers: (prev.subManagers || []).map(sm =>
+          sm.id === agentId ? { ...sm, ...updates } : sm
+        )
+      };
+      saveState(newState);
+      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
+      return newState;
+    });
   }, []);
 
   const handleUpdateUser = (userId: string, update: Partial<UserRecord>) => {
