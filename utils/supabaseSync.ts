@@ -1,35 +1,36 @@
 import { supabase } from '../lib/supabase';
 import { AppState } from '../types';
 
-// Save app state to Supabase via server-side proxy (bypasses RLS issues)
+// Save app state directly to Supabase (bypasses server proxy, works on Vercel)
 export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
   if (!managerId) return;
   try {
-    const response = await fetch('/api/sync/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ managerId, state })
-    });
-    
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Supabase sync-proxy error:', err.error);
-    }
+    const { error } = await supabase
+      .from('manager_data')
+      .upsert(
+        { manager_id: managerId, data: state, updated_at: new Date().toISOString() },
+        { onConflict: 'manager_id' }
+      );
+    if (error) console.warn('[Supabase] saveStateToSupabase error:', error.message);
   } catch (err) {
-    console.error('Supabase sync-proxy exception:', err);
+    console.warn('[Supabase] saveStateToSupabase exception:', err);
   }
 };
 
-// Load app state from Supabase via server-side proxy
+// Load app state directly from Supabase
 export const loadStateFromSupabase = async (managerId: string): Promise<AppState | null> => {
   if (!managerId) return null;
   try {
-    const response = await fetch(`/api/sync/load/${encodeURIComponent(managerId)}`);
-    if (!response.ok) return null;
-    const { data } = await response.json();
-    return data as AppState;
+    const { data, error } = await supabase
+      .from('manager_data')
+      .select('data')
+      .eq('manager_id', managerId)
+      .single();
+
+    if (error || !data) return null;
+    return data.data as AppState;
   } catch (err) {
-    console.error('Supabase sync-proxy load exception:', err);
+    console.warn('[Supabase] loadStateFromSupabase exception:', err);
     return null;
   }
 };
@@ -49,11 +50,11 @@ export const smartLoadAndSync = async (
   const localScore = localUsers + localReceipts;
   const remoteScore = remoteUsers + remoteReceipts;
 
-  console.log(`[Sync] Local: ${localUsers} users, ${localReceipts} receipts | Supabase: ${remoteUsers} users, ${remoteReceipts} receipts`);
+  console.log(`[Sync] Local: ${localUsers}u ${localReceipts}r | Supabase: ${remoteUsers}u ${remoteReceipts}r`);
 
   // Local has MORE data — use local and save to Supabase
   if (localScore > remoteScore) {
-    console.log('[Sync] Using LOCAL data (richer) — saving to Supabase');
+    console.log('[Sync] Using LOCAL data — saving to Supabase');
     await saveStateToSupabase(managerId, localState);
     return localState;
   }
@@ -67,8 +68,8 @@ export const smartLoadAndSync = async (
       receipts: supabaseState.receipts || [],
       archives: supabaseState.archives || [],
       companies: supabaseState.companies || [],
-      subManagers: supabaseState.subManagers || [],
-      attendanceLogs: supabaseState.attendanceLogs || [],
+      subManagers: (supabaseState as any).subManagers || [],
+      attendanceLogs: (supabaseState as any).attendanceLogs || [],
       activeCompanyId: supabaseState.activeCompanyId || '',
       dismissedNotificationIds: supabaseState.dismissedNotificationIds || [],
       currentManager: managerId,
