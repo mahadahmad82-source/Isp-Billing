@@ -70,11 +70,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
       
-      // Fast path for Field Agents and Admins
-      if (localFound && (localFound.role === 'sub-manager' || localFound.role === 'admin')) {
+      // Fast path for Admins only (agents always verify via Supabase)
+      if (localFound && localFound.role === 'admin') {
         setActiveSession(localFound.username);
         onLogin(localFound.username);
         return;
+      }
+      // For sub-managers: restore session from sessionStorage if available
+      const agentSession = sessionStorage.getItem('agent_temp_session');
+      if (agentSession) {
+        const sess = JSON.parse(agentSession);
+        if ((sess.username === username || sess.email === username || sess.phone === username) && localFound?.password === password) {
+          setActiveSession(sess.username);
+          onLogin(sess.username);
+          return;
+        }
       }
 
       let identifier = username;
@@ -143,18 +153,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
                 if (agent) {
                   const agentUsername = agent.username || agent.id;
-                  setActiveSession(agentUsername);
-                  saveAccount({
+                  // Store agent session in sessionStorage ONLY (not localStorage)
+                  // This ensures agent always authenticates fresh from Supabase on new device
+                  sessionStorage.setItem('agent_temp_session', JSON.stringify({
                     username: agentUsername,
-                    password: password,
+                    managerUsername: manager.manager_id,
                     businessName: agent.name || agentUsername,
                     email: agent.email || '',
                     phone: agent.phone || '',
-                    role: 'sub-manager',
-                    managerUsername: manager.manager_id,
-                    createdAt: new Date().toISOString(),
-                    rememberPassword: true
-                  });
+                    role: 'sub-manager'
+                  }));
+                  setActiveSession(agentUsername);
                   onLogin(agentUsername);
                   return;
                 }
