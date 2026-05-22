@@ -121,32 +121,47 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           setLoadingText('Searching Remote Nodes...');
           
           try {
-            const authRes = await fetch('/api/auth/search-agent', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, password })
-            });
+            // Direct Supabase query - works on Vercel (no server needed)
+            const { data: managers, error: dbErr } = await supabase
+              .from('manager_data')
+              .select('manager_id, data');
 
-            if (authRes.ok) {
-              const { agent } = await authRes.json();
-              const agentUsername = agent.username;
-              setActiveSession(agentUsername);
-              saveAccount({
-                username: agentUsername,
-                password: password,
-                businessName: agent.name,
-                email: agent.email || '',
-                phone: agent.phone || '',
-                role: 'sub-manager',
-                managerUsername: agent.managerId,
-                createdAt: new Date().toISOString(),
-                rememberPassword: true
-              });
-              onLogin(agentUsername);
-              return;
+            if (!dbErr && managers) {
+              for (const manager of managers) {
+                const agents = (manager.data as any)?.subManagers || [];
+                const agent = agents.find((sm: any) => {
+                  const smName = (sm.username || sm.id || '').toLowerCase().trim();
+                  const smEmail = (sm.email || '').toLowerCase().trim();
+                  const smPhone = (sm.phone || '').trim();
+                  const inputName = username.toLowerCase().trim();
+                  const smPassword = (sm.password || '').trim();
+                  const inputPassword = (password || '').trim();
+                  const nameMatch = smName === inputName || smEmail === inputName || smPhone === inputName;
+                  const passwordMatch = smPassword === inputPassword;
+                  return nameMatch && passwordMatch;
+                });
+
+                if (agent) {
+                  const agentUsername = agent.username || agent.id;
+                  setActiveSession(agentUsername);
+                  saveAccount({
+                    username: agentUsername,
+                    password: password,
+                    businessName: agent.name || agentUsername,
+                    email: agent.email || '',
+                    phone: agent.phone || '',
+                    role: 'sub-manager',
+                    managerUsername: manager.manager_id,
+                    createdAt: new Date().toISOString(),
+                    rememberPassword: true
+                  });
+                  onLogin(agentUsername);
+                  return;
+                }
+              }
             }
           } catch (apiErr) {
-            console.error("Server-side auth search failed:", apiErr);
+            console.error('Agent search failed:', apiErr);
           }
 
           throw new Error('Invalid username or password.');
