@@ -137,6 +137,9 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStep, setSyncStep] = useState(0);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const lastActivityRef = useRef<number>(Date.now());
 
@@ -177,8 +180,18 @@ const App: React.FC = () => {
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
       // Smart sync: compare localStorage vs Supabase, always use richer data
+      setIsSyncing(true);
+      setSyncStep(1);
       const localState = loadState(dataOwner);
+      setTimeout(() => setSyncStep(2), 400);
       smartLoadAndSync(dataOwner, localState).then(finalState => {
+        setSyncStep(3);
+        setTimeout(() => {
+          setSyncStep(4);
+          setTimeout(() => {
+            setIsSyncing(false);
+          }, 600);
+        }, 500);
         setState({
           ...finalState,
           archives: finalState.archives || [],
@@ -408,14 +421,15 @@ const App: React.FC = () => {
   }, [activeManager]);
 
   const handleLogout = useCallback(() => {
-    setActiveSession(null);
-    sessionStorage.clear();
-    setActiveManager(null);
-    setIsAdmin(false);
-    
+    setIsLoggingOut(true);
     setTimeout(() => {
+      setActiveSession(null);
+      sessionStorage.clear();
+      setActiveManager(null);
+      setIsAdmin(false);
+      setIsLoggingOut(false);
       window.location.href = '/';
-    }, 100);
+    }, 1800);
   }, []);
 
 
@@ -1301,6 +1315,7 @@ const App: React.FC = () => {
       )}
       </BrowserRouter>
     </ErrorBoundary>
+    </>
   );
 };
 
