@@ -179,36 +179,66 @@ const App: React.FC = () => {
       const account = getAccounts().find(a => a.username === activeManager);
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Smart sync: compare localStorage vs Supabase, always use richer data
+      // Load directly from Supabase — simple, reliable, no localStorage needed
       setIsSyncing(true);
       setSyncStep(1);
-      const localState = loadState(dataOwner);
-      setTimeout(() => setSyncStep(2), 400);
-      smartLoadAndSync(dataOwner, localState).then(finalState => {
-        setSyncStep(3);
-        setTimeout(() => {
+      setTimeout(() => setSyncStep(2), 300);
+
+      supabase
+        .from('manager_data')
+        .select('data')
+        .eq('manager_id', dataOwner)
+        .single()
+        .then(({ data: cloudRow, error: cloudErr }) => {
+          setSyncStep(3);
+
+          if (!cloudErr && cloudRow?.data) {
+            // ✅ Supabase has data — use it directly
+            const cloudState = cloudRow.data as AppState;
+            setState({
+              ...cloudState,
+              users:                    cloudState.users    || [],
+              receipts:                 cloudState.receipts || [],
+              archives:                 cloudState.archives || [],
+              companies:                cloudState.companies || [],
+              subManagers:              (cloudState as any).subManagers || [],
+              attendanceLogs:           (cloudState as any).attendanceLogs || [],
+              activeCompanyId:          cloudState.activeCompanyId || '',
+              dismissedNotificationIds: cloudState.dismissedNotificationIds || [],
+              currentManager:           dataOwner,
+            });
+          } else {
+            // ⚠️ Supabase empty — check localStorage (first time / migration)
+            const localState = loadState(dataOwner);
+            setState({
+              ...localState,
+              currentManager: dataOwner,
+            });
+            // Push local data to Supabase so next time cloud works
+            if ((localState.users?.length || 0) > 0 || (localState.receipts?.length || 0) > 0) {
+              saveStateToSupabase(dataOwner, { ...localState, currentManager: dataOwner });
+            }
+          }
+
           setSyncStep(4);
           setTimeout(() => {
             setIsSyncing(false);
-          }, 600);
-        }, 500);
-        setState({
-          ...finalState,
-          archives: finalState.archives || [],
-          dismissedNotificationIds: finalState.dismissedNotificationIds || [],
-          companies: finalState.companies || [],
-          activeCompanyId: finalState.activeCompanyId || '',
-          currentManager: dataOwner
+            // Show onboarding welcome for new managers
+            if (activeManager !== 'admin') {
+              const welcomeKey = \`tour_seen_\${activeManager}_welcome\`;
+              if (!localStorage.getItem(welcomeKey)) {
+                setShowTour(true);
+                setTourMode('welcome');
+              }
+            }
+          }, 500);
+        })
+        .catch(() => {
+          // Network error — fallback to localStorage
+          const localState = loadState(dataOwner);
+          setState({ ...localState, currentManager: dataOwner });
+          setIsSyncing(false);
         });
-        // Show onboarding welcome for new managers
-        if (activeManager !== 'admin') {
-          const welcomeKey = `tour_seen_${activeManager}_welcome`;
-          if (!localStorage.getItem(welcomeKey)) {
-            setShowTour(true);
-            setTourMode('welcome');
-          }
-        }
-      });
     } else {
       setActiveSession(null);
     }
