@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
-import { Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle, Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key, ChevronUp, ChevronDown } from 'lucide-react';
+import { Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle, Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key, ChevronUp, ChevronDown, Download, Upload, ShieldCheck } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface ManagerStat {
@@ -242,6 +242,85 @@ const AdminDashboard: React.FC = () => {
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Backup State ─────────────────────────────────────────────────────────
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
+
+  // ─── Download All Managers Backup ─────────────────────────────────────────
+  const handleDownloadBackup = async () => {
+    setBackupLoading(true);
+    setBackupMsg(null);
+    try {
+      const { data, error } = await supabase
+        .from('manager_data')
+        .select('manager_id, data, updated_at');
+
+      if (error) throw error;
+
+      const backup = {
+        version: '1.0',
+        exported_at: new Date().toISOString(),
+        total_managers: data?.length || 0,
+        managers: data
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ledgerzo_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setBackupMsg(`✅ Backup downloaded! ${data?.length || 0} managers ka data saved.`);
+    } catch (err: any) {
+      setBackupMsg('❌ Backup failed: ' + err.message);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // ─── Restore From Backup File ──────────────────────────────────────────────
+  const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRestoreLoading(true);
+    setBackupMsg(null);
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!backup.managers || !Array.isArray(backup.managers)) {
+        throw new Error('Invalid backup file format');
+      }
+
+      let restored = 0;
+      for (const manager of backup.managers) {
+        if (!manager.manager_id || !manager.data) continue;
+        const { error } = await supabase
+          .from('manager_data')
+          .upsert(
+            { manager_id: manager.manager_id, data: manager.data, updated_at: new Date().toISOString() },
+            { onConflict: 'manager_id' }
+          );
+        if (!error) restored++;
+      }
+
+      setBackupMsg(`✅ Restore complete! ${restored}/${backup.managers.length} managers restored.`);
+      // Refresh stats
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err: any) {
+      setBackupMsg('❌ Restore failed: ' + err.message);
+    } finally {
+      setRestoreLoading(false);
+      e.target.value = '';
+    }
+  };
+
+
   return (
     <div className="p-6 md:p-8 space-y-8 max-w-[1400px] mx-auto bg-[#0b0f1a] min-h-screen text-slate-300">
 
@@ -683,6 +762,59 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ═══ Backup & Restore Section ═══════════════════════════════════════════ */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <ShieldCheck className="w-5 h-5 text-emerald-500" />
+          <h3 className="font-bold text-slate-800 dark:text-white text-base">Backup & Restore</h3>
+          <span className="ml-auto text-xs text-slate-400">All Managers Data</span>
+        </div>
+
+        {backupMsg && (
+          <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${
+            backupMsg.startsWith('✅')
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-rose-50 text-rose-700 border border-rose-200'
+          }`}>
+            {backupMsg}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Download Backup */}
+          <button
+            onClick={handleDownloadBackup}
+            disabled={backupLoading}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl font-semibold text-sm transition-all active:scale-95"
+          >
+            <Download className="w-4 h-4" />
+            {backupLoading ? 'Downloading...' : 'Download Full Backup'}
+          </button>
+
+          {/* Restore Backup */}
+          <label className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 cursor-pointer ${
+            restoreLoading
+              ? 'bg-orange-300 text-white'
+              : 'bg-orange-500 hover:bg-orange-600 text-white'
+          }`}>
+            <Upload className="w-4 h-4" />
+            {restoreLoading ? 'Restoring...' : 'Restore From Backup'}
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleRestoreBackup}
+              disabled={restoreLoading}
+            />
+          </label>
+        </div>
+
+        <p className="mt-3 text-xs text-slate-400 text-center">
+          Backup includes all managers' customers, receipts, settings & agents data
+        </p>
+      </div>
+
 
     </div>
   );
