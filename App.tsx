@@ -226,8 +226,40 @@ const App: React.FC = () => {
           .single();
 
         if (!cloudErr && cloudRow?.data) {
-          cloudState = cloudRow.data as AppState;
-          markOk(3);
+          const supabaseState = cloudRow.data as AppState;
+          const supabaseReceipts = supabaseState?.receipts?.length || 0;
+          const supabaseUsers    = supabaseState?.users?.length    || 0;
+
+          // RECOVERY MODE: if Supabase is empty, check localStorage (phone rescue)
+          if (supabaseReceipts === 0 && supabaseUsers === 0) {
+            const localRaw = localStorage.getItem(`mahadnet_data_${dataOwner}`);
+            if (localRaw) {
+              try {
+                const localParsed = JSON.parse(localRaw);
+                const localReceipts = localParsed?.receipts?.length || 0;
+                const localUsers    = localParsed?.users?.length    || 0;
+                if (localReceipts > 0 || localUsers > 0) {
+                  // FOUND local data — rescue it to Supabase immediately!
+                  const rescueState = { ...localParsed, currentManager: dataOwner };
+                  await saveStateToSupabase(dataOwner, rescueState);
+                  cloudState = rescueState;
+                  markOk(3);
+                } else {
+                  cloudState = supabaseState;
+                  markOk(3);
+                }
+              } catch {
+                cloudState = supabaseState;
+                markOk(3);
+              }
+            } else {
+              cloudState = supabaseState;
+              markOk(3);
+            }
+          } else {
+            cloudState = supabaseState;
+            markOk(3);
+          }
         } else {
           markError(3);
           setSyncStep(4);
