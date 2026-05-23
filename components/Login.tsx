@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
+import { findAgentManager } from '../utils/supabaseSync';
 import { logoBase64 } from '../utils/logoBase64';
 
 interface LoginProps {
@@ -131,43 +132,35 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           setLoadingText('Searching Remote Nodes...');
           
           try {
-            // Direct Supabase query - works on Vercel (no server needed)
-            const { data: managers, error: dbErr } = await supabase
-              .from('manager_data')
-              .select('manager_id, data');
+            // Use findAgentManager — searches all managers in Supabase
+            const result = await findAgentManager(username, password);
 
-            if (!dbErr && managers) {
-              for (const manager of managers) {
-                const agents = (manager.data as any)?.subManagers || [];
-                const agent = agents.find((sm: any) => {
-                  const smName = (sm.username || sm.id || '').toLowerCase().trim();
-                  const smEmail = (sm.email || '').toLowerCase().trim();
-                  const smPhone = (sm.phone || '').trim();
-                  const inputName = username.toLowerCase().trim();
-                  const smPassword = (sm.password || '').trim();
-                  const inputPassword = (password || '').trim();
-                  const nameMatch = smName === inputName || smEmail === inputName || smPhone === inputName;
-                  const passwordMatch = smPassword === inputPassword;
-                  return nameMatch && passwordMatch;
-                });
-
-                if (agent) {
-                  const agentUsername = agent.username || agent.id;
-                  // Store agent session in sessionStorage ONLY (not localStorage)
-                  // This ensures agent always authenticates fresh from Supabase on new device
-                  sessionStorage.setItem('agent_temp_session', JSON.stringify({
-                    username: agentUsername,
-                    managerUsername: manager.manager_id,
-                    businessName: agent.name || agentUsername,
-                    email: agent.email || '',
-                    phone: agent.phone || '',
-                    role: 'sub-manager'
-                  }));
-                  setActiveSession(agentUsername);
-                  onLogin(agentUsername);
-                  return;
-                }
-              }
+            if (result) {
+              const { agentUsername, managerUsername, agentInfo } = result;
+              // Save agent session in sessionStorage (not localStorage)
+              sessionStorage.setItem('agent_temp_session', JSON.stringify({
+                username: agentUsername,
+                managerUsername: managerUsername,
+                businessName: agentInfo.name || agentUsername,
+                email: agentInfo.email || '',
+                phone: agentInfo.phone || '',
+                role: 'sub-manager'
+              }));
+              // Also save to localStorage so getAccounts() can find this agent
+              saveAccount({
+                username: agentUsername,
+                password: password,
+                businessName: agentInfo.name || agentUsername,
+                email: agentInfo.email || '',
+                phone: agentInfo.phone || '',
+                role: 'sub-manager',
+                managerUsername: managerUsername,
+                createdAt: new Date().toISOString(),
+                rememberPassword: false
+              });
+              setActiveSession(agentUsername);
+              onLogin(agentUsername);
+              return;
             }
           } catch (apiErr) {
             console.error('Agent search failed:', apiErr);
