@@ -176,8 +176,8 @@ const App: React.FC = () => {
       const account = getAccounts().find(a => a.username === activeManager);
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Smart sync: compare localStorage vs Supabase, use richer data
-      const localState = loadState(activeManager);
+      // Smart sync: compare localStorage vs Supabase, always use richer data
+      const localState = loadState(dataOwner);
       smartLoadAndSync(dataOwner, localState).then(finalState => {
         setState({
           ...finalState,
