@@ -139,6 +139,8 @@ const App: React.FC = () => {
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStep, setSyncStep] = useState(0);
+  const [syncStepStatus, setSyncStepStatus] = useState<Record<number,'pending'|'ok'|'error'>>({});
+  const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const lastActivityRef = useRef<number>(Date.now());
@@ -174,74 +176,102 @@ const App: React.FC = () => {
   }, [userRole, activeManager]);
 
   useEffect(() => {
-    if (activeManager) {
+    if (!activeManager) { setActiveSession(null); return; }
+    
+    const runSync = async () => {
       setActiveSession(activeManager);
       const account = getAccounts().find(a => a.username === activeManager);
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Load directly from Supabase — simple, reliable, no localStorage needed
+      // Load directly from Supabase with real status tracking
       setIsSyncing(true);
+      setSyncStep(0);
+      setSyncStepStatus({});
+      setSyncErrorMsg(null);
+
+      const markOk    = (s: number) => setSyncStepStatus(prev => ({ ...prev, [s]: 'ok' }));
+      const markError = (s: number) => setSyncStepStatus(prev => ({ ...prev, [s]: 'error' }));
+
+      // Step 1: Authenticating
       setSyncStep(1);
-      setTimeout(() => setSyncStep(2), 300);
+      await new Promise(r => setTimeout(r, 300));
+      markOk(1);
 
-      supabase
-        .from('manager_data')
-        .select('data')
-        .eq('manager_id', dataOwner)
-        .single()
-        .then(({ data: cloudRow, error: cloudErr }) => {
-          setSyncStep(3);
+      // Step 2: Connecting to database
+      setSyncStep(2);
+      let connected = false;
+      try {
+        const pingResult = await supabase.from('manager_data').select('manager_id').limit(1);
+        if (!pingResult.error) { connected = true; markOk(2); }
+        else { markError(2); }
+      } catch { markError(2); }
 
-          if (!cloudErr && cloudRow?.data) {
-            // ✅ Supabase has data — use it directly
-            const cloudState = cloudRow.data as AppState;
-            setState({
-              ...cloudState,
-              users:                    cloudState.users    || [],
-              receipts:                 cloudState.receipts || [],
-              archives:                 cloudState.archives || [],
-              companies:                cloudState.companies || [],
-              subManagers:              (cloudState as any).subManagers || [],
-              attendanceLogs:           (cloudState as any).attendanceLogs || [],
-              activeCompanyId:          cloudState.activeCompanyId || '',
-              dismissedNotificationIds: cloudState.dismissedNotificationIds || [],
-              currentManager:           dataOwner,
-            });
-          } else {
-            // ⚠️ Supabase empty — check localStorage (first time / migration)
-            const localState = loadState(dataOwner);
-            setState({
-              ...localState,
-              currentManager: dataOwner,
-            });
-            // Push local data to Supabase so next time cloud works
-            if ((localState.users?.length || 0) > 0 || (localState.receipts?.length || 0) > 0) {
-              saveStateToSupabase(dataOwner, { ...localState, currentManager: dataOwner });
-            }
-          }
+      if (!connected) {
+        setSyncStep(3);
+        markError(3);
+        setSyncStep(4);
+        markError(4);
+        setSyncErrorMsg('No internet connection. Please check your network and try again.');
+        return;
+      }
 
+      // Step 3: Syncing data
+      setSyncStep(3);
+      let cloudState: AppState | null = null;
+      try {
+        const { data: cloudRow, error: cloudErr } = await supabase
+          .from('manager_data')
+          .select('data')
+          .eq('manager_id', dataOwner)
+          .single();
+
+        if (!cloudErr && cloudRow?.data) {
+          cloudState = cloudRow.data as AppState;
+          markOk(3);
+        } else {
+          markError(3);
           setSyncStep(4);
-          setTimeout(() => {
-            setIsSyncing(false);
-            // Show onboarding welcome for new managers
-            if (activeManager !== 'admin') {
-              const welcomeKey = `tour_seen_${activeManager}_welcome`;
-              if (!localStorage.getItem(welcomeKey)) {
-                setShowTour(true);
-                setTourMode('welcome');
-              }
-            }
-          }, 500);
-        })
-        .catch(() => {
-          // Network error — fallback to localStorage
-          const localState = loadState(dataOwner);
-          setState({ ...localState, currentManager: dataOwner });
-          setIsSyncing(false);
-        });
-    } else {
-      setActiveSession(null);
-    }
+          markError(4);
+          setSyncErrorMsg('Could not load your data from database. Please try again.');
+          return;
+        }
+      } catch {
+        markError(3);
+        setSyncStep(4);
+        markError(4);
+        setSyncErrorMsg('Database connection failed. Please check your internet and try again.');
+        return;
+      }
+
+      // Step 4: Preparing dashboard
+      setSyncStep(4);
+      setState({
+        ...cloudState,
+        users:                    cloudState.users    || [],
+        receipts:                 cloudState.receipts || [],
+        archives:                 cloudState.archives || [],
+        companies:                cloudState.companies || [],
+        subManagers:              (cloudState as any).subManagers || [],
+        attendanceLogs:           (cloudState as any).attendanceLogs || [],
+        activeCompanyId:          cloudState.activeCompanyId || '',
+        dismissedNotificationIds: cloudState.dismissedNotificationIds || [],
+        currentManager:           dataOwner,
+      });
+      markOk(4);
+
+      setTimeout(() => {
+        setIsSyncing(false);
+        if (activeManager !== 'admin') {
+          const welcomeKey = `tour_seen_${activeManager}_welcome`;
+          if (!localStorage.getItem(welcomeKey)) {
+            setShowTour(true);
+            setTourMode('welcome');
+          }
+        }
+      }, 600);
+    };
+
+    runSync();
   }, [activeManager]);
 
   const activeCompany = useMemo(() => {
@@ -1069,12 +1099,15 @@ const App: React.FC = () => {
         {/* ═══ LOGIN LOADING SCREEN ════════════════════════════════════════════ */}
         {isSyncing && (
           <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+            {/* Background blobs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {[...Array(12)].map((_,i) => (
+              {[...Array(8)].map((_,i) => (
                 <div key={i} className="absolute rounded-full bg-indigo-500/10 animate-pulse"
-                  style={{ width: (i*15+40)+'px', height: (i*15+40)+'px', top: (i*8)+'%', left: (i*7+5)+'%', animationDelay: (i*0.2)+'s' }} />
+                  style={{ width:(i*20+40)+'px', height:(i*20+40)+'px', top:(i*11+5)+'%', left:(i*10+3)+'%', animationDelay:(i*0.25)+'s' }} />
               ))}
             </div>
+
+            {/* Logo */}
             <div className="relative mb-8 flex flex-col items-center">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/40 mb-4">
                 <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1084,30 +1117,63 @@ const App: React.FC = () => {
               <h1 className="text-2xl font-bold text-white tracking-wide">Ledgerzo</h1>
               <p className="text-indigo-300 text-sm mt-1">ISP Management System</p>
             </div>
-            <div className="w-72 space-y-3 mb-8">
+
+            {/* Steps with real status */}
+            <div className="w-72 space-y-3 mb-6">
               {([
-                { step: 1, label: 'Authenticating account...', icon: '🔐' },
-                { step: 2, label: 'Connecting to database...', icon: '🗄️' },
-                { step: 3, label: 'Syncing your data...',      icon: '☁️' },
-                { step: 4, label: 'Preparing dashboard...',    icon: '✅' },
-              ] as {step:number,label:string,icon:string}[]).map(({ step, label, icon }) => (
-                <div key={step} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-500 ${syncStep >= step ? 'bg-indigo-500/20 border border-indigo-500/40' : 'bg-white/5 border border-white/10 opacity-40'}`}>
-                  <span className="text-lg">{icon}</span>
-                  <span className={`text-sm font-medium flex-1 ${syncStep >= step ? 'text-white' : 'text-slate-400'}`}>{label}</span>
-                  {syncStep > step && <span className="text-emerald-400 text-sm font-bold">✓</span>}
-                  {syncStep === step && (
-                    <svg className="w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  )}
-                </div>
-              ))}
+                { step: 1, label: 'Authenticating account', icon: '🔐' },
+                { step: 2, label: 'Connecting to database',  icon: '🗄️' },
+                { step: 3, label: 'Loading your data',       icon: '☁️' },
+                { step: 4, label: 'Preparing dashboard',     icon: '🚀' },
+              ] as {step:number,label:string,icon:string}[]).map(({ step, label, icon }) => {
+                const status = syncStepStatus[step];
+                const isActive = syncStep === step && !status;
+                const isDone = status === 'ok';
+                const isFailed = status === 'error';
+                const isPending = syncStep < step;
+                return (
+                  <div key={step} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-400 ${
+                    isDone    ? 'bg-emerald-500/15 border-emerald-500/40' :
+                    isFailed  ? 'bg-rose-500/15 border-rose-500/40' :
+                    isActive  ? 'bg-indigo-500/20 border-indigo-500/40' :
+                    'bg-white/5 border-white/10 opacity-40'
+                  }`}>
+                    <span className="text-lg">{icon}</span>
+                    <span className={`text-sm font-medium flex-1 ${isPending ? 'text-slate-500' : 'text-white'}`}>{label}</span>
+                    {isDone   && <span className="text-emerald-400 font-bold text-base">✓</span>}
+                    {isFailed && <span className="text-rose-400 font-bold text-base">✗</span>}
+                    {isActive && (
+                      <svg className="w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div className="w-72 h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${(syncStep/4)*100}%` }} />
+
+            {/* Progress bar */}
+            <div className="w-72 h-1.5 bg-white/10 rounded-full overflow-hidden mb-3">
+              <div className={`h-full rounded-full transition-all duration-700 ease-out ${
+                syncErrorMsg ? 'bg-gradient-to-r from-rose-500 to-rose-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+              }`} style={{ width: `${(syncStep/4)*100}%` }} />
             </div>
-            <p className="text-indigo-400 text-xs mt-3">Please wait...</p>
+
+            {/* Error message or waiting text */}
+            {syncErrorMsg ? (
+              <div className="w-72 mt-2 text-center">
+                <p className="text-rose-400 text-sm font-medium mb-3">{syncErrorMsg}</p>
+                <button
+                  onClick={() => { setIsSyncing(false); setActiveManager(null); setActiveSession(null); }}
+                  className="px-5 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold rounded-xl transition-all"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <p className="text-indigo-400 text-xs">Please wait...</p>
+            )}
           </div>
         )}
 
