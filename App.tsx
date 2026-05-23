@@ -225,7 +225,7 @@ const App: React.FC = () => {
             setIsSyncing(false);
             // Show onboarding welcome for new managers
             if (activeManager !== 'admin') {
-              const welcomeKey = \`tour_seen_\${activeManager}_welcome\`;
+              const welcomeKey = `tour_seen_${activeManager}_welcome`;
               if (!localStorage.getItem(welcomeKey)) {
                 setShowTour(true);
                 setTourMode('welcome');
