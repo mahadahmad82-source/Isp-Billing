@@ -1036,6 +1036,71 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        {/* ═══ LOGIN LOADING SCREEN ════════════════════════════════════════════ */}
+        {isSyncing && (
+          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {[...Array(12)].map((_,i) => (
+                <div key={i} className="absolute rounded-full bg-indigo-500/10 animate-pulse"
+                  style={{ width: (i*15+40)+'px', height: (i*15+40)+'px', top: (i*8)+'%', left: (i*7+5)+'%', animationDelay: (i*0.2)+'s' }} />
+              ))}
+            </div>
+            <div className="relative mb-8 flex flex-col items-center">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/40 mb-4">
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-white tracking-wide">Ledgerzo</h1>
+              <p className="text-indigo-300 text-sm mt-1">ISP Management System</p>
+            </div>
+            <div className="w-72 space-y-3 mb-8">
+              {([
+                { step: 1, label: 'Authenticating account...', icon: '🔐' },
+                { step: 2, label: 'Connecting to database...', icon: '🗄️' },
+                { step: 3, label: 'Syncing your data...',      icon: '☁️' },
+                { step: 4, label: 'Preparing dashboard...',    icon: '✅' },
+              ] as {step:number,label:string,icon:string}[]).map(({ step, label, icon }) => (
+                <div key={step} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-500 ${syncStep >= step ? 'bg-indigo-500/20 border border-indigo-500/40' : 'bg-white/5 border border-white/10 opacity-40'}`}>
+                  <span className="text-lg">{icon}</span>
+                  <span className={`text-sm font-medium flex-1 ${syncStep >= step ? 'text-white' : 'text-slate-400'}`}>{label}</span>
+                  {syncStep > step && <span className="text-emerald-400 text-sm font-bold">✓</span>}
+                  {syncStep === step && (
+                    <svg className="w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="w-72 h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${(syncStep/4)*100}%` }} />
+            </div>
+            <p className="text-indigo-400 text-xs mt-3">Please wait...</p>
+          </div>
+        )}
+
+        {/* ═══ LOGOUT LOADING SCREEN ══════════════════════════════════════════ */}
+        {isLoggingOut && (
+          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+            <div className="flex flex-col items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-xl mb-2">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <h2 className="text-white text-xl font-bold">Signing Out</h2>
+              <p className="text-slate-400 text-sm">Saving your session securely...</p>
+              <div className="flex gap-2 mt-2">
+                {[0,1,2].map(i => (
+                  <div key={i} className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {loadingMessage && (
           <div className="fixed top-0 left-0 right-0 z-[1000] no-print">
             <div className="h-1.5 w-full overflow-hidden bg-indigo-500/10">
@@ -1315,7 +1380,6 @@ const App: React.FC = () => {
       )}
       </BrowserRouter>
     </ErrorBoundary>
-    </>
   );
 };
 
