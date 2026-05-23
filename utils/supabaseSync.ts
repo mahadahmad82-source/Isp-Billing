@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { AppState } from '../types';
 
-// ─── Save state to Supabase ────────────────────────────────────────────────────
+// ─── Save to Supabase ──────────────────────────────────────────────────────────
 export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
   if (!managerId) return;
   try {
@@ -17,7 +17,7 @@ export const saveStateToSupabase = async (managerId: string, state: AppState): P
   }
 };
 
-// ─── Load state from Supabase ──────────────────────────────────────────────────
+// ─── Load from Supabase ────────────────────────────────────────────────────────
 export const loadStateFromSupabase = async (managerId: string): Promise<AppState | null> => {
   if (!managerId) return null;
   try {
@@ -26,7 +26,6 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
       .select('data')
       .eq('manager_id', managerId)
       .single();
-
     if (error || !data) return null;
     return data.data as AppState;
   } catch (err) {
@@ -35,78 +34,76 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
   }
 };
 
-// ─── Smart Load & Sync ────────────────────────────────────────────────────────
-// LOGIC:
-// 1. Always fetch from Supabase
-// 2. Compare by receipts count — whichever is MORE wins
-// 3. Save winner back to Supabase so all devices stay in sync
+// ─── Smart Load & Sync ─────────────────────────────────────────────────────────
+// SAFE MIGRATION LOGIC:
+// Step 1: Check localStorage for existing data (old browsers with saved data)
+// Step 2: Compare localStorage vs Supabase — whichever has MORE records wins
+// Step 3: Save winner to Supabase
+// Step 4: Clear localStorage (migration complete, Supabase is now source of truth)
 export const smartLoadAndSync = async (
   managerId: string,
   localState: AppState
 ): Promise<AppState> => {
 
+  // Pull from Supabase
   const supabaseState = await loadStateFromSupabase(managerId);
 
-  const localReceipts = localState?.receipts?.length || 0;
-  const localUsers = localState?.users?.length || 0;
+  const localReceipts  = localState?.receipts?.length  || 0;
+  const localUsers     = localState?.users?.length     || 0;
   const remoteReceipts = supabaseState?.receipts?.length || 0;
-  const remoteUsers = supabaseState?.users?.length || 0;
+  const remoteUsers    = supabaseState?.users?.length    || 0;
 
   console.log(`[Sync] LOCAL: ${localUsers} users, ${localReceipts} receipts`);
   console.log(`[Sync] SUPABASE: ${remoteUsers} users, ${remoteReceipts} receipts`);
 
-  // Case 1: Local has MORE data (e.g. phone has new invoices not yet synced)
+  let winner: AppState;
+
   if (localReceipts > remoteReceipts || localUsers > remoteUsers) {
-    console.log('[Sync] LOCAL wins — saving to Supabase');
-    await saveStateToSupabase(managerId, localState);
-    return {
-      ...localState,
-      users: localState.users || [],
-      receipts: localState.receipts || [],
-      archives: localState.archives || [],
-      companies: localState.companies || [],
-      subManagers: (localState as any).subManagers || [],
-      attendanceLogs: (localState as any).attendanceLogs || [],
-      activeCompanyId: localState.activeCompanyId || '',
-      dismissedNotificationIds: localState.dismissedNotificationIds || [],
-      currentManager: managerId,
-    };
-  }
-
-  // Case 2: Supabase has MORE or equal data (new browser / another device)
-  if (supabaseState) {
-    console.log('[Sync] SUPABASE wins — loading cloud data');
-    // Also update localStorage so offline works next time
-    try {
-      localStorage.setItem(`mahadnet_data_${managerId}`, JSON.stringify(supabaseState));
-    } catch {}
-    return {
+    // LOCAL has more data — migrate it to Supabase NOW
+    console.log('[Sync] LOCAL has more data — migrating to Supabase...');
+    winner = { ...localState, currentManager: managerId };
+    await saveStateToSupabase(managerId, winner);
+    console.log('[Sync] Migration complete!');
+  } else if (supabaseState) {
+    // SUPABASE has more or equal data — use it
+    console.log('[Sync] SUPABASE is source of truth');
+    winner = {
       ...supabaseState,
-      users: supabaseState.users || [],
-      receipts: supabaseState.receipts || [],
-      archives: supabaseState.archives || [],
-      companies: supabaseState.companies || [],
-      subManagers: (supabaseState as any).subManagers || [],
-      attendanceLogs: (supabaseState as any).attendanceLogs || [],
-      activeCompanyId: supabaseState.activeCompanyId || '',
-      dismissedNotificationIds: supabaseState.dismissedNotificationIds || [],
-      currentManager: managerId,
+      users:                       supabaseState.users || [],
+      receipts:                    supabaseState.receipts || [],
+      archives:                    supabaseState.archives || [],
+      companies:                   supabaseState.companies || [],
+      subManagers:                 (supabaseState as any).subManagers || [],
+      attendanceLogs:              (supabaseState as any).attendanceLogs || [],
+      activeCompanyId:             supabaseState.activeCompanyId || '',
+      dismissedNotificationIds:    supabaseState.dismissedNotificationIds || [],
+      currentManager:              managerId,
     };
+  } else {
+    // Nothing in Supabase yet — push local data
+    console.log('[Sync] Nothing in Supabase — uploading local data');
+    winner = { ...localState, currentManager: managerId };
+    if (localUsers > 0 || localReceipts > 0) {
+      await saveStateToSupabase(managerId, winner);
+    }
   }
 
-  // Case 3: Supabase empty — save local to cloud
-  console.log('[Sync] Supabase empty — uploading local data');
-  if (localReceipts > 0 || localUsers > 0) {
-    await saveStateToSupabase(managerId, localState);
-  }
-  return {
-    ...localState,
-    currentManager: managerId,
-  };
+  // Clear localStorage after successful Supabase sync (safe migration)
+  try {
+    const LOCAL_KEYS = ['mahadnet_data_', `mahadnet_data_${managerId}`];
+    LOCAL_KEYS.forEach(k => localStorage.removeItem(k));
+    // Also clear any other manager data keys for this manager
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('mahadnet_data_'))
+      .forEach(k => {
+        if (k === `mahadnet_data_${managerId}`) localStorage.removeItem(k);
+      });
+  } catch {}
+
+  return winner;
 };
 
 // ─── Find agent's manager from Supabase ───────────────────────────────────────
-// Used by agent login — searches all managers' subManagers list
 export const findAgentManager = async (
   username: string,
   password: string
@@ -123,18 +120,18 @@ export const findAgentManager = async (
       const agent = subManagers.find((sm: any) => {
         const uMatch =
           (sm.username || '').toLowerCase() === username.toLowerCase() ||
-          (sm.email || '').toLowerCase() === username.toLowerCase() ||
-          (sm.phone || '') === username ||
-          (sm.id || '').toLowerCase() === username.toLowerCase();
+          (sm.email    || '').toLowerCase() === username.toLowerCase() ||
+          (sm.phone    || '')               === username               ||
+          (sm.id       || '').toLowerCase() === username.toLowerCase();
         const pMatch = (sm.password || '') === password;
         return uMatch && pMatch;
       });
 
       if (agent) {
         return {
-          agentUsername: agent.username || agent.id,
+          agentUsername:   agent.username || agent.id,
           managerUsername: manager.manager_id,
-          agentInfo: agent,
+          agentInfo:       agent,
         };
       }
     }
