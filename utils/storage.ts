@@ -1,5 +1,6 @@
 
 import { AppState, DefaultPlanPricing, ReceiptDesign, AppSettings, ManagerAccount } from '../types';
+import { saveStateToSupabase } from './supabaseSync';
 
 const ACCOUNTS_KEY = 'mahadnet_accounts';
 const SESSION_KEY = 'mahadnet_active_session';
@@ -45,12 +46,10 @@ export const clearAllAccounts = () => {
 
 export const saveState = (state: AppState) => {
   if (!state.currentManager) return;
-  try {
-    localStorage.setItem(`${DATA_PREFIX}${state.currentManager}`, JSON.stringify(state));
-  } catch (err: any) {
-    console.error("Local storage save error:", err);
-    alert("Failed to save data locally. The image or data might be too large. Please use a smaller image.");
-  }
+  // Supabase ONLY — no localStorage
+  saveStateToSupabase(state.currentManager, state).catch(e =>
+    console.warn('[saveState] Supabase push failed:', e)
+  );
 };
 
 export const loadState = (username: string | null): AppState => {
