@@ -50,8 +50,9 @@ const MapContent = ({ activeAgents }: { activeAgents: any[] }) => {
 const LiveTracking: React.FC<{ subManagers: SubManagerAccount[] }> = ({ subManagers }) => {
   // Respecting Google Maps skill constitution for AI Studio
   const API_KEY = 
+    process.env.GOOGLE_MAPS_PLATFORM_KEY || 
     (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
-    'AIzaSyCV9yu3HuzRj0hgcKquaJMCtHY1NhzATQs';
+    ''; 
   const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
   
   const activeAgents = subManagers

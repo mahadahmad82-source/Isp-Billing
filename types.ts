@@ -161,10 +161,6 @@ export interface SubManagerAccount {
   };
   area?: string;
   isLeave?: boolean;
-  email?: string;
-  phone?: string;
-  password?: string;
-  salary?: string;
 }
 
 export interface AttendanceLog {

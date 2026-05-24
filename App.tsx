@@ -137,11 +137,6 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStep, setSyncStep] = useState(0);
-  const [syncStepStatus, setSyncStepStatus] = useState<Record<number,'pending'|'ok'|'error'>>({});
-  const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const lastActivityRef = useRef<number>(Date.now());
 
@@ -153,8 +148,12 @@ const App: React.FC = () => {
     const account = getAccounts().find(a => a.username === activeManager);
     if (account?.role) {
       setUserRole(account.role);
+      // For agents, we also need their area (which we added to profiles and likely saved meta)
+      // We might need to fetch this if not in account
     } else if (activeManager === 'admin') {
       setUserRole('admin');
+    } else if (activeManager?.startsWith('agent_')) {
+      setUserRole('sub-manager');
     } else {
       setUserRole('manager');
     }
@@ -176,123 +175,23 @@ const App: React.FC = () => {
   }, [userRole, activeManager]);
 
   useEffect(() => {
-    if (!activeManager) { setActiveSession(null); return; }
-    
-    const runSync = async () => {
+    if (activeManager) {
       setActiveSession(activeManager);
       const account = getAccounts().find(a => a.username === activeManager);
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Load directly from Supabase with real status tracking
-      setIsSyncing(true);
-      setSyncStep(0);
-      setSyncStepStatus({});
-      setSyncErrorMsg(null);
-
-      const markOk    = (s: number) => setSyncStepStatus(prev => ({ ...prev, [s]: 'ok' }));
-      const markError = (s: number) => setSyncStepStatus(prev => ({ ...prev, [s]: 'error' }));
-
-      // Step 1: Authenticating
-      setSyncStep(1);
-      await new Promise(r => setTimeout(r, 300));
-      markOk(1);
-
-      // Step 2: Connecting to database
-      setSyncStep(2);
-      let connected = false;
-      try {
-        const pingResult = await supabase.from('manager_data').select('manager_id').limit(1);
-        if (!pingResult.error) { connected = true; markOk(2); }
-        else { markError(2); }
-      } catch { markError(2); }
-
-      if (!connected) {
-        setSyncStep(3);
-        markError(3);
-        setSyncStep(4);
-        markError(4);
-        setSyncErrorMsg('No internet connection. Please check your network and try again.');
-        return;
-      }
-
-      // Step 3: Syncing data
-      setSyncStep(3);
-      let cloudState: AppState | null = null;
-      try {
-        const { data: cloudRow, error: cloudErr } = await supabase
-          .from('manager_data')
-          .select('data')
-          .eq('manager_id', dataOwner)
-          .single();
-
-        if (!cloudErr && cloudRow?.data) {
-          const supabaseState = cloudRow.data as AppState;
-          const supabaseReceipts = supabaseState?.receipts?.length || 0;
-          const supabaseUsers    = supabaseState?.users?.length    || 0;
-
-          // RECOVERY MODE: if Supabase is empty, check localStorage (phone rescue)
-          if (supabaseReceipts === 0 && supabaseUsers === 0) {
-            const localRaw = localStorage.getItem(`mahadnet_data_${dataOwner}`);
-            if (localRaw) {
-              try {
-                const localParsed = JSON.parse(localRaw);
-                const localReceipts = localParsed?.receipts?.length || 0;
-                const localUsers    = localParsed?.users?.length    || 0;
-                if (localReceipts > 0 || localUsers > 0) {
-                  // FOUND local data — rescue it to Supabase immediately!
-                  const rescueState = { ...localParsed, currentManager: dataOwner };
-                  await saveStateToSupabase(dataOwner, rescueState);
-                  cloudState = rescueState;
-                  markOk(3);
-                } else {
-                  cloudState = supabaseState;
-                  markOk(3);
-                }
-              } catch {
-                cloudState = supabaseState;
-                markOk(3);
-              }
-            } else {
-              cloudState = supabaseState;
-              markOk(3);
-            }
-          } else {
-            cloudState = supabaseState;
-            markOk(3);
-          }
-        } else {
-          markError(3);
-          setSyncStep(4);
-          markError(4);
-          setSyncErrorMsg('Could not load your data from database. Please try again.');
-          return;
-        }
-      } catch {
-        markError(3);
-        setSyncStep(4);
-        markError(4);
-        setSyncErrorMsg('Database connection failed. Please check your internet and try again.');
-        return;
-      }
-
-      // Step 4: Preparing dashboard
-      setSyncStep(4);
-      setState({
-        ...cloudState,
-        users:                    cloudState.users    || [],
-        receipts:                 cloudState.receipts || [],
-        archives:                 cloudState.archives || [],
-        companies:                cloudState.companies || [],
-        subManagers:              (cloudState as any).subManagers || [],
-        attendanceLogs:           (cloudState as any).attendanceLogs || [],
-        activeCompanyId:          cloudState.activeCompanyId || '',
-        dismissedNotificationIds: cloudState.dismissedNotificationIds || [],
-        currentManager:           dataOwner,
-      });
-      markOk(4);
-
-      setTimeout(() => {
-        setIsSyncing(false);
+      // Smart sync: compare localStorage vs Supabase, use richer data
+      const localState = loadState(activeManager);
+      smartLoadAndSync(dataOwner, localState).then(finalState => {
+        setState({
+          ...finalState,
+          archives: finalState.archives || [],
+          dismissedNotificationIds: finalState.dismissedNotificationIds || [],
+          companies: finalState.companies || [],
+          activeCompanyId: finalState.activeCompanyId || '',
+          currentManager: dataOwner
+        });
+        // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
           const welcomeKey = `tour_seen_${activeManager}_welcome`;
           if (!localStorage.getItem(welcomeKey)) {
@@ -300,10 +199,10 @@ const App: React.FC = () => {
             setTourMode('welcome');
           }
         }
-      }, 600);
-    };
-
-    runSync();
+      });
+    } else {
+      setActiveSession(null);
+    }
   }, [activeManager]);
 
   const activeCompany = useMemo(() => {
@@ -513,15 +412,14 @@ const App: React.FC = () => {
   }, [activeManager]);
 
   const handleLogout = useCallback(() => {
-    setIsLoggingOut(true);
+    setActiveSession(null);
+    sessionStorage.clear();
+    setActiveManager(null);
+    setIsAdmin(false);
+    
     setTimeout(() => {
-      setActiveSession(null);
-      sessionStorage.clear();
-      setActiveManager(null);
-      setIsAdmin(false);
-      setIsLoggingOut(false);
       window.location.href = '/';
-    }, 1800);
+    }, 100);
   }, []);
 
 
@@ -725,55 +623,35 @@ const App: React.FC = () => {
       ...log,
       id: generateId()
     };
-    setState(prev => {
-      const newState = {
-        ...prev,
-        attendanceLogs: [...(prev.attendanceLogs || []), newLog]
-      };
-      saveState(newState);
-      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
-      return newState;
-    });
+    setState(prev => ({
+      ...prev,
+      attendanceLogs: [...(prev.attendanceLogs || []), newLog]
+    }));
   }, []);
 
   const handleUpdateAttendanceLog = useCallback((logId: string, updates: Partial<AttendanceLog>) => {
-    setState(prev => {
-      const newState = {
-        ...prev,
-        attendanceLogs: (prev.attendanceLogs || []).map(log =>
-          log.id === logId ? { ...log, ...updates } : log
-        )
-      };
-      saveState(newState);
-      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
-      return newState;
-    });
+    setState(prev => ({
+      ...prev,
+      attendanceLogs: (prev.attendanceLogs || []).map(log => 
+        log.id === logId ? { ...log, ...updates } : log
+      )
+    }));
   }, []);
 
   const handleDeleteAttendanceLog = useCallback((logId: string) => {
-    setState(prev => {
-      const newState = {
-        ...prev,
-        attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId)
-      };
-      saveState(newState);
-      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
-      return newState;
-    });
+    setState(prev => ({
+      ...prev,
+      attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId)
+    }));
   }, []);
 
   const handleUpdateAgent = useCallback((agentId: string, updates: any) => {
-    setState(prev => {
-      const newState = {
-        ...prev,
-        subManagers: (prev.subManagers || []).map(sm =>
-          sm.id === agentId ? { ...sm, ...updates } : sm
-        )
-      };
-      saveState(newState);
-      if (newState.currentManager) saveStateToSupabase(newState.currentManager, newState);
-      return newState;
-    });
+    setState(prev => ({
+      ...prev,
+      subManagers: (prev.subManagers || []).map(sm => 
+        sm.id === agentId ? { ...sm, ...updates } : sm
+      )
+    }));
   }, []);
 
   const handleUpdateUser = (userId: string, update: Partial<UserRecord>) => {
@@ -1128,107 +1006,6 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        {/* ═══ LOGIN LOADING SCREEN ════════════════════════════════════════════ */}
-        {isSyncing && (
-          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
-            {/* Background blobs */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {[...Array(8)].map((_,i) => (
-                <div key={i} className="absolute rounded-full bg-indigo-500/10 animate-pulse"
-                  style={{ width:(i*20+40)+'px', height:(i*20+40)+'px', top:(i*11+5)+'%', left:(i*10+3)+'%', animationDelay:(i*0.25)+'s' }} />
-              ))}
-            </div>
-
-            {/* Logo */}
-            <div className="relative mb-8 flex flex-col items-center">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/40 mb-4">
-                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-bold text-white tracking-wide">Ledgerzo</h1>
-              <p className="text-indigo-300 text-sm mt-1">ISP Management System</p>
-            </div>
-
-            {/* Steps with real status */}
-            <div className="w-72 space-y-3 mb-6">
-              {([
-                { step: 1, label: 'Authenticating account', icon: '🔐' },
-                { step: 2, label: 'Connecting to database',  icon: '🗄️' },
-                { step: 3, label: 'Loading your data',       icon: '☁️' },
-                { step: 4, label: 'Preparing dashboard',     icon: '🚀' },
-              ] as {step:number,label:string,icon:string}[]).map(({ step, label, icon }) => {
-                const status = syncStepStatus[step];
-                const isActive = syncStep === step && !status;
-                const isDone = status === 'ok';
-                const isFailed = status === 'error';
-                const isPending = syncStep < step;
-                return (
-                  <div key={step} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-400 ${
-                    isDone    ? 'bg-emerald-500/15 border-emerald-500/40' :
-                    isFailed  ? 'bg-rose-500/15 border-rose-500/40' :
-                    isActive  ? 'bg-indigo-500/20 border-indigo-500/40' :
-                    'bg-white/5 border-white/10 opacity-40'
-                  }`}>
-                    <span className="text-lg">{icon}</span>
-                    <span className={`text-sm font-medium flex-1 ${isPending ? 'text-slate-500' : 'text-white'}`}>{label}</span>
-                    {isDone   && <span className="text-emerald-400 font-bold text-base">✓</span>}
-                    {isFailed && <span className="text-rose-400 font-bold text-base">✗</span>}
-                    {isActive && (
-                      <svg className="w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-72 h-1.5 bg-white/10 rounded-full overflow-hidden mb-3">
-              <div className={`h-full rounded-full transition-all duration-700 ease-out ${
-                syncErrorMsg ? 'bg-gradient-to-r from-rose-500 to-rose-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500'
-              }`} style={{ width: `${(syncStep/4)*100}%` }} />
-            </div>
-
-            {/* Error message or waiting text */}
-            {syncErrorMsg ? (
-              <div className="w-72 mt-2 text-center">
-                <p className="text-rose-400 text-sm font-medium mb-3">{syncErrorMsg}</p>
-                <button
-                  onClick={() => { setIsSyncing(false); setActiveManager(null); setActiveSession(null); }}
-                  className="px-5 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold rounded-xl transition-all"
-                >
-                  Back to Login
-                </button>
-              </div>
-            ) : (
-              <p className="text-indigo-400 text-xs">Please wait...</p>
-            )}
-          </div>
-        )}
-
-        {/* ═══ LOGOUT LOADING SCREEN ══════════════════════════════════════════ */}
-        {isLoggingOut && (
-          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-            <div className="flex flex-col items-center gap-5">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-xl mb-2">
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </div>
-              <h2 className="text-white text-xl font-bold">Signing Out</h2>
-              <p className="text-slate-400 text-sm">Saving your session securely...</p>
-              <div className="flex gap-2 mt-2">
-                {[0,1,2].map(i => (
-                  <div key={i} className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
         {loadingMessage && (
           <div className="fixed top-0 left-0 right-0 z-[1000] no-print">
             <div className="h-1.5 w-full overflow-hidden bg-indigo-500/10">
@@ -1353,12 +1130,11 @@ const App: React.FC = () => {
           username: agentUsername,
           managerUsername: activeManager || '',
           dutyStatus: 'offline' as const,
-          area: agent.area || 'General',
-          password: agent.password, 
-          email: agent.email || '',
-          phone: agent.phone || '',
-          salary: agent.salary || ''
-        } as SubManagerAccount]
+          area: agent.area,
+          password: agent.password, // Keep password synced for remote lookups
+          email: agent.email,
+          phone: agent.phone
+        }]
       };
       saveState(newState);
       if (newState.currentManager || activeManager) {
@@ -1368,8 +1144,9 @@ const App: React.FC = () => {
     });
               }}
               onEditAgent={(id, updates) => {
-                const agent = state.subManagers?.find(a => a.id === id || a.username === id);
+                const agent = state.subManagers?.find(a => a.id === id);
                 if (agent) {
+                  // If we need to update the agent's name in accounts
                   const accounts = getAccounts();
                   const targetAccount = accounts.find(a => a.username === agent.username);
                   if (targetAccount) {
@@ -1380,8 +1157,7 @@ const App: React.FC = () => {
                       email: updates.email || targetAccount.email,
                       phone: updates.phone || targetAccount.phone,
                       password: updates.password || targetAccount.password,
-                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary,
-                      role: 'sub-manager'
+                      salary: updates.salary !== undefined ? updates.salary : (targetAccount as any).salary
                     };
                     
                     if (updates.username && updates.username !== agent.username) {
@@ -1393,7 +1169,7 @@ const App: React.FC = () => {
                 setState(prev => {
                   const newState = {
                     ...prev,
-                    subManagers: prev.subManagers?.map(sm => (sm.id === id || sm.username === id) ? { ...sm, ...updates } : sm)
+                    subManagers: prev.subManagers?.map(sm => sm.id === id ? { ...sm, ...updates } : sm)
                   };
                   saveState(newState);
                   if (newState.currentManager || activeManager) {

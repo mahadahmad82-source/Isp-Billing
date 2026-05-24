@@ -37,6 +37,9 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension requests
   if (event.request.url.startsWith('chrome-extension')) return;
 
+  // Skip API calls
+  if (event.request.url.includes('/api/')) return;
+
   // HTML pages ke liye — hamesha network se lo (cache-busting)
   if (event.request.mode === 'navigate' || 
       event.request.url.endsWith('.html') ||

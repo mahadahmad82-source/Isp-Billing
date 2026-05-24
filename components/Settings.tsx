@@ -218,14 +218,53 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     if (adImageInputRef.current) adImageInputRef.current.value = '';
   };
 
-  const handleBackupDataExcel = () => {
+  const handleBackupDataExcel = async () => {
     try {
+      let stateToExport = fullState;
+
+      if (activeManager === 'admin') {
+        const res = await fetch('/api/admin/export');
+        if (res.ok) {
+          const resData = await res.json();
+          // Merge all data for Excel export
+          stateToExport = {
+            users: [], receipts: [], archives: [], subManagers: [], 
+            companies: [], attendanceLogs: []
+          } as any;
+          
+          resData.data?.forEach((row: any) => {
+            const d = row.data;
+            if (d.users) stateToExport.users.push(...d.users);
+            if (d.receipts) stateToExport.receipts.push(...d.receipts);
+            if (d.archives) (stateToExport as any).archives.push(...d.archives);
+            if (d.subManagers) (stateToExport.subManagers as any).push(...d.subManagers);
+            if (d.companies) (stateToExport.companies as any).push(...d.companies);
+            if (d.attendanceLogs) (stateToExport.attendanceLogs as any).push(...d.attendanceLogs);
+          });
+        }
+      }
+
       const wb = XLSX.utils.book_new();
-      const wsUsers = XLSX.utils.json_to_sheet(fullState.users);
+      const wsUsers = XLSX.utils.json_to_sheet(stateToExport.users || []);
       XLSX.utils.book_append_sheet(wb, wsUsers, "Subscribers");
 
-      const wsReceipts = XLSX.utils.json_to_sheet(fullState.receipts);
+      const wsReceipts = XLSX.utils.json_to_sheet(stateToExport.receipts || []);
       XLSX.utils.book_append_sheet(wb, wsReceipts, "Invoices");
+
+      if (stateToExport.subManagers && stateToExport.subManagers.length > 0) {
+        const wsAgents = XLSX.utils.json_to_sheet(stateToExport.subManagers);
+        XLSX.utils.book_append_sheet(wb, wsAgents, "Agents");
+      }
+      
+      if (stateToExport.attendanceLogs && stateToExport.attendanceLogs.length > 0) {
+        const wsAttendance = XLSX.utils.json_to_sheet(stateToExport.attendanceLogs);
+        XLSX.utils.book_append_sheet(wb, wsAttendance, "AttendanceLogs");
+      }
+
+      if (stateToExport.companies && stateToExport.companies.length > 0) {
+        const wsCompanies = XLSX.utils.json_to_sheet(stateToExport.companies);
+        XLSX.utils.book_append_sheet(wb, wsCompanies, "Companies");
+      }
 
       const { planPrices, ...otherSettings } = localSettings;
       const configData = [
@@ -259,13 +298,26 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     }
   };
 
-  const handleBackupDataJSON = () => {
-    const dataToSave = {
+  const handleBackupDataJSON = async () => {
+    let exportData: any = {
       ...fullState,
       version: '1.0',
       timestamp: new Date().toISOString()
     };
-    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
+
+    if (activeManager === 'admin') {
+      try {
+        const res = await fetch('/api/admin/export');
+        if (res.ok) {
+          const resData = await res.json();
+          exportData.databaseDump = resData.data; // include the whole DB dump!
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin export", err);
+      }
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -281,17 +333,48 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        if (!json.users || !json.receipts) throw new Error("Invalid backup file format");
+        
+        // Admin database dump restore
+        if (activeManager === 'admin' && json.databaseDump) {
+          try {
+            const res = await fetch('/api/admin/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: json.databaseDump })
+            });
+            if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.error || "Failed to import admin database.");
+            }
+            setModalStatus({
+              title: 'Database Restored!',
+              message: 'All manager data has been restored to Supabase Cloud.',
+              type: 'success'
+            });
+          } catch (err) {
+            console.error("Admin import failed", err);
+            alert("Failed to restore cloud database.");
+          }
+          if (restoreJsonInputRef.current) restoreJsonInputRef.current.value = '';
+          return;
+        }
+
+        if (!json.users && !json.receipts) throw new Error("Invalid backup file format");
         
         onRestoreState({
-          users: json.users,
-          receipts: json.receipts,
+          users: json.users || [],
+          receipts: json.receipts || [],
           archives: json.archives || [],
+          subManagers: json.subManagers || [],
+          companies: json.companies || [],
+          attendanceLogs: json.attendanceLogs || [],
           settings: json.settings || settings,
           theme: json.theme || fullState.theme,
+          activeCompanyId: json.activeCompanyId || '',
+          dismissedNotificationIds: json.dismissedNotificationIds || [],
           currentManager: fullState.currentManager
         });
         setModalStatus({

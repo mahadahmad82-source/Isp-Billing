@@ -316,14 +316,14 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Prioritize data from state (sm), fallback to local accounts if needed
+                      const accounts = getAccounts();
+                      const acc = accounts.find(a => a.username === sm.username);
                       setEditingAgent({
                         ...sm,
-                        username: sm.username || sm.id || '', // Fallback for older data
-                        email: sm.email || '',
-                        phone: sm.phone || '',
-                        password: sm.password || '',
-                        salary: sm.salary || '' 
+                        email: acc?.email || '',
+                        phone: acc?.phone || '',
+                        password: acc?.password || '',
+                        salary: (acc as any)?.salary || '' 
                       });
                     }}
                     title="Edit Agent"

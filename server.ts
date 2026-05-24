@@ -50,23 +50,15 @@ async function startServer() {
       if (managers) {
         for (const manager of managers) {
           const agents = (manager.data as any).subManagers || [];
-          const agent = agents.find((sm: any) => {
-            const smName = (sm.username || sm.id || '').toLowerCase().trim();
-            const smEmail = (sm.email || '').toLowerCase().trim();
-            const smPhone = (sm.phone || '').trim();
-            const inputName = username.toLowerCase().trim();
-            const smPassword = (sm.password || '').trim();
-            const inputPassword = (password || '').trim();
-            
-            // Verifying credentials with expanded fallbacks
-            const nameMatch = smName === inputName || smEmail === inputName || smPhone === inputName;
-            const passwordMatch = smPassword === inputPassword;
-            
-            return nameMatch && passwordMatch;
-          });
+          const agent = agents.find((sm: any) => 
+            (sm.username?.toLowerCase() === username.toLowerCase() || 
+             sm.email?.toLowerCase() === username.toLowerCase() || 
+             sm.phone === username) && 
+            sm.password === password
+          );
           
           if (agent) {
-            console.log(`[Auth] SUCCESS: Found agent: ${agent.username} under manager: ${manager.manager_id}`);
+            console.log(`[Auth] Found agent: ${agent.username} under manager: ${manager.manager_id}`);
             return res.json({ 
               success: true, 
               agent: {
@@ -81,7 +73,7 @@ async function startServer() {
         }
       }
       
-      console.warn(`[Auth] FAILED: No agent found for: ${username}`);
+      console.warn(`[Auth] No agent found for credentials: ${username}`);
       res.status(401).json({ success: false, message: "Invalid credentials" });
     } catch (err: any) {
       console.error("[Auth] Exception:", err);
@@ -126,6 +118,37 @@ async function startServer() {
       res.json({ data: data?.data || null });
     } catch (err: any) {
       console.error("Sync load error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API Route: Admin Export All Data
+  app.get("/api/admin/export", async (req, res) => {
+    try {
+      const supabase = getSupabaseAdmin();
+      const { data, error } = await supabase
+        .from('manager_data')
+        .select('*');
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (err: any) {
+      console.error("Admin export error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API Route: Admin Import All Data
+  app.post("/api/admin/import", async (req, res) => {
+    const { data } = req.body;
+    try {
+      const supabase = getSupabaseAdmin();
+      const { error } = await supabase
+        .from('manager_data')
+        .upsert(data, { onConflict: 'manager_id' });
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Admin import error:", err);
       res.status(500).json({ error: err.message });
     }
   });

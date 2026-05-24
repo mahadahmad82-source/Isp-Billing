@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
-import { findAgentManager } from '../utils/supabaseSync';
 import { logoBase64 } from '../utils/logoBase64';
 
 interface LoginProps {
@@ -71,21 +70,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
       
-      // Fast path for Admins only (agents always verify via Supabase)
-      if (localFound && localFound.role === 'admin') {
+      // Fast path for Field Agents and Admins
+      if (localFound && (localFound.role === 'sub-manager' || localFound.role === 'admin')) {
         setActiveSession(localFound.username);
         onLogin(localFound.username);
         return;
-      }
-      // For sub-managers: restore session from sessionStorage if available
-      const agentSession = sessionStorage.getItem('agent_temp_session');
-      if (agentSession) {
-        const sess = JSON.parse(agentSession);
-        if ((sess.username === username || sess.email === username || sess.phone === username) && localFound?.password === password) {
-          setActiveSession(sess.username);
-          onLogin(sess.username);
-          return;
-        }
       }
 
       let identifier = username;
@@ -132,38 +121,32 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
           setLoadingText('Searching Remote Nodes...');
           
           try {
-            // Use findAgentManager — searches all managers in Supabase
-            const result = await findAgentManager(username, password);
+            const authRes = await fetch('/api/auth/search-agent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password })
+            });
 
-            if (result) {
-              const { agentUsername, managerUsername, agentInfo } = result;
-              // Save agent session in sessionStorage (not localStorage)
-              sessionStorage.setItem('agent_temp_session', JSON.stringify({
-                username: agentUsername,
-                managerUsername: managerUsername,
-                businessName: agentInfo.name || agentUsername,
-                email: agentInfo.email || '',
-                phone: agentInfo.phone || '',
-                role: 'sub-manager'
-              }));
-              // Also save to localStorage so getAccounts() can find this agent
+            if (authRes.ok) {
+              const { agent } = await authRes.json();
+              const agentUsername = agent.username;
+              setActiveSession(agentUsername);
               saveAccount({
                 username: agentUsername,
                 password: password,
-                businessName: agentInfo.name || agentUsername,
-                email: agentInfo.email || '',
-                phone: agentInfo.phone || '',
+                businessName: agent.name,
+                email: agent.email || '',
+                phone: agent.phone || '',
                 role: 'sub-manager',
-                managerUsername: managerUsername,
+                managerUsername: agent.managerId,
                 createdAt: new Date().toISOString(),
-                rememberPassword: false
+                rememberPassword: true
               });
-              setActiveSession(agentUsername);
               onLogin(agentUsername);
               return;
             }
           } catch (apiErr) {
-            console.error('Agent search failed:', apiErr);
+            console.error("Server-side auth search failed:", apiErr);
           }
 
           throw new Error('Invalid username or password.');

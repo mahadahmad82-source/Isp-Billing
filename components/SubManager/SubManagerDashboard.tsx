@@ -268,6 +268,26 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     { id: 'pending', label: `Pending (${counts.pending})` }
   ] as const;
 
+  const handleAgentBackup = () => {
+    // Only exports the agent's collected data, per prompt: "The agent backup does not require any specific format."
+    const agentData = {
+      users: augmentedUsers,
+      receipts: receipts.filter(r => r.collectedBy === agentId || r.collectedBy === agent?.username),
+      attendanceLogs: attendanceLogs.filter(log => log.subManagerId === agentId),
+      agentProfile: agent,
+      timestamp: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(agentData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Agent_${subManagerName.replace(/\s+/g, '_')}_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300">
       {toastMsg && (
@@ -310,12 +330,22 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
               </button>
             </div>
           </div>
-          <button 
-            onClick={onLogout}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-rose-500/10 text-rose-500 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button 
+              onClick={handleAgentBackup}
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2"
+              title="Download Agent Data Backup"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span className="hidden sm:inline">Backup</span>
+            </button>
+            <button 
+              onClick={onLogout}
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-rose-500/10 text-rose-500 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
