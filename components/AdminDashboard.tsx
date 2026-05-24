@@ -579,28 +579,27 @@ const AdminDashboard: React.FC = () => {
                 <button 
                   onClick={async () => {
                     try {
-                      const res = await fetch('/api/admin/export');
-                      if (res.ok) {
-                        const resData = await res.json();
-                        const exportData = {
-                           databaseDump: resData.data,
-                           version: 'admin_1.0',
-                           timestamp: new Date().toISOString()
-                        };
-                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `Admin_Database_Backup_${new Date().toISOString().split('T')[0]}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      } else {
-                        alert("Backup failed from server.");
-                      }
-                    } catch (e) {
-                      alert("Network error.");
+                      // ✅ FIX: Direct Supabase query — no Express API needed
+                      const { data, error } = await supabase
+                        .from('manager_data')
+                        .select('*');
+                      if (error) throw error;
+                      const exportData = {
+                        databaseDump: data,
+                        version: 'admin_1.0',
+                        timestamp: new Date().toISOString()
+                      };
+                      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `Admin_Database_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    } catch (e: any) {
+                      alert('Backup failed: ' + (e?.message || 'Unknown error'));
                     }
                   }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center gap-2 shadow-lg"
@@ -619,23 +618,19 @@ const AdminDashboard: React.FC = () => {
                       try {
                         const str = event.target?.result as string;
                         const json = JSON.parse(str);
-                        if (json.databaseDump) {
-                          const res = await fetch('/api/admin/import', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ data: json.databaseDump })
-                          });
-                          if (res.ok) {
-                            alert("Database successfully restored to Supabase Cloud.");
-                            window.location.reload();
-                          } else {
-                            alert("Restore failed on server.");
-                          }
+                        if (json.databaseDump && Array.isArray(json.databaseDump)) {
+                          // ✅ FIX: Direct Supabase upsert — no Express API needed
+                          const { error } = await supabase
+                            .from('manager_data')
+                            .upsert(json.databaseDump, { onConflict: 'manager_id' });
+                          if (error) throw error;
+                          alert('✅ Database successfully restored to Supabase Cloud!');
+                          window.location.reload();
                         } else {
-                          alert("Invalid backup file format.");
+                          alert('Invalid backup file format. Please use a valid Admin backup file.');
                         }
-                      } catch {
-                        alert("Error parsing backup file.");
+                      } catch (e: any) {
+                        alert('Restore failed: ' + (e?.message || 'Unknown error'));
                       }
                     };
                     reader.readAsText(file);
