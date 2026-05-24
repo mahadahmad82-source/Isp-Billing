@@ -137,6 +137,11 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStep, setSyncStep] = useState(0);
+  const [syncStepStatus, setSyncStepStatus] = useState<Record<number,'pending'|'ok'|'error'>>({});
+  const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const lastActivityRef = useRef<number>(Date.now());
 
