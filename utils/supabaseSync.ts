@@ -34,33 +34,15 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
   }
 };
 
-// Smart merge: pick state with more data, save winner to Supabase
+// Load app state from Supabase, ignore local state completely
 export const smartLoadAndSync = async (
   managerId: string,
-  localState: AppState
+  localState: AppState // Kept for compatibility but ignored
 ): Promise<AppState> => {
   const supabaseState = await loadStateFromSupabase(managerId);
 
-  const localUsers = localState?.users?.length || 0;
-  const localReceipts = localState?.receipts?.length || 0;
-  const remoteUsers = supabaseState?.users?.length || 0;
-  const remoteReceipts = supabaseState?.receipts?.length || 0;
-
-  const localScore = localUsers + localReceipts;
-  const remoteScore = remoteUsers + remoteReceipts;
-
-  console.log(`[Sync] Local: ${localUsers} users, ${localReceipts} receipts | Supabase: ${remoteUsers} users, ${remoteReceipts} receipts`);
-
-  // Local has MORE data — use local and save to Supabase
-  if (localScore > remoteScore) {
-    console.log('[Sync] Using LOCAL data (richer) — saving to Supabase');
-    await saveStateToSupabase(managerId, localState);
-    return localState;
-  }
-
-  // Supabase has MORE or EQUAL data — use Supabase
   if (supabaseState) {
-    console.log('[Sync] Using SUPABASE data');
+    console.log('[Sync] Using SUPABASE data exclusively');
     return {
       ...supabaseState,
       users: supabaseState.users || [],
@@ -75,10 +57,18 @@ export const smartLoadAndSync = async (
     };
   }
 
-  // Nothing in Supabase — use local and save
-  console.log('[Sync] Supabase empty — using LOCAL and saving');
-  if (localScore > 0) {
-    await saveStateToSupabase(managerId, localState);
-  }
-  return localState;
+  // Nothing in Supabase — initialize empty
+  console.log('[Sync] Supabase empty, returning default empty state');
+  return {
+      users: [],
+      receipts: [],
+      archives: [],
+      companies: [],
+      subManagers: [],
+      attendanceLogs: [],
+      settings: localState?.settings, // keep default settings
+      activeCompanyId: '',
+      dismissedNotificationIds: [],
+      currentManager: managerId,
+  } as AppState;
 };

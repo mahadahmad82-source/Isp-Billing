@@ -1,6 +1,5 @@
 
 import { AppState, DefaultPlanPricing, ReceiptDesign, AppSettings, ManagerAccount } from '../types';
-import { saveStateToSupabase } from './supabaseSync';
 
 const ACCOUNTS_KEY = 'mahadnet_accounts';
 const SESSION_KEY = 'mahadnet_active_session';
@@ -45,11 +44,7 @@ export const clearAllAccounts = () => {
 };
 
 export const saveState = (state: AppState) => {
-  if (!state.currentManager) return;
-  // Supabase ONLY — no localStorage
-  saveStateToSupabase(state.currentManager, state).catch(e =>
-    console.warn('[saveState] Supabase push failed:', e)
-  );
+  // LocalStorage is deprecated. Data is now saved exclusively to Supabase via saveStateToSupabase.
 };
 
 export const loadState = (username: string | null): AppState => {
@@ -73,43 +68,33 @@ export const loadState = (username: string | null): AppState => {
     users: [], 
     receipts: [], 
     archives: [],
+    companies: [],
+    subManagers: [],
+    attendanceLogs: [],
+    dismissedNotificationIds: [],
+    activeCompanyId: '',
     settings: defaultSettings,
     currentManager: dataOwner || undefined
   };
 
   if (!activeUser) return emptyState;
 
-  const data = localStorage.getItem(`${DATA_PREFIX}${dataOwner}`);
-  if (!data) {
-    if (account) {
-      return {
-        ...emptyState,
-        settings: {
-          ...defaultSettings,
-          businessName: account.businessName,
-          phone: account.phone,
-          email: account.email,
-          adminUsername: account.username,
-          adminPassword: account.password,
-          isInitialized: true
-        } as any
-      };
-    }
-    return emptyState;
+  if (account) {
+    return {
+      ...emptyState,
+      settings: {
+        ...defaultSettings,
+        businessName: account.businessName,
+        phone: account.phone,
+        email: account.email,
+        adminUsername: account.username,
+        adminPassword: account.password,
+        isInitialized: true
+      } as any
+    };
   }
 
-  try {
-    const parsed = JSON.parse(data);
-    return {
-      ...parsed,
-      users: parsed.users || [],
-      receipts: parsed.receipts || [],
-      archives: parsed.archives || [],
-      currentManager: dataOwner
-    };
-  } catch {
-    return emptyState;
-  }
+  return emptyState;
 };
 
 export const generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();
