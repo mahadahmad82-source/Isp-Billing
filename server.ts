@@ -137,33 +137,6 @@ async function startServer() {
     }
   });
 
-  // API Route: Admin Export All Data File Download
-  app.get("/api/admin/export-download", async (req, res) => {
-    try {
-      const supabase = getSupabaseAdmin();
-      const { data, error } = await supabase
-        .from('manager_data')
-        .select('*');
-      if (error) throw error;
-      
-      const exportData = {
-         databaseDump: data,
-         version: 'admin_1.0',
-         timestamp: new Date().toISOString()
-      };
-      
-      const filename = `Admin_Database_Backup_${new Date().toISOString().split('T')[0]}.json`;
-      
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      
-      res.send(JSON.stringify(exportData, null, 2));
-    } catch (err: any) {
-      console.error("Admin export download error:", err);
-      res.status(500).send("Error generating backup: " + err.message);
-    }
-  });
-
   // API Route: Admin Import All Data
   app.post("/api/admin/import", async (req, res) => {
     const { data } = req.body;

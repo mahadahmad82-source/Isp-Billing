@@ -678,11 +678,7 @@ const App: React.FC = () => {
       title: 'System Restore',
       message: 'Overwrite current database with backup file?',
       variant: 'warning',
-      onConfirm: () => {
-        const fullyRestored = { ...newState, currentManager: activeManager || undefined };
-        setState(fullyRestored);
-        saveStateToSupabase(activeManager || '', fullyRestored);
-      }
+      onConfirm: () => setState({ ...newState, currentManager: activeManager || undefined })
     });
   };
 

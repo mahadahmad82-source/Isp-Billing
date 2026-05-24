@@ -44,7 +44,13 @@ export const clearAllAccounts = () => {
 };
 
 export const saveState = (state: AppState) => {
-  // LocalStorage is deprecated. Data is now saved exclusively to Supabase via saveStateToSupabase.
+  if (!state.currentManager) return;
+  try {
+    localStorage.setItem(`${DATA_PREFIX}${state.currentManager}`, JSON.stringify(state));
+  } catch (err: any) {
+    console.error("Local storage save error:", err);
+    alert("Failed to save data locally. The image or data might be too large. Please use a smaller image.");
+  }
 };
 
 export const loadState = (username: string | null): AppState => {
@@ -68,33 +74,43 @@ export const loadState = (username: string | null): AppState => {
     users: [], 
     receipts: [], 
     archives: [],
-    companies: [],
-    subManagers: [],
-    attendanceLogs: [],
-    dismissedNotificationIds: [],
-    activeCompanyId: '',
     settings: defaultSettings,
     currentManager: dataOwner || undefined
   };
 
   if (!activeUser) return emptyState;
 
-  if (account) {
-    return {
-      ...emptyState,
-      settings: {
-        ...defaultSettings,
-        businessName: account.businessName,
-        phone: account.phone,
-        email: account.email,
-        adminUsername: account.username,
-        adminPassword: account.password,
-        isInitialized: true
-      } as any
-    };
+  const data = localStorage.getItem(`${DATA_PREFIX}${dataOwner}`);
+  if (!data) {
+    if (account) {
+      return {
+        ...emptyState,
+        settings: {
+          ...defaultSettings,
+          businessName: account.businessName,
+          phone: account.phone,
+          email: account.email,
+          adminUsername: account.username,
+          adminPassword: account.password,
+          isInitialized: true
+        } as any
+      };
+    }
+    return emptyState;
   }
 
-  return emptyState;
+  try {
+    const parsed = JSON.parse(data);
+    return {
+      ...parsed,
+      users: parsed.users || [],
+      receipts: parsed.receipts || [],
+      archives: parsed.archives || [],
+      currentManager: dataOwner
+    };
+  } catch {
+    return emptyState;
+  }
 };
 
 export const generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();

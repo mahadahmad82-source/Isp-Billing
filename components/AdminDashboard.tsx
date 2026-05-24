@@ -577,8 +577,31 @@ const AdminDashboard: React.FC = () => {
               </h3>
               <div className="flex gap-2">
                 <button 
-                  onClick={() => {
-                    window.location.href = '/api/admin/export-download';
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/admin/export');
+                      if (res.ok) {
+                        const resData = await res.json();
+                        const exportData = {
+                           databaseDump: resData.data,
+                           version: 'admin_1.0',
+                           timestamp: new Date().toISOString()
+                        };
+                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Admin_Database_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } else {
+                        alert("Backup failed from server.");
+                      }
+                    } catch (e) {
+                      alert("Network error.");
+                    }
                   }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center gap-2 shadow-lg"
                 >
