@@ -1,40 +1,45 @@
 import { supabase } from '../lib/supabase';
 import { AppState } from '../types';
 
-// Save app state to Supabase via server-side proxy (bypasses RLS issues)
+// ✅ FIX: Direct Supabase calls — no Express proxy needed (works on Vercel)
+
 export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
   if (!managerId) return;
   try {
-    const response = await fetch('/api/sync/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ managerId, state })
-    });
-    
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Supabase sync-proxy error:', err.error);
+    const { error } = await supabase
+      .from('manager_data')
+      .upsert(
+        { manager_id: managerId, data: state, updated_at: new Date().toISOString() },
+        { onConflict: 'manager_id' }
+      );
+    if (error) {
+      console.error('[Supabase] Save error:', error.message);
     }
   } catch (err) {
-    console.error('Supabase sync-proxy exception:', err);
+    console.error('[Supabase] Save exception:', err);
   }
 };
 
-// Load app state from Supabase via server-side proxy
 export const loadStateFromSupabase = async (managerId: string): Promise<AppState | null> => {
   if (!managerId) return null;
   try {
-    const response = await fetch(`/api/sync/load/${encodeURIComponent(managerId)}`);
-    if (!response.ok) return null;
-    const { data } = await response.json();
-    return data as AppState;
+    const { data, error } = await supabase
+      .from('manager_data')
+      .select('data')
+      .eq('manager_id', managerId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[Supabase] Load error:', error.message);
+      return null;
+    }
+    return (data?.data as AppState) || null;
   } catch (err) {
-    console.error('Supabase sync-proxy load exception:', err);
+    console.error('[Supabase] Load exception:', err);
     return null;
   }
 };
 
-// Smart merge: pick state with more data, save winner to Supabase
 export const smartLoadAndSync = async (
   managerId: string,
   localState: AppState
@@ -51,16 +56,14 @@ export const smartLoadAndSync = async (
 
   console.log(`[Sync] Local: ${localUsers} users, ${localReceipts} receipts | Supabase: ${remoteUsers} users, ${remoteReceipts} receipts`);
 
-  // Local has MORE data — use local and save to Supabase
   if (localScore > remoteScore) {
-    console.log('[Sync] Using LOCAL data (richer) — saving to Supabase');
+    console.log('[Sync] LOCAL data richer — saving to Supabase');
     await saveStateToSupabase(managerId, localState);
     return localState;
   }
 
-  // Supabase has MORE or EQUAL data — use Supabase
   if (supabaseState) {
-    console.log('[Sync] Using SUPABASE data');
+    console.log('[Sync] SUPABASE data loaded');
     return {
       ...supabaseState,
       users: supabaseState.users || [],
@@ -75,8 +78,7 @@ export const smartLoadAndSync = async (
     };
   }
 
-  // Nothing in Supabase — use local and save
-  console.log('[Sync] Supabase empty — using LOCAL and saving');
+  console.log('[Sync] Supabase empty — saving local data');
   if (localScore > 0) {
     await saveStateToSupabase(managerId, localState);
   }
