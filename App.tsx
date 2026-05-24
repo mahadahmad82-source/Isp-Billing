@@ -180,26 +180,99 @@ const App: React.FC = () => {
       const account = getAccounts().find(a => a.username === activeManager);
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Smart sync: compare localStorage vs Supabase, use richer data
-      const localState = loadState(activeManager);
-      smartLoadAndSync(dataOwner, localState).then(finalState => {
+      // SAFE LOAD: Check localStorage first, then Supabase
+      // If localStorage has more data than Supabase → push localStorage to Supabase first
+      setIsSyncing(true);
+      setSyncStep(1);
+      setSyncStepStatus({});
+      setSyncErrorMsg(null);
+
+      const doLoad = async () => {
+        const markOk    = (s: number) => setSyncStepStatus(prev => ({ ...prev, [s]: 'ok' }));
+        const markError = (s: number) => setSyncStepStatus(prev => ({ ...prev, [s]: 'error' }));
+
+        // Step 1: Auth
+        setSyncStep(1);
+        await new Promise(r => setTimeout(r, 300));
+        markOk(1);
+
+        // Step 2: Connect
+        setSyncStep(2);
+        try {
+          const ping = await supabase.from('manager_data').select('manager_id').limit(1);
+          if (ping.error) { markError(2); setSyncErrorMsg('No internet connection.'); return; }
+          markOk(2);
+        } catch { markError(2); setSyncErrorMsg('No internet connection.'); return; }
+
+        // Step 3: Load data
+        setSyncStep(3);
+
+        // Check localStorage for existing data
+        const localRaw = localStorage.getItem(`mahadnet_data_${dataOwner}`);
+        const localState = localRaw ? (() => { try { return JSON.parse(localRaw); } catch { return null; } })() : null;
+        const localReceipts = localState?.receipts?.length || 0;
+        const localUsers    = localState?.users?.length    || 0;
+
+        // Check Supabase
+        const { data: cloudRow } = await supabase
+          .from('manager_data').select('data').eq('manager_id', dataOwner).single();
+        const cloudState    = cloudRow?.data as AppState | null;
+        const cloudReceipts = cloudState?.receipts?.length || 0;
+        const cloudUsers    = cloudState?.users?.length    || 0;
+
+        let finalState: AppState;
+
+        if (localReceipts > cloudReceipts || localUsers > cloudUsers) {
+          // localStorage has MORE data — push it to Supabase immediately
+          finalState = { ...localState, currentManager: dataOwner };
+          await saveStateToSupabase(dataOwner, finalState);
+          // Clear localStorage after successful push
+          localStorage.removeItem(`mahadnet_data_${dataOwner}`);
+          markOk(3);
+        } else if (cloudState && (cloudReceipts > 0 || cloudUsers > 0)) {
+          // Supabase has data — use it
+          finalState = { ...cloudState, currentManager: dataOwner };
+          markOk(3);
+        } else if (localState && (localReceipts > 0 || localUsers > 0)) {
+          // Only localStorage has data — push and use
+          finalState = { ...localState, currentManager: dataOwner };
+          await saveStateToSupabase(dataOwner, finalState);
+          localStorage.removeItem(`mahadnet_data_${dataOwner}`);
+          markOk(3);
+        } else {
+          // Both empty — new account
+          finalState = { ...localState || {}, currentManager: dataOwner };
+          markOk(3);
+        }
+
+        // Step 4: Apply state
+        setSyncStep(4);
         setState({
           ...finalState,
-          archives: finalState.archives || [],
+          users:                    finalState.users    || [],
+          receipts:                 finalState.receipts || [],
+          archives:                 finalState.archives || [],
+          companies:                finalState.companies || [],
+          subManagers:              (finalState as any).subManagers || [],
+          attendanceLogs:           (finalState as any).attendanceLogs || [],
+          activeCompanyId:          finalState.activeCompanyId || '',
           dismissedNotificationIds: finalState.dismissedNotificationIds || [],
-          companies: finalState.companies || [],
-          activeCompanyId: finalState.activeCompanyId || '',
-          currentManager: dataOwner
+          currentManager:           dataOwner,
         });
-        // Show onboarding welcome for new managers
-        if (activeManager !== 'admin') {
-          const welcomeKey = `tour_seen_${activeManager}_welcome`;
-          if (!localStorage.getItem(welcomeKey)) {
-            setShowTour(true);
-            setTourMode('welcome');
+        markOk(4);
+        setTimeout(() => {
+          setIsSyncing(false);
+          if (activeManager !== 'admin') {
+            const welcomeKey = `tour_seen_${activeManager}_welcome`;
+            if (!localStorage.getItem(welcomeKey)) {
+              setShowTour(true);
+              setTourMode('welcome');
+            }
           }
-        }
-      });
+        }, 600);
+      };
+
+      doLoad();
     } else {
       setActiveSession(null);
     }
