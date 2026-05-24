@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
-import { Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle, Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key, ChevronUp, ChevronDown, Download, Upload, ShieldCheck } from 'lucide-react';
+import { Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle, Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key, ChevronUp, ChevronDown } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface ManagerStat {
@@ -242,108 +242,6 @@ const AdminDashboard: React.FC = () => {
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
-  // ─── Backup State ──────────────────────────────────────────────────────────
-  const [backupLoading, setBackupLoading]   = useState(false);
-  const [restoreLoading, setRestoreLoading] = useState(false);
-  const [backupMsg, setBackupMsg]           = useState<string | null>(null);
-
-  // ─── Download Full Backup ──────────────────────────────────────────────────
-  const handleDownloadBackup = async () => {
-    setBackupLoading(true); setBackupMsg(null);
-    try {
-      const { data, error } = await supabase.from('manager_data').select('manager_id, data, updated_at');
-      if (error) throw error;
-      const blob = new Blob([JSON.stringify({ version:'1.0', exported_at: new Date().toISOString(), total_managers: data?.length||0, managers: data }, null, 2)], { type:'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-      a.download = `ledgerzo_backup_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setBackupMsg(`✅ Backup downloaded! ${data?.length||0} managers ka data saved.`);
-    } catch(err:any) { setBackupMsg('❌ Backup failed: ' + err.message); }
-    finally { setBackupLoading(false); }
-  };
-
-  // ─── Restore From File ─────────────────────────────────────────────────────
-  const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setRestoreLoading(true); setBackupMsg(null);
-    try {
-      const backup = JSON.parse(await file.text());
-      if (!backup.managers || !Array.isArray(backup.managers)) throw new Error('Invalid backup file');
-      let restored = 0;
-      for (const m of backup.managers) {
-        if (!m.manager_id || !m.data) continue;
-        const { error } = await supabase.from('manager_data').upsert({ manager_id: m.manager_id, data: m.data, updated_at: new Date().toISOString() }, { onConflict: 'manager_id' });
-        if (!error) restored++;
-      }
-      setBackupMsg(`✅ Restore complete! ${restored}/${backup.managers.length} managers restored.`);
-      setTimeout(() => window.location.reload(), 2000);
-    } catch(err:any) { setBackupMsg('❌ Restore failed: ' + err.message); }
-    finally { setRestoreLoading(false); e.target.value = ''; }
-  };
-
-  // ─── Restore From Auto-Backup ──────────────────────────────────────────────
-  const handleRestoreFromAutoBackup = async () => {
-    setRestoreLoading(true); setBackupMsg(null);
-    try {
-      // Get latest backup per manager from last 24 hours
-      const { data: backups, error } = await supabase
-        .from('manager_data_backups')
-        .select('manager_id, data, backed_up_at, receipts_count')
-        .gte('backed_up_at', new Date(Date.now() - 24*60*60*1000).toISOString())
-        .order('backed_up_at', { ascending: false });
-      if (error) throw error;
-      if (!backups || backups.length === 0) { setBackupMsg('❌ Last 24 hours mein koi backup nahi mila.'); return; }
-      // Latest per manager
-      const latest: Record<string, any> = {};
-      for (const b of backups) { if (!latest[b.manager_id]) latest[b.manager_id] = b; }
-      let restored = 0;
-      for (const [managerId, backup] of Object.entries(latest)) {
-        const { error: e } = await supabase.from('manager_data').upsert({ manager_id: managerId, data: backup.data, updated_at: new Date().toISOString() }, { onConflict: 'manager_id' });
-        if (!e) restored++;
-      }
-      setBackupMsg(`✅ Auto-backup se ${restored} managers ka data restore ho gaya!`);
-      setTimeout(() => window.location.reload(), 2000);
-    } catch(err:any) { setBackupMsg('❌ Auto-restore failed: ' + err.message); }
-    finally { setRestoreLoading(false); }
-  };
-
-
-      {/* ═══ Backup & Restore ════════════════════════════════════════════════ */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">🛡️</span>
-          <h3 className="font-bold text-slate-800 dark:text-white text-base">Backup & Restore</h3>
-          <span className="ml-auto text-xs text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">Auto-Backup ON ✓</span>
-        </div>
-        <div className="flex items-center gap-2 mb-4 px-3 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"/>
-          <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Har 30 minute mein automatic snapshot — last 24 hours ka data always safe hai</p>
-        </div>
-        {backupMsg && (
-          <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${backupMsg.startsWith('✅') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-            {backupMsg}
-          </div>
-        )}
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={handleDownloadBackup} disabled={backupLoading}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl font-semibold text-xs transition-all active:scale-95">
-              <span>📥</span>{backupLoading ? 'Downloading...' : 'Download Backup'}
-            </button>
-            <label className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-semibold text-xs transition-all active:scale-95 cursor-pointer ${restoreLoading ? 'bg-orange-300 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}>
-              <span>📤</span>{restoreLoading ? 'Restoring...' : 'Restore From File'}
-              <input type="file" accept=".json" className="hidden" onChange={handleRestoreBackup} disabled={restoreLoading}/>
-            </label>
-          </div>
-          <button onClick={handleRestoreFromAutoBackup} disabled={restoreLoading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-xl font-semibold text-xs transition-all active:scale-95">
-            <span>🔄</span>{restoreLoading ? 'Restoring...' : 'Restore From Auto-Backup (Last 24 Hours)'}
-          </button>
-        </div>
-        <p className="mt-3 text-xs text-slate-400 text-center">48 snapshots stored — last 24 hours ka har change safe hai</p>
-      </div>
-
-
   return (
     <div className="p-6 md:p-8 space-y-8 max-w-[1400px] mx-auto bg-[#0b0f1a] min-h-screen text-slate-300">
 
@@ -672,10 +570,79 @@ const AdminDashboard: React.FC = () => {
       {!loading && tab === 'system' && (
         <div className="space-y-6 max-w-3xl">
           <div className="bg-[#181d2f] rounded-[1.25rem] border border-white/5 p-6 space-y-6">
-            <h3 className="font-bold text-white text-[13px] flex items-center gap-2 tracking-wide">
-              <Server className="w-4 h-4 text-slate-400" />
-              Live Database Stats
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-[13px] flex items-center gap-2 tracking-wide">
+                <Server className="w-4 h-4 text-slate-400" />
+                Live Database Stats
+              </h3>
+              <div className="flex gap-2">
+                <button 
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/admin/export');
+                      if (res.ok) {
+                        const resData = await res.json();
+                        const exportData = {
+                           databaseDump: resData.data,
+                           version: 'admin_1.0',
+                           timestamp: new Date().toISOString()
+                        };
+                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Admin_Database_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } else {
+                        alert("Backup failed from server.");
+                      }
+                    } catch (e) {
+                      alert("Network error.");
+                    }
+                  }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center gap-2 shadow-lg"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                  Backup Data
+                </button>
+                <label className="px-4 py-2 bg-slate-800 hover:bg-slate-700 cursor-pointer rounded-lg text-slate-300 font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center gap-2 border border-white/5">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                  Restore Data
+                  <input type="file" className="hidden" accept=".json" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                      try {
+                        const str = event.target?.result as string;
+                        const json = JSON.parse(str);
+                        if (json.databaseDump) {
+                          const res = await fetch('/api/admin/import', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ data: json.databaseDump })
+                          });
+                          if (res.ok) {
+                            alert("Database successfully restored to Supabase Cloud.");
+                            window.location.reload();
+                          } else {
+                            alert("Restore failed on server.");
+                          }
+                        } else {
+                          alert("Invalid backup file format.");
+                        }
+                      } catch {
+                        alert("Error parsing backup file.");
+                      }
+                    };
+                    reader.readAsText(file);
+                  }} />
+                </label>
+              </div>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {[
                 { label: 'Total Managers', value: totals.managers },
