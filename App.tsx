@@ -678,7 +678,15 @@ const App: React.FC = () => {
       title: 'System Restore',
       message: 'Overwrite current database with backup file?',
       variant: 'warning',
-      onConfirm: () => setState({ ...newState, currentManager: activeManager || undefined })
+      onConfirm: () => {
+        // ✅ FIX: Restore state AND immediately save to Supabase for cross-device sync
+        const restoredState = { ...newState, currentManager: activeManager || undefined };
+        setState(restoredState);
+        saveState(restoredState);
+        if (activeManager) {
+          saveStateToSupabase(activeManager, restoredState);
+        }
+      }
     });
   };
 
