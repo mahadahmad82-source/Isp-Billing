@@ -146,6 +146,14 @@ export interface Archive {
   users: UserRecord[];
 }
 
+export interface SalaryPayment {
+  month: string;        // e.g. "May 2026"
+  paidAt: string;       // ISO timestamp when manager marked as paid
+  baseSalary: number;   // Fixed salary paid
+  commission: number;   // Commission paid
+  total: number;        // Total paid
+}
+
 export interface SubManagerAccount {
   id: string;
   username: string;
@@ -161,6 +169,9 @@ export interface SubManagerAccount {
   };
   area?: string;
   isLeave?: boolean;
+  baseSalary?: number;         // Fixed monthly salary in Rs.
+  commissionPercent?: number;  // Commission % on collections (e.g. 5 = 5%)
+  salaryPayments?: SalaryPayment[]; // History of months marked as paid
 }
 
 export interface AttendanceLog {
