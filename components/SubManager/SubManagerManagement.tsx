@@ -40,11 +40,13 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     r.collectedBy === performanceAgentId || r.collectedBy === selectedAgentForPerformance?.username
   );
 
-  // ✅ Compute current-month receipts per agent for payroll
+  // ✅ Payroll: Base Salary + Commission - Attendance Deductions
   const currentMonthKey = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+  const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const agentPayroll = useMemo(() => {
     return subManagers.map(sm => {
+      // ── Collections & Commission ──────────────────────────
       const myReceipts = recentReceipts.filter(r =>
         r.collectedBy === sm.id || r.collectedBy === sm.username
       );
@@ -52,13 +54,65 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       const commissionPct = sm.commissionPercent || 0;
       const commissionEarned = Math.round((totalCollected * commissionPct) / 100);
       const baseSalary = sm.baseSalary || 0;
-      const totalPayable = baseSalary + commissionEarned;
+
+      // ── Attendance Deduction ──────────────────────────────
+      // Step 1: How many working days in selected month?
+      const [yr, mo] = payrollMonth.split('-').map(Number);
+      const daysInMonth = new Date(yr, mo, 0).getDate();
+      // Count Mon-Sat as working days (exclude Sunday = 0)
+      let workingDays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const day = new Date(yr, mo - 1, d).getDay();
+        if (day !== 0) workingDays++; // Sunday off
+      }
+
+      // Step 2: Count days agent actually checked in (present days)
+      const agentLogs = attendanceLogs.filter(l =>
+        l.subManagerId === sm.id && l.timestamp.startsWith(payrollMonth)
+      );
+      const presentDays = new Set(
+        agentLogs
+          .filter(l => l.type === 'check-in')
+          .map(l => l.timestamp.split('T')[0])
+      ).size;
+
+      // Step 3: Leave days (not counted as absent)
+      const leaveDays = new Set(
+        agentLogs
+          .filter(l => l.type === 'leave')
+          .map(l => l.timestamp.split('T')[0])
+      ).size;
+
+      // Step 4: Absent = Working days - Present days - Leave days
+      const absentDays = Math.max(0, workingDays - presentDays - leaveDays);
+
+      // Step 5: Per-day salary & deduction
+      const dailySalary = workingDays > 0 ? baseSalary / workingDays : 0;
+      const deduction = Math.round(absentDays * dailySalary);
+
+      // ── Final Totals ──────────────────────────────────────
+      const netBaseSalary = Math.max(0, baseSalary - deduction);
+      const totalPayable = netBaseSalary + commissionEarned;
 
       const alreadyPaid = (sm.salaryPayments || []).some(p => p.month === currentMonthKey);
 
-      return { sm, totalCollected, commissionEarned, baseSalary, totalPayable, alreadyPaid };
+      return {
+        sm,
+        totalCollected,
+        commissionEarned,
+        baseSalary,
+        netBaseSalary,
+        deduction,
+        absentDays,
+        presentDays,
+        leaveDays,
+        workingDays,
+        dailySalary: Math.round(dailySalary),
+        totalPayable,
+        alreadyPaid,
+      };
     });
-  }, [subManagers, recentReceipts, currentMonthKey]);
+  }, [subManagers, recentReceipts, attendanceLogs, currentMonthKey, payrollMonth]);
 
   // ✅ Commission for performance modal
   const perfCommission = useMemo(() => {
@@ -73,7 +127,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     const payment: SalaryPayment = {
       month: currentMonthKey,
       paidAt: new Date().toISOString(),
-      baseSalary: entry.baseSalary,
+      baseSalary: entry.netBaseSalary,
       commission: entry.commissionEarned,
       total: entry.totalPayable,
     };
@@ -241,13 +295,24 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       {activeTab === 'payroll' && (
         <div className="space-y-6 animate-in fade-in duration-500">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payroll Summary</h3>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">{currentMonthKey} — Base + Commission Breakdown</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Payroll Summary</h3>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Base + Commission − Absent Deductions</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Month:</label>
+                <input type="month" value={payrollMonth} onChange={e => setPayrollMonth(e.target.value)}
+                  className="px-4 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {agentPayroll.map(({ sm, totalCollected, commissionEarned, baseSalary, totalPayable, alreadyPaid }) => (
+              {agentPayroll.map(({ sm, totalCollected, commissionEarned, baseSalary, netBaseSalary, deduction, absentDays, presentDays, leaveDays, workingDays, dailySalary, totalPayable, alreadyPaid }) => (
                 <div key={sm.id} className="bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-[2rem] p-6 space-y-4">
+
                   {/* Agent header */}
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-lg">
                       {sm.name.charAt(0)}
                     </div>
@@ -256,24 +321,51 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">@{sm.username}</p>
                     </div>
                     {alreadyPaid && (
-                      <span className="ml-auto px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase rounded-full border border-emerald-500/20">
-                        ✓ Paid
-                      </span>
+                      <span className="ml-auto px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase rounded-full border border-emerald-500/20">✓ Paid</span>
                     )}
                   </div>
 
-                  {/* Payroll rows */}
-                  <div className="space-y-2 text-xs">
+                  {/* Attendance mini-summary */}
+                  <div className="grid grid-cols-4 gap-2 bg-white dark:bg-white/[0.02] rounded-2xl p-3 border border-slate-100 dark:border-white/5">
+                    {[
+                      { label: 'Working', val: workingDays, color: 'text-slate-600 dark:text-slate-300' },
+                      { label: 'Present', val: presentDays, color: 'text-emerald-500' },
+                      { label: 'Leave', val: leaveDays, color: 'text-amber-500' },
+                      { label: 'Absent', val: absentDays, color: 'text-rose-500' },
+                    ].map(({ label, val, color }) => (
+                      <div key={label} className="text-center">
+                        <p className={`text-base font-black ${color}`}>{val}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Salary breakdown */}
+                  <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500 font-medium">Base Salary</span>
+                      <span className="text-slate-500">Base Salary</span>
                       <span className="font-bold text-slate-900 dark:text-white">Rs. {baseSalary.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500 font-medium">Total Collected</span>
+                      <span className="text-slate-500">Daily Rate</span>
+                      <span className="font-bold text-slate-500">Rs. {dailySalary.toLocaleString()} / day</span>
+                    </div>
+                    {deduction > 0 && (
+                      <div className="flex justify-between items-center py-2 border-b border-rose-500/10 bg-rose-500/5 rounded-xl px-3">
+                        <span className="text-rose-500 font-bold">Absent Deduction ({absentDays} days)</span>
+                        <span className="font-black text-rose-500">− Rs. {deduction.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
+                      <span className="text-slate-500">Net Base Salary</span>
+                      <span className="font-bold text-slate-900 dark:text-white">Rs. {netBaseSalary.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
+                      <span className="text-slate-500">Collections</span>
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">Rs. {totalCollected.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500 font-medium">Commission ({sm.commissionPercent || 0}%)</span>
+                      <span className="text-slate-500">Commission ({sm.commissionPercent || 0}%)</span>
                       <span className="font-bold text-amber-500">Rs. {commissionEarned.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center py-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 px-3 mt-2">
@@ -282,7 +374,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                     </div>
                   </div>
 
-                  {/* Mark Salary Paid */}
+                  {/* Mark Paid button */}
                   <button
                     disabled={alreadyPaid}
                     onClick={() => handleMarkSalaryPaid(sm)}
@@ -290,7 +382,9 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                       ? 'bg-slate-100 dark:bg-white/5 text-slate-400 cursor-not-allowed'
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'}`}
                   >
-                    {alreadyPaid ? `✓ Paid on ${new Date((sm.salaryPayments || []).find(p => p.month === currentMonthKey)?.paidAt || '').toLocaleDateString()}` : 'Mark Salary Paid'}
+                    {alreadyPaid
+                      ? `✓ Paid on ${new Date((sm.salaryPayments || []).find(p => p.month === currentMonthKey)?.paidAt || '').toLocaleDateString()}`
+                      : 'Mark Salary Paid'}
                   </button>
                 </div>
               ))}
