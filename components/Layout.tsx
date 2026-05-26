@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ProfileDialog from './ProfileDialog';
 import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
@@ -30,6 +30,81 @@ interface LayoutProps {
   currentPhone?: string;
   currentAddress?: string;
 }
+
+
+// ✅ Live DB Connection Status Indicator
+const DbStatusIndicator: React.FC<{ lastSavedTime?: string }> = ({ lastSavedTime }) => {
+  const [status, setStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [lastChecked, setLastChecked] = useState('');
+  const [ping, setPing] = useState<number | null>(null);
+
+  const checkConnection = useCallback(async () => {
+    const start = Date.now();
+    try {
+      const res = await fetch(
+        'https://mzmajmjzopmkzboizrbm.supabase.co/rest/v1/manager_data?select=manager_id&limit=1',
+        {
+          headers: {
+            apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw',
+            Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw',
+          },
+        }
+      );
+      const ms = Date.now() - start;
+      if (res.ok) {
+        setStatus('connected');
+        setPing(ms);
+      } else {
+        setStatus('error');
+        setPing(null);
+      }
+    } catch {
+      setStatus('error');
+      setPing(null);
+    }
+    setLastChecked(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  }, []);
+
+  useEffect(() => {
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000); // check every 30s
+    return () => clearInterval(interval);
+  }, [checkConnection]);
+
+  const dot = {
+    checking:  'bg-amber-400 animate-pulse',
+    connected: 'bg-emerald-400 animate-pulse',
+    error:     'bg-rose-500 animate-ping',
+  }[status];
+
+  const label = {
+    checking:  'Connecting...',
+    connected: lastSavedTime ? `Synced ${lastSavedTime}` : 'Database Connected',
+    error:     'Database Unreachable',
+  }[status];
+
+  const color = {
+    checking:  'text-amber-500',
+    connected: 'text-emerald-500',
+    error:     'text-rose-500',
+  }[status];
+
+  return (
+    <button
+      onClick={checkConnection}
+      title={status === 'connected' ? `Ping: ${ping}ms · Click to recheck` : 'Click to retry connection'}
+      className="flex items-center gap-1.5 mt-0.5 group"
+    >
+      <span className="relative flex h-2 w-2">
+        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${dot}`} />
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${dot.replace('animate-pulse','').replace('animate-ping','')}`} />
+      </span>
+      <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${color} group-hover:underline`}>
+        {label}{status === 'connected' && ping ? ` · ${ping}ms` : ''}
+      </span>
+    </button>
+  );
+};
 
 const Layout: React.FC<LayoutProps> = ({ 
   children, 
@@ -256,11 +331,7 @@ const Layout: React.FC<LayoutProps> = ({
         <header id="tour-top-header" className="flex justify-between items-center mb-8 no-print">
           <div className="flex flex-col">
             <h2 className={`text-2xl font-bold uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
-            {lastSavedTime && (
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-0.5">
-                Secure Cloud Sync: {lastSavedTime}
-              </span>
-            )}
+            <DbStatusIndicator lastSavedTime={lastSavedTime} />
           </div>
           <div id="tour-header-actions" className="flex items-center gap-3 md:gap-4">
             <button 
