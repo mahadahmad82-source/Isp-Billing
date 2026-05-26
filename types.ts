@@ -154,6 +154,36 @@ export interface SalaryPayment {
   total: number;        // Total paid
 }
 
+// ─── COMPLAINT TICKET ───────────────────────────────────────
+export interface ComplaintTicket {
+  id: string;
+  customerId: string;       // UserRecord.id
+  customerName: string;
+  customerPhone?: string;
+  title: string;            // Short issue title
+  description: string;
+  status: 'open' | 'assigned' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high';
+  assignedTo?: string;      // SubManagerAccount.id or username
+  assignedAt?: string;
+  resolvedAt?: string;
+  commissionOnResolve?: number;  // Fixed Rs. amount paid on resolution
+  createdAt: string;
+  createdBy: string;        // manager username
+  notes?: string;
+}
+
+// ─── BUSINESS EXPENSE ────────────────────────────────────────
+export interface BusinessExpense {
+  id: string;
+  title: string;
+  amount: number;
+  category: 'salary' | 'equipment' | 'rent' | 'utilities' | 'marketing' | 'other';
+  date: string;             // ISO date
+  notes?: string;
+  createdAt: string;
+}
+
 export interface SubManagerAccount {
   id: string;
   username: string;
@@ -171,6 +201,7 @@ export interface SubManagerAccount {
   isLeave?: boolean;
   baseSalary?: number;         // Fixed monthly salary in Rs.
   commissionPercent?: number;  // Commission % on collections (e.g. 5 = 5%)
+  complaintCommission?: number; // Fixed Rs. earned per complaint resolved
   salaryPayments?: SalaryPayment[]; // History of months marked as paid
 }
 
@@ -204,4 +235,6 @@ export interface AppState {
   settings?: AppSettings;
   currentManager?: string;
   dismissedNotificationIds?: string[];
+  complaintTickets?: ComplaintTicket[];
+  businessExpenses?: BusinessExpense[];
 }
