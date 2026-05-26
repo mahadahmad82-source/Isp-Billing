@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
@@ -19,6 +19,9 @@ import AdminDashboard from './components/AdminDashboard';
 import Archives from './components/Archives';
 import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
 import SubManagerManagement from './components/SubManager/SubManagerManagement';
+import ComplaintManager from './components/ComplaintManager';
+import BusinessExpenses from './components/BusinessExpenses';
+import BusinessAnalytics from './components/BusinessAnalytics';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -42,7 +45,9 @@ const App: React.FC = () => {
       archives: loaded.archives || [],
       dismissedNotificationIds: loaded.dismissedNotificationIds || [],
       companies: loaded.companies || [],
-      activeCompanyId: loaded.activeCompanyId || ''
+      activeCompanyId: loaded.activeCompanyId || '',
+      complaintTickets: loaded.complaintTickets || [],
+      businessExpenses: loaded.businessExpenses || [],
     };
 
     // Initialize first company if none exists
@@ -1106,6 +1111,61 @@ const App: React.FC = () => {
           {activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {activeTab === 'admin' && isAdmin && <AdminDashboard />}
+          {activeTab === 'complaints' && userRole === 'manager' && (
+            <ComplaintManager
+              tickets={state.complaintTickets || []}
+              subManagers={state.subManagers || []}
+              users={filteredUsers}
+              managerId={activeManager || ''}
+              onAddTicket={(t) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: [...(prev.complaintTickets || []), { ...t, id: generateId(), createdAt: new Date().toISOString() }] };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+              onUpdateTicket={(id, updates) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === id ? { ...t, ...updates } : t) };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+              onDeleteTicket={(id) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).filter(t => t.id !== id) };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+            />
+          )}
+          {activeTab === 'expenses' && userRole === 'manager' && (
+            <BusinessExpenses
+              expenses={state.businessExpenses || []}
+              monthlyRevenue={filteredReceipts.filter(r => {
+                const d = new Date(r.date); const now = new Date();
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+              }).reduce((s, r) => s + (r.paidAmount || 0), 0)}
+              onAdd={(e) => {
+                setState(prev => {
+                  const newState = { ...prev, businessExpenses: [...(prev.businessExpenses || []), { ...e, id: generateId(), createdAt: new Date().toISOString() }] };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+              onDelete={(id) => {
+                setState(prev => {
+                  const newState = { ...prev, businessExpenses: (prev.businessExpenses || []).filter(e => e.id !== id) };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+            />
+          )}
+          {activeTab === 'analytics' && userRole === 'manager' && (
+            <BusinessAnalytics
+              users={filteredUsers}
+              receipts={filteredReceipts}
+              expenses={state.businessExpenses || []}
+              settings={currentSettings}
+            />
+          )}
           {activeTab === 'team' && userRole === 'manager' && (
             <SubManagerManagement 
               subManagers={state.subManagers || []}
