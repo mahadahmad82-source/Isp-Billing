@@ -1,0 +1,73 @@
+name: 🛡️ File Deletion Guard
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    name: Check Critical Files
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 🔍 Detect deleted critical files
+        id: check
+        run: |
+          CRITICAL_FILES=(
+            "App.tsx"
+            "types.ts"
+            "utils/storage.ts"
+            "utils/supabaseSync.ts"
+            "lib/supabase.ts"
+            "components/AdminDashboard.tsx"
+            "components/Dashboard.tsx"
+            "components/Login.tsx"
+            "components/Layout.tsx"
+            "components/UserManagement.tsx"
+            "components/ReceiptGenerator.tsx"
+            "components/Archives.tsx"
+            "components/BusinessAnalytics.tsx"
+            "components/BusinessExpenses.tsx"
+            "components/ComplaintManager.tsx"
+            "components/SubManager/SubManagerManagement.tsx"
+            "components/SubManager/SubManagerDashboard.tsx"
+            "components/SubManager/AgentAttendance.tsx"
+            "components/SubManager/ActivityLogs.tsx"
+          )
+
+          DELETED=""
+          for f in "${CRITICAL_FILES[@]}"; do
+            if [ ! -f "$f" ]; then
+              DELETED="$DELETED\n❌ MISSING: $f"
+            fi
+          done
+
+          if [ -n "$DELETED" ]; then
+            echo "DELETED_FILES<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$DELETED" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "has_deletions=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_deletions=false" >> $GITHUB_OUTPUT
+            echo "✅ All critical files present"
+          fi
+
+      - name: ❌ FAIL — Critical files missing!
+        if: steps.check.outputs.has_deletions == 'true'
+        run: |
+          echo "🚨 CRITICAL FILES WERE DELETED!"
+          echo -e "${{ steps.check.outputs.DELETED_FILES }}"
+          echo ""
+          echo "These files are required for MYISP to work."
+          echo "Do NOT delete core files. Only modify specific files."
+          exit 1
+
+      - name: ✅ All critical files intact
+        if: steps.check.outputs.has_deletions == 'false'
+        run: echo "✅ Build guard passed — all critical files present"
