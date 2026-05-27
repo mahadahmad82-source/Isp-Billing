@@ -400,8 +400,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
   useEffect(() => {
     if (activeReceipt) {
-      const nextDue = (activeReceipt.balanceAmount || 0) + (activeReceipt.monthlyFee - (activeReceipt.discount || 0));
-      const textMessage = `*${settings.businessName} RECEIPT*\n--------------------------\n*Ref:* ${activeReceipt.transactionRef}\n*Date:* ${new Date(activeReceipt.date).toLocaleDateString()}\n*Customer:* ${activeReceipt.userName}\n*Method:* ${activeReceipt.paymentMethod}\n*Period:* ${activeReceipt.period}\n\n*Amount Paid:* Rs. ${(activeReceipt.paidAmount || 0).toLocaleString()}\n*Next Month's Due:* Rs. ${nextDue.toLocaleString()}\n--------------------------\nThank you for your payment!`;
+      const balance = activeReceipt.balanceAmount || 0;
+      const textMessage = `*${settings.businessName} RECEIPT*\n--------------------------\n*Ref:* ${activeReceipt.transactionRef}\n*Date:* ${new Date(activeReceipt.date).toLocaleDateString()}\n*Customer:* ${activeReceipt.userName}\n*Method:* ${activeReceipt.paymentMethod}\n*Period:* ${activeReceipt.period}\n\n*Amount Paid:* Rs. ${(activeReceipt.paidAmount || 0).toLocaleString()}\n*Remaining Balance Amount:* Rs. ${balance.toLocaleString()}\n--------------------------\nThank you for your payment!`;
       setShareMessage(textMessage);
       setSmsTemplate(textMessage.replace(/\*/g, ''));
     }

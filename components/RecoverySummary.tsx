@@ -864,7 +864,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <p className="text-xl font-black text-rose-600 dark:text-rose-400">Rs. {(stats.balance || 0).toLocaleString()}</p>
               </div>
               <div className="bg-slate-800 dark:bg-indigo-600 p-5 rounded-[1.5rem] text-white shadow-xl">
-                <p className="text-[9px] font-black text-slate-300 dark:text-indigo-100/60 uppercase tracking-widest mb-1">TOTAL FORECAST RECOVERY</p>
+                <p className="text-[9px] font-black text-white dark:text-white uppercase tracking-widest mb-1">TOTAL EXPECTED COLLECTION</p>
                 <p className="text-xl font-black">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
               </div>
             </div>
@@ -1012,7 +1012,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             </div>
             <div className="text-right">
                <div className="bg-white dark:bg-slate-900 px-8 py-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl">
-                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">TOTAL FORECAST RECOVERY</p>
+                  <p className="text-[10px] font-black text-[#38dc8f] uppercase tracking-widest mb-1">TOTAL EXPECTED COLLECTION</p>
                   <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
                </div>
             </div>
