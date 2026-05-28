@@ -14,7 +14,7 @@ const COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-900 border border-white/10 rounded-2xl px-4 py-3 shadow-2xl">
+    <div style={{background:"#0f172a",border:"1px solid rgba(255,255,255,0.08)",borderRadius:16,padding:"10px 16px"}}>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-sm font-bold" style={{ color: p.color }}>
@@ -59,7 +59,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return Object.entries(map).map(([plan, d]) => ({
       plan,
       Users: d.count,
-      'Rs. Revenue': d.revenue,
+      'Monthly Revenue': d.revenue,
       Discounted: d.discounted,
     }));
   }, [users, settings]);
@@ -147,7 +147,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
           {/* Status Pie + Plan bar side by side */}
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Customer Status</p>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -161,12 +161,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Users per Plan</p>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={planStats} barSize={28} barCategoryGap="30%">
-                  <XAxis dataKey="plan" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="plan" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="Users" radius={[8,8,0,0]} fill="#6366f1" />
                 </BarChart>
@@ -179,12 +179,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {/* ── REVENUE TREND ── */}
       {activeSection === 'revenue' && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Revenue vs Expenses — Last 6 Months</p>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={last6Months} barCategoryGap="25%">
-                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
                 <Bar dataKey="Rs. Revenue" radius={[6,6,0,0]} fill="#6366f1" />
@@ -193,12 +193,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Profit Trend</p>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={last6Months}>
-                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line type="monotone" dataKey="Rs. Profit" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 5 }} />
               </LineChart>
@@ -210,12 +210,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {/* ── PLAN ANALYTICS ── */}
       {activeSection === 'plans' && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Revenue by Plan</p>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={planStats} barCategoryGap="30%">
-                <XAxis dataKey="plan" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                <XAxis dataKey="plan" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
                 <Bar dataKey="Users" radius={[6,6,0,0]} fill="#6366f1" />
