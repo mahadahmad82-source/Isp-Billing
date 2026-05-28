@@ -31,8 +31,8 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, monthlyRe
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [expenses, month]);
 
-  const totalExpenses = monthExpenses.reduce((s, e) => s + e.amount, 0);
-  const grossProfit = monthlyRevenue - totalExpenses;
+  const totalExpenses = monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const grossProfit = (Number(monthlyRevenue) || 0) - (Number(totalExpenses) || 0);
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
@@ -70,17 +70,17 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, monthlyRe
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-xl shadow-indigo-600/20">
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Total Revenue</p>
-          <p className="text-3xl font-black">Rs. {monthlyRevenue.toLocaleString()}</p>
+          <p className="text-3xl font-black">Rs. {(Number(monthlyRevenue) || 0).toLocaleString()}</p>
           <p className="text-[9px] font-bold uppercase tracking-widest opacity-50 mt-2">Collections this month</p>
         </div>
         <div className="bg-rose-500/5 border border-rose-500/10 p-6 rounded-[2rem]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500/60 mb-1">Total Expenses</p>
-          <p className="text-3xl font-black text-rose-500">Rs. {totalExpenses.toLocaleString()}</p>
+          <p className="text-3xl font-black text-rose-500">Rs. {(Number(totalExpenses) || 0).toLocaleString()}</p>
           <p className="text-[9px] font-bold uppercase tracking-widest text-rose-400/50 mt-2">{monthExpenses.length} entries</p>
         </div>
         <div className={`p-6 rounded-[2rem] border ${grossProfit >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/20'}`}>
           <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${grossProfit >= 0 ? 'text-emerald-500/60' : 'text-rose-500/60'}`}>Gross Profit</p>
-          <p className={`text-3xl font-black ${grossProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>Rs. {Math.abs(grossProfit).toLocaleString()}</p>
+          <p className={`text-3xl font-black ${grossProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>Rs. {Math.abs(Number(grossProfit) || 0).toLocaleString()}</p>
           <p className={`text-[9px] font-bold uppercase tracking-widest mt-2 ${grossProfit >= 0 ? 'text-emerald-500/50' : 'text-rose-500/50'}`}>
             {grossProfit >= 0 ? '▲ Profit' : '▼ Loss'}
           </p>
@@ -97,7 +97,7 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, monthlyRe
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase ${CAT_COLORS[cat]}`}>{cat}</span>
                 </div>
-                <p className="text-xs font-black text-slate-900 dark:text-white">Rs. {amt.toLocaleString()}</p>
+                <p className="text-xs font-black text-slate-900 dark:text-white">Rs. {(Number(amt) || 0).toLocaleString()}</p>
               </div>
             ))}
           </div>
@@ -121,8 +121,8 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, monthlyRe
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="text-sm font-black text-rose-500">Rs. {exp.amount.toLocaleString()}</p>
-                  <button onClick={() => onDelete(exp.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                  <p className="text-sm font-black text-rose-500">Rs. {(Number(exp.amount) || 0).toLocaleString()}</p>
+                  <button onClick={() => onDelete(exp.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                   </button>
                 </div>
