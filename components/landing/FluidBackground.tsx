@@ -1,219 +1,254 @@
-'use client';
-
 import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
 
-export default function FluidBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+interface ThreeBackgroundProps {
+  isDark: boolean;
+}
+
+const ThreeBackground: React.FC<ThreeBackgroundProps> = ({ isDark }) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<any>({});
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!mountRef.current) return;
+    const el = mountRef.current;
+    const W = el.clientWidth, H = el.clientHeight;
 
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (!gl) {
-      console.error('WebGL not supported');
-      return;
-    }
+    // Scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 1000);
+    camera.position.set(0, 0, 35);
 
-    let animationFrameId: number;
-    let isPageVisible = true;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    el.appendChild(renderer.domElement);
 
-    const config = {
-      SIM_RESOLUTION: 128,
-      DYE_RESOLUTION: 512,
-      DENSITY_DISSIPATION: 0.97,
-      VELOCITY_DISSIPATION: 0.98,
-      PRESSURE_DISSIPATION: 0.8,
-      PRESSURE_ITERATIONS: 20,
-      CURL: 30,
-      SPLAT_RADIUS: 0.25,
-    };
+    // Colors
+    const nodeColor = isDark ? 0x6366f1 : 0x4f46e5;
+    const lineColor = isDark ? 0x818cf8 : 0x6366f1;
+    const particleColor = isDark ? 0xa5b4fc : 0x818cf8;
 
-    const pointers: any[] = [];
-    pointers.push({
-      id: -1,
-      x: 0,
-      y: 0,
-      dx: 0,
-      dy: 0,
-      down: false,
-      moved: false,
-      color: [Math.random() * 5, Math.random() * 5, Math.random() * 5]
+    // === NODES ===
+    const nodes: THREE.Mesh[] = [];
+    const nodePositions: THREE.Vector3[] = [];
+    const nodeCount = 40;
+
+    const nodeMat = new THREE.MeshPhongMaterial({
+      color: nodeColor,
+      emissive: nodeColor,
+      emissiveIntensity: 0.5,
+      transparent: true,
+      opacity: 0.85,
     });
 
-    const baseVertexShader = `
-      precision highp float;
-      attribute vec2 aPosition;
-      varying vec2 vUv;
-      varying vec2 vL;
-      varying vec2 vR;
-      varying vec2 vT;
-      varying vec2 vB;
-      uniform vec2 texelSize;
-      void main () {
-        vUv = aPosition * 0.5 + 0.5;
-        vL = vUv - vec2(texelSize.x, 0.0);
-        vR = vUv + vec2(texelSize.x, 0.0);
-        vT = vUv + vec2(0.0, texelSize.y);
-        vB = vUv - vec2(0.0, texelSize.y);
-        gl_Position = vec4(aPosition, 0.0, 1.0);
-      }
-    `;
-
-    const displayShader = `
-      precision highp float;
-      varying vec2 vUv;
-      uniform sampler2D uTexture;
-      void main () {
-        vec3 col = texture2D(uTexture, vUv).rgb;
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `;
-
-    const splatShader = `
-      precision highp float;
-      varying vec2 vUv;
-      uniform sampler2D uTarget;
-      uniform float aspect;
-      uniform vec2 point;
-      uniform vec3 color;
-      uniform float radius;
-      void main () {
-        vec2 p = vUv - point;
-        p.x *= aspect;
-        vec3 base = texture2D(uTarget, vUv).xyz;
-        vec3 splat = color * exp(-dot(p, p) / radius);
-        gl_FragColor = vec4(base + splat, 1.0);
-      }
-    `;
-
-    function createShader(gl: WebGLRenderingContext, type: number, source: string) {
-      const shader = gl.createShader(type);
-      if (!shader) return null;
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      return shader;
+    for (let i = 0; i < nodeCount; i++) {
+      const geo = new THREE.SphereGeometry(
+        Math.random() * 0.35 + 0.1,
+        8, 8
+      );
+      const mesh = new THREE.Mesh(geo, nodeMat.clone());
+      const pos = new THREE.Vector3(
+        (Math.random() - 0.5) * 60,
+        (Math.random() - 0.5) * 40,
+        (Math.random() - 0.5) * 30
+      );
+      mesh.position.copy(pos);
+      nodes.push(mesh);
+      nodePositions.push(pos);
+      scene.add(mesh);
     }
 
-    function createProgram(gl: WebGLRenderingContext, vertexSource: string, fragmentSource: string) {
-      const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
-      const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-      const program = gl.createProgram();
-      if (!program || !vertexShader || !fragmentShader) return null;
-      gl.attachShader(program, vertexShader);
-      gl.attachShader(program, fragmentShader);
-      gl.linkProgram(program);
-      return program;
-    }
+    // === CONNECTING LINES ===
+    const lineMat = new THREE.LineBasicMaterial({
+      color: lineColor,
+      transparent: true,
+      opacity: 0.18,
+    });
 
-    const displayProgram = createProgram(gl, baseVertexShader, displayShader);
-    const splatProgram = createProgram(gl, baseVertexShader, splatShader);
-
-    const blit = (() => {
-      const buffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
-      return (program: WebGLProgram) => {
-        gl.useProgram(program);
-        const positionAttr = gl.getAttribLocation(program, 'aPosition');
-        gl.enableVertexAttribArray(positionAttr);
-        gl.vertexAttribPointer(positionAttr, 2, gl.FLOAT, false, 0, 0);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-      };
-    })();
-
-    function createFBO(w: number, h: number) {
-      gl!.activeTexture(gl!.TEXTURE0);
-      const texture = gl!.createTexture();
-      gl!.bindTexture(gl!.TEXTURE_2D, texture);
-      gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, w, h, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, null);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
-
-      const fbo = gl!.createFramebuffer();
-      gl!.bindFramebuffer(gl!.FRAMEBUFFER, fbo);
-      gl!.framebufferTexture2D(gl!.FRAMEBUFFER, gl!.COLOR_ATTACHMENT0, gl!.TEXTURE_2D, texture, 0);
-
-      return { texture, fbo, width: w, height: h };
-    }
-
-    let density = createFBO(config.DYE_RESOLUTION, config.DYE_RESOLUTION);
-
-    function resizeCanvas() {
-      if (canvas!.width !== window.innerWidth || canvas!.height !== window.innerHeight) {
-        canvas!.width = window.innerWidth;
-        canvas!.height = window.innerHeight;
-        gl!.viewport(0, 0, canvas!.width, canvas!.height);
+    const lines: THREE.Line[] = [];
+    for (let i = 0; i < nodeCount; i++) {
+      for (let j = i + 1; j < nodeCount; j++) {
+        const dist = nodePositions[i].distanceTo(nodePositions[j]);
+        if (dist < 16) {
+          const geo = new THREE.BufferGeometry().setFromPoints([
+            nodePositions[i], nodePositions[j]
+          ]);
+          const line = new THREE.Line(geo, lineMat.clone());
+          lines.push(line);
+          scene.add(line);
+        }
       }
     }
 
-    function splat(x: number, y: number, dx: number, dy: number, color: number[]) {
-      if (!splatProgram) return;
-      gl!.bindFramebuffer(gl!.FRAMEBUFFER, density.fbo);
-      gl!.useProgram(splatProgram);
-      gl!.uniform1i(gl!.getUniformLocation(splatProgram, 'uTarget'), 0);
-      gl!.uniform1f(gl!.getUniformLocation(splatProgram, 'aspect'), canvas!.width / canvas!.height);
-      gl!.uniform2f(gl!.getUniformLocation(splatProgram, 'point'), x, y);
-      gl!.uniform3f(gl!.getUniformLocation(splatProgram, 'color'), color[0], color[1], color[2]);
-      gl!.uniform1f(gl!.getUniformLocation(splatProgram, 'radius'), config.SPLAT_RADIUS / 100.0);
-      blit(splatProgram);
+    // === FLOATING PARTICLES ===
+    const pCount = 200;
+    const pPositions = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount; i++) {
+      pPositions[i * 3]     = (Math.random() - 0.5) * 80;
+      pPositions[i * 3 + 1] = (Math.random() - 0.5) * 60;
+      pPositions[i * 3 + 2] = (Math.random() - 0.5) * 40;
     }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+    const pMat = new THREE.PointsMaterial({
+      color: particleColor,
+      size: 0.15,
+      transparent: true,
+      opacity: 0.5,
+      sizeAttenuation: true,
+    });
+    const particles = new THREE.Points(pGeo, pMat);
+    scene.add(particles);
 
-    function update() {
-      if (!isPageVisible) return;
-      resizeCanvas();
+    // === LARGE TORUS (ring) ===
+    const torusGeo = new THREE.TorusGeometry(18, 0.08, 8, 120);
+    const torusMat = new THREE.MeshBasicMaterial({
+      color: lineColor,
+      transparent: true,
+      opacity: 0.12,
+    });
+    const torus = new THREE.Mesh(torusGeo, torusMat);
+    torus.rotation.x = Math.PI / 3;
+    scene.add(torus);
 
-      if (Math.random() < 0.03) {
-        const randomColor = [Math.random() * 2, Math.random() * 1, Math.random() * 3];
-        splat(Math.random(), Math.random(), 0, 0, randomColor);
-      }
+    const torus2 = new THREE.Mesh(
+      new THREE.TorusGeometry(24, 0.05, 8, 120),
+      new THREE.MeshBasicMaterial({ color: lineColor, transparent: true, opacity: 0.07 })
+    );
+    torus2.rotation.x = -Math.PI / 5;
+    torus2.rotation.y = Math.PI / 4;
+    scene.add(torus2);
 
-      if (displayProgram) {
-        gl!.bindFramebuffer(gl!.FRAMEBUFFER, null);
-        gl!.useProgram(displayProgram);
-        gl!.uniform1i(gl!.getUniformLocation(displayProgram, 'uTexture'), 0);
-        blit(displayProgram);
-      }
+    // === ICOSAHEDRON (central) ===
+    const icoGeo = new THREE.IcosahedronGeometry(3.5, 1);
+    const icoMat = new THREE.MeshPhongMaterial({
+      color: nodeColor,
+      emissive: nodeColor,
+      emissiveIntensity: 0.3,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.25,
+    });
+    const ico = new THREE.Mesh(icoGeo, icoMat);
+    scene.add(ico);
 
-      animationFrameId = requestAnimationFrame(update);
-    }
+    // === LIGHTS ===
+    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambient);
+    const pointLight = new THREE.PointLight(nodeColor, 2, 60);
+    pointLight.position.set(5, 5, 10);
+    scene.add(pointLight);
+    const pointLight2 = new THREE.PointLight(0x8b5cf6, 1.5, 50);
+    pointLight2.position.set(-10, -5, 5);
+    scene.add(pointLight2);
 
-    const observer = new IntersectionObserver(([entry]) => {
-      isPageVisible = entry.isIntersecting;
-      if (isPageVisible) {
-        update();
-      } else {
-        cancelAnimationFrame(animationFrameId);
-      }
-    }, { threshold: 0.1 });
-
-    observer.observe(canvas);
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const x = e.clientX / window.innerWidth;
-      const y = 1.0 - e.clientY / window.innerHeight;
-      splat(x, y, 0, 0, [Math.sin(Date.now() * 0.001) * 2, 0.5, Math.cos(Date.now() * 0.0015) * 2]);
+    // === MOUSE ===
+    let mouseX = 0, mouseY = 0;
+    const onMouseMove = (e: MouseEvent) => {
+      mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+      mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
     };
+    window.addEventListener('mousemove', onMouseMove);
 
-    window.addEventListener('mousemove', handleMouseMove);
+    // === NODE VELOCITIES ===
+    const velocities = nodes.map(() => new THREE.Vector3(
+      (Math.random() - 0.5) * 0.008,
+      (Math.random() - 0.5) * 0.008,
+      (Math.random() - 0.5) * 0.005,
+    ));
 
-    // Start animation
-    update();
+    // === ANIMATION ===
+    let frame = 0;
+    let animId: number;
+    const animate = () => {
+      animId = requestAnimationFrame(animate);
+      frame++;
+      const t = frame * 0.003;
+
+      // Rotate rings
+      torus.rotation.z += 0.002;
+      torus2.rotation.z -= 0.0015;
+      torus2.rotation.x += 0.001;
+
+      // Rotate icosahedron
+      ico.rotation.x += 0.004;
+      ico.rotation.y += 0.006;
+
+      // Rotate particles slowly
+      particles.rotation.y += 0.0005;
+
+      // Animate nodes
+      nodes.forEach((node, i) => {
+        node.position.add(velocities[i]);
+        // Boundary bounce
+        ['x', 'y', 'z'].forEach((axis) => {
+          const a = axis as 'x' | 'y' | 'z';
+          const limit = axis === 'x' ? 30 : axis === 'y' ? 20 : 15;
+          if (Math.abs(node.position[a]) > limit) velocities[i][a] *= -1;
+        });
+        nodePositions[i].copy(node.position);
+        // Pulse emissive
+        (node.material as THREE.MeshPhongMaterial).emissiveIntensity =
+          0.3 + Math.sin(t + i * 0.5) * 0.3;
+      });
+
+      // Update lines
+      let lineIdx = 0;
+      for (let i = 0; i < nodeCount && lineIdx < lines.length; i++) {
+        for (let j = i + 1; j < nodeCount && lineIdx < lines.length; j++) {
+          const dist = nodePositions[i].distanceTo(nodePositions[j]);
+          const line = lines[lineIdx];
+          const mat = line.material as THREE.LineBasicMaterial;
+          if (dist < 16) {
+            mat.opacity = (1 - dist / 16) * 0.25;
+            const pts = [nodePositions[i], nodePositions[j]];
+            line.geometry.setFromPoints(pts);
+            line.geometry.attributes.position.needsUpdate = true;
+          } else {
+            mat.opacity = 0;
+          }
+          lineIdx++;
+        }
+      }
+
+      // Camera follows mouse subtly
+      camera.position.x += (mouseX * 4 - camera.position.x) * 0.02;
+      camera.position.y += (-mouseY * 3 - camera.position.y) * 0.02;
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // Resize
+    const onResize = () => {
+      const W2 = el.clientWidth, H2 = el.clientHeight;
+      camera.aspect = W2 / H2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(W2, H2);
+    };
+    window.addEventListener('resize', onResize);
+
+    sceneRef.current = { animId, renderer };
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('mousemove', handleMouseMove);
-      observer.disconnect();
+      cancelAnimationFrame(animId);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('resize', onResize);
+      renderer.dispose();
+      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [isDark]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none bg-[#0a0a0e]"
-      style={{ zIndex: 0 }}
+    <div
+      ref={mountRef}
+      className="absolute inset-0 w-full h-full"
+      style={{ pointerEvents: 'none' }}
     />
   );
-}
+};
+
+export default ThreeBackground;
