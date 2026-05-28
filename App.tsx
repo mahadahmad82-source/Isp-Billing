@@ -1140,11 +1140,7 @@ const App: React.FC = () => {
           {activeTab === 'expenses' && userRole === 'manager' && (
             <BusinessExpenses
               expenses={state.businessExpenses || []}
-              monthlyRevenue={filteredReceipts.filter(r => {
-                if (!r.date) return false;
-                const d = new Date(r.date); const now = new Date();
-                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-              }).reduce((s, r) => s + (Number(r.paidAmount) || 0), 0)}
+              receipts={filteredReceipts}
               onAdd={(e) => {
                 setState(prev => {
                   const newState = { ...prev, businessExpenses: [...(prev.businessExpenses || []), { ...e, id: generateId(), createdAt: new Date().toISOString() }] };
