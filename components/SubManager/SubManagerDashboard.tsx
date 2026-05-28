@@ -655,7 +655,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
           </div>
           </div>
         </div>
-        ) : (
+        ) : activePortalTab === 'attendance' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid md:grid-cols-3 gap-6">
                {/* Attendance Controls */}
@@ -819,6 +819,76 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                     )}
                   </div>
                </div>
+            </div>
+          </div>
+        ) : (
+          /* ── COMPLAINTS TAB ── */
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
+              <div className="px-6 py-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Complaint Hub</h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Your assigned complaints</p>
+                </div>
+                <span className="px-3 py-1.5 bg-rose-500/10 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  {complaintTickets.filter(t => t.status !== 'resolved' && t.status !== 'closed').length} Open
+                </span>
+              </div>
+              {complaintTickets.length === 0 ? (
+                <div className="py-20 text-center">
+                  <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  </div>
+                  <p className="text-sm font-black text-slate-900 dark:text-white mb-1">All Clear!</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No complaints assigned to you</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-white/5">
+                  {complaintTickets.map(ticket => (
+                    <div key={ticket.id} className="p-6 hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-all">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                              ticket.priority === 'high' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                              ticket.priority === 'medium' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                              'bg-slate-100 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/5'
+                            }`}>{ticket.priority}</span>
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                              ticket.status === 'open' ? 'bg-rose-500/10 text-rose-500' :
+                              ticket.status === 'assigned' ? 'bg-amber-500/10 text-amber-500' :
+                              ticket.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-500' :
+                              'bg-slate-200 dark:bg-white/5 text-slate-500'
+                            }`}>{ticket.status}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1 truncate">{ticket.title}</h4>
+                          <p className="text-xs text-slate-500 mb-3 line-clamp-2">{ticket.description}</p>
+                          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <span>👤 {ticket.customerName}</span>
+                            {ticket.customerPhone && <span>📞 {ticket.customerPhone}</span>}
+                            <span>🕐 {new Date(ticket.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        {ticket.status !== 'resolved' && ticket.status !== 'closed' && onResolveComplaint && (
+                          <button
+                            onClick={() => onResolveComplaint(ticket.id)}
+                            className="shrink-0 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 whitespace-nowrap"
+                          >
+                            ✓ Resolve
+                          </button>
+                        )}
+                      </div>
+                      {ticket.commissionOnResolve > 0 && (
+                        <div className="mt-3 px-3 py-2 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+                          <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                            💰 Commission on resolve: Rs. {ticket.commissionOnResolve.toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
