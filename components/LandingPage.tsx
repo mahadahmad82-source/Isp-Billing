@@ -22,24 +22,29 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   return (
     <div className={`min-h-screen font-sans transition-colors duration-500 relative overflow-hidden text-white`}>
       
-      {/* Background Video Wrapper */}
-      <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
+      {/* Background Video Wrapper - Optimized */}
+      <div className="fixed inset-0 w-full h-full z-0 pointer-events-none overflow-hidden">
         <video 
           src="/background-video.mp4" 
           autoPlay 
           loop 
           muted 
           playsInline
-          className={`object-cover w-full h-full scale-[1.02] opacity-100`}
+          preload="auto"
+          className={`absolute inset-0 w-full h-full object-cover`}
+          style={{ 
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+          }}
         />
-        {/* Blending overlay - removed blur and adjusted opacity for clarity */}
-        <div className={`absolute inset-0 bg-slate-950/60`}></div>
+        {/* Blending overlay - optimized gradient for better video clarity */}
+        <div className={`absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/60 to-slate-950/80`}></div>
       </div>
 
       {/* Main Container - Z-Index above video */}
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* Navigation */}
-        <nav className={`fixed top-0 w-full z-[100] border-b px-4 sm:px-6 py-4 flex justify-between items-center sm:grid sm:grid-cols-3 transition-colors border-white/5 bg-slate-950/10 backdrop-blur-[2px]`}>
+        <nav className={`fixed top-0 w-full z-[100] border-b px-4 sm:px-6 py-4 flex justify-between items-center sm:grid sm:grid-cols-3 transition-colors border-white/5 bg-slate-950/20 backdrop-blur-md`}>
           <div className="justify-self-start">
             <Link to="/" className="flex items-center gap-3">
               {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[100px] sm:w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />}
