@@ -8,13 +8,14 @@ interface BusinessExpensesProps {
   onDelete: (id: string) => void;
 }
 
-const CATEGORIES = ['salary','equipment','rent','utilities','marketing','other'] as const;
+const CATEGORIES = ['salary','equipment','rent','utilities','bandwidth','marketing','other'] as const;
 const CAT_COLORS: Record<string, string> = {
   salary:    'bg-indigo-500/10 text-indigo-500',
   equipment: 'bg-amber-500/10 text-amber-500',
   rent:      'bg-rose-500/10 text-rose-500',
   utilities: 'bg-sky-500/10 text-sky-500',
   marketing: 'bg-violet-500/10 text-violet-500',
+  bandwidth: 'bg-cyan-500/10 text-cyan-500',
   other:     'bg-slate-200 dark:bg-white/5 text-slate-500',
 };
 
