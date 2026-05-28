@@ -402,6 +402,20 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       {/* ── TEAM DIRECTORY TAB ── */}
       {activeTab === 'team' && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {subManagers.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 flex items-center justify-center mb-6">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-400"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tight">No Agents Yet</h3>
+              <p className="text-sm text-slate-500 mb-8 max-w-xs">Recruit your first field agent to start managing your team and tracking collections.</p>
+              <button onClick={() => setShowRecruitModal(true)}
+                className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Recruit First Agent
+              </button>
+            </div>
+          )}
           {subManagers.map(sm => {
             const payroll = agentPayroll.find(p => p.sm.id === sm.id);
             return (
