@@ -22,9 +22,14 @@ jobs:
           CRITICAL_FILES=(
             "App.tsx"
             "types.ts"
+            "index.tsx"
+            "vercel.json"
+            "lib/supabase.ts"
+            "lib/pushNotifications.ts"
             "utils/storage.ts"
             "utils/supabaseSync.ts"
-            "lib/supabase.ts"
+            "utils/revenueCalc.ts"
+            "utils/whatsapp.ts"
             "components/AdminDashboard.tsx"
             "components/Dashboard.tsx"
             "components/Login.tsx"
@@ -32,6 +37,8 @@ jobs:
             "components/UserManagement.tsx"
             "components/ReceiptGenerator.tsx"
             "components/Archives.tsx"
+            "components/Insights.tsx"
+            "components/Settings.tsx"
             "components/BusinessAnalytics.tsx"
             "components/BusinessExpenses.tsx"
             "components/ComplaintManager.tsx"
@@ -39,6 +46,7 @@ jobs:
             "components/SubManager/SubManagerDashboard.tsx"
             "components/SubManager/AgentAttendance.tsx"
             "components/SubManager/ActivityLogs.tsx"
+            "components/SubManager/LiveTracking.tsx"
           )
 
           DELETED=""
@@ -63,11 +71,8 @@ jobs:
         run: |
           echo "🚨 CRITICAL FILES WERE DELETED!"
           echo -e "${{ steps.check.outputs.DELETED_FILES }}"
-          echo ""
-          echo "These files are required for MYISP to work."
-          echo "Do NOT delete core files. Only modify specific files."
           exit 1
 
-      - name: ✅ All critical files intact
+      - name: ✅ All files intact
         if: steps.check.outputs.has_deletions == 'false'
-        run: echo "✅ Build guard passed — all critical files present"
+        run: echo "✅ Guard passed — all 27 critical files present"
