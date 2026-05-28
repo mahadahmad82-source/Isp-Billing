@@ -4,7 +4,6 @@ import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
-import FluidBackground from './landing/FluidBackground';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -35,6 +34,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [loadingText, setLoadingText] = useState('');
   const [rememberPassword, setRememberPassword] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+
+  // Removed OTP states
 
   // Forgot password states
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -69,6 +70,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
 
+      // Fast path for Field Agents and Admins
       if (localFound && (localFound.role === 'sub-manager' || localFound.role === 'admin')) {
         setActiveSession(localFound.username);
         onLogin(localFound.username);
@@ -76,6 +78,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       }
 
       let identifier = username;
+      // Note: If username has no "@", we assume it handles both old standard username and new Phone-Only pattern
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
 
       let { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -99,18 +102,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             if (signInData?.user) {
               data = signInData;
               authError = null;
-              removeAccount(localFound.username);
+              removeAccount(localFound.username); // Safely remove after successful migration
             } else {
+              // Fallback to local session
               setActiveSession(localFound.username);
               onLogin(localFound.username);
               return;
             }
           } catch {
+            // Fallback to local session if any Supabase error during migration
             setActiveSession(localFound.username);
             onLogin(localFound.username);
             return;
           }
         } else {
+          // ✅ FIX: Direct Supabase search for sub-manager (works on Vercel - no Express needed)
           setLoadingText('Searching Remote Nodes...');
           try {
             const { data: managers, error: searchErr } = await supabase
@@ -154,6 +160,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       }
 
       if (data.user) {
+        // Fetch profile to check for role (use maybeSingle to avoid crash on 0 rows for new offline migrations)
         const { data: profileData } = await supabase
           .from('profiles')
           .select('role, manager_id, name')
@@ -189,7 +196,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     }
   };
 
-  // ─── SIGNUP FLOW ────────────────────────────
+  // ─── SIGNUP FLOW (Phone Only) ────────────────────────────
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
@@ -204,6 +211,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     try {
+      // Create a pseudo-email strictly tied to the phone number
       const authEmail = `${phone}@myisp.local`;
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: authEmail,
@@ -242,6 +250,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     setError('');
 
     if (!forgotIdentifier.includes('@') || forgotIdentifier.endsWith('@myisp.local')) {
+      // It's a phone number or auto-generated email. Since they have no real email linked, prompt Support Modal.
       setShowSupportModal(true);
       return;
     }
@@ -355,18 +364,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
 
   return (
-    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#0a0a0e]' : 'bg-slate-50'}`}>
+    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
 
-      {/* Fluid WebGL Background - only in dark mode */}
-      {theme === 'dark' && <FluidBackground />}
-
-      {/* Light mode fallback blobs */}
-      {theme === 'light' && (
-        <>
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 rounded-full blur-[120px] animate-pulse delay-700"></div>
-        </>
-      )}
+      {/* Background Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 dark:bg-indigo-500/20 rounded-full blur-[120px] animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 dark:bg-violet-500/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
 
       {/* Theme Toggle */}
       <div className="absolute top-6 right-6 z-50">
@@ -415,13 +417,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             </div>
           )}
 
-          {/* Rest of your existing views (recent, login, signup, forgot, etc.) remain unchanged below this point */}
-          {/* ── PASTE YOUR EXISTING VIEW JSX HERE (recent, login, signup, forgot-*, etc.) ── */}
-
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Login;
+          {/* ── RECENT ACCOUNTS ── */}
+          {view === 'recent' && accounts.length > 0 && (
+            <div className="p-10 space-y-6">
+              <div className="flex justify-between items-center px-1">
+                <div className="flex flex-col">
+                  <h4 className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
+                  <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
+                </div>
+                <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-widest bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 transition-all hover:bg-rose-500/10">Clear All</button>
+              </div>
+              <div className="grid grid-cols-1 gap-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-2">
+                {accounts.map((acc, idx) => (
+                  <div key={acc.username} className="relative group/wrapper">
+                    <b
