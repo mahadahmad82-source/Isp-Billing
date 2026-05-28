@@ -3,7 +3,7 @@ import { BusinessExpense } from '../types';
 
 interface BusinessExpensesProps {
   expenses: BusinessExpense[];
-  monthlyRevenue: number;
+  receipts: Array<{ date: string; paidAmount: number }>;
   onAdd: (e: Omit<BusinessExpense, 'id' | 'createdAt'>) => void;
   onDelete: (id: string) => void;
 }
@@ -21,10 +21,17 @@ const CAT_COLORS: Record<string, string> = {
 
 const blankForm = () => ({ title: '', amount: 0, category: 'other' as const, date: new Date().toISOString().split('T')[0], notes: '' });
 
-const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, monthlyRevenue, onAdd, onDelete }) => {
+const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts, onAdd, onDelete }) => {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blankForm);
+
+  // ✅ Revenue calculated dynamically based on selected month
+  const monthlyRevenue = useMemo(() =>
+    receipts
+      .filter(r => r.date && r.date.startsWith(month))
+      .reduce((s, r) => s + (Number(r.paidAmount) || 0), 0),
+    [receipts, month]);
 
   const monthExpenses = useMemo(() =>
     expenses.filter(e => e.date.startsWith(month))
