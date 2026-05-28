@@ -1,11 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
 import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment } from '../../types';
 import { getAccounts } from '../../utils/storage';
 import RecruitAgentModal from './RecruitAgentModal';
 import AgentAttendance from './AgentAttendance';
 import ActivityLogs from './ActivityLogs';
-import LiveTracking from './LiveTracking';
 import AgentPerformanceReport from './AgentPerformanceReport';
+
+// Lazy load LiveTracking so map issues don't crash the whole Team Hub
+const LiveTracking = lazy(() => import('./LiveTracking'));
 
 interface SubManagerManagementProps {
   subManagers: SubManagerAccount[];
@@ -289,7 +291,11 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       {activeTab === 'performance' && (
         <AgentPerformanceReport subManagers={subManagers} recentReceipts={recentReceipts} attendanceLogs={attendanceLogs} />
       )}
-      {activeTab === 'tracking' && <LiveTracking subManagers={subManagers} />}
+      {activeTab === 'tracking' && (
+        <Suspense fallback={<div className="flex items-center justify-center h-64 text-slate-400 text-sm font-bold uppercase tracking-widest">Loading Map...</div>}>
+          <LiveTracking subManagers={subManagers} />
+        </Suspense>
+      )}
 
       {/* ── PAYROLL TAB ── */}
       {activeTab === 'payroll' && (
