@@ -3,7 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import Home from './landing/Home';
 import About from './landing/About';
 import Features from './landing/Features';
-import ThreeBackground from './landing/ThreeBackground';
+import FluidBackground from './landing/FluidBackground';
 import { logoBase64 } from '../utils/logoBase64';
 
 interface LandingPageProps {
@@ -23,12 +23,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   return (
     <div className={`min-h-screen font-sans transition-colors duration-500 relative overflow-hidden text-white bg-slate-950`}>
 
-      {/* 3D Three.js Background */}
-      <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
-        <ThreeBackground isDark={isDark} />
-        {/* Subtle overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950/70" />
-      </div>
+      {/* Fluid WebGL Background */}
+      <FluidBackground />
+
+      {/* Subtle overlay for readability */}
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950/70 z-[1] pointer-events-none" />
 
       {/* Main Container - Z-Index above background */}
       <div className="relative z-10 flex flex-col min-h-screen">
