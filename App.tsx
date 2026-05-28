@@ -1140,7 +1140,7 @@ const App: React.FC = () => {
           {activeTab === 'expenses' && userRole === 'manager' && (
             <BusinessExpenses
               expenses={state.businessExpenses || []}
-              monthlyRevenue={filteredReceipts.filter(r => {
+              monthlyRevenue={(state.receipts || []).filter(r => {
                 const d = new Date(r.date); const now = new Date();
                 return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
               }).reduce((s, r) => s + (r.paidAmount || 0), 0)}
@@ -1273,6 +1273,13 @@ const App: React.FC = () => {
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
               onAddAttendanceLog={handleAddAttendanceLog}
+              complaintTickets={(state.complaintTickets || []).filter(t => t.assignedTo === activeManager || t.assignedTo === activeAgent?.id)}
+              onResolveComplaint={(ticketId) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
               onUpdateAttendanceLog={handleUpdateAttendanceLog}
               onDeleteAttendanceLog={handleDeleteAttendanceLog}
               attendanceLogs={state.attendanceLogs || []}
