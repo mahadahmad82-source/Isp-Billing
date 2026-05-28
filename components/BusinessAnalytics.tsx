@@ -120,7 +120,8 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
         <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setActiveSection(s.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${activeSection === s.id ? 'bg-white dark:bg-indigo-600 dark:text-white shadow text-slate-900' : 'text-slate-500 opacity-60 hover:opacity-100'}`}>
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${activeSection === s.id ? 'bg-white dark:bg-indigo-600 dark:text-white shadow text-slate-900' : 'text-slate-500'}`}
+              >
               {s.label}
             </button>
           ))}
@@ -135,7 +136,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
             {[
               { label: 'This Month Revenue', value: `Rs. ${(Number(currentRevenue)||0).toLocaleString()}`, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 border-indigo-500/10' },
               { label: 'This Month Expenses', value: `Rs. ${(Number(currentExpenses)||0).toLocaleString()}`, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/10' },
-              { label: 'Gross Profit', value: `Rs. ${(currentRevenue -(Number( currentExpenses))||0).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: 'bg-emerald-500/5 border-emerald-500/10' },
+              { label: 'Gross Profit', value: `Rs. ${(currentRevenue -(Number( currentExpenses))||0).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: (currentRevenue - currentExpenses) >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10' },
               { label: 'Total Customers', value: users.length, color: 'text-amber-500', bg: 'bg-amber-500/5 border-amber-500/10' },
             ].map(k => (
               <div key={k.label} className={`${k.bg} border rounded-[1.5rem] p-5`}>
@@ -246,8 +247,8 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                       <span className="px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold uppercase">{row.plan}</span>
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{row.Users}</td>
-                    <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(settings.planPrices?(Number(.[row.plan] || 0))||0).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right font-bold text-emerald-500">Rs. {(Number(row['Rs. Revenue'])||0).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(settings.planPrices?(Number(settings.planPrices[row.plan] || 0))||0).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right font-bold text-emerald-500">Rs. {(Number(row['Monthly Revenue'])||0).toLocaleString()}</td>
                     <td className="px-6 py-4 text-right">
                       {row.Discounted > 0 ? (
                         <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs font-bold">{row.Discounted} users</span>
