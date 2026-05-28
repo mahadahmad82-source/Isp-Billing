@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-sm font-bold" style={{ color: p.color }}>
-          {p.name}: {typeof p.value === 'number' && p.name.toLowerCase().includes('rs') ? `Rs. ${p.value.toLocaleString()}` : p.value}
+          {p.name}: {typeof p.value === 'number' && p.name.toLowerCase().includes('rs') ? `Rs. ${(Number(p.value)||0).toLocaleString()}` : p.value}
         </p>
       ))}
     </div>
@@ -53,7 +53,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       map[u.plan].count++;
       const standard = settings.planPrices?.[u.plan] || u.monthlyFee || 0;
       const actual = u.monthlyFee || 0;
-      map[u.plan].revenue += actual;
+      map[u.plan].revenue += (Number(actual) || 0);
       if (actual < standard) map[u.plan].discounted++;
     });
     return Object.entries(map).map(([plan, d]) => ({
@@ -66,8 +66,8 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
   // ── Pie: active vs expired ─────────────────────────────────
   const statusPie = useMemo(() => {
-    const active = users.filter(u => u.status === 'active').length;
-    const expired = users.filter(u => u.status === 'expired').length;
+    const active = users.filter(u => (u.status || '').toLowerCase() === 'active').length;
+    const expired = users.filter(u => (u.status || '').toLowerCase() === 'expired').length;
     const other = users.length - active - expired;
     return [
       { name: 'Active', value: active },
@@ -80,7 +80,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   const discountStats = useMemo(() => {
     let fullPrice = 0, discounted = 0, totalLost = 0;
     users.forEach(u => {
-      const standard = settings.planPrices?.[u.plan] || 0;
+      const standard = Number(settings?.planPrices?.[u.plan] || 0);
       const actual = u.monthlyFee || 0;
       if (actual < standard) {
         discounted++;
@@ -93,11 +93,11 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   }, [users, settings]);
 
   // ── KPI cards ──────────────────────────────────────────────
-  const currentRevenue = receipts.filter(r => {
+  const currentRevenue = (receipts || []).filter(r => {
     const d = new Date(r.date);
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).reduce((s, r) => s + (r.paidAmount || 0), 0);
+  }).reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
 
   const currentExpenses = expenses.filter(e => e.date?.startsWith(new Date().toISOString().slice(0,7)))
     .reduce((s, e) => s + e.amount, 0);
@@ -133,9 +133,9 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
           {/* KPI row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'This Month Revenue', value: `Rs. ${currentRevenue.toLocaleString()}`, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 border-indigo-500/10' },
-              { label: 'This Month Expenses', value: `Rs. ${currentExpenses.toLocaleString()}`, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/10' },
-              { label: 'Gross Profit', value: `Rs. ${(currentRevenue - currentExpenses).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: 'bg-emerald-500/5 border-emerald-500/10' },
+              { label: 'This Month Revenue', value: `Rs. ${(Number(currentRevenue)||0).toLocaleString()}`, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 border-indigo-500/10' },
+              { label: 'This Month Expenses', value: `Rs. ${(Number(currentExpenses)||0).toLocaleString()}`, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/10' },
+              { label: 'Gross Profit', value: `Rs. ${(currentRevenue -(Number( currentExpenses))||0).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: 'bg-emerald-500/5 border-emerald-500/10' },
               { label: 'Total Customers', value: users.length, color: 'text-amber-500', bg: 'bg-amber-500/5 border-amber-500/10' },
             ].map(k => (
               <div key={k.label} className={`${k.bg} border rounded-[1.5rem] p-5`}>
@@ -246,8 +246,8 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                       <span className="px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold uppercase">{row.plan}</span>
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{row.Users}</td>
-                    <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(settings.planPrices?.[row.plan] || 0).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right font-bold text-emerald-500">Rs. {row['Rs. Revenue'].toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(settings.planPrices?(Number(.[row.plan] || 0))||0).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right font-bold text-emerald-500">Rs. {(Number(row['Rs. Revenue'])||0).toLocaleString()}</td>
                     <td className="px-6 py-4 text-right">
                       {row.Discounted > 0 ? (
                         <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs font-bold">{row.Discounted} users</span>
@@ -274,7 +274,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">On Discount</p>
             </div>
             <div className="bg-rose-500/5 border border-rose-500/10 rounded-[2rem] p-6 text-center">
-              <p className="text-3xl font-black text-rose-500">Rs. {discountStats.totalLost.toLocaleString()}</p>
+              <p className="text-3xl font-black text-rose-500">Rs. {(Number(discountStats.totalLost)||0).toLocaleString()}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Revenue Lost / Month</p>
             </div>
           </div>
@@ -311,10 +311,10 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-indigo-500/10 text-indigo-500 rounded-lg text-[10px] font-bold uppercase">{u.plan}</span>
                         </td>
-                        <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {std.toLocaleString()}</td>
-                        <td className="px-6 py-4 text-right font-bold text-amber-500">Rs. {(u.monthlyFee||0).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(Number(std)||0).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right font-bold text-amber-500">Rs. {(Number((u.monthlyFee||0))||0).toLocaleString()}</td>
                         <td className="px-6 py-4 text-right">
-                          <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded-lg text-xs font-bold">-Rs. {diff.toLocaleString()}</span>
+                          <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded-lg text-xs font-bold">-Rs. {(Number(diff)||0).toLocaleString()}</span>
                         </td>
                       </tr>
                     );
