@@ -36,9 +36,11 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
-      const key = d.toISOString().slice(0, 7);
+      const key = d.toISOString().slice(0, 7); // YYYY-MM for expenses
+      const period = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); // "May 2026" for receipts
       const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      const rev = receipts.filter(r => r.date?.startsWith(key)).reduce((s, r) => s + (r.paidAmount || 0), 0);
+      // Use r.period to match Recovery Ledger exactly
+      const rev = receipts.filter(r => r.period === period).reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
       const exp = expenses.filter(e => e.date?.startsWith(key)).reduce((s, e) => s + (e.amount || 0), 0);
       months.push({ label, 'Rs. Revenue': rev, 'Rs. Expenses': exp, 'Rs. Profit': rev - exp });
     }
@@ -93,11 +95,10 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   }, [users, settings]);
 
   // ── KPI cards ──────────────────────────────────────────────
-  const currentRevenue = (receipts || []).filter(r => {
-    const d = new Date(r.date);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
+  const currentPeriod = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const currentRevenue = (receipts || [])
+    .filter(r => r.period === currentPeriod)
+    .reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
 
   const currentExpenses = expenses.filter(e => e.date?.startsWith(new Date().toISOString().slice(0,7)))
     .reduce((s, e) => s + e.amount, 0);
