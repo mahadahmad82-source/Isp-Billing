@@ -323,10 +323,10 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                   {/* Agent header */}
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-lg">
-                      {sm.name.charAt(0)}
+                      {(sm.name || sm.username || '?').charAt(0)}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 dark:text-white text-sm">{sm.name}</p>
+                      <p className="font-bold text-slate-900 dark:text-white text-sm">{(sm.name || sm.username || "Unknown")}</p>
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">@{sm.username}</p>
                     </div>
                     {alreadyPaid && (
@@ -433,10 +433,10 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center font-bold text-2xl text-slate-400 group-hover:text-indigo-500 transition-colors">
-                      {sm.name.charAt(0).toUpperCase()}
+                      {(sm.name || sm.username || '?').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 dark:text-white">{sm.name}</h3>
+                      <h3 className="font-bold text-slate-900 dark:text-white">{(sm.name || sm.username || "Unknown")}</h3>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${sm.dutyStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -493,7 +493,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-white/5">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Sync</p>
-                    <p className="text-xs font-bold dark:text-slate-200">{sm.lastLocation ? new Date(sm.lastLocation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+                    <p className="text-xs font-bold dark:text-slate-200">{sm.lastLocation?.timestamp ? new Date(sm.lastLocation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
                   </div>
                 </div>
               </div>
@@ -518,10 +518,10 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
             <div className="px-10 py-8 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
               <div className="flex items-center gap-5">
                 <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center font-bold text-2xl">
-                  {selectedAgentForPerformance.name.charAt(0).toUpperCase()}
+                  {(selectedAgentForPerformance.name || selectedAgentForPerformance.username || '?').charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{selectedAgentForPerformance.name}</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{selectedAgentForPerformance.name || selectedAgentForPerformance.username || 'Unknown'}</h3>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">Performance & Receipt History</p>
                 </div>
               </div>
