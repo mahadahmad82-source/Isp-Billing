@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { UserRecord, Receipt, BusinessExpense, AppSettings } from '../types';
+import { UserRecord, Receipt, BusinessExpense, AppSettings, PaymentStatus } from '../types';
+import { calcMonthlyRevenue } from '../utils/revenueCalc';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 interface BusinessAnalyticsProps {
@@ -30,17 +31,22 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
   const currentMonthKey = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
 
-  // ── Last 6 months revenue vs expenses ──────────────────────
+  // ── Last 6 months revenue vs expenses — same logic as Insights ──
   const last6Months = useMemo(() => {
     const months = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       const key = d.toISOString().slice(0, 7); // YYYY-MM for expenses
-      const period = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); // "May 2026" for receipts
+      const monthName = d.toLocaleDateString('en-US', { month: 'long' }); // "May"
+      const year = d.getFullYear(); // 2026
       const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      // Use r.period to match Recovery Ledger exactly
-      const rev = receipts.filter(r => r.period === period).reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
+      // Use same logic as Insights: match r.period contains month name + year
+      const rev = (receipts || [])
+        .filter(r => r.status === PaymentStatus.SUCCESS &&
+          (r.period || '').includes(monthName) &&
+          (r.period || '').includes(String(year)))
+        .reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
       const exp = expenses.filter(e => e.date?.startsWith(key)).reduce((s, e) => s + (e.amount || 0), 0);
       months.push({ label, 'Rs. Revenue': rev, 'Rs. Expenses': exp, 'Rs. Profit': rev - exp });
     }
@@ -78,27 +84,34 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     ];
   }, [users]);
 
-  // ── Discount analysis ──────────────────────────────────────
+  // ── Discount analysis — based on active users vs standard plan price ──
   const discountStats = useMemo(() => {
-    let fullPrice = 0, discounted = 0, totalLost = 0;
-    users.forEach(u => {
-      const standard = Number(settings?.planPrices?.[u.plan] || 0);
-      const actual = u.monthlyFee || 0;
-      if (actual < standard) {
+    let fullPrice = 0, discounted = 0, totalLost = 0, totalExpectedFull = 0;
+    const activeUsers = users.filter(u => (u.status || '').toLowerCase() === 'active');
+    activeUsers.forEach(u => {
+      const actual = Number(u.monthlyFee) || 0;
+      // Standard price: from planPrices setting OR use highest fee seen for same plan
+      const samePlanFees = activeUsers.filter(x => x.plan === u.plan).map(x => Number(x.monthlyFee) || 0);
+      const standard = Number(settings?.planPrices?.[u.plan]) || Math.max(...samePlanFees, actual);
+      totalExpectedFull += standard;
+      if (actual < standard && standard > 0) {
         discounted++;
         totalLost += standard - actual;
       } else {
         fullPrice++;
       }
     });
-    return { fullPrice, discounted, totalLost };
+    return { fullPrice, discounted, totalLost, totalExpectedFull };
   }, [users, settings]);
 
   // ── KPI cards ──────────────────────────────────────────────
-  const currentPeriod = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' });
+  const currentYear = new Date().getFullYear();
   const currentRevenue = (receipts || [])
-    .filter(r => r.period === currentPeriod)
-    .reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
+    .filter(r => r.status === PaymentStatus.SUCCESS &&
+      (r.period || '').includes(currentMonthName) &&
+      (r.period || '').includes(String(currentYear)))
+    .reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
 
   const currentExpenses = expenses.filter(e => e.date?.startsWith(new Date().toISOString().slice(0,7)))
     .reduce((s, e) => s + e.amount, 0);
@@ -269,7 +282,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {/* ── DISCOUNT ANALYSIS ── */}
       {activeSection === 'deductions' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-[2rem] p-6 text-center">
               <p className="text-3xl font-black text-emerald-500">{discountStats.fullPrice}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Full Price</p>
@@ -279,8 +292,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">On Discount</p>
             </div>
             <div className="bg-rose-500/5 border border-rose-500/10 rounded-[2rem] p-6 text-center">
-              <p className="text-3xl font-black text-rose-500">Rs. {(Number(discountStats.totalLost)||0).toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Revenue Lost / Month</p>
+              <p className="text-2xl font-black text-rose-500">Rs. {(Number(discountStats.totalLost)||0).toLocaleString()}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Lost / Month</p>
+            </div>
+            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-[2rem] p-6 text-center">
+              <p className="text-2xl font-black text-indigo-400">Rs. {(Number(discountStats.totalExpectedFull)||0).toLocaleString()}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expected Full Price</p>
             </div>
           </div>
 
