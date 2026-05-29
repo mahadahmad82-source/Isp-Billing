@@ -1015,6 +1015,18 @@ const App: React.FC = () => {
                 return newState;
               });
             }}
+            complaintTickets={(state.complaintTickets || []).filter(t =>
+              t.assignedTo === activeManager ||
+              t.assignedTo === state.subManagers?.find(sm => sm.username === activeManager)?.id
+            )}
+            onResolveComplaint={(ticketId) => {
+              setState(prev => {
+                const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
+                saveState(newState);
+                saveStateToSupabase(prev.currentManager || activeManager || '', newState);
+                return newState;
+              });
+            }}
           />
         )}
       </ErrorBoundary>
