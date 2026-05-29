@@ -69,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     try {
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
-
+      
       // Fast path for Field Agents and Admins
       if (localFound && (localFound.role === 'sub-manager' || localFound.role === 'admin')) {
         setActiveSession(localFound.username);
@@ -98,7 +98,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) console.warn('Account migration warning: ' + signUpErr.message);
 
             const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: localFound.password });
-
+            
             if (signInData?.user) {
               data = signInData;
               authError = null;
@@ -169,7 +169,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
 
         const role = profileData?.role || 'manager';
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
-
+        
         setActiveSession(loginUser);
         if (rememberPassword) {
           saveAccount({
@@ -430,4 +430,255 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               <div className="grid grid-cols-1 gap-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-2">
                 {accounts.map((acc, idx) => (
                   <div key={acc.username} className="relative group/wrapper">
-                    <b
+                    <button onClick={() => handleSelectAccount(acc)} className={`w-full flex items-center gap-5 p-5 rounded-3xl border transition-all text-left group animate-in slide-in-from-bottom-4 duration-500 pr-12 relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900/40 border-white/5 hover:border-indigo-500/30' : 'bg-slate-50/50 border-slate-100 hover:border-indigo-200 hover:bg-white'}`} style={{ animationDelay: `${idx * 100}ms` }}>
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform relative z-10 ${theme === 'dark' ? 'bg-slate-950 text-indigo-400' : 'bg-white text-indigo-600 border border-slate-100'}`}>
+                        {acc.businessName ? acc.businessName.charAt(0).toUpperCase() : acc.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0 relative z-10">
+                        <p className={`text-[15px] font-bold truncate leading-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{acc.businessName || acc.username}</p>
+                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">@{acc.username}</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 relative z-10">
+                        <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                      </div>
+                    </button>
+                    <button onClick={(e) => handleDeleteAccount(acc.username, e)} className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-400 hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover/wrapper:opacity-100 shadow-md border border-slate-100 dark:border-white/5 z-20" title="Remove from recents">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <button onClick={handleGoToSignup} className={`py-5 rounded-3xl border-2 border-dashed font-bold text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>+ Register Node</button>
+                <button onClick={handleGoToLogin} className={`py-5 rounded-3xl border-2 border-dashed font-bold text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>Manual Login</button>
+              </div>
+            </div>
+          )}
+
+          {/* OTP Verification Removed */}
+
+          {/* ── FORGOT PASSWORD: ENTER EMAIL OR PHONE ── */}
+          {view === 'forgot' && (
+            <form onSubmit={handleForgotSend} className="p-10 space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <button type="button" onClick={handleGoToLogin} className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                  Back to Login
+                </button>
+                <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
+              </div>
+              <div className="space-y-2">
+                <label className={labelCls}>Registered Email, Phone, or Username</label>
+                <input type="text" className={inputCls} placeholder="Email, Phone, or Username" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} required />
+              </div>
+              <div className="pt-2">
+                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
+                  {isLoading ? loadingText : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ── FORGOT PASSWORD: VERIFY OTP ── */}
+          {view === 'forgot-otp' && (
+            <form onSubmit={handleForgotOtpVerify} className="p-10 space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <button type="button" onClick={() => setView('forgot')} className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                  Back
+                </button>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 2 of 3</span>
+              </div>
+              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                OTP has been sent to: <strong>{forgotIdentifier}</strong>
+              </div>
+              <div className="space-y-2">
+                <label className={labelCls}>6-Digit OTP</label>
+                <input className={inputCls} placeholder="Enter OTP here" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} maxLength={6} required />
+              </div>
+              <div className="pt-2">
+                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
+                  {isLoading ? loadingText : 'Verify OTP'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ── FORGOT PASSWORD: SET NEW PASSWORD ── */}
+          {view === 'forgot-newpass' && (
+            <form onSubmit={handleSetNewPassword} className="p-10 space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">✅ OTP Verified</span>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 3 of 3</span>
+              </div>
+              <div className="space-y-2">
+                <label className={labelCls}>New Password</label>
+                <div className="relative">
+                  <input type={showPassword ? 'text' : 'password'} className={inputCls} placeholder="New password (min 4 characters)" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={4} required />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-500 transition-colors p-2">
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className={labelCls}>Confirm New Password</label>
+                <div className="relative">
+                  <input type={showConfirmPassword ? 'text' : 'password'} className={inputCls} placeholder="Enter password again" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-500 transition-colors p-2">
+                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </div>
+              <div className="pt-2">
+                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-emerald-500/50 active:scale-95 transition-all hover:shadow-emerald-500/70 hover:-translate-y-0.5">
+                  {isLoading ? loadingText : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ── LOGIN & SIGNUP FORMS ── */}
+          {(view === 'login' || view === 'signup') && (
+            <form onSubmit={view === 'signup' ? handleSignUp : handleLogin} className="p-10 space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <button type="button" onClick={view === 'signup' ? handleGoToLogin : (accounts.length > 0 ? handleGoToRecent : onBack)} className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                  {view === 'signup' ? 'Back to Login' : (accounts.length > 0 ? 'Back to Profiles' : 'Back')}
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <div className="relative flex h-2 w-2">
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500/50"></span>
+                  </div>
+                  <span className="text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">{view === 'signup' ? 'New Node' : 'Authorise Node'}</span>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {view === 'signup' && (
+                  <div className="space-y-2">
+                    <label className={labelCls}>Business Name</label>
+                    <input type="text" required className={inputCls} value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="e.g. MahadNet" />
+                  </div>
+                )}
+
+                {view === 'login' ? (
+                  <div className="space-y-2">
+                    <label className={labelCls}>Login ID (Email, Phone, or Username)</label>
+                    <input required disabled={!!selectedAccount && view === 'login'} className={`${inputCls} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} value={username} onChange={e => setUsername(e.target.value.toLowerCase().trim())} placeholder="Enter your ID" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className={labelCls}>Phone Number</label>
+                    <input required type="tel" className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 03001234567" />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className={labelCls}>Master Password</label>
+                  <div className="relative group">
+                    <input type={showPassword ? 'text' : 'password'} required className={inputCls} value={password} onChange={e => setPassword(e.target.value)} />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors p-2">
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+                </div>
+
+                {view === 'signup' && (
+                  <div className="space-y-2">
+                    <label className={labelCls}>Confirm Master Password</label>
+                    <div className="relative group">
+                      <input type={showConfirmPassword ? 'text' : 'password'} required className={inputCls} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors p-2">
+                        {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 px-1">
+                  <input type="checkbox" id="rememberPassword" checked={rememberPassword} onChange={e => setRememberPassword(e.target.checked)} className="w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-600 cursor-pointer" />
+                  <label htmlFor="rememberPassword" className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest cursor-pointer select-none">Remember Me</label>
+                </div>
+
+                <div className="pt-2">
+                  <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all transform hover:shadow-indigo-500/70 hover:-translate-y-0.5">
+                    {isLoading ? loadingText : (view === 'signup' ? 'Initialise Node' : 'Authorise Entry')}
+                  </button>
+                </div>
+
+                {view === 'login' && (
+                  <div className="space-y-3">
+                    <button type="button" onClick={() => { resetFields(); setView('forgot'); }} className="w-full text-center text-[10px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+                      Forgot Password?
+                    </button>
+
+                    <button type="button" onClick={handleGoToSignup} className="w-full text-center text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors pt-1">
+                      Don't have a node? Create one now
+                    </button>
+                  </div>
+                )}
+
+                {view === 'signup' && (
+                  <div className="space-y-2">
+                    <button type="button" onClick={handleGoToLogin} className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors">
+                      Already have a node? Login
+                    </button>
+                  </div>
+                )}
+              </div>
+            </form>
+          )}
+        </div>
+
+        <p className="text-[9px] text-slate-700 dark:text-slate-300 font-bold text-center uppercase tracking-widest">
+          {view === 'signup' ? 'Node encrypted using local storage hash' : 'Local node data remains strictly on this device'}
+        </p>
+      </div>
+
+      {/* Support Message Modal */}
+      {showSupportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 ${theme === 'dark' ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
+              <h4 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Support Needed</h4>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Password recovery via SMS/Phone is currently unavailable. Please contact our support team to manually reset your account.</p>
+              
+              <div className="pt-2 flex flex-col gap-3">
+                <a 
+                  href="https://wa.me/923042773453?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." 
+                  target="_blank" rel="noopener noreferrer"
+                  className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-[#25D366]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0a12 12 0 00-10.19 18.25L.037 24l5.962-1.55A11.942 11.942 0 0011.944 24c6.627 0 12-5.373 12-12s-5.373-12-12-12zm6.342 17.202c-.288.814-1.42 1.488-2.203 1.583-.783.095-1.558.28-4.385-1.01-3.418-1.562-5.63-5.068-5.8-5.297-.17-.229-1.385-1.848-1.385-3.52 0-1.673.86-2.502 1.168-2.846.308-.344.67-.43.89-.43s.44 0 .633.01c.192.01.448-.076.7.534.252.61 1.092 2.65 1.188 2.846.095.196.16.425.02.653-.14.229-.21.37-.425.62-.215.25-.448.514-.64.715-.192.196-.394.412-.17.795.22.383.985 1.63 2.115 2.64 1.458 1.305 2.68 1.708 3.064 1.88.384.172.61.152.84-.112.23-.264.985-1.144 1.25-1.538.264-.394.528-.328.878-.196.35.132 2.215 1.042 2.59 1.232.375.19.625.286.715.446.09.16.09.936-.198 1.75z" /></svg>
+                  Click to WhatsApp Support
+                </a>
+                <button onClick={() => setShowSupportModal(false)} className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 ${theme === 'dark' ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">⚠️</div>
+              <h4 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Purge All Data?</h4>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">This will permanently remove all saved profiles and manager accounts from this device. This action cannot be undone.</p>
+              <div className="pt-4 flex flex-col gap-3">
+                <button onClick={handleClearAllAccounts} className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-rose-500/20 active:scale-95 transition-all">Confirm Purge</button>
+                <button onClick={() => setShowClearConfirm(false)} className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>Keep Data</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Login;
