@@ -3,7 +3,7 @@ import { BusinessExpense } from '../types';
 
 interface BusinessExpensesProps {
   expenses: BusinessExpense[];
-  receipts: Array<{ date: string; paidAmount: number }>;
+  receipts: Array<{ date: string; paidAmount: number; period?: string }>;
   onAdd: (e: Omit<BusinessExpense, 'id' | 'createdAt'>) => void;
   onDelete: (id: string) => void;
 }
@@ -26,12 +26,19 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blankForm);
 
-  // ✅ Revenue calculated dynamically based on selected month
+  // ✅ Convert YYYY-MM to "May 2026" format to match r.period (same as Recovery Ledger)
+  const selectedPeriod = useMemo(() => {
+    const [yr, mo] = month.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
+      .format(new Date(yr, mo - 1, 1));
+  }, [month]);
+
+  // ✅ Revenue from r.period — exact match with Recovery Ledger
   const monthlyRevenue = useMemo(() =>
     receipts
-      .filter(r => r.date && r.date.startsWith(month))
+      .filter(r => r.period === selectedPeriod)
       .reduce((s, r) => s + (Number(r.paidAmount) || 0), 0),
-    [receipts, month]);
+    [receipts, selectedPeriod]);
 
   const monthExpenses = useMemo(() =>
     expenses.filter(e => e.date.startsWith(month))
