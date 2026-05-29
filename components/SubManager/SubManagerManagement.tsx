@@ -1,5 +1,5 @@
 import React, { useState, useMemo, Suspense, lazy } from 'react';
-import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment } from '../../types';
+import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment, ComplaintTicket } from '../../types';
 import { getAccounts } from '../../utils/storage';
 import RecruitAgentModal from './RecruitAgentModal';
 import AgentAttendance from './AgentAttendance';
@@ -23,6 +23,8 @@ interface SubManagerManagementProps {
   onUpdateAttendanceLog: (logId: string, updates: Partial<AttendanceLog>) => void;
   onDeleteAttendanceLog: (logId: string) => void;
   attendanceLogs: AttendanceLog[];
+  complaintTickets?: ComplaintTicket[];
+  onResolveComplaint?: (ticketId: string) => void;
 }
 
 const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
@@ -30,6 +32,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   onVoidReceipt, onEditReceiptAmount, onViewLogs,
   onAgentRecruited, onEditAgent, onDeleteAgent,
   onAddAttendanceLog, onUpdateAttendanceLog, onDeleteAttendanceLog, attendanceLogs,
+  complaintTickets = [], onResolveComplaint,
 }) => {
   const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
