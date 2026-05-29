@@ -73,18 +73,18 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
 
       // Step 2: Count days agent actually checked in (present days)
       const agentLogs = attendanceLogs.filter(l =>
-        l.subManagerId === sm.id && l.timestamp.startsWith(payrollMonth)
+        l.subManagerId === sm.id && l.timestamp && l.timestamp.startsWith(payrollMonth)
       );
       const presentDays = new Set(
         agentLogs
-          .filter(l => l.type === 'check-in')
+          .filter(l => l.type === 'check-in' && l.timestamp)
           .map(l => l.timestamp.split('T')[0])
       ).size;
 
       // Step 3: Leave days (not counted as absent)
       const leaveDays = new Set(
         agentLogs
-          .filter(l => l.type === 'leave')
+          .filter(l => l.type === 'leave' && l.timestamp)
           .map(l => l.timestamp.split('T')[0])
       ).size;
 
