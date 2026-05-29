@@ -4,7 +4,7 @@ interface LocationTrackerProps {
   status: 'online' | 'offline';
   lastCheckIn?: string;
   onStatusChange: (newStatus: 'online' | 'offline', location?: { lat: number, lng: number }) => void;
-  onLocationUpdate: (location: { lat: number, lng: number }) => void;
+  onLocationUpdate: (location: { lat: number, lng: number, accuracy: number, timestamp: number }) => void;
 }
 
 const LocationTracker: React.FC<LocationTrackerProps> = ({ status, lastCheckIn, onStatusChange, onLocationUpdate }) => {
@@ -35,7 +35,9 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ status, lastCheckIn, 
           (watchPos) => {
             const newLoc = {
               lat: watchPos.coords.latitude,
-              lng: watchPos.coords.longitude
+              lng: watchPos.coords.longitude,
+              accuracy: watchPos.coords.accuracy || 0,
+              timestamp: watchPos.timestamp || Date.now()
             };
             onLocationUpdate(newLoc);
           },
