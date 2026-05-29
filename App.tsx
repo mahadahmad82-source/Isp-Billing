@@ -1270,7 +1270,7 @@ const App: React.FC = () => {
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
               onAddAttendanceLog={handleAddAttendanceLog}
-              complaintTickets={(state.complaintTickets || []).filter(t => t.assignedTo === activeManager || t.assignedTo === activeAgent?.id)}
+              complaintTickets={(state.complaintTickets || []).filter(t => t.assignedTo === activeManager || t.assignedTo === activeManager)}
               onResolveComplaint={(ticketId) => {
                 setState(prev => {
                   const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
