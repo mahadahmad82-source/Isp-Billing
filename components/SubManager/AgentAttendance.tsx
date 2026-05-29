@@ -40,7 +40,7 @@ const AgentAttendance: React.FC<AgentAttendanceProps> = ({
     const shifts: DailyShift[] = [];
     subManagers.forEach(agent => {
       const agentLogs = attendanceLogs
-        .filter(l => l.subManagerId === agent.id && l.timestamp.startsWith(reportMonth))
+        .filter(l => l.subManagerId === agent.id && l.timestamp && l.timestamp.startsWith(reportMonth))
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
       const byDate: Record<string, AttendanceLog[]> = {};
