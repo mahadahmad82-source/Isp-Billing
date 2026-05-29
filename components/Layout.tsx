@@ -158,6 +158,7 @@ const Layout: React.FC<LayoutProps> = ({
   }
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileInitialTab, setProfileInitialTab] = useState<'profile'|'security'|'session'>('profile');
@@ -306,33 +307,62 @@ const Layout: React.FC<LayoutProps> = ({
       </div>
 
       {/* Bottom Nav - Mobile Optimization: Grid of 7 to prevent crowding */}
-      <nav id="tour-mobile-nav" className={`md:hidden fixed bottom-0 left-0 right-0 border-t grid z-50 shadow-2xl no-print transition-colors ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'} ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
-        style={{gridTemplateColumns: `repeat(${tabs.length}, 1fr)`}}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center justify-center py-3 px-0.5 transition-colors gap-0.5 ${
-              activeTab === tab.id ? 'text-indigo-600' : (theme === 'dark' ? 'text-slate-500' : 'text-slate-400')
-            }`}
-          >
-            <span className={`${activeTab === tab.id ? 'scale-110' : 'scale-100'} transition-transform`}>
-              {tab.icon}
-            </span>
-            <span className="text-[7.5px] font-bold uppercase tracking-tighter truncate w-full text-center">
-              {tab.label.split(' ')[0]}
-            </span>
-          </button>
-        ))}
 
-      </nav>
+      {/* Mobile Drawer Overlay */}
+      {mobileDrawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileDrawerOpen(false)}
+        />
+      )}
+
+      {/* Mobile Left Drawer */}
+      <div className={`md:hidden fixed top-0 left-0 h-full z-[100] w-72 transition-transform duration-300 ease-in-out shadow-2xl
+        ${theme === 'dark' ? 'bg-slate-900' : 'bg-indigo-900'}
+        ${mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between px-5 pt-10 pb-6 border-b border-white/10">
+          <span className="text-white font-black text-sm uppercase tracking-widest">Menu</span>
+          <button onClick={() => setMobileDrawerOpen(false)}
+            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        {/* Drawer Nav Items */}
+        <nav className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-130px)]">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); setMobileDrawerOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left
+                ${activeTab === tab.id
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+              <span className="shrink-0">{tab.icon}</span>
+              <span className="text-xs font-bold uppercase tracking-widest">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
+      <main className="flex-1 p-4 md:p-8 pb-6 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
         <header id="tour-top-header" className="flex justify-between items-center mb-8 no-print">
-          <div className="flex flex-col">
-            <h2 className={`text-2xl font-bold uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
-            <DbStatusIndicator lastSavedTime={lastSavedTime} />
+          <div className="flex items-center gap-3">
+            {/* Burger Menu Button - Mobile Only */}
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              className={`md:hidden p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 active:scale-90
+                ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
+            <div className="flex flex-col">
+              <h2 className={`text-2xl font-bold uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
+              <DbStatusIndicator lastSavedTime={lastSavedTime} />
+            </div>
           </div>
           <div id="tour-header-actions" className="flex items-center gap-3 md:gap-4">
             <button 
