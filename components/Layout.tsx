@@ -29,6 +29,7 @@ interface LayoutProps {
   onUpdateProfile?: (updates: { businessPhone?: string; businessAddress?: string }) => void;
   currentPhone?: string;
   currentAddress?: string;
+  onNavigateCustomers?: (filter: 'all' | 'active' | 'expired') => void;
 }
 
 
@@ -128,7 +129,9 @@ const Layout: React.FC<LayoutProps> = ({
   onUpdateProfile = () => {},
   currentPhone = '',
   currentAddress = '',
+  onNavigateCustomers,
 }) => {
+  const [customersExpanded, setCustomersExpanded] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false);
   const [showAddCompany, setShowAddCompany] = useState(false);
@@ -332,16 +335,79 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
         {/* Drawer Nav Items */}
         <nav className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-130px)]">
-          {tabs.map(tab => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); setMobileDrawerOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left
-                ${activeTab === tab.id
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                  : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
-              <span className="shrink-0">{tab.icon}</span>
-              <span className="text-xs font-bold uppercase tracking-widest">{tab.label}</span>
-            </button>
-          ))}
+          {tabs.map(tab => {
+            const isCustomers = tab.id === 'users';
+            const isActive = activeTab === tab.id;
+            return (
+              <div key={tab.id}>
+                <button
+                  onClick={() => {
+                    if (isCustomers) {
+                      setCustomersExpanded(prev => !prev);
+                      setActiveTab(tab.id);
+                      setMobileDrawerOpen(false);
+                    } else {
+                      setActiveTab(tab.id);
+                      setMobileDrawerOpen(false);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left
+                    ${isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+                  <span className="shrink-0">{tab.icon}</span>
+                  <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>
+                  {isCustomers && (
+                    <svg className={`w-4 h-4 transition-transform ${customersExpanded || isActive ? 'rotate-180' : ''}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  )}
+                </button>
+
+                {/* Customers Sub-items */}
+                {isCustomers && (isActive || customersExpanded) && (
+                  <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-500/30 pl-3">
+                    {/* Master Directory */}
+                    <button
+                      onClick={() => {
+                        if (onNavigateCustomers) onNavigateCustomers('all');
+                        setActiveTab('users');
+                        setMobileDrawerOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
+                      <svg className="w-4 h-4 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                      </svg>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Master Directory</span>
+                    </button>
+                    {/* Active Customers */}
+                    <button
+                      onClick={() => {
+                        if (onNavigateCustomers) onNavigateCustomers('active');
+                        setActiveTab('users');
+                        setMobileDrawerOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"/>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Active Customers</span>
+                    </button>
+                    {/* Expired Customers */}
+                    <button
+                      onClick={() => {
+                        if (onNavigateCustomers) onNavigateCustomers('expired');
+                        setActiveTab('users');
+                        setMobileDrawerOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
+                      <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0"/>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Expired Customers</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </div>
 
