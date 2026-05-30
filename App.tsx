@@ -81,7 +81,7 @@ const App: React.FC = () => {
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
   const [showProfile, setShowProfile] = useState(false);
 
-  const handleUpdateProfile = (updates: { businessPhone?: string; businessAddress?: string }) => {
+  const handleUpdateProfile = (updates: { businessPhone?: string; businessAddress?: string; businessEmail?: string }) => {
     setState(prev => {
       const newState = {
         ...prev,
@@ -1078,6 +1078,7 @@ const App: React.FC = () => {
           onUpdateProfile={handleUpdateProfile}
           currentPhone={currentSettings.businessPhone}
           currentAddress={currentSettings.businessAddress}
+          currentEmail={currentSettings.businessEmail || ""}
         >
           {activeTab === 'dashboard' && (
             <Dashboard 
