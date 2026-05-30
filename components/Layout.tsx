@@ -142,6 +142,7 @@ const Layout: React.FC<LayoutProps> = ({
   onNavigateCustomers,
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
+  const [expensesExpanded, setExpensesExpanded] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
@@ -340,9 +341,13 @@ const Layout: React.FC<LayoutProps> = ({
 
         {/* Nav Items */}
         <nav id="tour-sidebar-nav" className="px-3 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-100px)]">
-          {tabs.map(tab => {
+          {tabs
+            .filter(tab => !['reports', 'analytics'].includes(tab.id))
+            .map(tab => {
             const isCustomers = tab.id === 'users';
-            const isActive = activeTab === tab.id;
+            const isExpenses  = tab.id === 'expenses';
+            const isExpensesGroupActive = isExpenses && ['expenses','reports','analytics'].includes(activeTab);
+            const isActive = activeTab === tab.id || isExpensesGroupActive;
             return (
               <div key={tab.id}>
                 <button
@@ -351,6 +356,8 @@ const Layout: React.FC<LayoutProps> = ({
                       setCustomersExpanded(prev => !prev);
                       setActiveTab(tab.id);
                       setDrawerOpen(false);
+                    } else if (isExpenses) {
+                      setExpensesExpanded(prev => !prev);
                     } else {
                       setActiveTab(tab.id);
                       setDrawerOpen(false);
@@ -364,8 +371,10 @@ const Layout: React.FC<LayoutProps> = ({
                 >
                   <span className="shrink-0">{tab.icon}</span>
                   <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>
-                  {isCustomers && (
-                    <svg className={`w-4 h-4 transition-transform ${customersExpanded || isActive ? 'rotate-180' : ''}`}
+                  {(isCustomers || isExpenses) && (
+                    <svg className={`w-4 h-4 transition-transform
+                      ${isCustomers && (customersExpanded || isActive) ? 'rotate-180' : ''}
+                      ${isExpenses  && (expensesExpanded  || isExpensesGroupActive) ? 'rotate-180' : ''}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/>
                     </svg>
@@ -373,7 +382,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </button>
 
                 {/* Customers Sub-items */}
-                {isCustomers && (isActive || customersExpanded) && (
+                {isCustomers && (activeTab === 'users' || customersExpanded) && (
                   <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-500/30 pl-3">
                     <button onClick={() => { if (onNavigateCustomers) onNavigateCustomers('all'); setActiveTab('users'); setDrawerOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
@@ -389,6 +398,39 @@ const Layout: React.FC<LayoutProps> = ({
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
                       <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0"/>
                       <span className="text-[11px] font-bold uppercase tracking-widest">Expired Customers</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Expenses Sub-items: Expenses · AI Insights · Analytics */}
+                {isExpenses && (expensesExpanded || isExpensesGroupActive) && (
+                  <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-500/30 pl-3">
+                    {/* Expenses */}
+                    <button onClick={() => { setActiveTab('expenses'); setDrawerOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all
+                        ${activeTab === 'expenses' ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                      <svg className="w-4 h-4 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Expenses</span>
+                    </button>
+                    {/* AI Insights */}
+                    <button onClick={() => { setActiveTab('reports'); setDrawerOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all
+                        ${activeTab === 'reports' ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                      <svg className="w-4 h-4 shrink-0 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                      </svg>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">AI Insights</span>
+                    </button>
+                    {/* Analytics */}
+                    <button onClick={() => { setActiveTab('analytics'); setDrawerOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all
+                        ${activeTab === 'analytics' ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                      <svg className="w-4 h-4 shrink-0 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                      </svg>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Analytics</span>
                     </button>
                   </div>
                 )}
