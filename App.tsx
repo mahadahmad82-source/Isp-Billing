@@ -1062,6 +1062,8 @@ const App: React.FC = () => {
           lastSavedTime={lastSavedTime}
           onNavigateCustomers={(filter) => {
             setCustomerStatusFilter(filter);
+            // also sync userFilter: 'all' for all/expired views, 'current_month' only for active
+            setUserFilter(filter === 'active' ? 'current_month' : 'all');
             setActiveTab('users');
           }}
           notifications={notifications}
@@ -1087,7 +1089,16 @@ const App: React.FC = () => {
               settings={currentSettings} 
               onDeleteReceipt={handleDeleteReceipt} 
               setActiveTab={setActiveTab}
-              onSetUserFilter={(filter: 'all' | 'current_month') => { setUserFilter(filter); setActiveTab('users'); }}
+              onSetUserFilter={(filter: 'all' | 'current_month') => {
+                setUserFilter(filter);
+                setCustomerStatusFilter(filter === 'current_month' ? 'active' : 'all');
+                setActiveTab('users');
+              }}
+              onSetExpiredFilter={() => {
+                setCustomerStatusFilter('expired');
+                setUserFilter('all');
+                setActiveTab('users');
+              }}
               pendingRemindersCount={pendingRemindersCount}
               onLogout={handleLogout}
               isAdmin={isAdmin}
