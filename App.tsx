@@ -77,6 +77,7 @@ const App: React.FC = () => {
   const [showTour, setShowTour] = useState(false);
   const [tourMode, setTourMode] = useState<string>('welcome');
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
+  const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -1059,6 +1060,10 @@ const App: React.FC = () => {
           businessName={currentSettings.businessName} 
           onToggleTheme={handleToggleTheme}
           lastSavedTime={lastSavedTime}
+          onNavigateCustomers={(filter) => {
+            setCustomerStatusFilter(filter);
+            setActiveTab('users');
+          }}
           notifications={notifications}
           onDismissNotification={handleDismissNotification}
           onClearAllNotifications={handleClearAllNotifications}
@@ -1087,7 +1092,7 @@ const App: React.FC = () => {
               isAdmin={isAdmin}
             />
           )}
-          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} />}
+          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} />}
           {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 
