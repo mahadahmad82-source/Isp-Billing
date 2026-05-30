@@ -4,7 +4,6 @@ import ProfileDialog from './ProfileDialog';
 import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
 import { logoBase64 } from '../utils/logoBase64';
-
 import { avatarBase64 } from '../utils/avatarBase64';
 
 interface LayoutProps {
@@ -32,11 +31,9 @@ interface LayoutProps {
   onNavigateCustomers?: (filter: 'all' | 'active' | 'expired') => void;
 }
 
-
 // ✅ Live DB Connection Status Indicator
 const DbStatusIndicator: React.FC<{ lastSavedTime?: string }> = ({ lastSavedTime }) => {
   const [status, setStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [lastChecked, setLastChecked] = useState('');
   const [ping, setPing] = useState<number | null>(null);
 
   const checkConnection = useCallback(async () => {
@@ -52,68 +49,79 @@ const DbStatusIndicator: React.FC<{ lastSavedTime?: string }> = ({ lastSavedTime
         }
       );
       const ms = Date.now() - start;
-      if (res.ok) {
-        setStatus('connected');
-        setPing(ms);
-      } else {
-        setStatus('error');
-        setPing(null);
-      }
+      if (res.ok) { setStatus('connected'); setPing(ms); }
+      else { setStatus('error'); setPing(null); }
     } catch {
-      setStatus('error');
-      setPing(null);
+      setStatus('error'); setPing(null);
     }
-    setLastChecked(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   }, []);
 
   useEffect(() => {
     checkConnection();
-    const interval = setInterval(checkConnection, 30000); // check every 30s
+    const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
   }, [checkConnection]);
 
-  const dot = {
+  const dotClass = {
     checking:  'bg-amber-400 animate-pulse',
     connected: 'bg-emerald-400 animate-pulse',
     error:     'bg-rose-500 animate-ping',
   }[status];
 
-  const label = {
-    checking:  'Connecting...',
-    connected: lastSavedTime ? `Synced ${lastSavedTime}` : 'Database Connected',
-    error:     'Database Unreachable',
-  }[status];
-
-  const color = {
+  const colorClass = {
     checking:  'text-amber-500',
     connected: 'text-emerald-500',
     error:     'text-rose-500',
+  }[status];
+
+  const label = {
+    checking:  'Connecting',
+    connected: ping ? `DB · ${ping}ms` : 'Connected',
+    error:     'Offline',
   }[status];
 
   return (
     <button
       onClick={checkConnection}
       title={status === 'connected' ? `Ping: ${ping}ms · Click to recheck` : 'Click to retry connection'}
-      className="flex items-center gap-1.5 mt-0.5 group"
+      className="flex items-center gap-1 group"
     >
-      <span className="relative flex h-2 w-2">
-        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${dot}`} />
-        <span className={`relative inline-flex rounded-full h-2 w-2 ${dot.replace('animate-pulse','').replace('animate-ping','')}`} />
+      <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
+        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${dotClass}`} />
+        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotClass.replace('animate-pulse','').replace('animate-ping','')}`} />
       </span>
-      <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${color} group-hover:underline`}>
-        {label}{status === 'connected' && ping ? ` · ${ping}ms` : ''}
+      <span className={`text-[8px] font-black uppercase tracking-widest whitespace-nowrap ${colorClass}`}>
+        {label}
       </span>
     </button>
   );
 };
 
-const Layout: React.FC<LayoutProps> = ({ 
-  children, 
-  activeTab, 
-  setActiveTab, 
-  theme, 
-  businessName, 
-  onToggleTheme, 
+// ─────────────────────────────────────────────
+// Page title label map
+// ─────────────────────────────────────────────
+const PAGE_TITLES: Record<string, string> = {
+  dashboard:  'Dashboard',
+  users:      'Customers',
+  receipts:   'Receipts',
+  recoveries: 'Recoveries',
+  expiries:   'Expiries',
+  reports:    'AI Insights',
+  settings:   'Settings',
+  admin:      'Admin Panel',
+  team:       'Team Hub',
+  complaints: 'Complaints',
+  expenses:   'Expenses',
+  analytics:  'Analytics',
+};
+
+const Layout: React.FC<LayoutProps> = ({
+  children,
+  activeTab,
+  setActiveTab,
+  theme,
+  businessName,
+  onToggleTheme,
   lastSavedTime,
   notifications,
   onDismissNotification,
@@ -133,18 +141,21 @@ const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false);
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [profileInitialTab, setProfileInitialTab] = useState<'profile'|'security'|'session'>('profile');
 
   let tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <svg className={`${activeTab === 'dashboard' ? 'animate-bounce' : ''} w-5 h-5`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> },
-    { id: 'users', label: 'Customers', icon: <svg className={`${activeTab === 'users' ? 'animate-pulse' : ''} w-5 h-5`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> },
-    { id: 'receipts', label: 'Receipts', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> },
-    { id: 'recoveries', label: 'Recoveries', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> },
-    { id: 'expiries', label: 'Expiries', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg> },
-    { id: 'reports', label: 'AI Insights', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> },
-    { id: 'settings', label: 'Settings', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> },
+    { id: 'users',     label: 'Customers', icon: <svg className={`${activeTab === 'users' ? 'animate-pulse' : ''} w-5 h-5`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> },
+    { id: 'receipts',  label: 'Receipts',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> },
+    { id: 'recoveries',label: 'Recoveries',icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> },
+    { id: 'expiries',  label: 'Expiries',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg> },
+    { id: 'reports',   label: 'AI Insights',icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> },
+    { id: 'settings',  label: 'Settings',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> },
   ];
 
   if (isAdmin) {
@@ -153,188 +164,180 @@ const Layout: React.FC<LayoutProps> = ({
 
   if (userRole === 'manager' && !isAdmin) {
     tabs.splice(tabs.length - 1, 0,
-      { id: 'team', label: 'Team Hub', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+      { id: 'team',       label: 'Team Hub',   icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
       { id: 'complaints', label: 'Complaints', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg> },
-      { id: 'expenses', label: 'Expenses', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-      { id: 'analytics', label: 'Analytics', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> }
+      { id: 'expenses',   label: 'Expenses',   icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+      { id: 'analytics',  label: 'Analytics',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> }
     );
   }
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [profileInitialTab, setProfileInitialTab] = useState<'profile'|'security'|'session'>('profile');
+  const isDark = theme === 'dark';
 
   return (
-    <div className={`flex flex-col md:flex-row h-screen transition-colors duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      {/* Sidebar - Desktop */}
-      <aside className={`hidden md:flex flex-col shadow-xl transition-all duration-300 ${sidebarCollapsed ? 'w-16 p-2' : 'w-64 p-6'} ${theme === 'dark' ? 'bg-slate-900 border-r border-slate-800 text-white' : 'bg-indigo-900 text-white'}`}>
-        {/* Toggle Button */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className={`self-end mb-4 p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400 hover:text-white' : 'hover:bg-indigo-800 text-indigo-200 hover:text-white'}`}
-          title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {sidebarCollapsed
-              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
-              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
-            }
-          </svg>
-        </button>
+    <div className={`flex flex-col h-screen transition-colors duration-300 overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
 
-        {/* Logo + Name */}
-        {!sidebarCollapsed && (
-          <div className="mb-10">
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <div className="p-1 w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                {logoBase64 && <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />}
-              </div>
-              <span className="text-white truncate">{businessName}</span>
-            </h1>
-            <p className={`text-[10px] mt-1 uppercase tracking-[0.2em] font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>ISP MANAGER v2.5</p>
-          </div>
-        )}
-        {sidebarCollapsed && (
-          <div className="mb-6 flex justify-center">
-            <div className="w-9 h-9 flex items-center justify-center overflow-hidden rounded-lg">
-              {logoBase64 && <img src={logoBase64} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />}
-            </div>
-          </div>
-        )}
-
-        <nav id="tour-sidebar-nav" className="space-y-1 flex-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              title={sidebarCollapsed ? tab.label : ''}
-              className={`w-full text-left rounded-lg flex items-center transition-all font-bold text-sm
-                ${sidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3 gap-3'}
-                ${activeTab === tab.id
-                  ? (theme === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-700 text-white shadow-inner')
-                  : (theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-white/60 hover:text-white hover:bg-indigo-800')
-                }`}
-            >
-              <span className="flex-shrink-0 text-lg">{tab.icon}</span>
-              {!sidebarCollapsed && tab.label}
-            </button>
-          ))}
-        </nav>
-
-        <div id="tour-profile-menu" className={`mt-auto pt-6 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-indigo-800'}`}>
+      {/* ═══════════════════════════════════════
+          TOP HEADER — All screen sizes
+      ═══════════════════════════════════════ */}
+      <header
+        id="tour-top-header"
+        className={`fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 md:px-6 no-print
+          ${isDark
+            ? 'bg-slate-950/90 backdrop-blur-md border-b border-slate-800/60'
+            : 'bg-white/90 backdrop-blur-md border-b border-slate-200/60'
+          }`}
+        style={{ height: '64px' }}
+      >
+        {/* ── LEFT: DB Status (above) + Burger (below) ── */}
+        <div className="flex flex-col items-start justify-center gap-1 w-12 flex-shrink-0">
+          <DbStatusIndicator lastSavedTime={lastSavedTime} />
           <button
-            onClick={() => setProfileOpen(true)}
-            className="flex items-center gap-3 px-2 w-full hover:bg-white/10 rounded-2xl py-2 transition-colors group"
+            onClick={() => setDrawerOpen(true)}
+            className={`p-1.5 rounded-xl border transition-all shadow-sm flex items-center justify-center w-9 h-9 active:scale-90
+              ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            title="Open Menu"
           >
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-900 flex-shrink-0 group-hover:ring-2 group-hover:ring-white/30 transition-all">
-              {(businessName?.charAt(0) || 'M').toUpperCase()}
-            </div>
-            {!sidebarCollapsed && (
-              <div className="min-w-0 flex-1 text-left">
-                <p className="text-xs font-bold text-white uppercase tracking-wider truncate">{isAdmin ? 'ADMIN ACCOUNT' : 'MANAGER ACCOUNT'}</p>
-                <p className={`text-[9px] font-bold truncate ${theme === 'dark' ? 'text-slate-400' : 'text-indigo-200'}`}>
-                  {businessName || 'SECURE OFFLINE NODE'}
-                </p>
-              </div>
-            )}
-            {!sidebarCollapsed && (
-              <svg className="w-3 h-3 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            )}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
           </button>
         </div>
 
-      </aside>
-
-      {/* Fixed Top Header - Mobile Only */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-transparent">
-        {/* Left: empty spacer to balance the flex layout */}
-        <div className="w-10"></div>
-        
-        {/* Center: Increased size Logo */}
-        <div className="flex justify-center items-center px-2 py-1">
+        {/* ── CENTER: Logo ── */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
           {logoBase64 && (
-            <img 
-              src={logoBase64} 
-              alt="Logo" 
-              className="w-[130px] h-auto max-h-[48px] object-contain drop-shadow-sm transition-transform duration-300"
-              style={{ objectFit: 'contain' }}
+            <img
+              src={logoBase64}
+              alt="Logo"
+              className="h-9 w-auto max-w-[140px] object-contain drop-shadow-sm"
             />
           )}
         </div>
-        
-        {/* Right: Avatar + Dropdown */}
-        <div className="relative" id="tour-mobile-profile">
+
+        {/* ── RIGHT: Theme + Notif + Profile ── */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Theme Toggle */}
           <button
-            onClick={() => setDropdownOpen(d => !d)}
-            className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-white/30"
+            onClick={onToggleTheme}
+            className={`p-1.5 rounded-xl border transition-all shadow-sm flex items-center justify-center w-9 h-9 active:scale-90 active:rotate-180 duration-500
+              ${isDark ? 'bg-slate-800 border-slate-700 text-yellow-400' : 'bg-white border-slate-200 text-slate-500'}`}
+            title="Toggle Theme"
           >
-            {avatarBase64 && <img src={avatarBase64} alt="Profile" className="w-full h-full object-cover" />}
+            {isDark ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            )}
           </button>
-          {dropdownOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-              <div className={`absolute right-0 top-11 z-50 w-52 rounded-2xl shadow-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-                {/* User info */}
-                <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'}`}>
-                  <p className={`font-bold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{businessName}</p>
-                  <p className="text-xs text-slate-400">@{activeManager}</p>
-                </div>
-                {/* Menu Items */}
-                <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
-                  <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
-                  Profile
-                </button>
-                <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('security'); setProfileOpen(true); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${theme === 'dark' ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
-                  <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
-                  Change Password
-                </button>
-                <div className={`border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
-                  <button
-                    onClick={() => { setDropdownOpen(false); onLogout(); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                    Logout
+
+          {/* Notifications */}
+          <button
+            onClick={() => setIsNotifOpen(true)}
+            className={`p-1.5 rounded-xl border transition-all shadow-sm flex items-center justify-center w-9 h-9 relative active:rotate-12 active:scale-90
+              ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
+            title="Notifications"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+            {notifications.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 animate-pulse">
+                {notifications.length}
+              </span>
+            )}
+          </button>
+
+          {/* Profile Avatar */}
+          <div className="relative" id="tour-mobile-profile">
+            <button
+              onClick={() => setDropdownOpen(d => !d)}
+              className="w-9 h-9 rounded-full overflow-hidden shadow-lg border-2 border-indigo-400/40 hover:border-indigo-400/80 transition-all active:scale-90"
+            >
+              {avatarBase64
+                ? <img src={avatarBase64} alt="Profile" className="w-full h-full object-cover" />
+                : <div className="w-full h-full bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">{(businessName?.charAt(0) || 'M').toUpperCase()}</div>
+              }
+            </button>
+
+            {dropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                <div className={`absolute right-0 top-11 z-50 w-52 rounded-2xl shadow-2xl border overflow-hidden ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+                  {/* User info */}
+                  <div className={`px-4 py-3 border-b ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'}`}>
+                    <p className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{businessName}</p>
+                    <p className="text-xs text-slate-400">@{activeManager}</p>
+                  </div>
+                  <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                    <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+                    Profile
                   </button>
+                  <button onClick={() => { setDropdownOpen(false); setProfileInitialTab('security'); setProfileOpen(true); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors text-left ${isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                    <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
+                    Change Password
+                  </button>
+                  <div className={`border-t ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                    <button
+                      onClick={() => { setDropdownOpen(false); onLogout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                      Logout
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Bottom Nav - Mobile Optimization: Grid of 7 to prevent crowding */}
-
-      {/* Mobile Drawer Overlay */}
-      {mobileDrawerOpen && (
+      {/* ═══════════════════════════════════════
+          DRAWER OVERLAY — All screen sizes
+      ═══════════════════════════════════════ */}
+      {drawerOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
-          onClick={() => setMobileDrawerOpen(false)}
+          className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
+          onClick={() => setDrawerOpen(false)}
         />
       )}
 
-      {/* Mobile Left Drawer */}
-      <div className={`md:hidden fixed top-0 left-0 h-full z-[100] w-72 transition-transform duration-300 ease-in-out shadow-2xl
-        ${theme === 'dark' ? 'bg-slate-900' : 'bg-indigo-900'}
-        ${mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* ═══════════════════════════════════════
+          LEFT DRAWER — All screen sizes
+      ═══════════════════════════════════════ */}
+      <div className={`fixed top-0 left-0 h-full z-[100] transition-transform duration-300 ease-in-out shadow-2xl
+        w-72 md:w-80
+        ${isDark ? 'bg-slate-900' : 'bg-indigo-900'}
+        ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between px-5 pt-10 pb-6 border-b border-white/10">
-          <span className="text-white font-black text-sm uppercase tracking-widest">Menu</span>
-          <button onClick={() => setMobileDrawerOpen(false)}
-            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className={`flex items-center justify-between px-5 pt-5 pb-5 border-b border-white/10`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-black text-indigo-900 flex-shrink-0 text-sm">
+              {(businessName?.charAt(0) || 'M').toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-black text-xs uppercase tracking-wider truncate">{isAdmin ? 'Admin Account' : 'Manager Account'}</p>
+              <p className={`text-[9px] font-bold truncate ${isDark ? 'text-slate-400' : 'text-indigo-300'}`}>{businessName || 'ISP Manager'}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
         </div>
-        {/* Drawer Nav Items */}
-        <nav className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-130px)]">
+
+        {/* Version label */}
+        <div className="px-5 py-2">
+          <p className={`text-[8px] font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-indigo-400'}`}>ISP MANAGER v2.5</p>
+        </div>
+
+        {/* Nav Items */}
+        <nav id="tour-sidebar-nav" className="px-3 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
           {tabs.map(tab => {
             const isCustomers = tab.id === 'users';
             const isActive = activeTab === tab.id;
@@ -345,16 +348,18 @@ const Layout: React.FC<LayoutProps> = ({
                     if (isCustomers) {
                       setCustomersExpanded(prev => !prev);
                       setActiveTab(tab.id);
-                      setMobileDrawerOpen(false);
+                      setDrawerOpen(false);
                     } else {
                       setActiveTab(tab.id);
-                      setMobileDrawerOpen(false);
+                      setDrawerOpen(false);
                     }
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-left
                     ${isActive
                       ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                      : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'
+                    }`}
+                >
                   <span className="shrink-0">{tab.icon}</span>
                   <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>
                   {isCustomers && (
@@ -368,37 +373,17 @@ const Layout: React.FC<LayoutProps> = ({
                 {/* Customers Sub-items */}
                 {isCustomers && (isActive || customersExpanded) && (
                   <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-500/30 pl-3">
-                    {/* Master Directory */}
-                    <button
-                      onClick={() => {
-                        if (onNavigateCustomers) onNavigateCustomers('all');
-                        setActiveTab('users');
-                        setMobileDrawerOpen(false);
-                      }}
+                    <button onClick={() => { if (onNavigateCustomers) onNavigateCustomers('all'); setActiveTab('users'); setDrawerOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
-                      <svg className="w-4 h-4 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-                      </svg>
+                      <svg className="w-4 h-4 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                       <span className="text-[11px] font-bold uppercase tracking-widest">Master Directory</span>
                     </button>
-                    {/* Active Customers */}
-                    <button
-                      onClick={() => {
-                        if (onNavigateCustomers) onNavigateCustomers('active');
-                        setActiveTab('users');
-                        setMobileDrawerOpen(false);
-                      }}
+                    <button onClick={() => { if (onNavigateCustomers) onNavigateCustomers('active'); setActiveTab('users'); setDrawerOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"/>
                       <span className="text-[11px] font-bold uppercase tracking-widest">Active Customers</span>
                     </button>
-                    {/* Expired Customers */}
-                    <button
-                      onClick={() => {
-                        if (onNavigateCustomers) onNavigateCustomers('expired');
-                        setActiveTab('users');
-                        setMobileDrawerOpen(false);
-                      }}
+                    <button onClick={() => { if (onNavigateCustomers) onNavigateCustomers('expired'); setActiveTab('users'); setDrawerOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-white/70 hover:text-white hover:bg-white/10 transition-all">
                       <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0"/>
                       <span className="text-[11px] font-bold uppercase tracking-widest">Expired Customers</span>
@@ -409,66 +394,54 @@ const Layout: React.FC<LayoutProps> = ({
             );
           })}
         </nav>
+
+        {/* Profile at bottom */}
+        <div id="tour-profile-menu" className={`absolute bottom-0 left-0 right-0 px-5 py-4 border-t border-white/10`}>
+          <button
+            onClick={() => { setDrawerOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
+            className="flex items-center gap-3 w-full hover:bg-white/10 rounded-2xl px-3 py-2.5 transition-colors group"
+          >
+            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-900 flex-shrink-0 group-hover:ring-2 group-hover:ring-white/30 transition-all text-sm">
+              {(businessName?.charAt(0) || 'M').toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="text-xs font-bold text-white uppercase tracking-wider truncate">My Profile</p>
+              <p className={`text-[9px] font-bold truncate ${isDark ? 'text-slate-400' : 'text-indigo-300'}`}>@{activeManager}</p>
+            </div>
+            <svg className="w-3 h-3 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 pb-6 md:pb-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar h-full">
-        <header id="tour-top-header" className="flex justify-between items-center mb-8 no-print">
+      {/* ═══════════════════════════════════════
+          MAIN CONTENT AREA
+      ═══════════════════════════════════════ */}
+      <main className="flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full">
+        {/* Page Title Bar */}
+        <div className="flex items-center justify-between mb-6 no-print">
           <div className="flex items-center gap-3">
-            {/* Burger Menu Button - Mobile Only */}
-            <button
-              onClick={() => setMobileDrawerOpen(true)}
-              className={`md:hidden p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 active:scale-90
-                ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16"/>
-              </svg>
-            </button>
-            <div className="flex flex-col">
-              <h2 className={`text-2xl font-bold uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{activeTab}</h2>
-              <DbStatusIndicator lastSavedTime={lastSavedTime} />
-            </div>
+            <div className={`w-1 h-7 rounded-full ${isDark ? 'bg-indigo-500' : 'bg-indigo-600'}`} />
+            <h2 className={`text-xl font-black uppercase tracking-tight ${isDark ? 'text-white' : 'text-slate-800'}`}>
+              {PAGE_TITLES[activeTab] || activeTab}
+            </h2>
           </div>
-          <div id="tour-header-actions" className="flex items-center gap-3 md:gap-4">
-            <button 
-              onClick={() => setIsNotifOpen(true)}
-              className={`p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 relative active:rotate-12 active:scale-90 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
-              title="Notifications"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-              {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
-                  {notifications.length}
-                </span>
-              )}
-            </button>
-            <button 
-              onClick={onToggleTheme}
-              className={`p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 active:scale-90 active:rotate-180 duration-500 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-yellow-500' : 'bg-white border-slate-200 text-slate-600'}`}
-              title="Toggle Theme"
-            >
-              {theme === 'dark' ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-              )}
-            </button>
-          </div>
-        </header>
+        </div>
+
         <div className="w-full">
-           {children}
+          {children}
         </div>
       </main>
 
-      <NotificationCenter 
+      {/* ═══════════════════════════════════════
+          MODALS & OVERLAYS
+      ═══════════════════════════════════════ */}
+      <NotificationCenter
         notifications={notifications}
         isOpen={isNotifOpen}
         onClose={() => setIsNotifOpen(false)}
-        onAction={(tab) => {
-          setActiveTab(tab);
-          setIsNotifOpen(false);
-        }}
+        onAction={(tab) => { setActiveTab(tab); setIsNotifOpen(false); }}
         onDismiss={onDismissNotification}
         onClearAll={onClearAllNotifications}
         theme={theme}
@@ -477,37 +450,27 @@ const Layout: React.FC<LayoutProps> = ({
       {/* Add Company Modal */}
       {showAddCompany && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className={`w-full max-w-md p-8 rounded-[2.5rem] border shadow-2xl ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-            <h3 className={`text-xl font-bold uppercase tracking-tight mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Add New ISP</h3>
+          <div className={`w-full max-w-md p-8 rounded-[2.5rem] border shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+            <h3 className={`text-xl font-bold uppercase tracking-tight mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>Add New ISP</h3>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-8">Create a separate profile for another ISP company.</p>
-            
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Company Name</label>
-                <input 
+                <input
                   type="text"
                   value={newCompanyName}
                   onChange={(e) => setNewCompanyName(e.target.value)}
                   placeholder="e.g. MahadNet South"
-                  className={`w-full px-6 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-500'}`}
+                  className={`w-full px-6 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-500'}`}
                 />
               </div>
-              
               <div className="flex gap-3">
-                <button 
-                  onClick={() => setShowAddCompany(false)}
-                  className={`flex-1 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                >
+                <button onClick={() => setShowAddCompany(false)}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all ${isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                   Cancel
                 </button>
-                <button 
-                  onClick={() => {
-                    if (newCompanyName.trim()) {
-                      onAddCompany?.(newCompanyName);
-                      setNewCompanyName('');
-                      setShowAddCompany(false);
-                    }
-                  }}
+                <button
+                  onClick={() => { if (newCompanyName.trim()) { onAddCompany?.(newCompanyName); setNewCompanyName(''); setShowAddCompany(false); } }}
                   disabled={!newCompanyName.trim()}
                   className="flex-1 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -518,19 +481,19 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
       )}
-    {/* ProfileDialog - top level z-index for both mobile & desktop */}
-    <ProfileDialog
-      isOpen={profileOpen}
-      onClose={() => setProfileOpen(false)}
-      businessName={businessName}
-      username={activeManager}
-      onLogout={onLogout}
-      theme={theme}
-      initialTab={profileInitialTab}
-      onUpdateProfile={onUpdateProfile}
-      currentPhone={currentPhone}
-      currentAddress={currentAddress}
-    />
+
+      <ProfileDialog
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        businessName={businessName}
+        username={activeManager}
+        onLogout={onLogout}
+        theme={theme}
+        initialTab={profileInitialTab}
+        onUpdateProfile={onUpdateProfile}
+        currentPhone={currentPhone}
+        currentAddress={currentAddress}
+      />
     </div>
   );
 };
