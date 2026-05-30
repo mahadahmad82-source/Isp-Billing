@@ -21,6 +21,8 @@ interface UserManagementProps {
   readOnly?: boolean;
   setLoadingMessage: (msg: string | null) => void;
   initialFilter?: 'all' | 'current_month';
+  customerStatusFilter?: 'all' | 'active' | 'expired';
+  onClearCustomerStatusFilter?: () => void;
 }
 
 type SortKey = 'account_id_asc' | 'account_id_desc' | 'name_asc' | 'name_desc' | 'reg_date_desc' | 'reg_date_asc' | 'expiry_asc' | 'expiry_desc' | 'plan_asc' | 'fee_asc' | 'fee_desc' | 'balance_asc' | 'balance_desc' | 'paid_first' | 'pending_first' | 'none';
@@ -38,7 +40,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
   onBulkUpdateUsers,
   readOnly = false,
   setLoadingMessage,
-  initialFilter = 'all'
+  initialFilter = 'all',
+  customerStatusFilter = 'all',
+  onClearCustomerStatusFilter
 }) => {
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
@@ -46,6 +50,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
   const [showQuickActivate, setShowQuickActivate] = useState(false);
   const [showAllUsers, setShowAllUsers] = useState(initialFilter === 'all');
+
+  // ── Customer status filter from sidebar ──────────────────
+  const statusFilteredUsers = React.useMemo(() => {
+    if (!customerStatusFilter || customerStatusFilter === 'all') return users;
+    const currentPeriod = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    if (customerStatusFilter === 'active') {
+      return users.filter(u =>
+        (u.activatedMonths || []).includes(currentPeriod) ||
+        (u.status || '').toLowerCase() === 'active'
+      );
+    }
+    if (customerStatusFilter === 'expired') {
+      return users.filter(u =>
+        !(u.activatedMonths || []).includes(currentPeriod) &&
+        (u.status || '').toLowerCase() !== 'active'
+      );
+    }
+    return users;
+  }, [users, customerStatusFilter]);
   const [showForm, setShowForm] = useState(false);
   const [showImportHistory, setShowImportHistory] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -436,9 +459,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const filteredUsers = useMemo(() => {
     // If showAllUsers: show all users (for Total Users card)
     // Otherwise: filter by selected month (activatedMonths)
+    const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
     let result = showAllUsers
-      ? [...users]
-      : users.filter(user => (user.activatedMonths || []).includes(selectedMonth));
+      ? [...baseUsers]
+      : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
 
     // Then apply search
     result = result.filter(user => 
@@ -469,6 +493,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-8rem)] bg-[#f8fafc] dark:bg-[#030712] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5">
+
+      {/* Active filter badge */}
+      {customerStatusFilter !== 'all' && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-2xl shadow-xl
+          bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">
+          <span className={`w-2 h-2 rounded-full ${customerStatusFilter === 'active' ? 'bg-emerald-400' : 'bg-rose-400'}`}/>
+          {customerStatusFilter === 'active' ? 'Active Customers' : 'Expired Customers'}
+          <button onClick={onClearCustomerStatusFilter} className="ml-1 hover:text-white/60 transition-colors">✕</button>
+        </div>
+      )}
       {/* Sidebar for Desktop */}
       <div className={`hidden md:flex flex-col transition-all duration-500 border-r border-slate-200 dark:border-white/5 bg-white dark:bg-[#0f172a] overflow-hidden ${showMonthlyFolders ? 'w-72 p-6' : 'w-0 p-0 border-r-0'}`}>
         <div className="mb-8 flex justify-between items-start min-w-[240px]">
