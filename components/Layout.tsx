@@ -28,6 +28,7 @@ interface LayoutProps {
   onUpdateProfile?: (updates: { businessPhone?: string; businessAddress?: string }) => void;
   currentPhone?: string;
   currentAddress?: string;
+  currentEmail?: string;
   onNavigateCustomers?: (filter: 'all' | 'active' | 'expired') => void;
 }
 
@@ -137,6 +138,7 @@ const Layout: React.FC<LayoutProps> = ({
   onUpdateProfile = () => {},
   currentPhone = '',
   currentAddress = '',
+  currentEmail = '',
   onNavigateCustomers,
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
@@ -209,7 +211,7 @@ const Layout: React.FC<LayoutProps> = ({
             <img
               src={logoBase64}
               alt="Logo"
-              className="h-9 w-auto max-w-[140px] object-contain drop-shadow-sm"
+              className="h-12 w-auto max-w-[160px] object-contain drop-shadow-sm"
             />
           )}
         </div>
@@ -337,7 +339,7 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
 
         {/* Nav Items */}
-        <nav id="tour-sidebar-nav" className="px-3 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
+        <nav id="tour-sidebar-nav" className="px-3 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-100px)]">
           {tabs.map(tab => {
             const isCustomers = tab.id === 'users';
             const isActive = activeTab === tab.id;
@@ -395,24 +397,6 @@ const Layout: React.FC<LayoutProps> = ({
           })}
         </nav>
 
-        {/* Profile at bottom */}
-        <div id="tour-profile-menu" className={`absolute bottom-0 left-0 right-0 px-5 py-4 border-t border-white/10`}>
-          <button
-            onClick={() => { setDrawerOpen(false); setProfileInitialTab('profile'); setProfileOpen(true); }}
-            className="flex items-center gap-3 w-full hover:bg-white/10 rounded-2xl px-3 py-2.5 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-900 flex-shrink-0 group-hover:ring-2 group-hover:ring-white/30 transition-all text-sm">
-              {(businessName?.charAt(0) || 'M').toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <p className="text-xs font-bold text-white uppercase tracking-wider truncate">My Profile</p>
-              <p className={`text-[9px] font-bold truncate ${isDark ? 'text-slate-400' : 'text-indigo-300'}`}>@{activeManager}</p>
-            </div>
-            <svg className="w-3 h-3 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
-        </div>
       </div>
 
       {/* ═══════════════════════════════════════
