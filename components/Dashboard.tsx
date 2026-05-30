@@ -11,6 +11,7 @@ interface DashboardProps {
   onDeleteReceipt: (id: string) => void;
   setActiveTab: (tab: string) => void;
   onSetUserFilter?: (filter: 'all' | 'current_month') => void;
+  onSetExpiredFilter?: () => void;
   pendingRemindersCount?: number;
   onLogout: () => void;
   isAdmin?: boolean;
@@ -18,7 +19,7 @@ interface DashboardProps {
 
 type ModalType = 'REVENUE' | 'BALANCE' | null;
 
-const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, pendingRemindersCount = 0, onLogout, isAdmin = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false }) => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
@@ -93,13 +94,18 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   // Total users — sabhi users jo kabhi bhi add kiye
   const totalUsersCount = (users || []).length;
 
-  // Active users — sirf current month mein naye add kiye gaye users
-  // New This Month = users who are in current month's activatedMonths folder
-  // This is the SAME filter UserManagement uses — consistent with monthly folders
-  const currentMonthActiveUsers = (users || []).filter(u => 
-    (u.activatedMonths || []).includes(currentMonthString)
-  );
+  // Active users — expiryDate future OR in current activatedMonths OR status=active
+  const currentMonthActiveUsers = (users || []).filter(u => {
+    const now = new Date(); now.setHours(0,0,0,0);
+    if (u.expiryDate) { const exp = new Date(u.expiryDate); exp.setHours(0,0,0,0); if (exp >= now) return true; }
+    if ((u.activatedMonths || []).includes(currentMonthString)) return true;
+    if ((u.status || '').toLowerCase() === 'active') return true;
+    return false;
+  });
   const activeUsersCount = currentMonthActiveUsers.length;
+
+  // Expired users — not active
+  const expiredUsersCount = (users || []).length - activeUsersCount;
 
   const priorityReminders = (users || []).filter(u => getDaysUntilExpiry(u.expiryDate) === 3);
 
@@ -148,7 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       isMasked: false,
       onToggle: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
       onViewDetails: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
-      footerLabel: 'Current Month Active'
+      footerLabel: 'Active Subscribers'
     },
     { 
       id: 'ALERTS',
