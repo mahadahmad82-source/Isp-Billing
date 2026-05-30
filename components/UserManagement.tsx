@@ -54,21 +54,48 @@ const UserManagement: React.FC<UserManagementProps> = ({
   // ── Customer status filter from sidebar ──────────────────
   const statusFilteredUsers = React.useMemo(() => {
     if (!customerStatusFilter || customerStatusFilter === 'all') return users;
-    const currentPeriod = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(now);
+
+    const isUserActive = (u: UserRecord): boolean => {
+      // Primary: expiryDate in future or today
+      if (u.expiryDate) {
+        const exp = new Date(u.expiryDate);
+        exp.setHours(0, 0, 0, 0);
+        if (exp >= now) return true;
+      }
+      // Secondary: in current month activatedMonths
+      if ((u.activatedMonths || []).includes(currentPeriod)) return true;
+      // Tertiary: status field explicitly active
+      if ((u.status || '').toLowerCase() === 'active') return true;
+      return false;
+    };
+
     if (customerStatusFilter === 'active') {
-      return users.filter(u =>
-        (u.activatedMonths || []).includes(currentPeriod) ||
-        (u.status || '').toLowerCase() === 'active'
-      );
+      return users.filter(u => isUserActive(u));
     }
     if (customerStatusFilter === 'expired') {
-      return users.filter(u =>
-        !(u.activatedMonths || []).includes(currentPeriod) &&
-        (u.status || '').toLowerCase() !== 'active'
-      );
+      return users.filter(u => !isUserActive(u));
     }
     return users;
   }, [users, customerStatusFilter]);
+
+  // Sync view mode when sidebar filter changes
+  React.useEffect(() => {
+    if (customerStatusFilter === 'all') {
+      setShowAllUsers(true);
+      setShowMonthlyFolders(false);
+    } else if (customerStatusFilter === 'active') {
+      setShowAllUsers(true);   // show all (filtered) without folder constraint
+      setShowMonthlyFolders(false);
+    } else if (customerStatusFilter === 'expired') {
+      setShowAllUsers(true);
+      setShowMonthlyFolders(false);
+    }
+  }, [customerStatusFilter]);
+
   const [showForm, setShowForm] = useState(false);
   const [showImportHistory, setShowImportHistory] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -460,7 +487,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     // If showAllUsers: show all users (for Total Users card)
     // Otherwise: filter by selected month (activatedMonths)
     const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
-    let result = showAllUsers
+    // When sidebar filter is active → bypass monthly folder, show all matching users directly
+    let result = (customerStatusFilter !== 'all' || showAllUsers)
       ? [...baseUsers]
       : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
 
@@ -489,7 +517,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     else if (sortKey === 'pending_first') result.sort((a,b) => (hasPaid(a)?1:0) - (hasPaid(b)?1:0));
     
     return result;
-  }, [users, searchTerm, sortKey, selectedMonth, showAllUsers]);
+  }, [users, searchTerm, sortKey, selectedMonth, showAllUsers, customerStatusFilter, statusFilteredUsers]);
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-8rem)] bg-[#f8fafc] dark:bg-[#030712] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5">
@@ -556,10 +584,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="space-y-1 flex justify-between items-start">
             <div>
               <h3 className="text-3xl font-black text-black dark:text-white uppercase leading-none">
-                {showAllUsers ? 'Master Directory' : selectedMonth === currentMonth ? 'Active Customers' : `Archive: ${selectedMonth}`}
+                {customerStatusFilter === 'active' ? 'Active Customers' : customerStatusFilter === 'expired' ? 'Expired Customers' : showAllUsers ? 'Master Directory' : selectedMonth === currentMonth ? 'Active Customers' : `Archive: ${selectedMonth}`}
               </h3>
               <p className="text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-[0.2em]">
-                {showAllUsers ? `${users.length} Total Registered Users — Profiles Only` : selectedMonth === currentMonth ? 'Current Month Active Subscribers' : 'Read-Only Historical Data'}
+                {customerStatusFilter === 'active' ? `${statusFilteredUsers.length} Active Subscribers` : customerStatusFilter === 'expired' ? `${statusFilteredUsers.length} Expired / Inactive Users` : showAllUsers ? `${users.length} Total Registered Users — Profiles Only` : selectedMonth === currentMonth ? 'Current Month Active Subscribers' : 'Read-Only Historical Data'}
               </p>
             </div>
 
