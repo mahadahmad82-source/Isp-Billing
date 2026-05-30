@@ -53,36 +53,56 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return months;
   }, [receipts, expenses]);
 
-  // ── Plan distribution ──────────────────────────────────────
+  // ── Plan distribution — current month active/expired ──────
+  const currentPeriodStr = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); // "May 2026"
   const planStats = useMemo(() => {
-    const map: Record<string, { count: number; revenue: number; discounted: number }> = {};
+    const map: Record<string, {
+      activeCount: number; expiredCount: number;
+      revenue: number; discounted: number; expectedFull: number;
+    }> = {};
     users.forEach(u => {
-      if (!map[u.plan]) map[u.plan] = { count: 0, revenue: 0, discounted: 0 };
-      map[u.plan].count++;
-      const standard = settings.planPrices?.[u.plan] || u.monthlyFee || 0;
-      const actual = u.monthlyFee || 0;
-      map[u.plan].revenue += (Number(actual) || 0);
-      if (actual < standard) map[u.plan].discounted++;
+      if (!map[u.plan]) map[u.plan] = { activeCount: 0, expiredCount: 0, revenue: 0, discounted: 0, expectedFull: 0 };
+      // Active this month = activatedMonths includes current period OR status=active
+      const activatedThisMonth = (u.activatedMonths || []).includes(currentPeriodStr);
+      const isActive = activatedThisMonth || (u.status || '').toLowerCase() === 'active';
+      if (isActive) {
+        map[u.plan].activeCount++;
+        const actual = Number(u.monthlyFee) || 0;
+        const samePlanUsers = users.filter(x => x.plan === u.plan);
+        const maxFee = Math.max(...samePlanUsers.map(x => Number(x.monthlyFee) || 0), 0);
+        const standard = Number(settings?.planPrices?.[u.plan]) || maxFee;
+        map[u.plan].revenue += actual;
+        map[u.plan].expectedFull += standard;
+        if (actual < standard && standard > 0) map[u.plan].discounted++;
+      } else {
+        map[u.plan].expiredCount++;
+      }
     });
-    return Object.entries(map).map(([plan, d]) => ({
-      plan,
-      Users: d.count,
-      'Monthly Revenue': d.revenue,
-      Discounted: d.discounted,
-    }));
-  }, [users, settings]);
+    return Object.entries(map)
+      .filter(([, d]) => d.activeCount + d.expiredCount > 0)
+      .sort((a, b) => b[1].activeCount - a[1].activeCount)
+      .map(([plan, d]) => ({
+        plan,
+        'Active': d.activeCount,
+        'Expired': d.expiredCount,
+        'Monthly Revenue': d.revenue,
+        'Expected Full': d.expectedFull,
+        Discounted: d.discounted,
+      }));
+  }, [users, settings, currentPeriodStr]);
 
-  // ── Pie: active vs expired ─────────────────────────────────
+  // ── Pie: active vs expired — based on current month activation ──
   const statusPie = useMemo(() => {
-    const active = users.filter(u => (u.status || '').toLowerCase() === 'active').length;
-    const expired = users.filter(u => (u.status || '').toLowerCase() === 'expired').length;
-    const other = users.length - active - expired;
+    const active = users.filter(u =>
+      (u.activatedMonths || []).includes(currentPeriodStr) ||
+      (u.status || '').toLowerCase() === 'active'
+    ).length;
+    const expired = users.length - active;
     return [
       { name: 'Active', value: active },
-      { name: 'Expired', value: expired },
-      ...(other > 0 ? [{ name: 'Other', value: other }] : []),
+      ...(expired > 0 ? [{ name: 'Expired', value: expired }] : []),
     ];
-  }, [users]);
+  }, [users, currentPeriodStr]);
 
   // ── Discount analysis — based on active users vs standard plan price ──
   const discountStats = useMemo(() => {
@@ -226,14 +246,16 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {activeSection === 'plans' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Revenue by Plan</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Users Per Plan — Current Month</p>
+            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-6">{currentPeriodStr}</p>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={planStats} barCategoryGap="30%">
-                <XAxis dataKey="plan" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                <XAxis dataKey="plan" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
-                <Bar dataKey="Users" radius={[6,6,0,0]} fill="#6366f1" />
+                <Bar dataKey="Active" radius={[6,6,0,0]} fill="#6366f1" />
+                <Bar dataKey="Expired" radius={[6,6,0,0]} fill="#ef4444" />
                 <Bar dataKey="Discounted" radius={[6,6,0,0]} fill="#f59e0b" />
               </BarChart>
             </ResponsiveContainer>
@@ -241,39 +263,49 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
           {/* Plan detail table */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Plan-wise Breakdown</p>
+              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{currentPeriodStr}</span>
             </div>
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-white/[0.02] text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5">
+              <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5">
                 <tr>
-                  <th className="px-6 py-4 text-left">Plan</th>
-                  <th className="px-6 py-4 text-right">Users</th>
-                  <th className="px-6 py-4 text-right">Standard Price</th>
-                  <th className="px-6 py-4 text-right">Monthly Revenue</th>
-                  <th className="px-6 py-4 text-right">On Discount</th>
+                  <th className="px-4 py-4 text-left">Plan</th>
+                  <th className="px-3 py-4 text-right text-indigo-400">Active</th>
+                  <th className="px-3 py-4 text-right text-rose-400">Expired</th>
+                  <th className="px-3 py-4 text-right text-amber-400">Disc.</th>
+                  <th className="px-3 py-4 text-right text-emerald-400">Revenue</th>
+                  <th className="px-3 py-4 text-right text-slate-400">Expected</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.03]">
-                {planStats.map(row => {
-                  const standardPrice = settings.planPrices?.[row.plan] || 0;
-                  return (
-                    <tr key={row.plan} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold uppercase">{row.plan}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{row.Users}</td>
-                      <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(Number(standardPrice) || 0).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right font-bold text-emerald-500">Rs. {(Number(row['Monthly Revenue']) || 0).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">
-                        {row.Discounted > 0 ? (
-                          <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs font-bold">{row.Discounted} users</span>
-                        ) : <span className="text-slate-400 text-xs">—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {planStats.map(row => (
+                  <tr key={row.plan} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
+                    <td className="px-4 py-4">
+                      <span className="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[10px] font-bold uppercase">{row.plan}</span>
+                    </td>
+                    <td className="px-3 py-4 text-right font-black text-indigo-400">{row['Active']}</td>
+                    <td className="px-3 py-4 text-right font-bold text-rose-400">{row['Expired']}</td>
+                    <td className="px-3 py-4 text-right">
+                      {row.Discounted > 0
+                        ? <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-[10px] font-bold">{row.Discounted}</span>
+                        : <span className="text-slate-400 text-xs">—</span>}
+                    </td>
+                    <td className="px-3 py-4 text-right font-bold text-emerald-500 text-xs">Rs. {(Number(row['Monthly Revenue'])||0).toLocaleString()}</td>
+                    <td className="px-3 py-4 text-right text-slate-400 text-xs">Rs. {(Number(row['Expected Full'])||0).toLocaleString()}</td>
+                  </tr>
+                ))}
               </tbody>
+              <tfoot className="bg-slate-50 dark:bg-white/[0.02] border-t-2 border-indigo-500/20">
+                <tr>
+                  <td className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase">Total</td>
+                  <td className="px-3 py-4 text-right font-black text-indigo-400">{planStats.reduce((s,r) => s + r['Active'], 0)}</td>
+                  <td className="px-3 py-4 text-right font-black text-rose-400">{planStats.reduce((s,r) => s + r['Expired'], 0)}</td>
+                  <td className="px-3 py-4 text-right font-black text-amber-400">{planStats.reduce((s,r) => s + r.Discounted, 0)}</td>
+                  <td className="px-3 py-4 text-right font-black text-emerald-500 text-xs">Rs. {planStats.reduce((s,r) => s + r['Monthly Revenue'], 0).toLocaleString()}</td>
+                  <td className="px-3 py-4 text-right font-black text-slate-400 text-xs">Rs. {planStats.reduce((s,r) => s + r['Expected Full'], 0).toLocaleString()}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
