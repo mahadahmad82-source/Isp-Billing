@@ -144,15 +144,15 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 p-6 rounded-3xl shadow-sm">
+      <div className="flex flex-col gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 p-4 rounded-3xl shadow-sm overflow-hidden">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Business Analytics</h2>
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Revenue · Plans · Profit · Discounts</p>
         </div>
-        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
+        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5 overflow-x-auto flex-shrink-0 max-w-full">
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setActiveSection(s.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${activeSection === s.id ? 'bg-white dark:bg-indigo-600 dark:text-white shadow text-slate-900' : 'text-slate-500'}`}
+              className={`px-3 py-2 rounded-xl text-[10px] font-bold transition-all whitespace-nowrap flex-shrink-0 ${activeSection === s.id ? 'bg-white dark:bg-indigo-600 dark:text-white shadow text-slate-900' : 'text-slate-500'}`}
             >
               {s.label}
             </button>
@@ -164,16 +164,16 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {activeSection === 'overview' && (
         <div className="space-y-6">
           {/* KPI row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'This Month Revenue', value: `Rs. ${(Number(currentRevenue)||0).toLocaleString()}`, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 border-indigo-500/10' },
-              { label: 'This Month Expenses', value: `Rs. ${(Number(currentExpenses)||0).toLocaleString()}`, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/10' },
-              { label: 'Gross Profit', value: `Rs. ${(currentRevenue -(Number(currentExpenses))||0).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: (currentRevenue - currentExpenses) >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10' },
-              { label: 'Total Customers', value: users.length, color: 'text-amber-500', bg: 'bg-amber-500/5 border-amber-500/10' },
+              { label: 'Revenue', value: `Rs.${(Number(currentRevenue)||0).toLocaleString()}`, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 border-indigo-500/10' },
+              { label: 'Expenses', value: `Rs.${(Number(currentExpenses)||0).toLocaleString()}`, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/10' },
+              { label: 'Gross Profit', value: `Rs.${((currentRevenue-(Number(currentExpenses)))||0).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: (currentRevenue - currentExpenses) >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10' },
+              { label: 'Total Users', value: users.length, color: 'text-amber-500', bg: 'bg-amber-500/5 border-amber-500/10' },
             ].map(k => (
-              <div key={k.label} className={`${k.bg} border rounded-[1.5rem] p-5`}>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{k.label}</p>
-                <p className={`text-xl font-black ${k.color}`}>{k.value}</p>
+              <div key={k.label} className={`${k.bg} border rounded-2xl p-3 overflow-hidden`}>
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{k.label}</p>
+                <p className={`text-base font-black ${k.color} truncate`}>{k.value}</p>
               </div>
             ))}
           </div>
