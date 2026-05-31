@@ -57,10 +57,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
     const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
 
-    // Active = current month me activatedMonths me hai, ya status explicitly 'active'
+    // Active = sirf current month ke activatedMonths me hai (Recoveries se match)
     const isActive = (u: UserRecord) =>
-      (u.activatedMonths || []).includes(currentPeriod) ||
-      (u.status || '').toLowerCase() === 'active';
+      (u.activatedMonths || []).includes(currentPeriod);
 
     if (customerStatusFilter === 'active')  return users.filter(u =>  isActive(u));
     if (customerStatusFilter === 'expired') return users.filter(u => !isActive(u));
@@ -700,7 +699,19 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 mt-4">
             {/* Column Toggle Button */}
             <div className="flex justify-end px-6 pt-4 pb-2">
-              <div className="relative" ref={columnToggleRef}>
+              <div className="flex items-center gap-3">
+                {/* Total count badge */}
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-500/20">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${customerStatusFilter === 'active' ? 'bg-emerald-400' : customerStatusFilter === 'expired' ? 'bg-rose-400' : 'bg-indigo-400'}`}/>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+                    {filteredUsers.length}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                    {customerStatusFilter === 'active' ? 'Active' : customerStatusFilter === 'expired' ? 'Expired' : showAllUsers ? 'Total' : 'Users'}
+                  </span>
+                </div>
+
+                <div className="relative" ref={columnToggleRef}>
                 <button
                   onClick={() => setShowColumnToggle(prev => !prev)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all"
@@ -744,6 +755,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             </div>
             <div className="overflow-x-auto">
