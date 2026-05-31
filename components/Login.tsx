@@ -4,6 +4,7 @@ import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
+import ThreeBackground from './landing/ThreeBackground';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -360,19 +361,30 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     </svg>
   );
 
-  const inputCls = `w-full px-6 py-5 rounded-2xl border-2 font-bold outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`;
-  const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
+  const inputCls = `w-full px-6 py-5 rounded-2xl border font-bold outline-none transition-all duration-300 bg-white/10 dark:bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-indigo-400/60 focus:bg-white/15 backdrop-blur-sm`;
+  const labelCls = "text-[10px] font-bold text-white/60 uppercase tracking-widest ml-1";
 
   return (
-    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
+    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-indigo-950'}`}>
 
-      {/* Background Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 dark:bg-indigo-500/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 dark:bg-violet-500/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
+      {/* Three.js Background */}
+      <div className="absolute inset-0 z-0">
+        <ThreeBackground isDark={true} />
+      </div>
+
+      {/* Gradient overlay — softer on light mode */}
+      <div className={`absolute inset-0 z-[1] ${theme === 'dark'
+        ? 'bg-gradient-to-br from-slate-950/60 via-indigo-950/40 to-slate-950/60'
+        : 'bg-gradient-to-br from-indigo-950/70 via-violet-900/50 to-indigo-950/70'}`}
+      />
+
+      {/* Accent glow blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 rounded-full blur-[140px] animate-pulse pointer-events-none z-[1]"/>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-500/20 rounded-full blur-[140px] animate-pulse delay-700 pointer-events-none z-[1]"/>
 
       {/* Theme Toggle */}
       <div className="absolute top-6 right-6 z-50">
-        <button onClick={onToggleTheme} className={`p-3 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-yellow-500 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`} title="Toggle Theme">
+        <button onClick={onToggleTheme} className="p-3 rounded-xl border border-white/10 bg-white/10 backdrop-blur-md text-white/80 hover:bg-white/20 transition-all shadow-sm flex items-center justify-center w-10 h-10" title="Toggle Theme">
           {theme === 'dark' ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
           ) : (
@@ -394,14 +406,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />}
           </div>
           <div className="space-y-1">
-            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] mt-2 text-center">
+            <p className="text-[10px] text-white/60 font-bold uppercase tracking-[0.4em] mt-2 text-center">
               {view === 'signup' ? 'Local Node Registration' : view === 'recent' ? 'Recent Profiles' : view === 'otp' ? 'Verify Your Account' : view === 'forgot' ? 'Password Recovery' : view === 'forgot-otp' ? 'Enter OTP' : view === 'forgot-newpass' ? 'Set New Password' : 'Secure Manager Access'}
             </p>
           </div>
         </div>
 
-        {/* Main Card */}
-        <div className={`relative rounded-[3rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-bottom-8 duration-1000 ${theme === 'dark' ? 'bg-slate-900/80 border-white/5' : 'bg-white/90 border-slate-100'}`}>
+        {/* Main Card — Glassmorphism */}
+        <div className="relative rounded-[2.5rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000
+          shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]
+          backdrop-blur-[20px]
+          border border-white/10
+          bg-white/10
+          dark:bg-white/5
+        " style={{
+          background: theme === 'dark'
+            ? 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(99,102,241,0.08) 50%, rgba(255,255,255,0.04) 100%)'
+            : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(99,102,241,0.12) 50%, rgba(255,255,255,0.08) 100%)',
+          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37), inset 0 1px 0 rgba(255,255,255,0.15)',
+        }}>
 
           {isLoading && (
             <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-indigo-500/10">
@@ -423,16 +446,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
               <div className="flex justify-between items-center px-1">
                 <div className="flex flex-col">
                   <h4 className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
-                  <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
+                  <span className="text-[9px] font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
                 </div>
-                <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-widest bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 transition-all hover:bg-rose-500/10">Clear All</button>
+                <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-400 hover:text-rose-300 uppercase tracking-widest bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20 transition-all hover:bg-rose-500/20">Clear All</button>
               </div>
               <div className="grid grid-cols-1 gap-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-2">
                 {accounts.map((acc, idx) => (
                   <div key={acc.username} className="relative group/wrapper">
-                    <button onClick={() => handleSelectAccount(acc)} className={`w-full flex items-center gap-5 p-5 rounded-3xl border transition-all text-left group animate-in slide-in-from-bottom-4 duration-500 pr-12 relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900/40 border-white/5 hover:border-indigo-500/30' : 'bg-slate-50/50 border-slate-100 hover:border-indigo-200 hover:bg-white'}`} style={{ animationDelay: `${idx * 100}ms` }}>
+                    <button onClick={() => handleSelectAccount(acc)} className={`w-full flex items-center gap-5 p-5 rounded-3xl border transition-all text-left group animate-in slide-in-from-bottom-4 duration-500 pr-12 relative overflow-hidden ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-indigo-500/40 hover:bg-white/10' : 'bg-white/5 border-white/10 hover:border-indigo-500/40 hover:bg-white/10'}`} style={{ animationDelay: `${idx * 100}ms` }}>
                       <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                      <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform relative z-10 ${theme === 'dark' ? 'bg-slate-950 text-indigo-400' : 'bg-white text-indigo-600 border border-slate-100'}`}>
+                      <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform relative z-10 ${theme === 'dark' ? 'bg-white/10 text-indigo-300' : 'bg-white/10 text-indigo-300'}`}>
                         {acc.businessName ? acc.businessName.charAt(0).toUpperCase() : acc.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0 relative z-10">
@@ -490,7 +513,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                 </button>
                 <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 2 of 3</span>
               </div>
-              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'}`}>
                 OTP has been sent to: <strong>{forgotIdentifier}</strong>
               </div>
               <div className="space-y-2">
