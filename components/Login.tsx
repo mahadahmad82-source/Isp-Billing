@@ -408,7 +408,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />}
           </div>
           <div className="space-y-1">
-            <p className=theme === 'dark' ? "text-[10px] text-indigo-300/70 font-bold uppercase tracking-[0.4em] mt-2 text-center" : "text-[10px] text-indigo-600/80 font-bold uppercase tracking-[0.4em] mt-2 text-center">
+            <p className={theme === 'dark' ? "text-[10px] text-indigo-300/70 font-bold uppercase tracking-[0.4em] mt-2 text-center" : "text-[10px] text-indigo-600/80 font-bold uppercase tracking-[0.4em] mt-2 text-center"}>
               {view === 'signup' ? 'Local Node Registration' : view === 'recent' ? 'Recent Profiles' : view === 'otp' ? 'Verify Your Account' : view === 'forgot' ? 'Password Recovery' : view === 'forgot-otp' ? 'Enter OTP' : view === 'forgot-newpass' ? 'Set New Password' : 'Secure Manager Access'}
             </p>
           </div>
@@ -448,7 +448,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             <div className="p-10 space-y-6">
               <div className="flex justify-between items-center px-1">
                 <div className="flex flex-col">
-                  <h4 className=theme === 'dark' ? "text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200" : "text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-700">Stored Profiles</h4>
+                  <h4 className={theme === 'dark' ? "text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200" : "text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-700"}>Stored Profiles</h4>
                   <span className="text-[9px] font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
                 </div>
                 <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-400 hover:text-rose-300 uppercase tracking-widest bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20 transition-all hover:bg-rose-500/20">Clear All</button>
