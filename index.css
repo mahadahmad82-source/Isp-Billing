@@ -119,7 +119,7 @@ html, body {
   overflow-x: hidden;
   position: relative;
   -webkit-tap-highlight-color: transparent;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 @media print {
