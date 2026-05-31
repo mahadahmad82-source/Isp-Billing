@@ -26,6 +26,7 @@ import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
+import GracePeriodAlert from './components/GracePeriodAlert';
 
 interface ConfirmationConfig {
   title: string;
@@ -1092,6 +1093,17 @@ const App: React.FC = () => {
           currentAddress={currentSettings.businessAddress}
           currentEmail={currentSettings.businessEmail || ""}
         >
+          {!isAdmin && (
+            <GracePeriodAlert
+              users={filteredUsers}
+              receipts={filteredReceipts}
+              companyId={state.activeCompanyId || ''}
+              onActivateUser={(userId, month) => {
+                setPreSelectReceiptUser({ userId, month });
+                setActiveTab('receipts');
+              }}
+            />
+          )}
           {activeTab === 'dashboard' && (
             <Dashboard 
               users={filteredUsers} 
