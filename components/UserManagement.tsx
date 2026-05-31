@@ -55,30 +55,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const statusFilteredUsers = React.useMemo(() => {
     if (!customerStatusFilter || customerStatusFilter === 'all') return users;
 
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(now);
+    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
 
-    const isUserActive = (u: UserRecord): boolean => {
-      // Primary: expiryDate in future or today
-      if (u.expiryDate) {
-        const exp = new Date(u.expiryDate);
-        exp.setHours(0, 0, 0, 0);
-        if (exp >= now) return true;
-      }
-      // Secondary: in current month activatedMonths
-      if ((u.activatedMonths || []).includes(currentPeriod)) return true;
-      // Tertiary: status field explicitly active
-      if ((u.status || '').toLowerCase() === 'active') return true;
-      return false;
-    };
+    // Active = current month me activatedMonths me hai, ya status explicitly 'active'
+    const isActive = (u: UserRecord) =>
+      (u.activatedMonths || []).includes(currentPeriod) ||
+      (u.status || '').toLowerCase() === 'active';
 
-    if (customerStatusFilter === 'active') {
-      return users.filter(u => isUserActive(u));
-    }
-    if (customerStatusFilter === 'expired') {
-      return users.filter(u => !isUserActive(u));
-    }
+    if (customerStatusFilter === 'active')  return users.filter(u =>  isActive(u));
+    if (customerStatusFilter === 'expired') return users.filter(u => !isActive(u));
     return users;
   }, [users, customerStatusFilter]);
 
