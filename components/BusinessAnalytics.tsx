@@ -265,46 +265,48 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Plan-wise Breakdown</p>
               <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{currentPeriodStr}</span>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
               <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5">
                 <tr>
-                  <th className="px-4 py-4 text-left">Plan</th>
-                  <th className="px-3 py-4 text-right text-indigo-400">Active</th>
-                  <th className="px-3 py-4 text-right text-rose-400">Expired</th>
-                  <th className="px-3 py-4 text-right text-amber-400">Disc.</th>
-                  <th className="px-3 py-4 text-right text-emerald-400">Revenue</th>
-                  <th className="px-3 py-4 text-right text-slate-400">Expected</th>
+                  <th className="px-3 py-3 text-left">Plan</th>
+                  <th className="px-2 py-3 text-right text-indigo-400">Active</th>
+                  <th className="px-2 py-3 text-right text-rose-400">Expired</th>
+                  <th className="px-2 py-3 text-right text-amber-400">Disc.</th>
+                  <th className="px-2 py-3 text-right text-emerald-400">Revenue</th>
+                  <th className="px-2 py-3 text-right text-slate-400">Expected</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.03]">
                 {planStats.map(row => (
                   <tr key={row.plan} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
-                    <td className="px-4 py-4">
-                      <span className="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[10px] font-bold uppercase">{row.plan}</span>
+                    <td className="px-3 py-3">
+                      <span className="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">{row.plan}</span>
                     </td>
-                    <td className="px-3 py-4 text-right font-black text-indigo-400">{row['Active']}</td>
-                    <td className="px-3 py-4 text-right font-bold text-rose-400">{row['Expired']}</td>
-                    <td className="px-3 py-4 text-right">
+                    <td className="px-2 py-3 text-right font-black text-indigo-400">{row['Active']}</td>
+                    <td className="px-2 py-3 text-right font-bold text-rose-400">{row['Expired']}</td>
+                    <td className="px-2 py-3 text-right">
                       {row.Discounted > 0
                         ? <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-[10px] font-bold">{row.Discounted}</span>
                         : <span className="text-slate-400 text-xs">—</span>}
                     </td>
-                    <td className="px-3 py-4 text-right font-bold text-emerald-500 text-xs">Rs. {(Number(row['Monthly Revenue'])||0).toLocaleString()}</td>
-                    <td className="px-3 py-4 text-right text-slate-400 text-xs">Rs. {(Number(row['Expected Full'])||0).toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-bold text-emerald-500 text-xs whitespace-nowrap">Rs. {(Number(row['Monthly Revenue'])||0).toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right text-slate-400 text-xs whitespace-nowrap">Rs. {(Number(row['Expected Full'])||0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-slate-50 dark:bg-white/[0.02] border-t-2 border-indigo-500/20">
                 <tr>
-                  <td className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase">Total</td>
-                  <td className="px-3 py-4 text-right font-black text-indigo-400">{planStats.reduce((s,r) => s + r['Active'], 0)}</td>
-                  <td className="px-3 py-4 text-right font-black text-rose-400">{planStats.reduce((s,r) => s + r['Expired'], 0)}</td>
-                  <td className="px-3 py-4 text-right font-black text-amber-400">{planStats.reduce((s,r) => s + r.Discounted, 0)}</td>
-                  <td className="px-3 py-4 text-right font-black text-emerald-500 text-xs">Rs. {planStats.reduce((s,r) => s + r['Monthly Revenue'], 0).toLocaleString()}</td>
-                  <td className="px-3 py-4 text-right font-black text-slate-400 text-xs">Rs. {planStats.reduce((s,r) => s + r['Expected Full'], 0).toLocaleString()}</td>
+                  <td className="px-3 py-3 text-[10px] font-black text-slate-500 uppercase">Total</td>
+                  <td className="px-2 py-3 text-right font-black text-indigo-400">{planStats.reduce((s,r) => s + r['Active'], 0)}</td>
+                  <td className="px-2 py-3 text-right font-black text-rose-400">{planStats.reduce((s,r) => s + r['Expired'], 0)}</td>
+                  <td className="px-2 py-3 text-right font-black text-amber-400">{planStats.reduce((s,r) => s + r.Discounted, 0)}</td>
+                  <td className="px-2 py-3 text-right font-black text-emerald-500 text-xs whitespace-nowrap">Rs. {planStats.reduce((s,r) => s + r['Monthly Revenue'], 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right font-black text-slate-400 text-xs whitespace-nowrap">Rs. {planStats.reduce((s,r) => s + r['Expected Full'], 0).toLocaleString()}</td>
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -312,22 +314,22 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {/* ── DISCOUNT ANALYSIS ── */}
       {activeSection === 'deductions' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-[2rem] p-6 text-center">
-              <p className="text-3xl font-black text-emerald-500">{discountStats.fullPrice}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Full Price</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-emerald-500">{discountStats.fullPrice}</p>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Full Price</p>
             </div>
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded-[2rem] p-6 text-center">
-              <p className="text-3xl font-black text-amber-500">{discountStats.discounted}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">On Discount</p>
+            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-amber-500">{discountStats.discounted}</p>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">On Discount</p>
             </div>
-            <div className="bg-rose-500/5 border border-rose-500/10 rounded-[2rem] p-6 text-center">
-              <p className="text-2xl font-black text-rose-500">Rs. {(Number(discountStats.totalLost)||0).toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Lost / Month</p>
+            <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-4 text-center">
+              <p className="text-lg font-black text-rose-500 leading-tight">Rs. {(Number(discountStats.totalLost)||0).toLocaleString()}</p>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Lost / Month</p>
             </div>
-            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-[2rem] p-6 text-center">
-              <p className="text-2xl font-black text-indigo-400">Rs. {(Number(discountStats.totalExpectedFull)||0).toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expected Full Price</p>
+            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 text-center">
+              <p className="text-lg font-black text-indigo-400 leading-tight">Rs. {(Number(discountStats.totalExpectedFull)||0).toLocaleString()}</p>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expected Full</p>
             </div>
           </div>
 
