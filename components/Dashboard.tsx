@@ -94,10 +94,9 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   // Total users — sabhi users jo kabhi bhi add kiye
   const totalUsersCount = (users || []).length;
 
-  // Active = current month activatedMonths me hai ya status = 'active'
+  // Active = sirf current month ke activatedMonths me hai (Recoveries se match)
   const currentMonthActiveUsers = (users || []).filter(u =>
-    (u.activatedMonths || []).includes(currentMonthString) ||
-    (u.status || '').toLowerCase() === 'active'
+    (u.activatedMonths || []).includes(currentMonthString)
   );
   const activeUsersCount = currentMonthActiveUsers.length;
   const expiredUsersCount = (users || []).length - activeUsersCount;
