@@ -62,9 +62,8 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     }> = {};
     users.forEach(u => {
       if (!map[u.plan]) map[u.plan] = { activeCount: 0, expiredCount: 0, revenue: 0, discounted: 0, expectedFull: 0 };
-      // Active this month = activatedMonths includes current period OR status=active
-      const activatedThisMonth = (u.activatedMonths || []).includes(currentPeriodStr);
-      const isActive = activatedThisMonth || (u.status || '').toLowerCase() === 'active';
+      // Active = sirf current month ke activatedMonths (Recoveries se match)
+      const isActive = (u.activatedMonths || []).includes(currentPeriodStr);
       if (isActive) {
         map[u.plan].activeCount++;
         const actual = Number(u.monthlyFee) || 0;
@@ -94,8 +93,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   // ── Pie: active vs expired — based on current month activation ──
   const statusPie = useMemo(() => {
     const active = users.filter(u =>
-      (u.activatedMonths || []).includes(currentPeriodStr) ||
-      (u.status || '').toLowerCase() === 'active'
+      (u.activatedMonths || []).includes(currentPeriodStr)
     ).length;
     const expired = users.length - active;
     return [
@@ -107,7 +105,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   // ── Discount analysis — based on active users vs standard plan price ──
   const discountStats = useMemo(() => {
     let fullPrice = 0, discounted = 0, totalLost = 0, totalExpectedFull = 0;
-    const activeUsers = users.filter(u => (u.status || '').toLowerCase() === 'active');
+    const activeUsers = users.filter(u => (u.activatedMonths || []).includes(currentPeriodStr));
     activeUsers.forEach(u => {
       const actual = Number(u.monthlyFee) || 0;
       // Standard price: from planPrices setting OR use highest fee seen for same plan
