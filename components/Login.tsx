@@ -4,7 +4,6 @@ import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
-import ThreeBackground from './landing/ThreeBackground';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -361,32 +360,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     </svg>
   );
 
-  const inputCls = theme === 'dark'
-    ? 'w-full px-6 py-5 rounded-2xl border font-bold outline-none transition-all duration-300 bg-indigo-950/40 border-indigo-500/20 text-white placeholder:text-indigo-300/30 focus:border-indigo-400/60 focus:bg-indigo-900/50 backdrop-blur-sm'
-    : 'w-full px-6 py-5 rounded-2xl border-2 font-bold outline-none transition-all duration-300 bg-white/70 border-indigo-200/60 text-indigo-900 placeholder:text-indigo-300 focus:border-indigo-400 focus:bg-white/90 backdrop-blur-sm';
-  const labelCls = theme === 'dark' ? 'text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest ml-1' : 'text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest ml-1';
+  const inputCls = `w-full px-6 py-5 rounded-2xl border-2 font-bold outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`;
+  const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
 
   return (
-    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-indigo-950'}`}>
+    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
 
-      {/* Three.js Background */}
-      <div className="absolute inset-0 z-0">
-        <ThreeBackground isDark={true} />
-      </div>
-
-      {/* Gradient overlay — softer on light mode */}
-      <div className={`absolute inset-0 z-[1] ${theme === 'dark'
-        ? 'bg-gradient-to-br from-slate-950/60 via-indigo-950/40 to-slate-950/60'
-        : 'bg-gradient-to-br from-indigo-950/70 via-violet-900/50 to-indigo-950/70'}`}
-      />
-
-      {/* Accent glow blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 rounded-full blur-[140px] animate-pulse pointer-events-none z-[1]"/>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-500/20 rounded-full blur-[140px] animate-pulse delay-700 pointer-events-none z-[1]"/>
+      {/* Background Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 dark:bg-indigo-500/20 rounded-full blur-[120px] animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 dark:bg-violet-500/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
 
       {/* Theme Toggle */}
       <div className="absolute top-6 right-6 z-50">
-        <button onClick={onToggleTheme} className="p-3 rounded-xl border border-white/10 bg-white/10 backdrop-blur-md text-white/80 hover:bg-white/20 transition-all shadow-sm flex items-center justify-center w-10 h-10" title="Toggle Theme">
+        <button onClick={onToggleTheme} className={`p-3 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-yellow-500 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`} title="Toggle Theme">
           {theme === 'dark' ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
           ) : (
@@ -408,26 +394,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />}
           </div>
           <div className="space-y-1">
-            <p className={theme === 'dark' ? "text-[10px] text-indigo-300/70 font-bold uppercase tracking-[0.4em] mt-2 text-center" : "text-[10px] text-indigo-600/80 font-bold uppercase tracking-[0.4em] mt-2 text-center"}>
+            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] mt-2 text-center">
               {view === 'signup' ? 'Local Node Registration' : view === 'recent' ? 'Recent Profiles' : view === 'otp' ? 'Verify Your Account' : view === 'forgot' ? 'Password Recovery' : view === 'forgot-otp' ? 'Enter OTP' : view === 'forgot-newpass' ? 'Set New Password' : 'Secure Manager Access'}
             </p>
           </div>
         </div>
 
-        {/* Main Card — Glassmorphism */}
-        <div className="relative rounded-[2.5rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000" style={{
-          background: theme === 'dark'
-            ? 'linear-gradient(145deg, rgba(49,46,129,0.55) 0%, rgba(30,27,75,0.65) 40%, rgba(67,56,202,0.35) 100%)'
-            : 'linear-gradient(145deg, rgba(238,242,255,0.85) 0%, rgba(224,231,255,0.80) 40%, rgba(199,210,254,0.70) 100%)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: theme === 'dark'
-            ? '1px solid rgba(129,140,248,0.25)'
-            : '1px solid rgba(99,102,241,0.20)',
-          boxShadow: theme === 'dark'
-            ? '0 25px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(165,180,252,0.15), 0 0 0 1px rgba(99,102,241,0.1)'
-            : '0 25px 50px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.8)',
-        }}>
+        {/* Main Card */}
+        <div className={`relative rounded-[3rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-bottom-8 duration-1000 ${theme === 'dark' ? 'bg-slate-900/80 border-white/5' : 'bg-white/90 border-slate-100'}`}>
 
           {isLoading && (
             <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-indigo-500/10">
@@ -448,7 +422,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
             <div className="p-10 space-y-6">
               <div className="flex justify-between items-center px-1">
                 <div className="flex flex-col">
-                  <h4 className={theme === 'dark' ? "text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200" : "text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-700"}>Stored Profiles</h4>
+                  <h4 className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
                   <span className="text-[9px] font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
                 </div>
                 <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-400 hover:text-rose-300 uppercase tracking-widest bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20 transition-all hover:bg-rose-500/20">Clear All</button>
