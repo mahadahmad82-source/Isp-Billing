@@ -73,8 +73,18 @@ const App: React.FC = () => {
 
     return initialState;
   });
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Read tab from URL hash on initial load — supports right-click → open in new tab
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics'];
+    return validTabs.includes(hash) ? hash : 'dashboard';
+  });
   const [showTour, setShowTour] = useState(false);
+
+  // Sync URL hash with activeTab — enables right-click "Open in new tab"
+  React.useEffect(() => {
+    window.location.hash = activeTab;
+  }, [activeTab]);
   const [tourMode, setTourMode] = useState<string>('welcome');
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
