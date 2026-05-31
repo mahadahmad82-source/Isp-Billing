@@ -4,6 +4,7 @@ import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
+import ThreeBackground from './landing/ThreeBackground';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -364,24 +365,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
 
   return (
-    <div className={`min-h-screen relative flex items-center justify-center p-6 overflow-hidden transition-colors duration-1000 ${theme === 'dark' ? 'bg-[#030712]' : 'bg-slate-50'}`}>
+    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-hidden bg-[#030712]">
 
-      {/* Background Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 dark:bg-indigo-500/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 dark:bg-violet-500/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
-
-      {/* Theme Toggle */}
-      <div className="absolute top-6 right-6 z-50">
-        <button onClick={onToggleTheme} className={`p-3 rounded-xl border transition-all shadow-sm flex items-center justify-center w-10 h-10 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-yellow-500 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`} title="Toggle Theme">
-          {theme === 'dark' ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-          )}
-        </button>
+      {/* Three.js Background — always dark */}
+      <div className="absolute inset-0 z-0">
+        <ThreeBackground isDark={true} />
       </div>
+      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-slate-950/40 via-indigo-950/20 to-slate-950/40 pointer-events-none" />
 
-      <div className="w-full max-w-md relative z-10 space-y-8">
+
+
+      <div className="w-full max-w-md relative z-[10] space-y-8">
 
         {/* Logo & Title */}
         <div className="text-center space-y-4 animate-in fade-in slide-in-from-top-8 duration-700 relative">
