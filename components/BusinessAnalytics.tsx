@@ -260,12 +260,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
           </div>
 
           {/* Plan detail table */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm" style={{overflow:'hidden'}}>
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Plan-wise Breakdown</p>
               <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{currentPeriodStr}</span>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" style={{WebkitOverflowScrolling:'touch'}}>
             <table className="w-full text-sm min-w-[480px]">
               <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5">
                 <tr>
@@ -314,22 +314,22 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {/* ── DISCOUNT ANALYSIS ── */}
       {activeSection === 'deductions' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 text-center">
-              <p className="text-2xl font-black text-emerald-500">{discountStats.fullPrice}</p>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Full Price</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-3 text-center overflow-hidden">
+              <p className="text-xl font-black text-emerald-500 truncate">{discountStats.fullPrice}</p>
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Full Price</p>
             </div>
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 text-center">
-              <p className="text-2xl font-black text-amber-500">{discountStats.discounted}</p>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">On Discount</p>
+            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-3 text-center overflow-hidden">
+              <p className="text-xl font-black text-amber-500 truncate">{discountStats.discounted}</p>
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">On Discount</p>
             </div>
-            <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-4 text-center">
-              <p className="text-lg font-black text-rose-500 leading-tight">Rs. {(Number(discountStats.totalLost)||0).toLocaleString()}</p>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Lost / Month</p>
+            <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-3 text-center overflow-hidden">
+              <p className="text-[11px] font-black text-rose-500 leading-tight truncate">Rs.{(Number(discountStats.totalLost)||0).toLocaleString()}</p>
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Lost/Month</p>
             </div>
-            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 text-center">
-              <p className="text-lg font-black text-indigo-400 leading-tight">Rs. {(Number(discountStats.totalExpectedFull)||0).toLocaleString()}</p>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expected Full</p>
+            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-3 text-center overflow-hidden">
+              <p className="text-[11px] font-black text-indigo-400 leading-tight truncate">Rs.{(Number(discountStats.totalExpectedFull)||0).toLocaleString()}</p>
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expected Full</p>
             </div>
           </div>
 
