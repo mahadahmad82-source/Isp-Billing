@@ -46,6 +46,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
 }) => {
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
+
+  // ── Grace Period: first 5 days of new month ──────────────
+  const { isGracePeriod, prevMonthLabel, gracePendingUsers } = React.useMemo(() => {
+    const today = new Date();
+    const day = today.getDate();
+    const isGrace = day >= 1 && day <= 5;
+    const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(prevDate);
+    return {
+      isGracePeriod: isGrace,
+      prevMonthLabel: label,
+      gracePendingUsers: [] as UserRecord[], // computed below after receipts available
+    };
+  }, []);
+  const [showGracePeriod, setShowGracePeriod] = useState(false);
   // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
   const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
   const [showQuickActivate, setShowQuickActivate] = useState(false);
@@ -151,6 +166,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   }, [users, currentMonth]);
 
   const isCurrentMonth = selectedMonth === currentMonth;
+  const isEditableMonth = isCurrentMonth || (isGracePeriod && showGracePeriod);
 
   const availablePlans = Object.keys(settings.planPrices || {});
   const firstAvailablePlan = availablePlans[0] || 'Standard';
@@ -196,7 +212,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const handleEditClick = (user: UserRecord) => {
-    if (!isCurrentMonth) return;
+    if (!isEditableMonth) return;
     setEditingUser(user);
     setFormData({
       ...user,
@@ -207,7 +223,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isCurrentMonth) return;
+    if (!isEditableMonth) return;
 
     const expiryObj = formData.expiryDate ? new Date(formData.expiryDate) : new Date();
     const finalExpiryDate = isNaN(expiryObj.getTime()) ? new Date().toISOString() : expiryObj.toISOString();
@@ -597,7 +613,49 @@ const UserManagement: React.FC<UserManagementProps> = ({
             />
           </div>
 
-          {!readOnly && isCurrentMonth && (
+
+          {isGracePeriod && !readOnly && (() => {
+            // Compute pending users for previous month
+            const pending = users.filter(u => {
+              if (u.status === 'deleted') return false;
+              return !receipts.some(r => r.userId === u.id && r.period === prevMonthLabel);
+            });
+            return pending.length > 0 ? (
+              <button
+                onClick={() => {
+                  setShowGracePeriod(prev => !prev);
+                  if (!showGracePeriod) {
+                    setSelectedMonth(prevMonthLabel);
+                    setShowAllUsers(false);
+                  } else {
+                    setSelectedMonth(currentMonth);
+                  }
+                }}
+                className={`w-full flex items-center justify-between px-5 py-4 rounded-3xl border-2 transition-all shadow-lg ${
+                  showGracePeriod
+                    ? 'bg-amber-900/40 border-amber-500 text-amber-200'
+                    : 'bg-amber-950/30 border-amber-700/60 hover:border-amber-500 text-amber-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-xl">
+                    📂
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-0.5">Grace Period Active — 5 din baqi</p>
+                    <p className="text-sm font-black">{prevMonthLabel} — {pending.length} customer{pending.length !== 1 ? 's' : ''} activate karna baqi</p>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black border ${
+                  showGracePeriod ? 'bg-amber-500 border-amber-400 text-slate-900' : 'bg-amber-900/40 border-amber-600 text-amber-400'
+                }`}>
+                  {showGracePeriod ? '✕' : '→'}
+                </div>
+              </button>
+            ) : null;
+          })()}
+
+          {!readOnly && isEditableMonth && (
             <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                 {/* New Customer */}
@@ -763,7 +821,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 dark:text-slate-400">
                   <tr>
                     <th className="px-6 py-6 w-16">
-                       {!readOnly && isCurrentMonth && (
+                       {!readOnly && isEditableMonth && (
                          <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0"
                           checked={selectedIds.length > 0 && selectedIds.length === filteredUsers.length}
                           onChange={() => setSelectedIds(selectedIds.length === filteredUsers.length ? [] : filteredUsers.map(u => u.id))}
@@ -825,13 +883,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           onContextMenu={(e) => { e.preventDefault(); setContextMenu({ user, x: e.clientX, y: e.clientY }); }}
                         >
                           <td className="px-6 py-6">
-                            {!readOnly && isCurrentMonth && <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" checked={selectedIds.includes(user.id)} onChange={() => setSelectedIds(prev => prev.includes(user.id) ? prev.filter(i => i !== user.id) : [...prev, user.id])} />}
+                            {!readOnly && isEditableMonth && <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" checked={selectedIds.includes(user.id)} onChange={() => setSelectedIds(prev => prev.includes(user.id) ? prev.filter(i => i !== user.id) : [...prev, user.id])} />}
                           </td>
                           {visibleColumns.account_id && (
                           <td className="px-6 py-6">
                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                               onClick={() => isCurrentMonth && !readOnly ? handleEditClick(user) : undefined}
-                               title={isCurrentMonth && !readOnly ? "Click to edit profile" : user.username}
+                               onClick={() => isEditableMonth && !readOnly ? handleEditClick(user) : undefined}
+                               title={isEditableMonth && !readOnly ? "Click to edit profile" : user.username}
                              >@{user.username}</span>
                           </td>)}
                           {visibleColumns.full_name && (
@@ -912,7 +970,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                                 </button>
 
-                                {isCurrentMonth && (
+                                {isEditableMonth && (
                                   <>
                                     {/* Edit */}
                                     <button onClick={() => handleEditClick(user)} title="Edit Profile" className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
