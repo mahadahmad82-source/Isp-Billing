@@ -30,9 +30,6 @@ interface LayoutProps {
   currentAddress?: string;
   currentEmail?: string;
   onNavigateCustomers?: (filter: 'all' | 'active' | 'expired') => void;
-  availableMonths?: string[];
-  onNavigateMonth?: (month: string) => void;
-  currentMonth?: string;
 }
 
 // ✅ Live DB Connection Status Indicator
@@ -143,9 +140,6 @@ const Layout: React.FC<LayoutProps> = ({
   currentAddress = '',
   currentEmail = '',
   onNavigateCustomers,
-  availableMonths = [],
-  onNavigateMonth,
-  currentMonth,
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
   const [expensesExpanded, setExpensesExpanded] = useState(false);
@@ -407,26 +401,6 @@ const Layout: React.FC<LayoutProps> = ({
                       <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0"/>
                       <span className="text-[11px] font-bold uppercase tracking-widest">Expired Customers</span>
                     </a>
-                    {/* Monthly Archive Folders */}
-                    {availableMonths.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-white/10">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 px-3 pb-1">📁 Archive Folders</p>
-                        {availableMonths.map(month => (
-                          <a key={month} href="#users"
-                            onClick={(e) => { e.preventDefault(); if (onNavigateMonth) onNavigateMonth(month); setActiveTab('users'); setDrawerOpen(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all cursor-pointer
-                              ${month === currentMonth
-                                ? 'text-white/40 cursor-default'
-                                : 'text-white/60 hover:text-white hover:bg-white/10'}`}>
-                            <svg className="w-3.5 h-3.5 shrink-0 text-amber-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-                            </svg>
-                            <span className="text-[10px] font-bold tracking-wide">{month}</span>
-                            {month === currentMonth && <span className="text-[8px] text-emerald-400 font-black ml-auto">CURRENT</span>}
-                          </a>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
 
