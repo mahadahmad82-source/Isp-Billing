@@ -150,9 +150,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     months.add(currentMonth);
+    // Include months from activatedMonths
     users.forEach(u => (u.activatedMonths || []).forEach(m => months.add(m)));
+    // Also include months from receipts (in case activatedMonths was not updated)
+    receipts.forEach(r => { if (r.period) months.add(r.period); });
     return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  }, [users, currentMonth]);
+  }, [users, receipts, currentMonth]);
 
   // When sidebar archive folder is clicked, switch to that month
   React.useEffect(() => {
@@ -486,9 +489,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
     // Otherwise: filter by selected month (activatedMonths)
     const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
     // When sidebar filter is active → bypass monthly folder, show all matching users directly
+    // For archive months: filter by receipts (not just activatedMonths)
+    // activatedMonths only gets set when receipt is created — so old paid users may be missing
+    const hasReceiptForMonth = (u: UserRecord) =>
+      receipts.some(r => r.userId === u.id && r.period === selectedMonth);
+    const hasActivatedMonth = (u: UserRecord) =>
+      (u.activatedMonths || []).includes(selectedMonth);
+
     let result = (customerStatusFilter !== 'all' || showAllUsers)
       ? [...baseUsers]
-      : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
+      : baseUsers.filter(u => hasReceiptForMonth(u) || hasActivatedMonth(u));
 
     // Then apply search
     result = result.filter(user => 
