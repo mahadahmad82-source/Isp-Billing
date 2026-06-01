@@ -48,19 +48,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
 
   // ── Grace Period: first 5 days of new month ──────────────
-  const { isGracePeriod, prevMonthLabel, gracePendingUsers } = React.useMemo(() => {
-    const today = new Date();
-    const day = today.getDate();
-    const isGrace = day >= 1 && day <= 5;
-    const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(prevDate);
-    return {
-      isGracePeriod: isGrace,
-      prevMonthLabel: label,
-      gracePendingUsers: [] as UserRecord[], // computed below after receipts available
-    };
-  }, []);
-  const [showGracePeriod, setShowGracePeriod] = useState(false);
+  const today = new Date();
+  const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(prevDate);
+  const isGracePeriod = today.getDate() >= 1 && today.getDate() <= 5;
   // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
   const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
   const [showQuickActivate, setShowQuickActivate] = useState(false);
@@ -166,7 +157,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   }, [users, currentMonth]);
 
   const isCurrentMonth = selectedMonth === currentMonth;
-  const isEditableMonth = isCurrentMonth || (isGracePeriod && showGracePeriod);
+  const isEditableMonth = isCurrentMonth || (isGracePeriod && selectedMonth === prevMonthLabel);
 
   const availablePlans = Object.keys(settings.planPrices || {});
   const firstAvailablePlan = availablePlans[0] || 'Standard';
@@ -613,47 +604,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
             />
           </div>
 
-
-          {isGracePeriod && !readOnly && (() => {
-            // Compute pending users for previous month
-            const pending = users.filter(u => {
-              if (u.status === 'deleted') return false;
-              return !receipts.some(r => r.userId === u.id && r.period === prevMonthLabel);
-            });
-            return pending.length > 0 ? (
-              <button
-                onClick={() => {
-                  setShowGracePeriod(prev => !prev);
-                  if (!showGracePeriod) {
-                    setSelectedMonth(prevMonthLabel);
-                    setShowAllUsers(false);
-                  } else {
-                    setSelectedMonth(currentMonth);
-                  }
-                }}
-                className={`w-full flex items-center justify-between px-5 py-4 rounded-3xl border-2 transition-all shadow-lg ${
-                  showGracePeriod
-                    ? 'bg-amber-900/40 border-amber-500 text-amber-200'
-                    : 'bg-amber-950/30 border-amber-700/60 hover:border-amber-500 text-amber-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-xl">
-                    📂
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-0.5">Grace Period Active — 5 din baqi</p>
-                    <p className="text-sm font-black">{prevMonthLabel} — {pending.length} customer{pending.length !== 1 ? 's' : ''} activate karna baqi</p>
-                  </div>
-                </div>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black border ${
-                  showGracePeriod ? 'bg-amber-500 border-amber-400 text-slate-900' : 'bg-amber-900/40 border-amber-600 text-amber-400'
-                }`}>
-                  {showGracePeriod ? '✕' : '→'}
-                </div>
-              </button>
-            ) : null;
-          })()}
 
           {!readOnly && isEditableMonth && (
             <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
