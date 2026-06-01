@@ -21,6 +21,8 @@ interface UserManagementProps {
   readOnly?: boolean;
   setLoadingMessage: (msg: string | null) => void;
   initialFilter?: 'all' | 'current_month';
+  preSelectedMonth?: string | null;
+  onMonthConsumed?: () => void;
   customerStatusFilter?: 'all' | 'active' | 'expired';
   onClearCustomerStatusFilter?: () => void;
 }
@@ -41,6 +43,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
   readOnly = false,
   setLoadingMessage,
   initialFilter = 'all',
+  preSelectedMonth = null,
+  onMonthConsumed,
   customerStatusFilter = 'all',
   onClearCustomerStatusFilter
 }) => {
@@ -149,6 +153,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
     users.forEach(u => (u.activatedMonths || []).forEach(m => months.add(m)));
     return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   }, [users, currentMonth]);
+
+  // When sidebar archive folder is clicked, switch to that month
+  React.useEffect(() => {
+    if (preSelectedMonth) {
+      setSelectedMonth(preSelectedMonth);
+      setShowAllUsers(false);
+      setShowMonthlyFolders(false);
+      if (onMonthConsumed) onMonthConsumed();
+    }
+  }, [preSelectedMonth]);
 
   const isCurrentMonth = selectedMonth === currentMonth;
 
