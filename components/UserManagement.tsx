@@ -151,11 +151,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
   }, [users, currentMonth]);
 
   const isCurrentMonth = selectedMonth === currentMonth;
-  // Grace period: days 1-5 of new month → prev month stays unlocked
-  const _gp = new Date();
-  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(_gp.getFullYear(), _gp.getMonth() - 1, 1));
-  const isGracePeriod = _gp.getDate() <= 5;
-  const isEditableMonth = isCurrentMonth || (isGracePeriod && selectedMonth === prevMonthLabel);
 
   const availablePlans = Object.keys(settings.planPrices || {});
   const firstAvailablePlan = availablePlans[0] || 'Standard';
@@ -477,9 +472,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     // Otherwise: filter by selected month (activatedMonths)
     const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
     // When sidebar filter is active → bypass monthly folder, show all matching users directly
-    // Grace period: May select karo to sab users dikhao (activate karne ke liye)
-    const showAllForGrace = isGracePeriod && selectedMonth === prevMonthLabel;
-    let result = (customerStatusFilter !== 'all' || showAllUsers || showAllForGrace)
+    let result = (customerStatusFilter !== 'all' || showAllUsers)
       ? [...baseUsers]
       : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
 
@@ -604,7 +597,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             />
           </div>
 
-          {!readOnly && isEditableMonth && (
+          {!readOnly && isCurrentMonth && (
             <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                 {/* New Customer */}
