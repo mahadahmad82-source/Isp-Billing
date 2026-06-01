@@ -46,13 +46,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
 }) => {
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
-  // Grace period: first 5 days of month, prev month stays unlocked
-  const _gpToday = new Date();
-  const _gpPrev = new Date(_gpToday.getFullYear(), _gpToday.getMonth() - 1, 1);
-  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(_gpPrev);
-  const isGracePeriod = _gpToday.getDate() <= 5;
-
-
   // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
   const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
   const [showQuickActivate, setShowQuickActivate] = useState(false);
@@ -158,6 +151,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
   }, [users, currentMonth]);
 
   const isCurrentMonth = selectedMonth === currentMonth;
+  // Grace period: days 1-5 of new month → prev month stays unlocked
+  const _gp = new Date();
+  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(_gp.getFullYear(), _gp.getMonth() - 1, 1));
+  const isGracePeriod = _gp.getDate() <= 5;
   const isEditableMonth = isCurrentMonth || (isGracePeriod && selectedMonth === prevMonthLabel);
 
   const availablePlans = Object.keys(settings.planPrices || {});
@@ -204,7 +201,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const handleEditClick = (user: UserRecord) => {
-    if (!isEditableMonth) return;
+    if (!isCurrentMonth) return;
     setEditingUser(user);
     setFormData({
       ...user,
@@ -215,7 +212,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEditableMonth) return;
+    if (!isCurrentMonth) return;
 
     const expiryObj = formData.expiryDate ? new Date(formData.expiryDate) : new Date();
     const finalExpiryDate = isNaN(expiryObj.getTime()) ? new Date().toISOString() : expiryObj.toISOString();
@@ -605,8 +602,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
             />
           </div>
 
-
-
           {!readOnly && isEditableMonth && (
             <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
@@ -773,7 +768,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 dark:text-slate-400">
                   <tr>
                     <th className="px-6 py-6 w-16">
-                       {!readOnly && isEditableMonth && (
+                       {!readOnly && isCurrentMonth && (
                          <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0"
                           checked={selectedIds.length > 0 && selectedIds.length === filteredUsers.length}
                           onChange={() => setSelectedIds(selectedIds.length === filteredUsers.length ? [] : filteredUsers.map(u => u.id))}
@@ -835,13 +830,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           onContextMenu={(e) => { e.preventDefault(); setContextMenu({ user, x: e.clientX, y: e.clientY }); }}
                         >
                           <td className="px-6 py-6">
-                            {!readOnly && isEditableMonth && <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" checked={selectedIds.includes(user.id)} onChange={() => setSelectedIds(prev => prev.includes(user.id) ? prev.filter(i => i !== user.id) : [...prev, user.id])} />}
+                            {!readOnly && isCurrentMonth && <input type="checkbox" className="w-5 h-5 rounded border-slate-300 dark:border-white/10 bg-transparent text-indigo-600 focus:ring-0" checked={selectedIds.includes(user.id)} onChange={() => setSelectedIds(prev => prev.includes(user.id) ? prev.filter(i => i !== user.id) : [...prev, user.id])} />}
                           </td>
                           {visibleColumns.account_id && (
                           <td className="px-6 py-6">
                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                               onClick={() => isEditableMonth && !readOnly ? handleEditClick(user) : undefined}
-                               title={isEditableMonth && !readOnly ? "Click to edit profile" : user.username}
+                               onClick={() => isCurrentMonth && !readOnly ? handleEditClick(user) : undefined}
+                               title={isCurrentMonth && !readOnly ? "Click to edit profile" : user.username}
                              >@{user.username}</span>
                           </td>)}
                           {visibleColumns.full_name && (
@@ -922,7 +917,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                                 </button>
 
-                                {isEditableMonth && (
+                                {isCurrentMonth && (
                                   <>
                                     {/* Edit */}
                                     <button onClick={() => handleEditClick(user)} title="Edit Profile" className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
