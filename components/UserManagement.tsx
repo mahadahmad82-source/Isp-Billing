@@ -474,7 +474,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
     // When sidebar filter is active → bypass monthly folder, show all matching users directly
     let result = (customerStatusFilter !== 'all' || showAllUsers)
       ? [...baseUsers]
-      : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
+      : baseUsers.filter(user => 
+          (user.activatedMonths || []).includes(selectedMonth) ||
+          receipts.some(r => r.userId === user.id && r.period === selectedMonth)
+        );
 
     // Then apply search
     result = result.filter(user => 
@@ -501,7 +504,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     else if (sortKey === 'pending_first') result.sort((a,b) => (hasPaid(a)?1:0) - (hasPaid(b)?1:0));
     
     return result;
-  }, [users, searchTerm, sortKey, selectedMonth, showAllUsers, customerStatusFilter, statusFilteredUsers]);
+  }, [users, receipts, searchTerm, sortKey, selectedMonth, showAllUsers, customerStatusFilter, statusFilteredUsers]);
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-8rem)] bg-[#f8fafc] dark:bg-[#030712] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5">
