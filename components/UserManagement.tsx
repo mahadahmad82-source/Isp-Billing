@@ -151,6 +151,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
   }, [users, currentMonth]);
 
   const isCurrentMonth = selectedMonth === currentMonth;
+  // Grace Period: day 1-5 of new month → prev month unlocked
+  const _gpDay = new Date().getDate();
+  const _gpPrev = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(_gpPrev);
+  const isGracePeriod = _gpDay >= 1 && _gpDay <= 5;
+  const isEditableMonth = isCurrentMonth || (isGracePeriod && selectedMonth === prevMonthLabel);
 
   const availablePlans = Object.keys(settings.planPrices || {});
   const firstAvailablePlan = availablePlans[0] || 'Standard';
@@ -472,7 +478,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     // Otherwise: filter by selected month (activatedMonths)
     const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
     // When sidebar filter is active → bypass monthly folder, show all matching users directly
-    let result = (customerStatusFilter !== 'all' || showAllUsers)
+    const isGracePrevMonth = isGracePeriod && selectedMonth === prevMonthLabel;
+    let result = (customerStatusFilter !== 'all' || showAllUsers || isGracePrevMonth)
       ? [...baseUsers]
       : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
 
@@ -597,7 +604,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             />
           </div>
 
-          {!readOnly && isCurrentMonth && (
+          {!readOnly && isEditableMonth && (
             <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                 {/* New Customer */}
