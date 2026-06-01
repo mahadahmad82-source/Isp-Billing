@@ -477,7 +477,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
     // Otherwise: filter by selected month (activatedMonths)
     const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
     // When sidebar filter is active → bypass monthly folder, show all matching users directly
-    let result = (customerStatusFilter !== 'all' || showAllUsers)
+    // Grace period: May select karo to sab users dikhao (activate karne ke liye)
+    const showAllForGrace = isGracePeriod && selectedMonth === prevMonthLabel;
+    let result = (customerStatusFilter !== 'all' || showAllUsers || showAllForGrace)
       ? [...baseUsers]
       : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
 
