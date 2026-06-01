@@ -87,6 +87,14 @@ const App: React.FC = () => {
   }, [activeTab]);
   const [tourMode, setTourMode] = useState<string>('welcome');
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
+  // Compute all available months from users' activatedMonths for sidebar archive folders
+  const sidebarCurrentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+  const sidebarAvailableMonths = React.useMemo(() => {
+    const months = new Set<string>();
+    months.add(sidebarCurrentMonth);
+    (state.users || []).forEach((u: any) => (u.activatedMonths || []).forEach((m: string) => months.add(m)));
+    return Array.from(months).sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
+  }, [state.users, sidebarCurrentMonth]);
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -1070,6 +1078,16 @@ const App: React.FC = () => {
           businessName={currentSettings.businessName} 
           onToggleTheme={handleToggleTheme}
           lastSavedTime={lastSavedTime}
+          availableMonths={sidebarAvailableMonths}
+          currentMonth={sidebarCurrentMonth}
+          onNavigateMonth={(month) => {
+            setUserFilter('all');
+            setCustomerStatusFilter('all');
+            setActiveTab('users');
+            // pass month via a ref trick — UserManagement reads initialFilter
+            // We store selected month in a state
+            setSidebarSelectedMonth(month);
+          }}
           onNavigateCustomers={(filter) => {
             setCustomerStatusFilter(filter);
             // also sync userFilter: 'all' for all/expired views, 'current_month' only for active
@@ -1114,7 +1132,7 @@ const App: React.FC = () => {
               isAdmin={isAdmin}
             />
           )}
-          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} />}
+          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} archives={state.archives} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} preSelectedMonth={sidebarSelectedMonth} onMonthConsumed={() => setSidebarSelectedMonth(null)} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} />}
           {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 
