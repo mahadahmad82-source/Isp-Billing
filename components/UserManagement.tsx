@@ -46,12 +46,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
 }) => {
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
+  // Grace period: first 5 days of month, prev month stays unlocked
+  const _gpToday = new Date();
+  const _gpPrev = new Date(_gpToday.getFullYear(), _gpToday.getMonth() - 1, 1);
+  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(_gpPrev);
+  const isGracePeriod = _gpToday.getDate() <= 5;
 
-  // ── Grace Period: first 5 days of new month ──────────────
-  const today = new Date();
-  const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(prevDate);
-  const isGracePeriod = today.getDate() >= 1 && today.getDate() <= 5;
+
   // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
   const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
   const [showQuickActivate, setShowQuickActivate] = useState(false);
@@ -603,6 +604,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
 
 
           {!readOnly && isEditableMonth && (
