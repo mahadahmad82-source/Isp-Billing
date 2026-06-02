@@ -47,6 +47,8 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [legacyMonth, setLegacyMonth] = useState(new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()));
   const [legacyYear, setLegacyYear] = useState(new Date().getFullYear().toString());
   const [viewingReceipt, setViewingReceipt] = useState<Receipt | null>(null);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addUserSearch, setAddUserSearch] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -847,6 +849,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                 <input type="text" placeholder="Search customer records..." className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-950 rounded-2xl font-bold text-sm border border-slate-200 dark:border-0 outline-none text-slate-900 dark:text-white shadow-sm" value={detailSearchTerm} onChange={e => setDetailSearchTerm(e.target.value)} />
               </div>
+              <button onClick={() => { setAddUserSearch(''); setShowAddUserModal(true); }} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 whitespace-nowrap active:scale-95 transition-all">+ Add User</button>
               <button onClick={exportToExcel} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 whitespace-nowrap active:scale-95 transition-all">Export To Excel</button>
             </div>
 
@@ -1129,6 +1132,70 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         </div>
       )}
     </div>
+      {/* Add User to Period Modal */}
+      {showAddUserModal && selectedMonth && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-white/10">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-0.5">Add to Period</p>
+                <p className="text-lg font-black text-slate-900 dark:text-white">{selectedMonth}</p>
+              </div>
+              <button onClick={() => setShowAddUserModal(false)} className="w-9 h-9 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 font-black text-sm transition-all">✕</button>
+            </div>
+            <div className="p-4">
+              <input
+                type="text"
+                placeholder="Search by name or username..."
+                value={addUserSearch}
+                onChange={e => setAddUserSearch(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold outline-none border border-transparent focus:border-indigo-500 transition-all mb-3"
+                autoFocus
+              />
+              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                {(users || [])
+                  .filter(u => u.status !== 'deleted' &&
+                    !(u.activatedMonths || []).includes(selectedMonth) &&
+                    !receipts.some(r => r.userId === u.id && r.period === selectedMonth) &&
+                    (addUserSearch === '' ||
+                      (u.name || '').toLowerCase().includes(addUserSearch.toLowerCase()) ||
+                      (u.username || '').toLowerCase().includes(addUserSearch.toLowerCase()))
+                  )
+                  .map(u => (
+                    <div key={u.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{u.name}</p>
+                        <p className="text-[10px] font-bold text-slate-400">@{u.username} · {u.plan} · Rs. {(u.monthlyFee || 0).toLocaleString()}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          onBulkUpdateUsers([{
+                            ...u,
+                            activatedMonths: [...(u.activatedMonths || []), selectedMonth]
+                          }]);
+                          setShowAddUserModal(false);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wide transition-all"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))
+                }
+                {(users || []).filter(u => u.status !== 'deleted' &&
+                  !(u.activatedMonths || []).includes(selectedMonth) &&
+                  !receipts.some(r => r.userId === u.id && r.period === selectedMonth) &&
+                  (addUserSearch === '' ||
+                    (u.name || '').toLowerCase().includes(addUserSearch.toLowerCase()) ||
+                    (u.username || '').toLowerCase().includes(addUserSearch.toLowerCase()))
+                ).length === 0 && (
+                  <p className="text-center text-sm text-slate-400 py-6 font-bold">Sab users already is period mein hain ✅</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
   );
 };
 
