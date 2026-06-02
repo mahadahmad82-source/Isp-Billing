@@ -468,16 +468,23 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const filteredUsers = useMemo(() => {
-    // If showAllUsers: show all users (for Total Users card)
-    // Otherwise: filter by selected month (activatedMonths)
-    const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
-    // When sidebar filter is active → bypass monthly folder, show all matching users directly
-    let result = (customerStatusFilter !== 'all' || showAllUsers)
-      ? [...baseUsers]
-      : baseUsers.filter(user => 
-          (user.activatedMonths || []).includes(selectedMonth) ||
-          receipts.some(r => r.userId === user.id && r.period === selectedMonth)
-        );
+    const isArchiveMonth = selectedMonth !== currentMonth;
+
+    let result: UserRecord[];
+
+    if (isArchiveMonth && !showAllUsers) {
+      // Archive mode: show users active in that month (ignore active/expired filter)
+      result = users.filter(user =>
+        (user.activatedMonths || []).includes(selectedMonth) ||
+        receipts.some(r => r.userId === user.id && r.period === selectedMonth)
+      );
+    } else {
+      // Current month or Master Directory
+      const baseUsers = customerStatusFilter !== 'all' ? statusFilteredUsers : users;
+      result = (customerStatusFilter !== 'all' || showAllUsers)
+        ? [...baseUsers]
+        : baseUsers.filter(user => (user.activatedMonths || []).includes(selectedMonth));
+    }
 
     // Then apply search
     result = result.filter(user => 
