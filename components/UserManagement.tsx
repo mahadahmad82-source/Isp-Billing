@@ -44,7 +44,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
   // initialFilter='all' means show all months (no folder filter), 'current_month' means show current month only
-  const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all');
+  const [showMonthlyFolders, setShowMonthlyFolders] = useState(initialFilter !== 'all' && customerStatusFilter === 'all');
   const [showQuickActivate, setShowQuickActivate] = useState(false);
   const [showAllUsers, setShowAllUsers] = useState(initialFilter === 'all');
 
