@@ -52,11 +52,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const statusFilteredUsers = React.useMemo(() => {
     if (!customerStatusFilter || customerStatusFilter === 'all') return users;
 
-    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
-
-    // Active = sirf current month ke activatedMonths me hai (Recoveries se match)
-    const isActive = (u: UserRecord) =>
-      (u.activatedMonths || []).includes(currentPeriod);
+    // Active = expiryDate is today or in the future (date-based, never resets on month change)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isActive = (u: UserRecord) => {
+      if (!u.expiryDate) return false;
+      const exp = new Date(u.expiryDate);
+      if (isNaN(exp.getTime())) return false;
+      exp.setHours(0, 0, 0, 0);
+      return exp >= today;
+    };
 
     if (customerStatusFilter === 'active')  return users.filter(u =>  isActive(u));
     if (customerStatusFilter === 'expired') return users.filter(u => !isActive(u));
