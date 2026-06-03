@@ -56,9 +56,12 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
 
   const handleSubmit = (ev: React.FormEvent) => {
     ev.preventDefault();
+    const expenseMonth = form.date.slice(0, 7); // "YYYY-MM"
     onAdd({ ...form, amount: parseFloat(String(form.amount)) || 0 });
     setForm(blankForm());
     setShowForm(false);
+    // Auto-switch view to the month where expense was saved
+    if (expenseMonth !== month) setMonth(expenseMonth);
   };
 
   return (
@@ -72,7 +75,7 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
         <div className="flex gap-3">
           <input type="month" value={month} onChange={e => setMonth(e.target.value)}
             className="px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
-          <button onClick={() => setShowForm(true)}
+          <button onClick={() => { setForm({ ...blankForm(), date: `${month}-01` }); setShowForm(true); }}
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Expense
