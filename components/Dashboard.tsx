@@ -95,10 +95,17 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const totalUsersCount = (users || []).length;
 
   // Active = sirf current month ke activatedMonths me hai (Recoveries se match)
-  const currentMonthActiveUsers = (users || []).filter(u =>
-    (u.activatedMonths || []).includes(currentMonthString)
-  );
-  const activeUsersCount = currentMonthActiveUsers.length;
+  // Active = expiryDate >= today (date-based, never resets on month 1st)
+  const _today = new Date();
+  _today.setHours(0, 0, 0, 0);
+  const _isActiveByDate = (u: UserRecord) => {
+    if (!u.expiryDate) return false;
+    const exp = new Date(u.expiryDate);
+    if (isNaN(exp.getTime())) return false;
+    exp.setHours(0, 0, 0, 0);
+    return exp >= _today;
+  };
+  const activeUsersCount = (users || []).filter(_isActiveByDate).length;
   const expiredUsersCount = (users || []).length - activeUsersCount;
 
   const priorityReminders = (users || []).filter(u => getDaysUntilExpiry(u.expiryDate) === 3);
