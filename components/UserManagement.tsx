@@ -1,16 +1,14 @@
 
 import QuickActivate from './QuickActivate';
 import React, { useState, useRef, useMemo } from 'react';
-import { UserRecord, AppSettings, Receipt, PaymentStatus, Archive } from '../types';
+import { UserRecord, AppSettings, Receipt, PaymentStatus } from '../types';
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp } from '../utils/whatsapp';
 import * as XLSX from 'xlsx';
-import ImportFromHistory from './ImportFromHistory';
 
 interface UserManagementProps {
   users: UserRecord[];
   receipts: Receipt[];
-  archives: Archive[];
   settings: AppSettings;
   onAddUser: (user: UserRecord) => void;
   onUpdateUser: (user: UserRecord) => void;
@@ -30,7 +28,6 @@ type SortKey = 'account_id_asc' | 'account_id_desc' | 'name_asc' | 'name_desc' |
 const UserManagement: React.FC<UserManagementProps> = ({ 
   users, 
   receipts = [],
-  archives = [],
   settings, 
   onAddUser, 
   onUpdateUser, 
@@ -81,7 +78,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
   }, [customerStatusFilter]);
 
   const [showForm, setShowForm] = useState(false);
-  const [showImportHistory, setShowImportHistory] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [viewingLedgerUser, setViewingLedgerUser] = useState<UserRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -632,16 +628,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   <span className="text-[9px] font-black text-[#4caf82] uppercase tracking-wide leading-tight text-center">Activate</span>
                 </button>
 
-                {/* Import History */}
-                <button
-                  onClick={() => setShowImportHistory(true)}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#2d1f4e] hover:bg-[#3a2860] border border-[#3d2a6b] active:scale-95 transition-all group"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-[#251843] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#9b7fd4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#9b7fd4] uppercase tracking-wide leading-tight text-center">History</span>
-                </button>
+
 
                 {/* Change Plan */}
                 <button
@@ -1134,56 +1121,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
             </div>
           </div>
         </div>
-      )}
-      {showImportHistory && (
-        <ImportFromHistory 
-          isOpen={showImportHistory}
-          onClose={() => setShowImportHistory(false)}
-          archives={archives}
-          currentUsers={users}
-          currentMonth={currentMonth}
-          onImport={(usersToImport) => {
-            setLoadingMessage(`Importing ${usersToImport.length} Records to ${currentMonth}...`);
-            
-            setTimeout(() => {
-              const updatedUsers = [...users];
-              const newUsersToAdd: UserRecord[] = [];
-
-              usersToImport.forEach(sourceUser => {
-                const existingIndex = updatedUsers.findIndex(u => u.username.toLowerCase() === sourceUser.username.toLowerCase());
-                if (existingIndex > -1) {
-                  const existingUser = updatedUsers[existingIndex];
-                  const months = new Set(existingUser.activatedMonths || []);
-                  months.add(currentMonth);
-                  updatedUsers[existingIndex] = {
-                    ...existingUser,
-                    activatedMonths: Array.from(months)
-                  };
-                } else {
-                  newUsersToAdd.push({
-                    ...sourceUser,
-                    id: generateId(),
-                    activatedMonths: [], // Master Directory - no month assigned yet
-                    createdAt: new Date().toISOString()
-                  });
-                }
-              });
-
-              if (newUsersToAdd.length > 0) {
-                onBulkAddUsers(newUsersToAdd);
-              }
-              if (updatedUsers.length > 0) {
-                onBulkUpdateUsers(updatedUsers);
-              }
-              setLoadingMessage(null);
-              setAlertConfig({
-                title: 'Data Migration Success',
-                message: `Successfully imported ${usersToImport.length} users to ${currentMonth}.`,
-                type: 'success'
-              });
-            }, 800);
-          }}
-        />
       )}
       {/* Modals */}
       {alertConfig && (
