@@ -223,6 +223,15 @@ export interface Company {
   settings: AppSettings;
 }
 
+export interface SystemLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  description: string;
+  performedBy: string;
+  category: 'user' | 'payment' | 'recovery' | 'system' | 'settings' | 'import';
+}
+
 export interface AppState {
   users: UserRecord[];
   receipts: Receipt[];
@@ -237,4 +246,5 @@ export interface AppState {
   dismissedNotificationIds?: string[];
   complaintTickets?: ComplaintTicket[];
   businessExpenses?: BusinessExpense[];
+  systemLogs?: SystemLog[];
 }
