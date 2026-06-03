@@ -858,6 +858,151 @@ const App: React.FC = () => {
   };
 
 
+  if (!activeManager) {
+    return (
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
+            <Route path="*" element={
+              showLanding ? (
+                <LandingPage 
+                  onGetStarted={() => setShowLanding(false)} 
+                />
+              ) : (
+                <Login 
+                  onLogin={handleLogin} 
+                  onBack={() => setShowLanding(true)} 
+                  theme={state.theme || 'light'} 
+                  onToggleTheme={handleToggleTheme}
+
+                />
+              )
+            } />
+          </Routes>
+        </BrowserRouter>
+      </ErrorBoundary>
+    );
+  }
+
+  if (userRole === 'sub-manager') {
+    return (
+      <ErrorBoundary>
+        {activeTab === 'receipts' ? (
+          <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300 flex flex-col">
+            <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 sm:px-10">
+              <div className="flex items-center gap-5">
+                <button 
+                  onClick={() => setActiveTab('team')}
+                  className="w-12 h-12 flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 rounded-full transition-all active:scale-95 text-slate-500 dark:text-slate-400 group shadow-sm border border-slate-200 dark:border-white/10"
+                  title="Back to Dashboard"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">New Invoice</h2>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-0.5">Agent Terminal Node</p>
+                </div>
+              </div>
+              <div className="hidden sm:block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 opacity-60">System Override Protocol</div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 md:p-8">
+              <ReceiptGenerator 
+                users={state.users}
+                settings={currentSettings}
+                subManagers={state.subManagers || []}
+                preSelectUser={preSelectReceiptUser || undefined}
+                onPreSelectConsumed={() => setPreSelectReceiptUser(null)}
+                hideHistory={true}
+                defaultCollectedBy={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || undefined}
+                onAddReceipt={(receipt) => {
+                  setState(prev => {
+                    const diff = receipt.paidAmount;
+                    const updatedUsers = prev.users.map(u => u.id === receipt.userId ? { ...u, balance: (u.balance || 0) - diff } : u);
+                    return { ...prev, receipts: [...prev.receipts, receipt], users: updatedUsers };
+                  });
+                  setSuccessToast("Collection logged successfully!");
+                  setTimeout(() => setSuccessToast(null), 3000);
+                }}
+                receipts={state.receipts}
+                onUpdateReceipt={(updatedReceipt) => {
+                  setState(prev => ({
+                    ...prev,
+                    receipts: prev.receipts.map(r => r.id === updatedReceipt.id ? updatedReceipt : r)
+                  }));
+                }}
+                onUpdateUser={(userId, update) => {
+                  setState(prev => ({
+                    ...prev,
+                    users: prev.users.map(u => u.id === userId ? { ...u, ...update } : u)
+                  }));
+                }}
+                onDeleteReceipt={() => {}}
+                setLoadingMessage={setLoadingMessage}
+              />
+            </div>
+          </div>
+        ) : (
+          <SubManagerDashboard 
+            subManagerName={activeManager || 'Field Agent'}
+            agent={state.subManagers?.find(sm => sm.username === activeManager)}
+            agentId={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || ''}
+            agentArea={agentArea}
+            users={filteredUsers}
+            receipts={filteredReceipts}
+            settings={currentSettings}
+            attendanceLogs={state.attendanceLogs || []}
+            onLogout={handleLogout}
+            onAddAttendanceLog={handleAddAttendanceLog}
+            onIssueInvoice={(userId, agentId) => {
+              setPreSelectReceiptUser({ 
+                userId, 
+                month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+                agentId: agentId
+              } as any);
+              setActiveTab('receipts');
+            }}
+            onViewReceipt={(receipt) => {
+              // We can reuse the receipts tab logic to view a specific receipt
+              // But we need a way to tell ReceiptGenerator to start in View mode
+              // Actually, ReceiptGenerator has activeReceipt state.
+              // For now, let's just set the tab and maybe we need a preSelectReceipt
+              setPreSelectReceiptUser({
+                userId: receipt.userId,
+                month: receipt.period,
+                receiptId: receipt.id // I might need to update ReceiptGenerator to handle this
+              } as any);
+              setActiveTab('receipts');
+            }}
+            onUpdateAgent={(agentId, updates) => {
+              setState(prev => {
+                const newState = {
+                  ...prev,
+                  subManagers: prev.subManagers?.map(sm => sm.id === agentId ? { ...sm, ...updates } : sm)
+                };
+                saveState(newState);
+                if (newState.currentManager || activeManager) {
+                  saveStateToSupabase(newState.currentManager || activeManager || '', newState);
+                }
+                return newState;
+              });
+            }}
+            complaintTickets={(state.complaintTickets || []).filter(t =>
+              t.assignedTo === activeManager ||
+              t.assignedTo === state.subManagers?.find(sm => sm.username === activeManager)?.id
+            )}
+            onResolveComplaint={(ticketId) => {
+              setState(prev => {
+                const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
+                saveState(newState);
+                saveStateToSupabase(prev.currentManager || activeManager || '', newState);
+                return newState;
+              });
+            }}
+          />
+        )}
+      </ErrorBoundary>
+    );
+  }
   return (
     <ErrorBoundary>
       <BrowserRouter>
