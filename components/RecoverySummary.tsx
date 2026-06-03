@@ -114,11 +114,12 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     const filteredReceipts = (receipts || []).filter(r => r.period === selectedMonth);
 
     // Only show users who are either activated for this month OR have a receipt for this month
+    // NOTE: also match by username to handle re-created users with new IDs
     let list = (users || []).filter(u => 
       (u.activatedMonths || []).includes(selectedMonth) || 
-      filteredReceipts.some(r => r.userId === u.id)
+      filteredReceipts.some(r => r.userId === u.id || r.username === u.username)
     ).map(u => {
-      const userReceipts = filteredReceipts.filter(r => r.userId === u.id);
+      const userReceipts = filteredReceipts.filter(r => r.userId === u.id || r.username === u.username);
       const hasPaid = userReceipts.length > 0;
       
       const paidSum = userReceipts.reduce((sum, r) => sum + (r.paidAmount - (r.advanceAmount || 0)), 0);
