@@ -127,7 +127,7 @@ export interface Receipt {
 
 export interface AppNotification {
   id: string;
-  type: 'EXPIRY' | 'OVERDUE' | 'SYSTEM' | 'RECOVERY';
+  type: 'EXPIRY' | 'OVERDUE' | 'SYSTEM' | 'RECOVERY' | 'PAYMENT' | 'ATTENDANCE_IN' | 'ATTENDANCE_OUT' | 'COMPLAINT_RESOLVED' | 'COMPLAINT_ASSIGNED';
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   title: string;
   message: string;
@@ -247,4 +247,7 @@ export interface AppState {
   complaintTickets?: ComplaintTicket[];
   businessExpenses?: BusinessExpense[];
   systemLogs?: SystemLog[];
+  pendingManagerNotifications?: AppNotification[];
+  shownManagerNotificationIds?: string[];
+  agentPendingNotifications?: Record<string, AppNotification[]>;
 }
