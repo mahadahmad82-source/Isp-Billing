@@ -93,6 +93,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [contextMenu, setContextMenu] = useState<{ user: UserRecord; x: number; y: number } | null>(null);
   const [showBulkChangePlan, setShowBulkChangePlan] = useState(false);
   const [bulkNewPlan, setBulkNewPlan] = useState('');
+  const [showBulkExpiry, setShowBulkExpiry] = useState(false);
+  const [bulkExpiryText, setBulkExpiryText] = useState('');
+  const [bulkExpiryResult, setBulkExpiryResult] = useState<{ updated: string[]; notFound: string[] } | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showColumnToggle, setShowColumnToggle] = useState(false);
   const columnToggleRef = useRef<HTMLDivElement>(null);
@@ -469,6 +472,43 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setAlertConfig({ title: 'Plan Updated', message: `${selectedIds.length} users ka plan "${bulkNewPlan}" ho gaya — Rs. ${price}/mo.`, type: 'success' });
   };
 
+  // Bulk Expiry handler
+  const handleBulkExpiry = () => {
+    if (!bulkExpiryText.trim()) return;
+    const lines = bulkExpiryText.trim().split('\n');
+    const updated: string[] = [];
+    const notFound: string[] = [];
+
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      // Support: username,date | username date | username\tdate
+      const parts = trimmed.split(/[\s,;\t]+/);
+      if (parts.length < 2) return;
+      const username = parts[0].trim().toLowerCase();
+      const rawDate = parts[1].trim();
+
+      // Parse date: support YYYY-MM-DD and DD/MM/YYYY and DD-MM-YYYY
+      let isoDate = rawDate;
+      if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(rawDate)) {
+        const [dd, mm, yyyy] = rawDate.split(/[\/\-]/);
+        isoDate = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+      }
+      // Validate date
+      const parsed = new Date(isoDate);
+      if (isNaN(parsed.getTime())) { notFound.push(`${parts[0]} (invalid date)`); return; }
+
+      const user = users.find(u => (u.username || '').toLowerCase() === username);
+      if (!user) { notFound.push(parts[0]); return; }
+
+      onUpdateUser({ ...user, expiryDate: isoDate, status: 'active' });
+      updated.push(parts[0]);
+    });
+
+    setBulkExpiryResult({ updated, notFound });
+    setBulkExpiryText('');
+  };
+
   const filteredUsers = useMemo(() => {
     const isArchiveMonth = selectedMonth !== currentMonth;
 
@@ -680,6 +720,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     <svg className="w-4.5 h-4.5 text-[#3aaa96]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                   </div>
                   <span className="text-[9px] font-black text-[#3aaa96] uppercase tracking-wide leading-tight text-center">Export</span>
+                </button>
+
+                {/* Bulk Expiry */}
+                <button
+                  onClick={() => { setBulkExpiryText(''); setBulkExpiryResult(null); setShowBulkExpiry(true); }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#1e1a3d] hover:bg-[#2a2550] border border-[#302880] active:scale-95 transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-[#19163a] flex items-center justify-center group-active:scale-90 transition-transform">
+                    <svg className="w-4.5 h-4.5 text-[#8b7fde]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  </div>
+                  <span className="text-[9px] font-black text-[#8b7fde] uppercase tracking-wide leading-tight text-center">Expiry</span>
                 </button>
 
                 <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} />
@@ -1253,6 +1304,74 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkExpiry && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => { setShowBulkExpiry(false); setBulkExpiryResult(null); }}></div>
+          <div className="relative z-10 w-full max-w-md bg-white dark:bg-[#0f172a] rounded-[2.5rem] p-8 border border-slate-100 dark:border-white/5 shadow-2xl">
+            {!bulkExpiryResult ? (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-violet-100 dark:bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">📅</div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Bulk Expiry Set</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Username aur expiry date paste karein — system automatically active kar dega</p>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 text-[10px] text-slate-500 dark:text-slate-400 font-mono leading-relaxed">
+                    <div className="font-black text-slate-700 dark:text-slate-300 mb-1 text-[9px] uppercase tracking-widest">Format (ek line mein ek user):</div>
+                    <div>username 2025-02-28</div>
+                    <div>username,28/02/2025</div>
+                    <div>username 28-02-2025</div>
+                  </div>
+                  <textarea
+                    value={bulkExpiryText}
+                    onChange={e => setBulkExpiryText(e.target.value)}
+                    placeholder={"ali123 2025-02-28\nbilal456 2025-03-31\nahmed789,28-02-2025"}
+                    rows={8}
+                    className="w-full p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-white outline-none resize-none focus:border-violet-500/50 transition-all placeholder-slate-300 dark:placeholder-slate-600"
+                  />
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowBulkExpiry(false)}
+                      className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-[11px] uppercase tracking-widest"
+                    >Cancel</button>
+                    <button
+                      onClick={handleBulkExpiry}
+                      disabled={!bulkExpiryText.trim()}
+                      className="flex-1 py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-30 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                    >✅ Apply</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">✅</div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Done!</h3>
+                </div>
+                <div className="space-y-4">
+                  {bulkExpiryResult.updated.length > 0 && (
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-500/20">
+                      <div className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-2">✅ Updated ({bulkExpiryResult.updated.length})</div>
+                      <div className="text-xs text-emerald-800 dark:text-emerald-300 font-mono leading-relaxed max-h-32 overflow-y-auto">{bulkExpiryResult.updated.join(', ')}</div>
+                    </div>
+                  )}
+                  {bulkExpiryResult.notFound.length > 0 && (
+                    <div className="bg-rose-50 dark:bg-rose-900/20 rounded-2xl p-4 border border-rose-100 dark:border-rose-500/20">
+                      <div className="text-[10px] font-black text-rose-700 dark:text-rose-400 uppercase tracking-widest mb-2">❌ Not Found / Error ({bulkExpiryResult.notFound.length})</div>
+                      <div className="text-xs text-rose-800 dark:text-rose-300 font-mono leading-relaxed max-h-32 overflow-y-auto">{bulkExpiryResult.notFound.join(', ')}</div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => { setShowBulkExpiry(false); setBulkExpiryResult(null); }}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                  >Close</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
