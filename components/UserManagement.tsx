@@ -109,7 +109,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     { key: 'address', label: 'Address' },
     { key: 'plan', label: 'Plan' },
     { key: 'monthly_fee', label: 'Monthly Fee' },
-    { key: 'status', label: 'Status' },
+    { key: 'status', label: 'Payment' },
+    { key: 'pay_exp', label: 'Pay + Expiry' },
     { key: 'discount', label: 'Discount' },
     { key: 'expiry', label: 'Expiry' },
   ] as const;
@@ -118,8 +119,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   const getDefaultVisibleColumns = (): Record<ColumnKey, boolean> => ({
     account_id: true, full_name: true, phone: true, phone2: false,
-    address: false, plan: true, monthly_fee: true, status: true,
-    discount: false, expiry: true,
+    address: false, plan: true, monthly_fee: true, status: false,
+    pay_exp: true, discount: false, expiry: true,
   });
 
   const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
@@ -821,7 +822,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       { key: 'address', label: 'ADDRESS', asc: null, desc: null },
                       { key: 'plan', label: 'PLAN', asc: 'plan_asc', desc: 'plan_asc' },
                       { key: 'monthly_fee', label: 'MONTHLY FEE', asc: 'fee_asc', desc: 'fee_desc' },
-                      { key: 'status', label: 'STATUS', asc: 'paid_first', desc: 'pending_first', center: true },
+                      { key: 'status', label: 'PAYMENT', asc: 'paid_first', desc: 'pending_first', center: true },
+                      { key: 'pay_exp', label: 'STATUS', asc: null, desc: null, center: true },
                       { key: 'discount', label: 'DISCOUNT', asc: null, desc: null, center: true },
                       { key: 'expiry', label: 'EXPIRY', asc: 'expiry_asc', desc: 'expiry_desc' },
                     ] as { key: ColumnKey; label: string; asc: SortKey | null; desc: SortKey | null; center?: boolean }[])
@@ -918,6 +920,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 <div className="flex flex-col items-center gap-1">
                                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">Pending</span>
                                   {bal > 0 && <span className="text-[10px] font-black text-rose-500">Rs.{bal.toLocaleString()}</span>}
+                                </div>
+                              );
+                            })()}
+                          </td>)}
+                          {visibleColumns.pay_exp && (
+                          <td className="px-6 py-4 text-center">
+                            {(() => {
+                              const hasReceipt = receipts.some(r => r.userId === user.id && r.period && r.period.includes(selectedMonth.split(' ')[0]));
+                              const today = new Date(); today.setHours(0,0,0,0);
+                              const expDate = user.expiryDate ? new Date(user.expiryDate) : null;
+                              const isExpired = !expDate || expDate < today;
+                              return (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${hasReceipt ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'}`}>
+                                    {hasReceipt ? '✓ Paid' : '⏳ Pending'}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${!isExpired ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400' : 'bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-500'}`}>
+                                    {!isExpired ? '🟢 Active' : '🔴 Expired'}
+                                  </span>
                                 </div>
                               );
                             })()}
