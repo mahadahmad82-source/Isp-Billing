@@ -71,8 +71,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
       
-      // Fast path for Field Agents and Admins
-      if (localFound && (localFound.role === 'sub-manager' || localFound.role === 'admin')) {
+      // Fast path for Admin only (sub-managers must always re-validate against Supabase so deleted agents can't login)
+      if (localFound && localFound.role === 'admin') {
         setActiveSession(localFound.username);
         onLogin(localFound.username);
         return;
