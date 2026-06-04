@@ -194,6 +194,30 @@ const App: React.FC = () => {
     }
   }, [userRole, activeManager]);
 
+  // ✅ Sub-manager Supabase existence check — runs on every session start
+  // If manager deleted the agent, force logout regardless of localStorage session
+  useEffect(() => {
+    if (userRole !== 'sub-manager' || !activeManager) return;
+
+    supabase
+      .from('manager_data')
+      .select('data')
+      .then(({ data: managers, error }) => {
+        if (error || !managers) return; // network issue — don't force logout, let them stay
+        const stillExists = managers.some((m: any) =>
+          ((m.data?.subManagers || []) as any[]).some(
+            (sm: any) => sm.username?.toLowerCase() === activeManager.toLowerCase()
+          )
+        );
+        if (!stillExists) {
+          // Agent was deleted by manager — kill session
+          setActiveSession(null);
+          removeAccount(activeManager);
+          setActiveManager(null);
+        }
+      });
+  }, [userRole, activeManager]);
+
   useEffect(() => {
     if (activeManager) {
       setActiveSession(activeManager);
