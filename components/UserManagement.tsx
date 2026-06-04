@@ -423,7 +423,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleQuickActivate = (userIds: string[]) => {
+  const handleQuickActivate = (userIds: string[], expiryDate?: string) => {
     userIds.forEach(id => {
       const user = users.find(u => u.id === id);
       if (!user) return;
@@ -433,6 +433,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         ...user,
         activatedMonths: Array.from(months),
         status: 'active',
+        ...(expiryDate ? { expiryDate } : {}),
       });
     });
     // Switch to active customers view after activation
@@ -563,18 +564,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
       {/* Main Content */}
       <div className="flex-1 p-6 transition-all overflow-x-hidden">
-        {/* Mobile Month Selector */}
-        <div className="md:hidden mb-6">
-          <label className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest mb-2 block">Select Month</label>
-          <select 
-            value={selectedMonth} 
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-full p-4 bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-white/5 font-bold text-slate-900 dark:text-white outline-none shadow-sm"
-          >
-            {availableMonths.map(m => <option key={m} value={m} className="bg-white dark:bg-[#0f172a]">{m}</option>)}
-          </select>
-        </div>
-
         <div className="space-y-6 pb-24">
           <div className="space-y-1 flex justify-between items-start">
             <div>
