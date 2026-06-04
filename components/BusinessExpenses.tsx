@@ -21,6 +21,20 @@ const CAT_COLORS: Record<string, string> = {
 
 const blankForm = () => ({ title: '', amount: 0, category: 'other' as const, date: new Date().toISOString().split('T')[0], notes: '' });
 
+// Generate last 12 months + current + next month options (Android-safe: no input type="month")
+const generateMonthOptions = () => {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 12; i >= -1; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(d);
+    options.push({ value, label });
+  }
+  return options;
+};
+const MONTH_OPTIONS = generateMonthOptions();
+
 const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts, onAdd, onDelete }) => {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showForm, setShowForm] = useState(false);
@@ -73,8 +87,10 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Monthly expenses · Gross profit tracker</p>
         </div>
         <div className="flex gap-3">
-          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+          <select value={month} onChange={e => setMonth(e.target.value)}
+            className="px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+            {MONTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
           <button onClick={() => { setForm({ ...blankForm(), date: `${month}-01` }); setShowForm(true); }}
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -183,7 +199,10 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</label>
-                <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
+                <input type="date" value={form.date}
+                  min={`${month}-01`}
+                  max={`${month}-${new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).getDate()}`}
+                  onChange={e => setForm({ ...form, date: e.target.value })}
                   className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
               </div>
               <div className="space-y-2">
