@@ -4,7 +4,7 @@ import { UserRecord } from '../types';
 
 interface QuickActivateProps {
   users: UserRecord[];
-  onActivateUsers: (userIds: string[]) => void;
+  onActivateUsers: (userIds: string[], expiryDate?: string) => void;
   onClose: () => void;
   theme: 'light' | 'dark';
   currentMonth: string;
@@ -16,6 +16,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
   const isDark = theme === 'dark';
   const [tab, setTab] = useState<'paste' | 'select' | 'excel'>('paste');
   const [pastedUsernames, setPastedUsernames] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [result, setResult] = useState<{ found: string[]; notFound: string[] } | null>(null);
@@ -113,13 +114,13 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
     });
 
     setResult({ found, notFound });
-    if (toActivate.length > 0) onActivateUsers(toActivate);
+    if (toActivate.length > 0) onActivateUsers(toActivate, expiryDate || undefined);
   };
 
   const handleSelectActivate = () => {
     const toActivate = Array.from(selectedIds).filter(id => !alreadyActiveIds.has(id));
     if (toActivate.length > 0) {
-      onActivateUsers(toActivate);
+      onActivateUsers(toActivate, expiryDate || undefined);
       setResult({ found: toActivate.map(id => users.find(u => u.id === id)?.username || ''), notFound: [] });
     }
   };
@@ -234,6 +235,25 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                   <li>• Purana plan, fees, aur balance copy hoga</li>
                   <li>• Aap directly receipt generate kar sakte ho</li>
                 </ul>
+              </div>
+
+              {/* Optional Expiry Date */}
+              <div>
+                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Expiry Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={e => setExpiryDate(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
+                    ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                />
+                {expiryDate && (
+                  <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                    ⏳ Expire hoga: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                )}
               </div>
 
               <button
@@ -362,6 +382,25 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                     )}
                   </div>
                 ))}
+              </div>
+
+              {/* Optional Expiry Date */}
+              <div>
+                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Expiry Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={e => setExpiryDate(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
+                    ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                />
+                {expiryDate && (
+                  <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                    ⏳ Expire hoga: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                )}
               </div>
 
               <button
