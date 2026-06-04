@@ -165,6 +165,7 @@ const AdminDashboard: React.FC = () => {
   const [managers, setManagers] = useState<ManagerStat[]>([]);
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [onlineMap, setOnlineMap] = useState<Record<string, { status: OnlineStatus; updatedAt: string | null }>>({});
   const [realtimeActive, setRealtimeActive] = useState(false);
   const [custLoading, setCustLoading] = useState(false);
