@@ -96,6 +96,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [showBulkExpiry, setShowBulkExpiry] = useState(false);
   const [bulkExpiryText, setBulkExpiryText] = useState('');
   const [bulkExpiryResult, setBulkExpiryResult] = useState<{ updated: string[]; notFound: string[] } | null>(null);
+  const [bulkExpiryActivate, setBulkExpiryActivate] = useState(true);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showColumnToggle, setShowColumnToggle] = useState(false);
   const columnToggleRef = useRef<HTMLDivElement>(null);
@@ -501,7 +502,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       const user = users.find(u => (u.username || '').toLowerCase() === username);
       if (!user) { notFound.push(parts[0]); return; }
 
-      onUpdateUser({ ...user, expiryDate: isoDate, status: 'active' });
+      onUpdateUser({ ...user, expiryDate: isoDate, ...(bulkExpiryActivate ? { status: 'active' } : {}) });
       updated.push(parts[0]);
     });
 
@@ -1326,6 +1327,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     <div>username,28/02/2025</div>
                     <div>username 28-02-2025</div>
                   </div>
+                  <label className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-white/10 cursor-pointer select-none">
+                    <div
+                      onClick={() => setBulkExpiryActivate(v => !v)}
+                      className={`w-10 h-6 rounded-full transition-all flex-shrink-0 relative ${bulkExpiryActivate ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                    >
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${bulkExpiryActivate ? 'left-5' : 'left-1'}`}/>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Status bhi Active karo</div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500">{bulkExpiryActivate ? 'ON — expiry + status: active' : 'OFF — sirf expiry update hogi'}</div>
+                    </div>
+                  </label>
                   <textarea
                     value={bulkExpiryText}
                     onChange={e => setBulkExpiryText(e.target.value)}
