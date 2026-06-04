@@ -129,13 +129,44 @@ const activityTypeConfig: Record<ActivityEntry['type'], { icon: React.ReactNode;
   other: { icon: <Activity className="w-3.5 h-3.5" />, color: 'text-slate-400', bg: 'bg-slate-500/10' },
 };
 
+// ─── Online Status Helper ─────────────────────────────────────────────────────
+type OnlineStatus = 'online' | 'recent' | 'offline';
+
+const getOnlineStatus = (updatedAt: string | null): OnlineStatus => {
+  if (!updatedAt) return 'offline';
+  const diff = Date.now() - new Date(updatedAt).getTime();
+  if (diff < 5 * 60 * 1000) return 'online';     // < 5 min
+  if (diff < 30 * 60 * 1000) return 'recent';    // < 30 min
+  return 'offline';
+};
+
+const OnlineDot = ({ status, showLabel = false }: { status: OnlineStatus; showLabel?: boolean }) => {
+  const cfg = {
+    online: { dot: 'bg-emerald-400 shadow-emerald-400/60', pulse: 'bg-emerald-400', label: 'Online', text: 'text-emerald-400' },
+    recent: { dot: 'bg-amber-400 shadow-amber-400/40', pulse: '', label: 'Recent', text: 'text-amber-400' },
+    offline: { dot: 'bg-slate-600', pulse: '', label: 'Offline', text: 'text-slate-500' },
+  }[status];
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="relative flex h-2 w-2">
+        {cfg.pulse && (
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${cfg.pulse} opacity-60`} />
+        )}
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${cfg.dot} shadow-sm`} />
+      </span>
+      {showLabel && <span className={`text-[10px] font-bold uppercase tracking-wide ${cfg.text}`}>{cfg.label}</span>}
+    </span>
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState<'overview' | 'managers' | 'customers' | 'activity' | 'system'>('overview');
   const [managers, setManagers] = useState<ManagerStat[]>([]);
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [onlineMap, setOnlineMap] = useState<Record<string, { status: OnlineStatus; updatedAt: string | null }>>({});
+  const [realtimeActive, setRealtimeActive] = useState(false);
   const [custLoading, setCustLoading] = useState(false);
   const [actLoading, setActLoading] = useState(false);
   const [expandedMgr, setExpandedMgr] = useState<string | null>(null);
@@ -169,6 +200,70 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => { loadManagers(); }, [loadManagers]);
+
+  // ── Build online map when managers change ────────────────────────────────────
+  useEffect(() => {
+    const map: Record<string, { status: OnlineStatus; updatedAt: string | null }> = {};
+    for (const m of managers) {
+      map[m.username] = {
+        status: getOnlineStatus(m.data_updated_at),
+        updatedAt: m.data_updated_at,
+      };
+    }
+    setOnlineMap(map);
+  }, [managers]);
+
+  // ── Supabase Realtime subscription ───────────────────────────────────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-manager-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'manager_data' },
+        (payload) => {
+          const row = payload.new as any;
+          if (!row?.manager_id) return;
+          const username = row.manager_id;
+          const updatedAt = row.updated_at || null;
+          const status = getOnlineStatus(updatedAt);
+          // Update online map live
+          setOnlineMap(prev => ({
+            ...prev,
+            [username]: { status, updatedAt },
+          }));
+          // Also update manager stats if we have them
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            setManagers(prev => prev.map(m => {
+              if (m.username !== username) return m;
+              return { ...m, data_updated_at: updatedAt };
+            }));
+          }
+          if (payload.eventType === 'DELETE') {
+            const deletedId = (payload.old as any)?.manager_id;
+            if (deletedId) setManagers(prev => prev.filter(m => m.username !== deletedId));
+          }
+        }
+      )
+      .subscribe((status) => {
+        setRealtimeActive(status === 'SUBSCRIBED');
+      });
+
+    // Refresh online statuses every minute
+    const ticker = setInterval(() => {
+      setOnlineMap(prev => {
+        const updated = { ...prev };
+        for (const key of Object.keys(updated)) {
+          updated[key] = { ...updated[key], status: getOnlineStatus(updated[key].updatedAt) };
+        }
+        return updated;
+      });
+    }, 60_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(ticker);
+    };
+  }, []);
 
   // ── Load all customers ───────────────────────────────────────────────────────
   const loadAllCustomers = useCallback(async () => {
@@ -402,8 +497,14 @@ const AdminDashboard: React.FC = () => {
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Admin Control Center</h1>
           </div>
-          <p className="text-[10px] text-slate-600 uppercase tracking-[0.2em] font-bold pl-12">
-            LIVE • SYNCED {lastRefresh.toLocaleTimeString()} • {totals.managers} MANAGERS • {totals.customers} CUSTOMERS
+          <p className="text-[10px] text-slate-600 uppercase tracking-[0.2em] font-bold pl-12 flex items-center gap-2">
+            <span className="flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+              {realtimeActive ? 'LIVE' : 'CONNECTING'}
+            </span>
+            <span>• SYNCED {lastRefresh.toLocaleTimeString()}</span>
+            <span>• {totals.managers} MANAGERS</span>
+            <span>• {Object.values(onlineMap).filter(v => v.status === 'online').length} ONLINE NOW</span>
           </p>
         </div>
         <button onClick={() => { loadManagers(); setAllCustomers([]); setActivityLogs([]); }}
@@ -481,8 +582,15 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex justify-between mt-2 text-[10px] text-slate-600 font-bold">
               <span>{totals.active} active customers</span>
-              <span>{totals.receipts} total receipts</span>
-              <span>{totals.managers} managers online</span>
+              <span className="flex items-center gap-1.5">
+                <OnlineDot status="online" />
+                {Object.values(onlineMap).filter(v => v.status === 'online').length} online now
+              </span>
+              <span className="flex items-center gap-1.5">
+                <OnlineDot status="recent" />
+                {Object.values(onlineMap).filter(v => v.status === 'recent').length} recently active
+              </span>
+              <span>{totals.receipts} receipts</span>
             </div>
           </div>
 
@@ -511,9 +619,14 @@ const AdminDashboard: React.FC = () => {
                       <td className="px-5 py-4 text-slate-600 font-black">{i + 1}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-xs flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
-                            {m.business_name.charAt(0).toUpperCase()}
+                          <div className="relative">
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-xs flex-shrink-0"
+                              style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                              {m.business_name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="absolute -bottom-0.5 -right-0.5">
+                              <OnlineDot status={onlineMap[m.username]?.status || 'offline'} />
+                            </span>
                           </div>
                           <div>
                             <p className="font-black text-slate-100 text-[13px]">{m.business_name}</p>
@@ -581,9 +694,14 @@ const AdminDashboard: React.FC = () => {
               <div key={m.username} className="bg-[#181d2f] rounded-2xl border border-white/[0.05] overflow-hidden hover:border-white/10 transition-all">
                 <div className="flex items-center gap-3 p-4">
                   {/* Avatar */}
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-[#867bfb] text-lg flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
-                    {m.business_name.charAt(0).toUpperCase()}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-[#867bfb] text-lg"
+                      style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                      {m.business_name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5">
+                      <OnlineDot status={onlineMap[m.username]?.status || 'offline'} />
+                    </span>
                   </div>
                   {/* Info */}
                   <div className="flex-1 min-w-0">
@@ -598,6 +716,7 @@ const AdminDashboard: React.FC = () => {
                       <span>{m.email.replace('@myisp.local', '')}</span>
                       {m.phone && <span>{m.phone}</span>}
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {timeAgo(m.last_login)}</span>
+                      <OnlineDot status={onlineMap[m.username]?.status || 'offline'} showLabel />
                     </div>
                   </div>
                   {/* Stats */}
