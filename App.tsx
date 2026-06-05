@@ -44,6 +44,9 @@ const App: React.FC = () => {
       ...loaded, 
       archives: loaded.archives || [],
       dismissedNotificationIds: loaded.dismissedNotificationIds || [],
+      pendingManagerNotifications: loaded.pendingManagerNotifications || [],
+      shownManagerNotificationIds: loaded.shownManagerNotificationIds || [],
+      agentPendingNotifications: loaded.agentPendingNotifications || {},
       companies: loaded.companies || [],
       activeCompanyId: loaded.activeCompanyId || '',
       complaintTickets: loaded.complaintTickets || [],
@@ -231,6 +234,9 @@ const App: React.FC = () => {
           ...finalState,
           archives: finalState.archives || [],
           dismissedNotificationIds: finalState.dismissedNotificationIds || [],
+          pendingManagerNotifications: finalState.pendingManagerNotifications || [],
+          shownManagerNotificationIds: finalState.shownManagerNotificationIds || [],
+          agentPendingNotifications: finalState.agentPendingNotifications || {},
           companies: finalState.companies || [],
           activeCompanyId: finalState.activeCompanyId || '',
           currentManager: dataOwner,
@@ -335,27 +341,27 @@ const App: React.FC = () => {
       exp.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-      if (diffDays >= 0 && diffDays <= 3) {
+      if (diffDays === 1) {
         list.push({
           id: `notif-exp-${u.id}`,
           type: 'EXPIRY',
-          priority: diffDays === 0 ? 'HIGH' : 'MEDIUM',
-          title: diffDays === 0 ? 'Interruption Risk' : 'Upcoming Expiry',
-          message: `${u.name}'s ${u.plan} subscription expires ${diffDays === 0 ? 'today' : `in ${diffDays} days`}.`,
+          priority: 'MEDIUM',
+          title: '⏰ Expiring Tomorrow',
+          message: `${u.name} (${u.plan}) — subscription expires tomorrow. Renew now to avoid disconnection.`,
           timestamp: new Date().toISOString(),
           userId: u.id,
-          actionLabel: 'Remind',
+          actionLabel: 'View',
           actionTab: 'expiries'
         });
       }
 
-      if (diffDays < 0 && (u.balance || 0) > 0) {
+      if (diffDays <= 0) {
         list.push({
-          id: `notif-due-${u.id}`,
+          id: `notif-expired-${u.id}`,
           type: 'OVERDUE',
           priority: 'HIGH',
-          title: 'High Arrears Alert',
-          message: `${u.name} is expired with a balance of Rs. ${(u.balance || 0).toLocaleString()}.`,
+          title: '🔴 User Expired',
+          message: `${u.name} (${u.plan}) subscription has expired${diffDays < 0 ? ` ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''} ago` : ' today'}.${(u.balance || 0) > 0 ? ` Outstanding: Rs. ${(u.balance || 0).toLocaleString()}` : ''}`,
           timestamp: new Date().toISOString(),
           userId: u.id,
           actionLabel: 'Recover',
@@ -377,13 +383,27 @@ const App: React.FC = () => {
       });
     }
 
+    // Include pending manager notifications (attendance, payment, complaint)
+    const pendingNotifs = (state.pendingManagerNotifications || []);
+    list.push(...pendingNotifs);
+
+    // Include agent's pending notifications if this is a sub-manager
+    if (state.subManagers && activeManager) {
+      const agentInfo = state.subManagers.find(sm => sm.username === activeManager);
+      if (agentInfo) {
+        const agentNotifs = (state.agentPendingNotifications || {})[agentInfo.id] || [];
+        list.push(...agentNotifs);
+      }
+    }
+
+    const dismissed = state.dismissedNotificationIds || [];
     return list
-      .filter(n => !(state.dismissedNotificationIds || []).includes(n.id))
+      .filter(n => !dismissed.includes(n.id))
       .sort((a, b) => {
         const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
         return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
       });
-  }, [state?.users, state?.receipts, state?.dismissedNotificationIds, activeManager, activeCompany?.id]);
+  }, [state?.users, state?.receipts, state?.dismissedNotificationIds, state?.pendingManagerNotifications, state?.agentPendingNotifications, activeManager, activeCompany?.id]);
 
   useEffect(() => {
     if (!activeManager || !state.users.length) return;
@@ -414,6 +434,86 @@ const App: React.FC = () => {
     }
     setPendingRemindersCount(dueReminders.length);
   }, [activeManager, state.users, activeCompany, pendingRemindersCount]);
+
+  // ─── Cross-device notification polling ─────────────────
+  useEffect(() => {
+    if (!activeManager) return;
+
+    const pollNotifications = async () => {
+      try {
+        const { data } = await supabase
+          .from('manager_data')
+          .select('data')
+          .eq('manager_id', activeManager)
+          .single();
+        
+        if (!data?.data) return;
+        const remoteState = data.data as AppState;
+        const remotePending: AppNotification[] = remoteState.pendingManagerNotifications || [];
+        const alreadyShown: string[] = (state.shownManagerNotificationIds || []);
+        
+        // Find new notifications not yet shown
+        const newNotifs = remotePending.filter(n => !alreadyShown.includes(n.id));
+        
+        if (newNotifs.length > 0) {
+          // Show browser notification for each
+          newNotifs.forEach(n => {
+            showLocalNotification(n.title, n.message, n.type.toLowerCase());
+          });
+          
+          // Mark as shown + keep in pending for display in NotificationCenter
+          setState(prev => {
+            const merged = [
+              ...(prev.pendingManagerNotifications || []),
+              ...newNotifs.filter(n => !(prev.pendingManagerNotifications || []).find(p => p.id === n.id))
+            ];
+            const newShown = [...(prev.shownManagerNotificationIds || []), ...newNotifs.map(n => n.id)];
+            const newState = {
+              ...prev,
+              pendingManagerNotifications: merged,
+              shownManagerNotificationIds: newShown
+            };
+            saveState(newState);
+            return newState;
+          });
+        }
+
+        // ─── Agent: check for notifications assigned to this agent ───
+        if (state.currentManager && state.subManagers) {
+          const agentInfo = state.subManagers.find(sm => sm.username === activeManager);
+          if (agentInfo) {
+            const remoteAgentPending = (remoteState.agentPendingNotifications || {})[agentInfo.id] || [];
+            const agentShown = state.shownManagerNotificationIds || [];
+            const newAgentNotifs = remoteAgentPending.filter(n => !agentShown.includes(n.id));
+            
+            if (newAgentNotifs.length > 0) {
+              newAgentNotifs.forEach(n => {
+                showLocalNotification(n.title, n.message, n.type.toLowerCase());
+              });
+              setState(prev => {
+                const newShown = [...(prev.shownManagerNotificationIds || []), ...newAgentNotifs.map(n => n.id)];
+                const agentPending = {
+                  ...(prev.agentPendingNotifications || {}),
+                  [agentInfo.id]: [...(prev.agentPendingNotifications?.[agentInfo.id] || []), ...newAgentNotifs.filter(n => !(prev.agentPendingNotifications?.[agentInfo.id] || []).find((p: AppNotification) => p.id === n.id))]
+                };
+                return { ...prev, shownManagerNotificationIds: newShown, agentPendingNotifications: agentPending };
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // silent fail
+      }
+    };
+
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const pollInterval = setInterval(pollNotifications, 30000);
+    return () => clearInterval(pollInterval);
+  }, [activeManager]);
 
   const handleLogin = (username: string) => {
     setActiveManager(username);
@@ -639,11 +739,28 @@ const App: React.FC = () => {
           }
           return u;
         });
+        // Large payment notification (>= 5000)
+        let newPendingNotifs = prev.pendingManagerNotifications || [];
+        if ((receipt.paidAmount || 0) >= 5000) {
+          const payNotif: AppNotification = {
+            id: `pay-large-${receipt.id || Date.now()}`,
+            type: 'PAYMENT',
+            priority: 'HIGH',
+            title: '💰 Large Payment Collected',
+            message: `Rs. ${(receipt.paidAmount || 0).toLocaleString()} collected from ${receipt.username} by ${receipt.collectedBy || 'agent'}. Consider downloading a backup.`,
+            timestamp: new Date().toISOString(),
+            actionLabel: 'Settings',
+            actionTab: 'settings'
+          };
+          newPendingNotifs = [...newPendingNotifs, payNotif];
+          showLocalNotification('💰 Large Payment Collected', `Rs. ${(receipt.paidAmount || 0).toLocaleString()} — ${receipt.username}`, 'payment');
+        }
         return { 
           ...prev, 
           receipts: [...prev.receipts, { ...receipt, companyId: prev.activeCompanyId }], 
           users: updatedUsers,
-          systemLogs: [receiptLog, ...(prev.systemLogs || [])].slice(0, 500)
+          systemLogs: [receiptLog, ...(prev.systemLogs || [])].slice(0, 500),
+          pendingManagerNotifications: newPendingNotifs
         };
       });
       setLoadingMessage(null);
@@ -689,10 +806,48 @@ const App: React.FC = () => {
       ...log,
       id: generateId()
     };
-    setState(prev => ({
-      ...prev,
-      attendanceLogs: [...(prev.attendanceLogs || []), newLog]
-    }));
+    setState(prev => {
+      // Find agent name
+      const agent = (prev.subManagers || []).find(sm => sm.id === log.subManagerId);
+      const agentName = agent?.name || agent?.username || log.subManagerId;
+      const timeStr = new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+
+      let notifType: AppNotification['type'] = 'ATTENDANCE_IN';
+      let notifTitle = '🟢 Agent Checked In';
+      let notifMsg = `${agentName} marked IN at ${timeStr}`;
+      if (log.type === 'check-out') {
+        notifType = 'ATTENDANCE_OUT';
+        notifTitle = '🔴 Agent Checked Out';
+        notifMsg = `${agentName} marked OUT at ${timeStr}`;
+      } else if (log.type === 'leave') {
+        notifType = 'ATTENDANCE_OUT';
+        notifTitle = '📋 Agent On Leave';
+        notifMsg = `${agentName} applied for leave${log.reason ? `: ${log.reason}` : ''}`;
+      }
+
+      const attendNotif: AppNotification = {
+        id: `attend-${newLog.id}`,
+        type: notifType,
+        priority: 'MEDIUM',
+        title: notifTitle,
+        message: notifMsg,
+        timestamp: new Date().toISOString(),
+        actionLabel: 'View Team',
+        actionTab: 'team'
+      };
+
+      // Show browser notification immediately if manager is on same device
+      showLocalNotification(notifTitle, notifMsg, 'attendance');
+
+      const newState = {
+        ...prev,
+        attendanceLogs: [...(prev.attendanceLogs || []), newLog],
+        pendingManagerNotifications: [...(prev.pendingManagerNotifications || []), attendNotif]
+      };
+      saveState(newState);
+      saveStateToSupabase(prev.currentManager || '', newState);
+      return newState;
+    });
   }, []);
 
   const handleUpdateAttendanceLog = useCallback((logId: string, updates: Partial<AttendanceLog>) => {
@@ -798,9 +953,17 @@ const App: React.FC = () => {
 
   const handleDismissNotification = (id: string) => {
     setState(prev => {
+      // Remove from pending arrays too
+      const newPending = (prev.pendingManagerNotifications || []).filter(n => n.id !== id);
+      const newAgentPending: Record<string, AppNotification[]> = {};
+      Object.entries(prev.agentPendingNotifications || {}).forEach(([agentId, notifs]) => {
+        newAgentPending[agentId] = (notifs as AppNotification[]).filter((n: AppNotification) => n.id !== id);
+      });
       const newState = {
         ...prev,
-        dismissedNotificationIds: [...(prev.dismissedNotificationIds || []), id]
+        dismissedNotificationIds: [...(prev.dismissedNotificationIds || []), id],
+        pendingManagerNotifications: newPending,
+        agentPendingNotifications: newAgentPending
       };
       saveState(newState); saveStateToSupabase(newState.currentManager || activeManager || '', newState);
       return newState;
@@ -812,7 +975,9 @@ const App: React.FC = () => {
       const allIds = notifications.map(n => n.id);
       const newState = {
         ...prev,
-        dismissedNotificationIds: [...(prev.dismissedNotificationIds || []), ...allIds]
+        dismissedNotificationIds: [...(prev.dismissedNotificationIds || []), ...allIds],
+        pendingManagerNotifications: [],
+        agentPendingNotifications: {}
       };
       saveState(newState); saveStateToSupabase(newState.currentManager || activeManager || '', newState);
       return newState;
@@ -1016,7 +1181,23 @@ const App: React.FC = () => {
             )}
             onResolveComplaint={(ticketId) => {
               setState(prev => {
-                const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
+                const ticket = (prev.complaintTickets || []).find(t => t.id === ticketId);
+                const resolveNotif: AppNotification = ticket ? {
+                  id: `complaint-resolved-agent-${ticketId}-${Date.now()}`,
+                  type: 'COMPLAINT_RESOLVED',
+                  priority: 'HIGH',
+                  title: '✅ Complaint Resolved',
+                  message: `Agent resolved complaint: "${ticket.title}" for ${ticket.customerName}.`,
+                  timestamp: new Date().toISOString(),
+                  actionLabel: 'View',
+                  actionTab: 'complaints'
+                } : null;
+                showLocalNotification('✅ Complaint Resolved', ticket ? `"${ticket.title}" resolved by agent` : 'Complaint resolved', 'complaint');
+                const newState = { 
+                  ...prev, 
+                  complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t),
+                  pendingManagerNotifications: resolveNotif ? [...(prev.pendingManagerNotifications || []), resolveNotif] : (prev.pendingManagerNotifications || [])
+                };
                 saveState(newState);
                 saveStateToSupabase(prev.currentManager || activeManager || '', newState);
                 return newState;
@@ -1139,8 +1320,47 @@ const App: React.FC = () => {
               }}
               onUpdateTicket={(id, updates) => {
                 setState(prev => {
+                  const ticket = (prev.complaintTickets || []).find(t => t.id === id);
+                  const updatedTicket = ticket ? { ...ticket, ...updates } : null;
                   const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === id ? { ...t, ...updates } : t) };
-                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                  
+                  let newPending = prev.pendingManagerNotifications || [];
+                  let newAgentPending = { ...(prev.agentPendingNotifications || {}) };
+
+                  // Complaint resolved notification for manager
+                  if (updates.status === 'resolved' && ticket) {
+                    const resolveNotif: AppNotification = {
+                      id: `complaint-resolved-${id}-${Date.now()}`,
+                      type: 'COMPLAINT_RESOLVED',
+                      priority: 'HIGH',
+                      title: '✅ Complaint Resolved',
+                      message: `Complaint "${ticket.title}" for ${ticket.customerName} has been resolved.`,
+                      timestamp: new Date().toISOString(),
+                      actionLabel: 'View',
+                      actionTab: 'complaints'
+                    };
+                    newPending = [...newPending, resolveNotif];
+                    showLocalNotification('✅ Complaint Resolved', `"${ticket.title}" — ${ticket.customerName}`, 'complaint');
+                  }
+
+                  // Complaint assigned to agent
+                  if (updates.assignedTo && updates.assignedTo !== ticket?.assignedTo && ticket) {
+                    const agentId = updates.assignedTo;
+                    const agentNotif: AppNotification = {
+                      id: `complaint-assigned-${id}-${Date.now()}`,
+                      type: 'COMPLAINT_ASSIGNED',
+                      priority: 'HIGH',
+                      title: '📋 New Complaint Assigned',
+                      message: `You have been assigned a complaint: "${ticket.title}" for customer ${ticket.customerName}. Priority: ${ticket.priority.toUpperCase()}.`,
+                      timestamp: new Date().toISOString(),
+                      actionLabel: 'View',
+                      actionTab: 'complaints'
+                    };
+                    newAgentPending[agentId] = [...(newAgentPending[agentId] || []), agentNotif];
+                  }
+
+                  const finalState = { ...newState, pendingManagerNotifications: newPending, agentPendingNotifications: newAgentPending };
+                  saveState(finalState); saveStateToSupabase(activeManager || '', finalState); return finalState;
                 });
               }}
               onDeleteTicket={(id) => {
