@@ -1521,7 +1521,26 @@ const App: React.FC = () => {
                 setTimeout(() => setSuccessToast(null), 3000);
               }}
               onAddAttendanceLog={handleAddAttendanceLog}
-              complaintTickets={(state.complaintTickets || []).filter(t => t.assignedTo === activeManager || t.assignedTo === activeManager)}
+              complaintTickets={state.complaintTickets || []}
+              users={filteredUsers}
+              onAddComplaint={(t) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: [...(prev.complaintTickets || []), { ...t, id: generateId(), createdAt: new Date().toISOString() }] };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+              onUpdateComplaint={(id, updates) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === id ? { ...t, ...updates } : t) };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
+              onDeleteComplaint={(id) => {
+                setState(prev => {
+                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).filter(t => t.id !== id) };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                });
+              }}
               onResolveComplaint={(ticketId) => {
                 setState(prev => {
                   const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
