@@ -361,7 +361,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
     </svg>
   );
 
-  const inputCls = `w-full px-6 py-5 rounded-2xl border-2 font-bold outline-none transition-all duration-300 ${theme === 'dark' ? 'bg-[#030712] border-white/5 text-white focus:border-indigo-500/50 placeholder:text-slate-700' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-400 placeholder:text-slate-400'}`;
+  const inputCls = `w-full px-6 py-5 rounded-2xl border font-bold outline-none transition-all duration-300 bg-white/[0.06] border-white/10 text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:bg-white/[0.09] backdrop-blur-sm`;
   const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
 
   return (
