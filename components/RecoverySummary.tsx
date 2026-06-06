@@ -965,6 +965,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                  // ALWAYS use both localStorage + CustomEvent - no prop dependency
                                  const data = { userId: item.id, month: selectedMonth || '', ts: Date.now() };
                                  localStorage.setItem('myisp_preselect_receipt', JSON.stringify(data));
+                                 localStorage.setItem('myisp_return_tab', 'recoveries');
                                  window.dispatchEvent(new CustomEvent('myisp-goto-receipts', { detail: data }));
                                }}
                                title="Generate Receipt"
