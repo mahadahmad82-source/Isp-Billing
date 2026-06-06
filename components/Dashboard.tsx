@@ -148,14 +148,14 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const stats = [
     {
       id: 'RECOVERED', label: 'Total Revenue',
-      value: showRevenue ? `Rs. \${totalRevenue.toLocaleString()}` : 'Rs. ••••••',
+      value: showRevenue ? `Rs. ${totalRevenue.toLocaleString()}` : 'Rs. ••••••',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.67 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.67-1M12 16c-1.657 0-3-.895-3-2s1.343-2 3-2 3 .895 3 2-1.343 2-3 2"></path></svg>,
       gradient: 'from-emerald-600 to-teal-600', color: 'text-emerald-500 bg-emerald-500/10', isMasked: true, isVisible: showRevenue,
       onToggle: () => setShowRevenue(!showRevenue), onViewDetails: () => setActiveTab('receipts'), footerLabel: 'Operational Stat'
     },
     {
       id: 'BALANCE', label: 'Outstanding Balance',
-      value: showBalance ? `Rs. \${(totalBalance || 0).toLocaleString()}` : 'Rs. ••••••',
+      value: showBalance ? `Rs. ${(totalBalance || 0).toLocaleString()}` : 'Rs. ••••••',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>,
       gradient: 'from-rose-600 to-pink-700', color: 'text-rose-500 bg-rose-500/10', isMasked: true, isVisible: showBalance,
       onToggle: () => setShowBalance(!showBalance), onViewDetails: () => setActiveModal('BALANCE'), footerLabel: 'Operational Stat'
