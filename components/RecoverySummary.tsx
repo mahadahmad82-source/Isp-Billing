@@ -15,7 +15,6 @@ interface RecoverySummaryProps {
   onDeletePeriod: (period: string) => void;
   onRenamePeriod: (oldPeriod: string, newPeriod: string) => void;
   onNavigateToReceipts?: (userId: string, month: string) => void;
-  onDeleteUser?: (id: string) => void;
 }
 
 interface SummaryItem {
@@ -37,8 +36,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   onBulkAddUsers,
   onBulkUpdateUsers, 
   onDeletePeriod, 
-  onRenamePeriod,
-  onDeleteUser
+  onRenamePeriod
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [detailSearchTerm, setDetailSearchTerm] = useState('');
@@ -999,23 +997,27 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                         <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter truncate max-w-[120px]">{item.ref}</span>
                       </div>
                     </td>
-                    {onDeleteUser && (
-                      <td className="px-4 py-5">
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`"${item.name}" ko delete karna chahte hain? Yeh permanently remove ho jayega.`)) {
-                              onDeleteUser(item.id);
+                    <td className="px-4 py-5">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(item.name + " ko is mahine ki list se hatayen? Directory mein rahega.")) {
+                            const fullUser = (users || []).find(u => u.id === item.id);
+                            if (fullUser && selectedMonth) {
+                              onBulkUpdateUsers([{
+                                ...fullUser,
+                                activatedMonths: (fullUser.activatedMonths || []).filter(m => m !== selectedMonth)
+                              }]);
                             }
-                          }}
-                          title="Delete User"
-                          className="p-2 rounded-xl text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-all"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                          </svg>
-                        </button>
-                      </td>
-                    )}
+                          }
+                        }}
+                        title="Remove from this month's ledger"
+                        className="p-2 rounded-xl text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-all"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
