@@ -90,6 +90,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   _today.setHours(0, 0, 0, 0);
   const _isActiveByDate = (u: UserRecord) => {
     if (!u.expiryDate) return false;
+    if (u.status === 'pending' || u.status === 'deleted') return false;
     const exp = new Date(u.expiryDate);
     if (isNaN(exp.getTime())) return false;
     exp.setHours(0, 0, 0, 0);
@@ -147,44 +148,44 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const stats = [
     {
       id: 'RECOVERED', label: 'Total Revenue',
-      value: showRevenue ? `Rs. ${totalRevenue.toLocaleString()}` : 'Rs. ••••••',
+      value: showRevenue ? `Rs. \${totalRevenue.toLocaleString()}` : 'Rs. ••••••',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.67 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.67-1M12 16c-1.657 0-3-.895-3-2s1.343-2 3-2 3 .895 3 2-1.343 2-3 2"></path></svg>,
-      color: 'text-emerald-500 bg-emerald-500/10', isMasked: true, isVisible: showRevenue,
+      gradient: 'from-emerald-600 to-teal-600', color: 'text-emerald-500 bg-emerald-500/10', isMasked: true, isVisible: showRevenue,
       onToggle: () => setShowRevenue(!showRevenue), onViewDetails: () => setActiveTab('receipts'), footerLabel: 'Operational Stat'
     },
     {
       id: 'BALANCE', label: 'Outstanding Balance',
-      value: showBalance ? `Rs. ${(totalBalance || 0).toLocaleString()}` : 'Rs. ••••••',
+      value: showBalance ? `Rs. \${(totalBalance || 0).toLocaleString()}` : 'Rs. ••••••',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>,
-      color: 'text-rose-500 bg-rose-500/10', isMasked: true, isVisible: showBalance,
+      gradient: 'from-rose-600 to-pink-700', color: 'text-rose-500 bg-rose-500/10', isMasked: true, isVisible: showBalance,
       onToggle: () => setShowBalance(!showBalance), onViewDetails: () => setActiveModal('BALANCE'), footerLabel: 'Operational Stat'
     },
     {
       id: 'TOTAL_USERS', label: 'Master Directory', value: totalUsersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>,
-      color: 'text-violet-500 bg-violet-500/10', isMasked: false,
+      gradient: 'from-violet-600 to-purple-700', color: 'text-violet-500 bg-violet-500/10', isMasked: false,
       onToggle: () => onSetUserFilter ? onSetUserFilter('all') : setActiveTab('users'),
       onViewDetails: () => onSetUserFilter ? onSetUserFilter('all') : setActiveTab('users'), footerLabel: 'Sab Registered Users'
     },
     {
       id: 'CUSTOMERS', label: 'Active Customers', value: activeUsersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>,
-      color: 'text-blue-500 bg-blue-500/10', isMasked: false,
+      gradient: 'from-blue-600 to-indigo-700', color: 'text-blue-500 bg-blue-500/10', isMasked: false,
       onToggle: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
       onViewDetails: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'), footerLabel: 'Active Subscribers'
     },
     {
       id: 'EXPIRED', label: 'Expired Customers', value: expiredUsersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>,
-      color: 'text-rose-500 bg-rose-500/10', isMasked: false,
+      gradient: 'from-orange-600 to-red-700', color: 'text-rose-500 bg-rose-500/10', isMasked: false,
       onToggle: () => onSetExpiredFilter ? onSetExpiredFilter() : setActiveTab('users'),
       onViewDetails: () => onSetExpiredFilter ? onSetExpiredFilter() : setActiveTab('users'), footerLabel: 'Inactive / Not Renewed'
     },
     {
       id: 'ALERTS', label: '3-Day Alerts', value: pendingRemindersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>,
-      color: 'text-orange-500 bg-orange-500/10', isMasked: false,
-      onToggle: () => setActiveTab('expiries'), onViewDetails: () => setActiveTab('expiries'), footerLabel: 'Operational Stat'
+      gradient: 'from-orange-500 to-rose-600', color: 'text-orange-500 bg-orange-500/10', isMasked: false,
+      onToggle: () => setActiveTab('expiries'), onViewDetails: () => setActiveTab('expiries'), footerLabel: 'Expiry Alerts'
     },
   ];
 
@@ -200,30 +201,32 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     }
   };
 
-  const UserListItem = ({ u, variant }: { u: UserRecord; variant: 'expiry' | 'expired' }) => (
-    <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-      variant === 'expiry'
-        ? 'bg-amber-500/5 border-amber-500/15 hover:bg-amber-500/10'
-        : 'bg-rose-500/5 border-rose-500/15 hover:bg-rose-500/10'
-    }`}>
-      <div className="min-w-0 flex-1">
-        <p className="font-black text-sm text-white truncate">{u.name}</p>
-        <p className={`text-[10px] font-bold uppercase tracking-widest truncate ${variant === 'expiry' ? 'text-amber-400' : 'text-rose-400'}`}>
-          {u.plan} • Rs. {(u.monthlyFee || settings.planPrices?.[u.plan] || 0).toLocaleString()}
-        </p>
+  const UserListItem = ({ u, variant }: { u: UserRecord; variant: 'expiry' | 'expired' }) => {
+    const expiryDisplay = u.expiryDate ? new Date(u.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    return (
+      <div className="p-3.5 rounded-2xl bg-black/20 border border-white/10 hover:bg-black/30 transition-all flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-black text-sm text-white truncate">{u.name}</p>
+          <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest truncate">
+            {u.plan} • Rs. {(u.monthlyFee || settings.planPrices?.[u.plan] || 0).toLocaleString()}
+          </p>
+          <p className="text-[9px] font-bold text-white/50 mt-0.5">
+            📅 Exp: {expiryDisplay}
+          </p>
+        </div>
+        <div className="flex gap-1.5 flex-shrink-0">
+          <button onClick={() => handleSendReminder(u, 'sms')}
+            className="px-3 py-2 bg-black/30 hover:bg-black/50 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
+            SMS
+          </button>
+          <button onClick={() => handleSendReminder(u, 'whatsapp')}
+            className="px-3 py-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
+            WA
+          </button>
+        </div>
       </div>
-      <div className="flex gap-1.5 flex-shrink-0">
-        <button onClick={() => handleSendReminder(u, 'sms')}
-          className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
-          SMS
-        </button>
-        <button onClick={() => handleSendReminder(u, 'whatsapp')}
-          className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
-          WA
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 transition-colors">
@@ -272,34 +275,35 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         </div>
       )}
 
-      <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat) => (
           <div key={stat.id} onClick={stat.onToggle}
-            className="bg-[#0b1120] p-8 rounded-[2rem] shadow-2xl border border-white/5 hover:border-indigo-500/40 cursor-pointer group flex flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all">
+            className={`bg-gradient-to-br ${stat.gradient} p-7 rounded-[2rem] shadow-2xl cursor-pointer group flex flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all`}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none"></div>
             <div className="relative z-10">
-              <div className="flex justify-between items-start mb-6">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${stat.color}`}>
+              <div className="flex justify-between items-start mb-5">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white transition-transform group-hover:scale-110">
                   {stat.icon}
                 </div>
                 {stat.isMasked && (
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 bg-black/20 px-2 py-1 rounded-lg">
                     {stat.isVisible ? 'VISIBLE' : 'HIDDEN'}
                   </span>
                 )}
               </div>
-              <h3 className="text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{stat.label}</h3>
+              <h3 className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{stat.label}</h3>
               <div className="flex items-baseline gap-1">
-                <p className={`text-3xl font-black tracking-tight transition-all ${stat.isMasked && !stat.isVisible ? 'text-slate-800 select-none' : 'text-white'}`}>
+                <p className={`text-3xl font-black tracking-tight transition-all ${stat.isMasked && !stat.isVisible ? 'text-white/20 select-none' : 'text-white'}`}>
                   {stat.value}
                 </p>
               </div>
             </div>
-            <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between relative z-10">
+            <div className="mt-6 pt-5 border-t border-white/20 flex items-center justify-between relative z-10">
               <button onClick={(e) => { e.stopPropagation(); stat.onToggle(); }}
-                className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">
-                {stat.isMasked ? (stat.isVisible ? 'Hide Amount' : 'Show Amount') : (stat.footerLabel || 'Operational Stat')}
+                className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] hover:text-white transition-colors">
+                {stat.isMasked ? (stat.isVisible ? 'Hide Amount' : 'Show Amount') : (stat.footerLabel || 'View Details')}
               </button>
-              <div className="text-slate-400 dark:text-white/20">
+              <div className="text-white/40">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                 </svg>
@@ -312,28 +316,29 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       {/* ── Today Expiry & Expired Cards ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Today Expiry */}
-        <div className="bg-[#0b1120] border border-amber-500/20 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
-          <div className="flex items-center justify-between mb-5">
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+          <div className="flex items-center justify-between mb-5 relative z-10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="w-14 h-14 bg-white/20 rounded-3xl flex items-center justify-center text-white">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-black text-sm text-white uppercase tracking-tight">Today Expiry</h3>
-                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Last Active Day</p>
+                <h3 className="font-black text-xl text-white uppercase tracking-tight">Today Expiry</h3>
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Subscriptions Ending Today</p>
               </div>
             </div>
-            <span className="bg-amber-500/20 text-amber-400 font-black text-lg px-4 py-1 rounded-2xl border border-amber-500/30">
+            <span className="bg-black/20 text-white font-black text-2xl px-5 py-2 rounded-2xl border border-white/20">
               {todayExpiringUsers.length}
             </span>
           </div>
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+          <div className="relative z-10 space-y-2.5 max-h-64 overflow-y-auto pr-1">
             {todayExpiringUsers.length === 0 ? (
-              <div className="text-center py-8 opacity-30">
-                <p className="text-2xl mb-1">✓</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No Expiries Today</p>
+              <div className="text-center py-8">
+                <p className="text-3xl mb-2">✓</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/70">No Expiries Today</p>
               </div>
             ) : (
               todayExpiringUsers.map(u => <UserListItem key={u.id} u={u} variant="expiry" />)
@@ -341,36 +346,36 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           </div>
           {todayExpiringUsers.length > 3 && (
             <button onClick={() => setActiveModal('TODAY_EXPIRY')}
-              className="w-full mt-3 py-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors">
-              View All {todayExpiringUsers.length}
+              className="relative z-10 w-full mt-4 py-3 bg-white/20 hover:bg-white/30 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+              View All {todayExpiringUsers.length} Users
             </button>
           )}
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
         </div>
 
         {/* Today Expired */}
-        <div className="bg-[#0b1120] border border-rose-500/20 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
-          <div className="flex items-center justify-between mb-5">
+        <div className="bg-gradient-to-br from-rose-600 to-red-800 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+          <div className="flex items-center justify-between mb-5 relative z-10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              <div className="w-14 h-14 bg-white/20 rounded-3xl flex items-center justify-center text-white">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-black text-sm text-white uppercase tracking-tight">Today Expired</h3>
-                <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Expired Today</p>
+                <h3 className="font-black text-xl text-white uppercase tracking-tight">Today Expired</h3>
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Expired Since Yesterday</p>
               </div>
             </div>
-            <span className="bg-rose-500/20 text-rose-400 font-black text-lg px-4 py-1 rounded-2xl border border-rose-500/30">
+            <span className="bg-black/20 text-white font-black text-2xl px-5 py-2 rounded-2xl border border-white/20">
               {todayExpiredUsers.length}
             </span>
           </div>
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+          <div className="relative z-10 space-y-2.5 max-h-64 overflow-y-auto pr-1">
             {todayExpiredUsers.length === 0 ? (
-              <div className="text-center py-8 opacity-30">
-                <p className="text-2xl mb-1">✨</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">None Expired Today</p>
+              <div className="text-center py-8">
+                <p className="text-3xl mb-2">✨</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/70">None Expired Today</p>
               </div>
             ) : (
               todayExpiredUsers.map(u => <UserListItem key={u.id} u={u} variant="expired" />)
@@ -378,11 +383,10 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           </div>
           {todayExpiredUsers.length > 3 && (
             <button onClick={() => setActiveModal('TODAY_EXPIRED')}
-              className="w-full mt-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-colors">
-              View All {todayExpiredUsers.length}
+              className="relative z-10 w-full mt-4 py-3 bg-white/20 hover:bg-white/30 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+              View All {todayExpiredUsers.length} Users
             </button>
           )}
-          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
         </div>
       </div>
 
