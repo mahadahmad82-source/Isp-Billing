@@ -1170,7 +1170,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         <div className="flex items-center justify-between no-print">
           <div className="flex items-center gap-4">
             {!hideHistory && (
-              <button onClick={() => setViewMode('list')} className="p-3 bg-white dark:bg-[#0a1120] border border-slate-200 dark:border-white-op5 rounded-2xl shadow-sm text-slate-400 transition-colors">
+              <button onClick={() => {
+                const returnTab = localStorage.getItem('myisp_return_tab');
+                if (returnTab) {
+                  localStorage.removeItem('myisp_return_tab');
+                  window.dispatchEvent(new CustomEvent('myisp-goto-tab', { detail: { tab: returnTab } }));
+                } else {
+                  setViewMode('list');
+                }
+              }} className="p-3 bg-white dark:bg-[#0a1120] border border-slate-200 dark:border-white-op5 rounded-2xl shadow-sm text-slate-400 transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
               </button>
             )}
