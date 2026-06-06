@@ -8,6 +8,7 @@ import AgentPerformanceReport from './AgentPerformanceReport';
 
 // Lazy load LiveTracking so map issues don't crash the whole Team Hub
 const LiveTracking = lazy(() => import('./LiveTracking'));
+const ComplaintManager = lazy(() => import('../ComplaintManager'));
 
 interface SubManagerManagementProps {
   subManagers: SubManagerAccount[];
@@ -25,6 +26,10 @@ interface SubManagerManagementProps {
   attendanceLogs: AttendanceLog[];
   complaintTickets?: ComplaintTicket[];
   onResolveComplaint?: (ticketId: string) => void;
+  users?: UserRecord[];
+  onAddComplaint?: (t: Omit<ComplaintTicket, 'id' | 'createdAt'>) => void;
+  onUpdateComplaint?: (id: string, updates: Partial<ComplaintTicket>) => void;
+  onDeleteComplaint?: (id: string) => void;
 }
 
 const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
@@ -32,9 +37,10 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   onVoidReceipt, onEditReceiptAmount, onViewLogs,
   onAgentRecruited, onEditAgent, onDeleteAgent,
   onAddAttendanceLog, onUpdateAttendanceLog, onDeleteAttendanceLog, attendanceLogs,
-  complaintTickets = [], onResolveComplaint,
+  complaintTickets = [], onResolveComplaint, users = [],
+  onAddComplaint, onUpdateComplaint, onDeleteComplaint,
 }) => {
-  const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
@@ -148,6 +154,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     { id: 'performance', label: 'Performance' },
     { id: 'tracking', label: 'Live Tracking' },
     { id: 'overrides', label: 'Field Ops' },
+    { id: 'complaints', label: 'Complaints' },
   ] as const;
 
   return (
@@ -660,6 +667,21 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {/* ── COMPLAINTS TAB ── */}
+      {activeTab === 'complaints' && (
+        <Suspense fallback={<div className="text-center py-12 text-slate-400 text-sm">Loading...</div>}>
+          <ComplaintManager
+            tickets={complaintTickets}
+            subManagers={subManagers}
+            users={users}
+            managerId={managerId}
+            onAddTicket={(t) => onAddComplaint?.(t)}
+            onUpdateTicket={(id, updates) => onUpdateComplaint?.(id, updates)}
+            onDeleteTicket={(id) => onDeleteComplaint?.(id)}
+          />
+        </Suspense>
       )}
 
       {/* ── DELETE CONFIRM MODAL ── */}
