@@ -56,6 +56,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-open specific month when returning from invoice view
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { month } = (e as CustomEvent).detail;
+      if (month) setSelectedMonth(month);
+    };
+    window.addEventListener('myisp-open-recovery-month', handler);
+    return () => window.removeEventListener('myisp-open-recovery-month', handler);
+  }, []);
+
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
