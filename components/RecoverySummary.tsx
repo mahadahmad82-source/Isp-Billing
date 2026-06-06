@@ -15,6 +15,7 @@ interface RecoverySummaryProps {
   onDeletePeriod: (period: string) => void;
   onRenamePeriod: (oldPeriod: string, newPeriod: string) => void;
   onNavigateToReceipts?: (userId: string, month: string) => void;
+  onUpdateUser?: (user: UserRecord) => void;
 }
 
 interface SummaryItem {
@@ -36,7 +37,8 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   onBulkAddUsers,
   onBulkUpdateUsers, 
   onDeletePeriod, 
-  onRenamePeriod
+  onRenamePeriod,
+  onUpdateUser
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [detailSearchTerm, setDetailSearchTerm] = useState('');
@@ -50,6 +52,8 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [addUserSearch, setAddUserSearch] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+  const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const months = [
@@ -915,7 +919,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 {detailedList.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-4 py-5"><span className="text-xs font-black text-slate-400 dark:text-slate-500">{(item as any).serialNo}</span></td>
-                    <td className="px-8 py-5"><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">@{item.username}</span></td>
+                    <td className="px-8 py-5"><span className={`text-xs font-black text-indigo-600 dark:text-indigo-400 ${onUpdateUser ? 'cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors' : ''}`} onClick={() => { if (!onUpdateUser) return; const fullUser = users.find(u => u.id === item.id || u.username === item.username); if (fullUser) { setEditingUser(fullUser); setEditForm({ ...fullUser, expiryDate: fullUser.expiryDate ? new Date(fullUser.expiryDate).toISOString().split('T')[0] : '' }); } }} title={onUpdateUser ? 'Click to edit profile' : item.username}>@{item.username}</span></td>
                     <td className="px-8 py-5">
                        <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.name}</span>
@@ -1213,6 +1217,47 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                   <p className="text-center text-sm text-slate-400 py-6 font-bold">Sab users already is period mein hain ✅</p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-md p-8 border border-slate-100 dark:border-white/5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">Edit Profile</h2>
+                <p className="text-xs text-indigo-500 font-bold">@{editingUser.username}</p>
+              </div>
+              <button onClick={() => setEditingUser(null)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors text-xl">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Full Name</label>
+                <input type="text" value={editForm.name || ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Phone</label>
+                <input type="text" value={editForm.phone || ''} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Address</label>
+                <input type="text" value={editForm.address || ''} onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Expiry Date</label>
+                <input type="date" value={editForm.expiryDate || ''} onChange={e => setEditForm(p => ({ ...p, expiryDate: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Balance (Rs.)</label>
+                <input type="number" value={editForm.balance ?? ''} onChange={e => setEditForm(p => ({ ...p, balance: Number(e.target.value) }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setEditingUser(null)} className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Cancel</button>
+              <button onClick={() => { if (!onUpdateUser) return; const expiryISO = editForm.expiryDate ? new Date(editForm.expiryDate).toISOString() : editingUser.expiryDate; onUpdateUser({ ...editingUser, ...editForm, expiryDate: expiryISO }); setEditingUser(null); }} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 active:scale-95 transition-all">Save Changes</button>
             </div>
           </div>
         </div>
