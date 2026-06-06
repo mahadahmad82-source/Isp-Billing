@@ -16,6 +16,7 @@ interface DashboardProps {
   pendingRemindersCount?: number;
   onLogout: () => void;
   isAdmin?: boolean;
+  onUpdateUser?: (user: UserRecord) => void;
 }
 
 type ModalType = 'REVENUE' | 'BALANCE' | 'TODAY_EXPIRY' | 'TODAY_EXPIRED' | null;
@@ -34,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false, onUpdateUser }) => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
@@ -201,6 +202,16 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     }
   };
 
+  const handleActivateUser = (u: UserRecord) => {
+    if (!onUpdateUser) return;
+    const today = new Date();
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const newExpiry = lastDay.toISOString().split('T')[0];
+    const currentMonth = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const updatedMonths = Array.from(new Set([...(u.activatedMonths || []), currentMonth]));
+    onUpdateUser({ ...u, status: 'active', expiryDate: newExpiry, activatedMonths: updatedMonths });
+  };
+
   const UserListItem = ({ u, variant }: { u: UserRecord; variant: 'expiry' | 'expired' }) => {
     const expiryDisplay = u.expiryDate ? new Date(u.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     return (
@@ -216,13 +227,19 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         </div>
         <div className="flex gap-1.5 flex-shrink-0">
           <button onClick={() => handleSendReminder(u, 'sms')}
-            className="px-3 py-2 bg-black/30 hover:bg-black/50 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
+            className="px-2 py-2 bg-black/30 hover:bg-black/50 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
             SMS
           </button>
           <button onClick={() => handleSendReminder(u, 'whatsapp')}
-            className="px-3 py-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
+            className="px-2 py-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95">
             WA
           </button>
+          {onUpdateUser && (
+            <button onClick={() => handleActivateUser(u)}
+              className="px-2 py-2 bg-blue-500/80 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95" title="Activate user for this month">
+              ✓ ON
+            </button>
+          )}
         </div>
       </div>
     );
