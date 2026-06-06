@@ -1295,6 +1295,7 @@ const App: React.FC = () => {
                 localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
                 setActiveTab('receipts');
               }}
+              onUpdateUser={handleFullUpdateUser}
             />
           )}
           {activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
