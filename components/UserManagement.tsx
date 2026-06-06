@@ -52,10 +52,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const statusFilteredUsers = React.useMemo(() => {
     if (!customerStatusFilter || customerStatusFilter === 'all') return users;
 
-    // Active = expiryDate is today or in the future (date-based, never resets on month change)
+    // Active = expiryDate is today or in the future, AND not pending/deleted
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isActive = (u: UserRecord) => {
+      if (u.status === 'pending' || u.status === 'deleted') return false;
       if (!u.expiryDate) return false;
       const exp = new Date(u.expiryDate);
       if (isNaN(exp.getTime())) return false;
