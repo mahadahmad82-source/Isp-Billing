@@ -33,6 +33,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const isActiveUser = (u: UserRecord) => {
     if (!u.expiryDate) return false;
+    if (u.status === 'pending' || u.status === 'deleted') return false;
     const exp = new Date(u.expiryDate);
     if (isNaN(exp.getTime())) return false;
     exp.setHours(0,0,0,0);
