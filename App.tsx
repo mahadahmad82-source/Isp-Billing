@@ -764,6 +764,11 @@ const App: React.FC = () => {
         };
       });
       setLoadingMessage(null);
+      const returnTab = localStorage.getItem('myisp_return_tab');
+      if (returnTab) {
+        localStorage.removeItem('myisp_return_tab');
+        setActiveTab(returnTab);
+      }
     }, 600);
   };
 
