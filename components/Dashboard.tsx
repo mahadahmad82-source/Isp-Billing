@@ -219,6 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       <div className="p-3.5 rounded-2xl bg-black/20 border border-white/10 hover:bg-black/30 transition-all flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-black text-sm text-white truncate">{u.name}</p>
+          {u.username && <p className="text-[10px] font-bold text-white/40 truncate">@{u.username}</p>}
           <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest truncate">
             {u.plan} • Rs. {(u.monthlyFee || settings.planPrices?.[u.plan] || 0).toLocaleString()}
           </p>
