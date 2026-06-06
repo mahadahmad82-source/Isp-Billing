@@ -61,7 +61,8 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return months;
   }, [receipts, expenses]);
 
-  // ── Plan stats — active/expired by expiryDate ──
+  // ── Plan stats — active count = activated this month (activatedMonths), expired by expiryDate ──
+  const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const planStats = useMemo(() => {
     const map: Record<string, {
       activeCount: number; expiredCount: number;
@@ -69,15 +70,15 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     }> = {};
     users.forEach(u => {
       if (!map[u.plan]) map[u.plan] = { activeCount: 0, expiredCount: 0, revenue: 0, discounted: 0, expectedFull: 0 };
-      const active = isActiveUser(u);
-      if (active) {
+      const activatedThisMonth = (u.activatedMonths || []).includes(currentMonthLabel);
+      if (activatedThisMonth) {
         map[u.plan].activeCount++;
         const actual = Number(u.monthlyFee) || 0;
         const standard = Number(settings?.planPrices?.[u.plan]) || actual;
         map[u.plan].revenue += actual;
         map[u.plan].expectedFull += standard;
         if (actual < standard && standard > 0) map[u.plan].discounted++;
-      } else {
+      } else if (!isActiveUser(u)) {
         map[u.plan].expiredCount++;
       }
     });
@@ -249,7 +250,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
         <div className="space-y-6">
           <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Users Per Plan</p>
-            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-6">By Expiry Date — {currentPeriodStr}</p>
+            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-6">Active = Activated in {currentMonthLabel}</p>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={planStats} barCategoryGap="30%">
                 <XAxis dataKey="plan" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
