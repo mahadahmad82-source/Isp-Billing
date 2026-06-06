@@ -1276,6 +1276,7 @@ const App: React.FC = () => {
               pendingRemindersCount={pendingRemindersCount}
               onLogout={handleLogout}
               isAdmin={isAdmin}
+              onUpdateUser={handleFullUpdateUser}
             />
           )}
           {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} />}
@@ -1294,6 +1295,7 @@ const App: React.FC = () => {
                 localStorage.setItem('myisp_preselect_receipt', JSON.stringify({ userId, month, ts: Date.now() }));
                 setActiveTab('receipts');
               }}
+              onDeleteUser={handleDeleteUser}
             />
           )}
           {activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
