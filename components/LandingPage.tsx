@@ -12,7 +12,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const location = useLocation();
-  const [isDark] = useState(true);
+  const [isDark, setIsDark] = useState(true);
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -21,13 +21,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-500 relative overflow-hidden text-white bg-slate-950`}>
+    <div className={`min-h-screen font-sans transition-colors duration-500 relative overflow-hidden ${isDark ? 'text-white bg-slate-950' : 'text-slate-900 bg-slate-100'}`}>
 
       {/* 3D Three.js Background */}
       <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
         <ThreeBackground isDark={isDark} />
         {/* Subtle overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950/70" />
+        <div className={`absolute inset-0 bg-gradient-to-b ${isDark ? 'from-slate-950/30 via-slate-950/50 to-slate-950/70' : 'from-slate-100/40 via-slate-100/60 to-slate-100/80'}`} />
       </div>
 
       {/* Main Container - Z-Index above background */}
@@ -53,6 +53,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
 
           <div className="justify-self-end flex items-center gap-4">
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className={`p-3 rounded-xl font-black text-[10px] transition-all active:scale-95 border ${isDark ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-black/10 border-black/20 text-slate-900 hover:bg-black/20'}`}
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDark ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+              )}
+            </button>
             <button
               onClick={onGetStarted}
               className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/50 transition-all active:scale-95 hover:shadow-indigo-500/70 hover:-translate-y-0.5"
