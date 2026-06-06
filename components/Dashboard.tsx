@@ -205,8 +205,9 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   const handleActivateUser = (u: UserRecord) => {
     if (!onUpdateUser) return;
     const today = new Date();
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    const newExpiry = lastDay.toISOString().split('T')[0];
+    const newExpiryDate = new Date(today);
+    newExpiryDate.setDate(newExpiryDate.getDate() + 30);
+    const newExpiry = newExpiryDate.toISOString().split('T')[0];
     const currentMonth = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const updatedMonths = Array.from(new Set([...(u.activatedMonths || []), currentMonth]));
     onUpdateUser({ ...u, status: 'active', expiryDate: newExpiry, activatedMonths: updatedMonths });
