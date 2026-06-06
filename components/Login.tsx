@@ -14,7 +14,6 @@ interface LoginProps {
 }
 
 const ADMIN_USERNAME = 'admin';
-
 type ViewType = 'recent' | 'login' | 'signup' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
 
 const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
@@ -36,9 +35,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const [rememberPassword, setRememberPassword] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
 
-  // Removed OTP states
-
-  // Forgot password states
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -47,278 +43,126 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   useEffect(() => {
     const loadedAccounts = getAccounts();
     setAccounts(loadedAccounts);
-    if (loadedAccounts.length > 0) {
-      setView('recent');
-    } else {
-      setView('login');
-    }
+    if (loadedAccounts.length > 0) setView('recent');
+    else setView('login');
   }, []);
 
-  const showError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(''), 4000);
-  };
+  const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
 
-  // ─── EXISTING LOGIN (unchanged - backward compatible) ──────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
-    setIsLoading(true);
-    setLoadingText('Authorising...');
-    setError('');
-
+    setIsLoading(true); setLoadingText('Authorising...'); setError('');
     try {
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
-      
-      // Fast path for Admin only (sub-managers must always re-validate against Supabase so deleted agents can't login)
-      if (localFound && localFound.role === 'admin') {
-        setActiveSession(localFound.username);
-        onLogin(localFound.username);
-        return;
-      }
-
+      if (localFound && localFound.role === 'admin') { setActiveSession(localFound.username); onLogin(localFound.username); return; }
       let identifier = username;
-      // Note: If username has no "@", we assume it handles both old standard username and new Phone-Only pattern
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
-
-      let { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: authEmail,
-        password: password,
-      });
-
+      let { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
       if (authError || !data?.user) {
         if (localFound) {
           const fallbackEmail = localFound.email && localFound.email.includes('@') ? localFound.email : `${localFound.username}@myisp.local`;
           try {
-            const { error: signUpErr } = await supabase.auth.signUp({
-              email: fallbackEmail,
-              password: localFound.password,
-              options: { data: { full_name: localFound.businessName || localFound.username, phone: localFound.phone || '', is_migrated: true } }
-            });
-            if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) console.warn('Account migration warning: ' + signUpErr.message);
-
+            const { error: signUpErr } = await supabase.auth.signUp({ email: fallbackEmail, password: localFound.password, options: { data: { full_name: localFound.businessName || localFound.username, phone: localFound.phone || '', is_migrated: true } } });
+            if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) console.warn('Migration warning: ' + signUpErr.message);
             const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: localFound.password });
-            
-            if (signInData?.user) {
-              data = signInData;
-              authError = null;
-              removeAccount(localFound.username); // Safely remove after successful migration
-            } else {
-              // Fallback to local session
-              setActiveSession(localFound.username);
-              onLogin(localFound.username);
-              return;
-            }
-          } catch {
-            // Fallback to local session if any Supabase error during migration
-            setActiveSession(localFound.username);
-            onLogin(localFound.username);
-            return;
-          }
+            if (signInData?.user) { data = signInData; authError = null; removeAccount(localFound.username); }
+            else { setActiveSession(localFound.username); onLogin(localFound.username); return; }
+          } catch { setActiveSession(localFound.username); onLogin(localFound.username); return; }
         } else {
-          // ✅ FIX: Direct Supabase search for sub-manager (works on Vercel - no Express needed)
           setLoadingText('Searching Remote Nodes...');
           try {
-            const { data: managers, error: searchErr } = await supabase
-              .from('manager_data')
-              .select('manager_id, data');
-
+            const { data: managers, error: searchErr } = await supabase.from('manager_data').select('manager_id, data');
             if (!searchErr && managers) {
               for (const manager of managers) {
                 const agents = (manager.data as any)?.subManagers || [];
-                const agent = agents.find((sm: any) =>
-                  (sm.username?.toLowerCase() === username.toLowerCase() ||
-                   sm.email?.toLowerCase() === username.toLowerCase() ||
-                   sm.phone === username) &&
-                  sm.password === password
-                );
+                const agent = agents.find((sm: any) => (sm.username?.toLowerCase() === username.toLowerCase() || sm.email?.toLowerCase() === username.toLowerCase() || sm.phone === username) && sm.password === password);
                 if (agent) {
                   const agentUsername = agent.username;
                   setActiveSession(agentUsername);
-                  saveAccount({
-                    username: agentUsername,
-                    password: password,
-                    businessName: agent.name,
-                    email: agent.email || '',
-                    phone: agent.phone || '',
-                    role: 'sub-manager',
-                    managerUsername: manager.manager_id,
-                    createdAt: new Date().toISOString(),
-                    rememberPassword: true,
-                  });
-                  onLogin(agentUsername);
-                  return;
+                  saveAccount({ username: agentUsername, password, businessName: agent.name, email: agent.email || '', phone: agent.phone || '', role: 'sub-manager', managerUsername: manager.manager_id, createdAt: new Date().toISOString(), rememberPassword: true });
+                  onLogin(agentUsername); return;
                 }
               }
             }
-          } catch (searchEx) {
-            console.error('[Auth] Supabase agent search failed:', searchEx);
-          }
-
+          } catch (searchEx) { console.error('[Auth] Agent search failed:', searchEx); }
           throw new Error('Invalid username or password.');
         }
       }
-
       if (data.user) {
-        // Fetch profile to check for role (use maybeSingle to avoid crash on 0 rows for new offline migrations)
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role, manager_id, name')
-          .eq('email', data.user.email)
-          .maybeSingle();
-
+        const { data: profileData } = await supabase.from('profiles').select('role, manager_id, name').eq('email', data.user.email).maybeSingle();
         const role = profileData?.role || 'manager';
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
-        
         setActiveSession(loginUser);
-        if (rememberPassword) {
-          saveAccount({
-            username: loginUser,
-            password: password,
-            businessName: profileData?.name || data.user.user_metadata?.full_name || loginUser,
-            email: data.user.email || '',
-            phone: data.user.user_metadata?.phone || '',
-            role: role as 'admin' | 'manager' | 'sub-manager',
-            managerUsername: profileData?.manager_id || '',
-            createdAt: new Date().toISOString(),
-            rememberPassword: true
-          });
-        }
-        onLogin(loginUser);
-        return;
+        if (rememberPassword) saveAccount({ username: loginUser, password, businessName: profileData?.name || data.user.user_metadata?.full_name || loginUser, email: data.user.email || '', phone: data.user.user_metadata?.phone || '', role: role as 'admin' | 'manager' | 'sub-manager', managerUsername: profileData?.manager_id || '', createdAt: new Date().toISOString(), rememberPassword: true });
+        onLogin(loginUser); return;
       }
-
       throw new Error('Authentication failed.');
-    } catch (err: any) {
-      showError(err.message || 'Authentication error occurred');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err: any) { showError(err.message || 'Authentication error occurred'); }
+    finally { setIsLoading(false); }
   };
 
-  // ─── SIGNUP FLOW (Phone Only) ────────────────────────────
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
     if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
-    if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) {
-      showError('This Phone Number is already taken.');
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadingText('Initialising New Node...');
-    setError('');
-
+    if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) { showError('This Phone Number is already taken.'); return; }
+    setIsLoading(true); setLoadingText('Initialising New Node...'); setError('');
     try {
-      // Create a pseudo-email strictly tied to the phone number
       const authEmail = `${phone}@myisp.local`;
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: authEmail,
-        password,
-        options: { data: { full_name: businessName || phone, phone: phone } }
-      });
-
-      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) {
-         showError('This Phone Number is already registered.');
-         return;
-      }
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({ email: authEmail, password, options: { data: { full_name: businessName || phone, phone } } });
+      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) { showError('This Phone Number is already registered.'); return; }
       if (signUpErr) throw new Error(signUpErr.message);
       if (!signUpData.user) throw new Error('Signup failed. Try again.');
-
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
       if (signInErr) throw new Error('Account created! Please login manually.');
-
-      const newAccount: ManagerAccount = {
-        username: phone, password, businessName: businessName || phone,
-        email: authEmail, phone: phone, createdAt: new Date().toISOString(), rememberPassword
-      };
-      saveAccount(newAccount);
-      setAccounts(getAccounts());
+      const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
+      saveAccount(newAccount); setAccounts(getAccounts());
       writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
       onLogin(phone);
-
-    } catch (err: any) {
-      showError(`Registration Failed: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err: any) { showError(`Registration Failed: ${err.message}`); }
+    finally { setIsLoading(false); }
   };
 
   const handleForgotSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!forgotIdentifier.includes('@') || forgotIdentifier.endsWith('@myisp.local')) {
-      // It's a phone number or auto-generated email. Since they have no real email linked, prompt Support Modal.
-      setShowSupportModal(true);
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadingText('Sending OTP...');
+    e.preventDefault(); setError('');
+    if (!forgotIdentifier.includes('@') || forgotIdentifier.endsWith('@myisp.local')) { setShowSupportModal(true); return; }
+    setIsLoading(true); setLoadingText('Sending OTP...');
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier);
       if (error) throw new Error(error.message);
       setView('forgot-otp');
-    } catch (err: any) {
-      if (err.message === 'Failed to fetch') {
-        showError('Network error ya Supabase mein email recovery disabled hai. Support pe contact karein.');
-      } else {
-        showError('OTP send nahi hua: ' + err.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err: any) { showError(err.message === 'Failed to fetch' ? 'Network error. Contact support.' : 'OTP send failed: ' + err.message); }
+    finally { setIsLoading(false); }
   };
 
   const handleForgotOtpVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setLoadingText('Verifying OTP...');
-    setError('');
-
+    e.preventDefault(); setIsLoading(true); setLoadingText('Verifying OTP...'); setError('');
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: forgotIdentifier, token: forgotOtp, type: 'recovery',
-      });
+      const { error } = await supabase.auth.verifyOtp({ email: forgotIdentifier, token: forgotOtp, type: 'recovery' });
       if (error) throw new Error('Invalid OTP or it has expired.');
       setView('forgot-newpass');
-    } catch (err: any) {
-      showError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err: any) { showError(err.message); }
+    finally { setIsLoading(false); }
   };
 
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) { showError('Passwords do not match.'); return; }
     if (newPassword.length < 4) { showError('Password must be at least 4 characters.'); return; }
-    setIsLoading(true);
-    setLoadingText('Updating password...');
-    setError('');
-
+    setIsLoading(true); setLoadingText('Updating password...'); setError('');
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw new Error(error.message);
       setError('Success: Password updated! You can now login.');
-      setTimeout(() => {
-        resetFields();
-        setView('login');
-      }, 2000);
-    } catch (err: any) {
-      showError('Password update nahi hua: ' + err.message);
-    } finally {
-      setIsLoading(false);
-    }
+      setTimeout(() => { resetFields(); setView('login'); }, 2000);
+    } catch (err: any) { showError('Password update failed: ' + err.message); }
+    finally { setIsLoading(false); }
   };
 
-  // ─── UTILITY HANDLERS ─────────────────────────────────────────────────
   const handleSelectAccount = (acc: ManagerAccount) => {
-    setSelectedAccount(acc.username);
-    setUsername(acc.username);
+    setSelectedAccount(acc.username); setUsername(acc.username);
     if (acc.rememberPassword && acc.password) { setPassword(acc.password); setRememberPassword(true); }
     else { setPassword(''); setRememberPassword(false); }
     setView('login');
@@ -327,8 +171,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const resetFields = () => {
     setBusinessName(''); setUsername(''); setEmail(''); setPhone('');
     setPassword(''); setConfirmPassword(''); setRememberPassword(false); setError('');
-    setForgotIdentifier(''); setForgotOtp('');
-    setNewPassword(''); setConfirmNewPassword('');
+    setForgotIdentifier(''); setForgotOtp(''); setNewPassword(''); setConfirmNewPassword('');
   };
 
   const handleGoToSignup = () => { resetFields(); setView('signup'); };
@@ -336,344 +179,342 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
   const handleGoToRecent = () => { resetFields(); setSelectedAccount(null); setView('recent'); };
 
   const handleDeleteAccount = (usernameToDelete: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    removeAccount(usernameToDelete);
-    const updated = getAccounts();
-    setAccounts(updated);
+    e.stopPropagation(); removeAccount(usernameToDelete);
+    const updated = getAccounts(); setAccounts(updated);
     if (updated.length === 0) setView('login');
   };
 
-  const handleClearAllAccounts = () => {
-    clearAllAccounts(); setAccounts([]); setSelectedAccount(null);
-    setView('signup'); setShowClearConfirm(false);
+  const handleClearAllAccounts = () => { clearAllAccounts(); setAccounts([]); setSelectedAccount(null); setView('signup'); setShowClearConfirm(false); };
+
+  // ── Icons ──
+  const EyeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>);
+  const EyeOffIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>);
+  const UserIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>);
+  const LockIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>);
+  const PhoneIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 7V5z" /></svg>);
+  const BriefcaseIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
+  const MailIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
+
+  // ── Input with left icon ──
+  const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode }) => (
+    <div className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all duration-300 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+      style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)' }}>
+      <span className="text-indigo-400 flex-shrink-0">{icon}</span>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        className="flex-1 bg-transparent text-white text-sm font-medium placeholder:text-slate-500 outline-none min-w-0"
+        style={{ caretColor: '#818cf8' }}
+      />
+      {rightElement && <span className="flex-shrink-0 text-slate-400">{rightElement}</span>}
+    </div>
+  );
+
+  const labelCls = "text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block";
+
+  // ── Card heading based on view ──
+  const getHeading = () => {
+    if (view === 'signup') return { title: 'Create Account', sub: 'Register your new ISP node' };
+    if (view === 'recent') return { title: 'Welcome Back!', sub: 'Select your profile to continue' };
+    if (view === 'forgot') return { title: 'Reset Password', sub: 'Enter your registered identifier' };
+    if (view === 'forgot-otp') return { title: 'Verify OTP', sub: 'Enter the code sent to you' };
+    if (view === 'forgot-newpass') return { title: 'New Password', sub: 'Set a strong new password' };
+    return { title: 'Welcome Back!', sub: 'Login to continue to your account' };
   };
 
-  const EyeIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-
-  const EyeOffIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-    </svg>
-  );
-
-  const inputCls = `w-full px-6 py-5 rounded-2xl border font-bold outline-none transition-all duration-300 bg-white/[0.06] border-white/10 text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:bg-white/[0.09] backdrop-blur-sm`;
-  const labelCls = "text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-widest ml-1";
+  const heading = getHeading();
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-hidden bg-[#030712]">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#030712]">
 
-      {/* Three.js Background — always dark */}
-      <div className="absolute inset-0 z-0">
-        <ThreeBackground isDark={true} />
-      </div>
+      {/* Three.js Background */}
+      <div className="absolute inset-0 z-0"><ThreeBackground isDark={true} /></div>
       <div className="absolute inset-0 z-[1] bg-gradient-to-br from-slate-950/40 via-indigo-950/20 to-slate-950/40 pointer-events-none" />
 
+      <div className="w-full max-w-sm relative z-[10]">
 
-
-      <div className="w-full max-w-md relative z-[10] space-y-8">
-
-        {/* Logo & Title */}
-        <div className="text-center space-y-4 animate-in fade-in slide-in-from-top-8 duration-700 relative">
+        {/* Logo */}
+        <div className="text-center mb-6 animate-in fade-in slide-in-from-top-6 duration-700 relative">
           {onBack && (
-            <button onClick={onBack} className="absolute left-0 top-0 p-2 text-slate-400 hover:text-indigo-400 transition-colors" title="Back to Home">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            <button onClick={onBack} className="absolute left-0 top-0 p-2 text-slate-400 hover:text-indigo-400 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             </button>
           )}
-
-          <div className="flex justify-center mb-2">
-            {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[120px] md:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />}
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] mt-2 text-center">
-              {view === 'signup' ? 'Local Node Registration' : view === 'recent' ? 'Recent Profiles' : view === 'otp' ? 'Verify Your Account' : view === 'forgot' ? 'Password Recovery' : view === 'forgot-otp' ? 'Enter OTP' : view === 'forgot-newpass' ? 'Set New Password' : 'Secure Manager Access'}
-            </p>
-          </div>
+          {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[110px] h-auto object-contain mx-auto" />}
         </div>
 
         {/* Main Card */}
-        <div className="relative rounded-[3rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000"
+        <div
+          className="relative rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000"
           style={{
-            background: 'rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(32px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
-          }}>
+            background: 'rgba(255,255,255,0.07)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            boxShadow: '0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1px rgba(99,102,241,0.1)',
+          }}
+        >
 
+          {/* Loading bar */}
           {isLoading && (
-            <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-indigo-500/10">
-              <div className="h-full bg-indigo-500 animate-[loading-bar_2s_infinite_linear] w-[30%] shadow-[0_0_10px_#6366f1]"></div>
+            <div className="absolute top-0 left-0 right-0 h-[2px] z-50 overflow-hidden bg-indigo-500/10">
+              <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 animate-[loading-bar_2s_infinite_linear] w-[30%]"></div>
             </div>
           )}
 
-          {error && (
-            <div className="px-8 pt-8">
-              <div className={`p-4 border rounded-2xl text-[10px] font-bold uppercase tracking-widest text-center ${error.startsWith('Success') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
+          <div className="p-8">
+
+            {/* Card Header */}
+            <div className="text-center mb-7">
+              <h2 className="text-2xl font-black text-white tracking-tight mb-1">{heading.title}</h2>
+              <p className="text-xs text-slate-400 font-medium">{heading.sub}</p>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className={`mb-5 p-3.5 border rounded-xl text-[11px] font-bold uppercase tracking-widest text-center ${error.startsWith('Success') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
                 {error}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ── RECENT ACCOUNTS ── */}
-          {view === 'recent' && accounts.length > 0 && (
-            <div className="p-10 space-y-6">
-              <div className="flex justify-between items-center px-1">
-                <div className="flex flex-col">
-                  <h4 className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em]">Stored Profiles</h4>
-                  <span className="text-[9px] font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full mt-1 w-fit">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Active</span>
+            {/* ── RECENT ACCOUNTS ── */}
+            {view === 'recent' && accounts.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{accounts.length} Node{accounts.length !== 1 ? 's' : ''} Saved</span>
+                  <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-400 hover:text-rose-300 uppercase tracking-widest bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/20 transition-all">Clear All</button>
                 </div>
-                <button onClick={() => setShowClearConfirm(true)} className="text-[9px] font-bold text-rose-400 hover:text-rose-300 uppercase tracking-widest bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20 transition-all hover:bg-rose-500/20">Clear All</button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-2">
-                {accounts.map((acc, idx) => (
-                  <div key={acc.username} className="relative group/wrapper">
-                    <button onClick={() => handleSelectAccount(acc)} className={`w-full flex items-center gap-5 p-5 rounded-3xl border transition-all text-left group animate-in slide-in-from-bottom-4 duration-500 pr-12 relative overflow-hidden ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-indigo-500/40 hover:bg-white/10' : 'bg-white/5 border-white/10 hover:border-indigo-500/40 hover:bg-white/10'}`} style={{ animationDelay: `${idx * 100}ms` }}>
-                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                      <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform relative z-10 ${theme === 'dark' ? 'bg-white/10 text-indigo-300' : 'bg-white/10 text-indigo-300'}`}>
-                        {acc.businessName ? acc.businessName.charAt(0).toUpperCase() : acc.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0 relative z-10">
-                        <p className={`text-[15px] font-bold truncate leading-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{acc.businessName || acc.username}</p>
-                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">@{acc.username}</p>
-                      </div>
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 relative z-10">
-                        <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
-                      </div>
-                    </button>
-                    <button onClick={(e) => handleDeleteAccount(acc.username, e)} className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-400 hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover/wrapper:opacity-100 shadow-md border border-slate-100 dark:border-white/5 z-20" title="Remove from recents">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <button onClick={handleGoToSignup} className={`py-5 rounded-3xl border-2 border-dashed font-bold text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>+ Register Node</button>
-                <button onClick={handleGoToLogin} className={`py-5 rounded-3xl border-2 border-dashed font-bold text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark' ? 'border-slate-800 text-slate-400 hover:border-indigo-600 hover:text-indigo-400' : 'border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'}`}>Manual Login</button>
-              </div>
-            </div>
-          )}
-
-          {/* OTP Verification Removed */}
-
-          {/* ── FORGOT PASSWORD: ENTER EMAIL OR PHONE ── */}
-          {view === 'forgot' && (
-            <form onSubmit={handleForgotSend} className="p-10 space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <button type="button" onClick={handleGoToLogin} className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
-                  Back to Login
-                </button>
-                <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 1 of 3</span>
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Registered Email, Phone, or Username</label>
-                <input type="text" className={inputCls} placeholder="Email, Phone, or Username" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} required />
-              </div>
-              <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
-                  {isLoading ? loadingText : 'Reset Password'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* ── FORGOT PASSWORD: VERIFY OTP ── */}
-          {view === 'forgot-otp' && (
-            <form onSubmit={handleForgotOtpVerify} className="p-10 space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <button type="button" onClick={() => setView('forgot')} className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
-                  Back
-                </button>
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 2 of 3</span>
-              </div>
-              <div className={`p-4 rounded-2xl border text-[11px] font-bold text-center ${theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'}`}>
-                OTP has been sent to: <strong>{forgotIdentifier}</strong>
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>6-Digit OTP</label>
-                <input className={inputCls} placeholder="Enter OTP here" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} maxLength={6} required />
-              </div>
-              <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all hover:shadow-indigo-500/70 hover:-translate-y-0.5">
-                  {isLoading ? loadingText : 'Verify OTP'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* ── FORGOT PASSWORD: SET NEW PASSWORD ── */}
-          {view === 'forgot-newpass' && (
-            <form onSubmit={handleSetNewPassword} className="p-10 space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">✅ OTP Verified</span>
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Step 3 of 3</span>
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>New Password</label>
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} className={inputCls} placeholder="New password (min 4 characters)" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={4} required />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-500 transition-colors p-2">
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Confirm New Password</label>
-                <div className="relative">
-                  <input type={showConfirmPassword ? 'text' : 'password'} className={inputCls} placeholder="Enter password again" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-500 transition-colors p-2">
-                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
-              <div className="pt-2">
-                <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-emerald-500/50 active:scale-95 transition-all hover:shadow-emerald-500/70 hover:-translate-y-0.5">
-                  {isLoading ? loadingText : 'Update Password'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* ── LOGIN & SIGNUP FORMS ── */}
-          {(view === 'login' || view === 'signup') && (
-            <form onSubmit={view === 'signup' ? handleSignUp : handleLogin} className="p-10 space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <button type="button" onClick={view === 'signup' ? handleGoToLogin : (accounts.length > 0 ? handleGoToRecent : onBack)} className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2 hover:-translate-x-1 transition-transform">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
-                  {view === 'signup' ? 'Back to Login' : (accounts.length > 0 ? 'Back to Profiles' : 'Back')}
-                </button>
-                <div className="flex items-center gap-1.5">
-                  <div className="relative flex h-2 w-2">
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500/50"></span>
-                  </div>
-                  <span className="text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">{view === 'signup' ? 'New Node' : 'Authorise Node'}</span>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                {view === 'signup' && (
-                  <div className="space-y-2">
-                    <label className={labelCls}>Business Name</label>
-                    <input type="text" required className={inputCls} value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="e.g. MahadNet" />
-                  </div>
-                )}
-
-                {view === 'login' ? (
-                  <div className="space-y-2">
-                    <label className={labelCls}>Login ID (Email, Phone, or Username)</label>
-                    <input required disabled={!!selectedAccount && view === 'login'} className={`${inputCls} ${(!!selectedAccount && view === 'login') ? 'opacity-40 cursor-not-allowed' : ''}`} value={username} onChange={e => setUsername(e.target.value.toLowerCase().trim())} placeholder="Enter your ID" />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className={labelCls}>Phone Number</label>
-                    <input required type="tel" className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 03001234567" />
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className={labelCls}>Master Password</label>
-                  <div className="relative group">
-                    <input type={showPassword ? 'text' : 'password'} required className={inputCls} value={password} onChange={e => setPassword(e.target.value)} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors p-2">
-                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                    </button>
-                  </div>
-                </div>
-
-                {view === 'signup' && (
-                  <div className="space-y-2">
-                    <label className={labelCls}>Confirm Master Password</label>
-                    <div className="relative group">
-                      <input type={showConfirmPassword ? 'text' : 'password'} required className={inputCls} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors p-2">
-                        {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  {accounts.map((acc, idx) => (
+                    <div key={acc.username} className="relative group/wrapper">
+                      <button onClick={() => handleSelectAccount(acc)}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left pr-10"
+                        style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-black text-indigo-300 flex-shrink-0"
+                          style={{ background: 'rgba(99,102,241,0.15)' }}>
+                          {(acc.businessName || acc.username).charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{acc.businessName || acc.username}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">@{acc.username}</p>
+                        </div>
+                        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                      <button onClick={(e) => handleDeleteAccount(acc.username, e)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover/wrapper:opacity-100 transition-all text-slate-500 hover:text-rose-400 hover:bg-rose-500/10">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button onClick={handleGoToSignup} className="py-3.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-400 transition-all" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>+ New Node</button>
+                  <button onClick={handleGoToLogin} className="py-3.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-400 transition-all" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>Manual Login</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── FORGOT PASSWORD ── */}
+            {view === 'forgot' && (
+              <form onSubmit={handleForgotSend} className="space-y-5">
+                <div className="flex items-center justify-between mb-2">
+                  <button type="button" onClick={handleGoToLogin} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-indigo-400 transition-colors">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>Back
+                  </button>
+                  <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 1 / 3</span>
+                </div>
+                <div>
+                  <label className={labelCls}>Email / Phone / Username</label>
+                  <InputField icon={<MailIcon />} placeholder="Enter your identifier" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} />
+                </div>
+                <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
+                  {isLoading ? loadingText : 'Send Reset Link'}
+                </button>
+              </form>
+            )}
+
+            {/* ── FORGOT OTP ── */}
+            {view === 'forgot-otp' && (
+              <form onSubmit={handleForgotOtpVerify} className="space-y-5">
+                <div className="flex items-center justify-between mb-2">
+                  <button type="button" onClick={() => setView('forgot')} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-indigo-400 transition-colors">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>Back
+                  </button>
+                  <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 2 / 3</span>
+                </div>
+                <div className="p-3.5 rounded-xl text-[11px] font-bold text-center text-indigo-300" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  OTP sent to: <strong>{forgotIdentifier}</strong>
+                </div>
+                <div>
+                  <label className={labelCls}>6-Digit OTP</label>
+                  <InputField icon={<LockIcon />} placeholder="Enter OTP" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} />
+                </div>
+                <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
+                  {isLoading ? loadingText : 'Verify OTP'}
+                </button>
+              </form>
+            )}
+
+            {/* ── NEW PASSWORD ── */}
+            {view === 'forgot-newpass' && (
+              <form onSubmit={handleSetNewPassword} className="space-y-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">✅ OTP Verified</span>
+                  <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 3 / 3</span>
+                </div>
+                <div>
+                  <label className={labelCls}>New Password</label>
+                  <InputField icon={<LockIcon />} type={showPassword ? 'text' : 'password'} placeholder="Min 4 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                    rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-indigo-400 transition-colors p-1">{showPassword ? <EyeOffIcon /> : <EyeIcon />}</button>} />
+                </div>
+                <div>
+                  <label className={labelCls}>Confirm New Password</label>
+                  <InputField icon={<LockIcon />} type={showConfirmPassword ? 'text' : 'password'} placeholder="Repeat password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)}
+                    rightElement={<button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-slate-400 hover:text-indigo-400 transition-colors p-1">{showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}</button>} />
+                </div>
+                <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(135deg, #059669, #0d9488)', boxShadow: '0 8px 32px rgba(16,185,129,0.3)' }}>
+                  {isLoading ? loadingText : 'Update Password'}
+                </button>
+              </form>
+            )}
+
+            {/* ── LOGIN & SIGNUP ── */}
+            {(view === 'login' || view === 'signup') && (
+              <form onSubmit={view === 'signup' ? handleSignUp : handleLogin} className="space-y-4">
+
+                {/* Back nav */}
+                <div className="flex items-center justify-between mb-1">
+                  <button type="button" onClick={view === 'signup' ? handleGoToLogin : (accounts.length > 0 ? handleGoToRecent : onBack)} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-indigo-400 transition-colors">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                    {view === 'signup' ? 'Back' : accounts.length > 0 ? 'Profiles' : 'Back'}
+                  </button>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{view === 'signup' ? 'New Node' : 'Secure Access'}</span>
+                </div>
+
+                {/* Business Name (signup only) */}
+                {view === 'signup' && (
+                  <div>
+                    <label className={labelCls}>Business Name</label>
+                    <InputField icon={<BriefcaseIcon />} placeholder="e.g. MahadNet" value={businessName} onChange={e => setBusinessName(e.target.value)} />
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 px-1">
-                  <input type="checkbox" id="rememberPassword" checked={rememberPassword} onChange={e => setRememberPassword(e.target.checked)} className="w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-600 cursor-pointer" />
-                  <label htmlFor="rememberPassword" className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest cursor-pointer select-none">Remember Me</label>
+                {/* Username / Phone */}
+                {view === 'login' ? (
+                  <div>
+                    <label className={labelCls}>Login ID (Email, Phone, or Username)</label>
+                    <InputField icon={<UserIcon />} placeholder="Enter your ID" value={username} onChange={e => setUsername(e.target.value.toLowerCase().trim())} disabled={!!selectedAccount} />
+                  </div>
+                ) : (
+                  <div>
+                    <label className={labelCls}>Phone Number</label>
+                    <InputField icon={<PhoneIcon />} type="tel" placeholder="e.g. 03001234567" value={phone} onChange={e => setPhone(e.target.value)} />
+                  </div>
+                )}
+
+                {/* Password */}
+                <div>
+                  <label className={labelCls}>Master Password</label>
+                  <InputField icon={<LockIcon />} type={showPassword ? 'text' : 'password'} placeholder="Enter password" value={password} onChange={e => setPassword(e.target.value)}
+                    rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-indigo-400 transition-colors p-1">{showPassword ? <EyeOffIcon /> : <EyeIcon />}</button>} />
                 </div>
 
-                <div className="pt-2">
-                  <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg shadow-indigo-500/50 active:scale-95 transition-all transform hover:shadow-indigo-500/70 hover:-translate-y-0.5">
-                    {isLoading ? loadingText : (view === 'signup' ? 'Initialise Node' : 'Authorise Entry')}
-                  </button>
-                </div>
+                {/* Confirm Password (signup only) */}
+                {view === 'signup' && (
+                  <div>
+                    <label className={labelCls}>Confirm Password</label>
+                    <InputField icon={<LockIcon />} type={showConfirmPassword ? 'text' : 'password'} placeholder="Repeat password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                      rightElement={<button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-slate-400 hover:text-indigo-400 transition-colors p-1">{showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}</button>} />
+                  </div>
+                )}
 
-                {view === 'login' && (
-                  <div className="space-y-3">
-                    <button type="button" onClick={() => { resetFields(); setView('forgot'); }} className="w-full text-center text-[10px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+                {/* Remember Me + Forgot */}
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={rememberPassword} onChange={e => setRememberPassword(e.target.checked)} className="w-4 h-4 rounded text-indigo-600 bg-white/10 border-white/20 focus:ring-indigo-500 cursor-pointer" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Remember Me</span>
+                  </label>
+                  {view === 'login' && (
+                    <button type="button" onClick={() => { resetFields(); setView('forgot'); }} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-wider transition-colors">
                       Forgot Password?
                     </button>
+                  )}
+                </div>
 
-                    <button type="button" onClick={handleGoToSignup} className="w-full text-center text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors pt-1">
-                      Don't have a node? Create one now
-                    </button>
-                  </div>
-                )}
+                {/* Submit Button */}
+                <button type="submit" disabled={isLoading}
+                  className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-white transition-all active:scale-95 hover:-translate-y-0.5 mt-2"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #06b6d4 100%)', boxShadow: '0 8px 32px rgba(99,102,241,0.45)' }}>
+                  {isLoading ? loadingText : (view === 'signup' ? 'Create Node' : 'Login')}
+                </button>
 
-                {view === 'signup' && (
-                  <div className="space-y-2">
-                    <button type="button" onClick={handleGoToLogin} className="w-full text-center text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest hover:text-indigo-500 transition-colors">
-                      Already have a node? Login
-                    </button>
-                  </div>
+                {/* Divider */}
+                <div className="flex items-center gap-3 my-1">
+                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }}></div>
+                  <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">{view === 'signup' ? 'already have a node?' : "don't have an account?"}</span>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }}></div>
+                </div>
+
+                {view === 'login' ? (
+                  <button type="button" onClick={handleGoToSignup} className="w-full text-center text-[11px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors">
+                    Sign Up
+                  </button>
+                ) : (
+                  <button type="button" onClick={handleGoToLogin} className="w-full text-center text-[11px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors">
+                    Login
+                  </button>
                 )}
-              </div>
-            </form>
-          )}
+              </form>
+            )}
+
+          </div>
         </div>
 
-        <p className="text-[9px] text-slate-700 dark:text-slate-300 font-bold text-center uppercase tracking-widest">
-          {view === 'signup' ? 'Node encrypted using local storage hash' : 'Local node data remains strictly on this device'}
+        <p className="text-[9px] text-slate-600 font-bold text-center uppercase tracking-widest mt-5">
+          Local node data remains strictly on this device
         </p>
       </div>
 
-      {/* Support Message Modal */}
+      {/* Support Modal */}
       {showSupportModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 ${theme === 'dark' ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}>
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
-              <h4 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Support Needed</h4>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Password recovery via SMS/Phone is currently unavailable. Please contact our support team to manually reset your account.</p>
-              
+              <h4 className="text-xl font-black uppercase tracking-tight text-white">Support Needed</h4>
+              <p className="text-xs font-bold text-slate-400">Password recovery via SMS/Phone is currently unavailable. Please contact our support team to manually reset your account.</p>
               <div className="pt-2 flex flex-col gap-3">
-                <a 
-                  href="https://wa.me/923042773453?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." 
-                  target="_blank" rel="noopener noreferrer"
-                  className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-[#25D366]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
+                <a href="https://wa.me/923042773453?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." target="_blank" rel="noopener noreferrer"
+                  className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0a12 12 0 00-10.19 18.25L.037 24l5.962-1.55A11.942 11.942 0 0011.944 24c6.627 0 12-5.373 12-12s-5.373-12-12-12zm6.342 17.202c-.288.814-1.42 1.488-2.203 1.583-.783.095-1.558.28-4.385-1.01-3.418-1.562-5.63-5.068-5.8-5.297-.17-.229-1.385-1.848-1.385-3.52 0-1.673.86-2.502 1.168-2.846.308-.344.67-.43.89-.43s.44 0 .633.01c.192.01.448-.076.7.534.252.61 1.092 2.65 1.188 2.846.095.196.16.425.02.653-.14.229-.21.37-.425.62-.215.25-.448.514-.64.715-.192.196-.394.412-.17.795.22.383.985 1.63 2.115 2.64 1.458 1.305 2.68 1.708 3.064 1.88.384.172.61.152.84-.112.23-.264.985-1.144 1.25-1.538.264-.394.528-.328.878-.196.35.132 2.215 1.042 2.59 1.232.375.19.625.286.715.446.09.16.09.936-.198 1.75z" /></svg>
-                  Click to WhatsApp Support
+                  WhatsApp Support
                 </a>
-                <button onClick={() => setShowSupportModal(false)} className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>Close</button>
+                <button onClick={() => setShowSupportModal(false)} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700">Close</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Clear All Confirmation Modal */}
+      {/* Clear Confirm Modal */}
       {showClearConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 ${theme === 'dark' ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}>
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">⚠️</div>
-              <h4 className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Purge All Data?</h4>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">This will permanently remove all saved profiles and manager accounts from this device. This action cannot be undone.</p>
+              <h4 className="text-xl font-black uppercase tracking-tight text-white">Purge All Data?</h4>
+              <p className="text-xs font-bold text-slate-400">This will permanently remove all saved profiles from this device. This action cannot be undone.</p>
               <div className="pt-4 flex flex-col gap-3">
-                <button onClick={handleClearAllAccounts} className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-rose-500/20 active:scale-95 transition-all">Confirm Purge</button>
-                <button onClick={() => setShowClearConfirm(false)} className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>Keep Data</button>
+                <button onClick={handleClearAllAccounts} className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">Confirm Purge</button>
+                <button onClick={() => setShowClearConfirm(false)} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700">Keep Data</button>
               </div>
             </div>
           </div>
