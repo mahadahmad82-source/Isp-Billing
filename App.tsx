@@ -152,8 +152,13 @@ const App: React.FC = () => {
   // Listen for generic tab navigation (e.g. back from invoice to recovery ledger)
   useEffect(() => {
     const handler = (e: Event) => {
-      const { tab } = (e as CustomEvent).detail;
+      const { tab, month } = (e as CustomEvent).detail;
       if (tab) setActiveTab(tab);
+      if (month) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('myisp-open-recovery-month', { detail: { month } }));
+        }, 50);
+      }
     };
     window.addEventListener('myisp-goto-tab', handler);
     return () => window.removeEventListener('myisp-goto-tab', handler);
