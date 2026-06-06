@@ -1173,8 +1173,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               <button onClick={() => {
                 const returnTab = localStorage.getItem('myisp_return_tab');
                 if (returnTab) {
+                  const preselectRaw = localStorage.getItem('myisp_preselect_receipt');
+                  const month = preselectRaw ? JSON.parse(preselectRaw).month : null;
                   localStorage.removeItem('myisp_return_tab');
-                  window.dispatchEvent(new CustomEvent('myisp-goto-tab', { detail: { tab: returnTab } }));
+                  window.dispatchEvent(new CustomEvent('myisp-goto-tab', { detail: { tab: returnTab, month } }));
                 } else {
                   setViewMode('list');
                 }
