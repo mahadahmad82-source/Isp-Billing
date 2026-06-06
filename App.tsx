@@ -148,6 +148,16 @@ const App: React.FC = () => {
     window.addEventListener('myisp-goto-receipts', handler);
     return () => window.removeEventListener('myisp-goto-receipts', handler);
   }, [setActiveTab]);
+
+  // Listen for generic tab navigation (e.g. back from invoice to recovery ledger)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { tab } = (e as CustomEvent).detail;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('myisp-goto-tab', handler);
+    return () => window.removeEventListener('myisp-goto-tab', handler);
+  }, [setActiveTab]);
   const [showLanding, setShowLanding] = useState(true);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
@@ -764,11 +774,6 @@ const App: React.FC = () => {
         };
       });
       setLoadingMessage(null);
-      const returnTab = localStorage.getItem('myisp_return_tab');
-      if (returnTab) {
-        localStorage.removeItem('myisp_return_tab');
-        setActiveTab(returnTab);
-      }
     }, 600);
   };
 
