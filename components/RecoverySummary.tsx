@@ -976,6 +976,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                  const data = { userId: item.id, month: selectedMonth || '', ts: Date.now() };
                                  localStorage.setItem('myisp_preselect_receipt', JSON.stringify(data));
                                  localStorage.setItem('myisp_return_tab', 'recoveries');
+                                 localStorage.setItem('myisp_return_month', selectedMonth || '');
                                  window.dispatchEvent(new CustomEvent('myisp-goto-receipts', { detail: data }));
                                }}
                                title="Generate Receipt"
