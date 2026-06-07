@@ -1424,22 +1424,25 @@ const App: React.FC = () => {
           )}
           {activeTab === 'equipment' && userRole === 'manager' && (
             canAccess(subscription, 'equipment') ? (
-            <EquipmentTracker
-              equipment={state.equipmentRecords || []}
-              users={filteredUsers}
-              onAdd={(rec) => setState(prev => {
-                const ns = { ...prev, equipmentRecords: [...(prev.equipmentRecords || []), rec] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onUpdate={(id, updates) => setState(prev => {
-                const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).map(e => e.id === id ? { ...e, ...updates } : e) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onDelete={(id) => setState(prev => {
-                const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).filter(e => e.id !== id) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-            />
+              <EquipmentTracker
+                equipment={state.equipmentRecords || []}
+                users={filteredUsers}
+                onAdd={(rec) => setState(prev => {
+                  const ns = { ...prev, equipmentRecords: [...(prev.equipmentRecords || []), rec] };
+                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+                })}
+                onUpdate={(id, updates) => setState(prev => {
+                  const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).map(e => e.id === id ? { ...e, ...updates } : e) };
+                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+                })}
+                onDelete={(id) => setState(prev => {
+                  const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).filter(e => e.id !== id) };
+                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+                })}
+              />
+            ) : (
+              <UpgradeGate sub={subscription} feature="equipment" featureName="Equipment Tracker" />
+            )
           )}
           {activeTab === 'leads' && userRole === 'manager' && (
             <LeadsPipeline
