@@ -80,7 +80,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -1035,41 +1035,27 @@ const App: React.FC = () => {
   const handleVoidReceipt = (id: string) => {
     setConfirmConfig({
       title: 'Void Transaction',
-      message: 'This will mark the receipt as Pending, restore customer balance, and remove activation for that period. Continue?',
+      message: 'This will mark the receipt as Pending and restore customer balance. Continue?',
       variant: 'danger',
       onConfirm: () => {
         setState(prev => {
           const receipt = prev.receipts.find(r => r.id === id);
           if (!receipt) return prev;
-
-          // Check if any other SUCCESS receipt exists for same user+period
-          const otherSuccessExists = prev.receipts.some(
-            r => r.id !== id && r.userId === receipt.userId && r.period === receipt.period && r.status === PaymentStatus.SUCCESS
-          );
-
+          
           const updatedUsers = prev.users.map(u => {
             if (u.id === receipt.userId) {
-              const updatedMonths = otherSuccessExists
-                ? (u.activatedMonths || [])
-                : (u.activatedMonths || []).filter(m => m !== receipt.period);
-              return {
-                ...u,
-                balance: (u.balance || 0) + receipt.paidAmount,
-                activatedMonths: updatedMonths
-              };
+              return { ...u, balance: (u.balance || 0) + receipt.paidAmount };
             }
             return u;
           });
-
-          const voidLog = createLog('RECEIPT_VOIDED', `Receipt voided: @${receipt.username} — ${receipt.period}`, 'payment');
+          
           return {
             ...prev,
             receipts: prev.receipts.map(r => r.id === id ? { ...r, status: PaymentStatus.PENDING, paidAmount: 0, balanceAmount: r.totalAmount } : r),
-            users: updatedUsers,
-            systemLogs: [voidLog, ...(prev.systemLogs || [])].slice(0, 500)
+            users: updatedUsers
           };
         });
-        setSuccessToast("Receipt voided. Balance restored and activation removed.");
+        setSuccessToast("Receipt has been voided and marked as Pending.");
         setTimeout(() => setSuccessToast(null), 3000);
       }
     });
@@ -1133,11 +1119,7 @@ const App: React.FC = () => {
                 hideHistory={true}
                 defaultCollectedBy={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || undefined}
                 onAddReceipt={(receipt) => {
-                  setState(prev => {
-                    const diff = receipt.paidAmount;
-                    const updatedUsers = prev.users.map(u => u.id === receipt.userId ? { ...u, balance: (u.balance || 0) - diff } : u);
-                    return { ...prev, receipts: [...prev.receipts, receipt], users: updatedUsers };
-                  });
+                  handleAddReceipt(receipt);
                   setSuccessToast("Collection logged successfully!");
                   setTimeout(() => setSuccessToast(null), 3000);
                 }}
