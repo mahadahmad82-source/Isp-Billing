@@ -252,7 +252,7 @@ export interface LeadRecord {
   updatedAt: string;
 }
 
-export interface AppState {
+// ─── EQUIPMENT / DEVICE TRACKER ─────────────────────────────
 export type EquipmentType = 'router' | 'onu_ont' | 'media_converter' | 'switch' | 'cable' | 'power_adapter' | 'other';
 export type EquipmentStatus = 'available' | 'deployed' | 'damaged' | 'lost' | 'maintenance';
 
@@ -265,8 +265,8 @@ export interface EquipmentRecord {
   status: EquipmentStatus;
   assignedToUserId?: string;
   assignedToUserName?: string;
-  assignedDate?: string;        // ISO date
-  returnDate?: string;          // ISO date — when returned
+  assignedDate?: string;
+  returnDate?: string;
   purchaseDate?: string;
   purchasePrice?: number;
   notes?: string;
