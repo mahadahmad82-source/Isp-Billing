@@ -288,8 +288,44 @@ export interface AppState {
   complaintTickets?: ComplaintTicket[];
   businessExpenses?: BusinessExpense[];
   systemLogs?: SystemLog[];
+
+// ─── SERVICE SUSPENSION LOG ──────────────────────────────────
+export type SuspensionReason = 'non_payment' | 'customer_request' | 'abuse' | 'maintenance' | 'other';
+
+export interface SuspensionLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone?: string;
+  action: 'suspended' | 'restored';
+  reason: SuspensionReason;
+  note?: string;
+  performedBy: string;
+  createdAt: string;
+}
+
+// ─── NETWORK OUTAGE LOG ───────────────────────────────────────
+export type OutageSeverity = 'partial' | 'full' | 'degraded';
+
+export interface OutageLog {
+  id: string;
+  title: string;
+  description?: string;
+  severity: OutageSeverity;
+  areasAffected: string[];
+  startTime: string;
+  endTime?: string;            // empty = still ongoing
+  resolvedBy?: string;
+  cause?: string;
+  affectedCount?: number;
+  createdAt: string;
+  createdBy: string;
+}
+
   equipmentRecords?: EquipmentRecord[];
   leads?: LeadRecord[];
+  suspensionLogs?: SuspensionLog[];
+  outageLogs?: OutageLog[];
   pendingManagerNotifications?: AppNotification[];
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
