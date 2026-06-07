@@ -161,8 +161,12 @@ const OnlineDot = ({ status, showLabel = false }: { status: OnlineStatus; showLa
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
-  const [tab, setTab] = useState<'overview' | 'managers' | 'customers' | 'activity' | 'system'>('overview');
+  const [tab, setTab] = useState<'overview' | 'managers' | 'customers' | 'activity' | 'system' | 'subscriptions'>('overview');
   const [managers, setManagers] = useState<ManagerStat[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [subLoading, setSubLoading] = useState(false);
+  const [subToast, setSubToast] = useState<string | null>(null);
+  const showSubToast = (m: string) => { setSubToast(m); setTimeout(() => setSubToast(null), 3000); };
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,6 +188,26 @@ const AdminDashboard: React.FC = () => {
   const [actFilter, setActFilter] = useState<ActivityEntry['type'] | 'all'>('all');
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [mgrSort, setMgrSort] = useState<{ key: keyof ManagerStat; dir: 1 | -1 }>({ key: 'user_count', dir: -1 });
+
+  // ── Load subscriptions ────────────────────────────────────────────────────────
+  const loadSubscriptions = useCallback(async () => {
+    setSubLoading(true);
+    const { data } = await supabase.from('manager_subscriptions').select('*').order('created_at', { ascending: false });
+    if (data) setSubscriptions(data);
+    setSubLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'subscriptions') loadSubscriptions();
+  }, [tab, loadSubscriptions]);
+
+  const updateSubscription = async (managerId: string, updates: any) => {
+    const { error } = await supabase
+      .from('manager_subscriptions')
+      .upsert({ manager_id: managerId, ...updates }, { onConflict: 'manager_id' });
+    if (!error) { await loadSubscriptions(); showSubToast('✅ Updated: ' + managerId); }
+    else showSubToast('❌ Error: ' + error.message);
+  };
 
   // ── Load managers ────────────────────────────────────────────────────────────
   const loadManagers = useCallback(async () => {
