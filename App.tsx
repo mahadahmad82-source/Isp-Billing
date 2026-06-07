@@ -25,6 +25,9 @@ import BusinessAnalytics from './components/BusinessAnalytics';
 import EquipmentTracker from './components/EquipmentTracker';
 import LeadsPipeline from './components/LeadsPipeline';
 import AgingReport from './components/AgingReport';
+import SuspensionManager from './components/SuspensionManager';
+import OutageTracker from './components/OutageTracker';
+import AreaDashboard from './components/AreaDashboard';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -84,7 +87,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -1468,6 +1471,47 @@ const App: React.FC = () => {
           )}
           {activeTab === 'aging' && userRole === 'manager' && (
             <AgingReport users={filteredUsers} settings={currentSettings} />
+          )}
+          {activeTab === 'suspension' && userRole === 'manager' && (
+            <SuspensionManager
+              suspensionLogs={state.suspensionLogs || []}
+              users={filteredUsers}
+              currentUser={activeManager || 'admin'}
+              onAdd={(log) => setState(prev => {
+                const ns = { ...prev, suspensionLogs: [...(prev.suspensionLogs || []), log] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdateUserStatus={(userId, status) => setState(prev => {
+                const ns = { ...prev, users: prev.users.map(u => u.id === userId ? { ...u, status, isSuspended: status === 'suspended' } : u) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+            />
+          )}
+          {activeTab === 'outage' && userRole === 'manager' && (
+            <OutageTracker
+              outageLogs={state.outageLogs || []}
+              currentUser={activeManager || 'admin'}
+              totalUsers={filteredUsers.length}
+              onAdd={(log) => setState(prev => {
+                const ns = { ...prev, outageLogs: [...(prev.outageLogs || []), log] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdate={(id, updates) => setState(prev => {
+                const ns = { ...prev, outageLogs: (prev.outageLogs || []).map(o => o.id === id ? { ...o, ...updates } : o) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDelete={(id) => setState(prev => {
+                const ns = { ...prev, outageLogs: (prev.outageLogs || []).filter(o => o.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+            />
+          )}
+          {activeTab === 'area' && userRole === 'manager' && (
+            <AreaDashboard
+              users={filteredUsers}
+              receipts={filteredReceipts}
+              settings={currentSettings}
+            />
           )}
           {activeTab === 'team' && userRole === 'manager' && (
             <SubManagerManagement 
