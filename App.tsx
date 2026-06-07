@@ -22,6 +22,7 @@ import SubManagerManagement from './components/SubManager/SubManagerManagement';
 import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
 import BusinessAnalytics from './components/BusinessAnalytics';
+import EquipmentTracker from './components/EquipmentTracker';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -52,6 +53,7 @@ const App: React.FC = () => {
       complaintTickets: loaded.complaintTickets || [],
       businessExpenses: loaded.businessExpenses || [],
       systemLogs: loaded.systemLogs || [],
+      equipmentRecords: loaded.equipmentRecords || [],
     };
 
     // Initialize first company if none exists
@@ -80,7 +82,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs','equipment'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -256,6 +258,7 @@ const App: React.FC = () => {
           activeCompanyId: finalState.activeCompanyId || '',
           currentManager: dataOwner,
           systemLogs: finalState.systemLogs || [],
+          equipmentRecords: finalState.equipmentRecords || [],
         });
         // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
@@ -1408,6 +1411,24 @@ const App: React.FC = () => {
               receipts={filteredReceipts}
               expenses={state.businessExpenses || []}
               settings={currentSettings}
+            />
+          )}
+          {activeTab === 'equipment' && userRole === 'manager' && (
+            <EquipmentTracker
+              equipment={state.equipmentRecords || []}
+              users={filteredUsers}
+              onAdd={(rec) => setState(prev => {
+                const ns = { ...prev, equipmentRecords: [...(prev.equipmentRecords || []), rec] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdate={(id, updates) => setState(prev => {
+                const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).map(e => e.id === id ? { ...e, ...updates } : e) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDelete={(id) => setState(prev => {
+                const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).filter(e => e.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
             />
           )}
           {activeTab === 'team' && userRole === 'manager' && (
