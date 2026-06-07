@@ -23,9 +23,6 @@ import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
 import BusinessAnalytics from './components/BusinessAnalytics';
 import EquipmentTracker from './components/EquipmentTracker';
-import UpgradeGate from './components/UpgradeGate';
-import TrialBanner from './components/TrialBanner';
-import { useSubscription, canAccess } from './hooks/useSubscription';
 import LeadsPipeline from './components/LeadsPipeline';
 import AgingReport from './components/AgingReport';
 import SuspensionManager from './components/SuspensionManager';
@@ -1011,7 +1008,6 @@ const App: React.FC = () => {
   };
 
   const [successToast, setSuccessToast] = useState<string | null>(null);
-  const subscription = useSubscription(activeManager);
 
   const handleEditReceiptAmount = (id: string, newAmount: number) => {
     setState(prev => {
@@ -1250,8 +1246,7 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        <TrialBanner sub={subscription} />
-      <Layout 
+        <Layout 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
           theme={state.theme || 'light'} 
@@ -1416,17 +1411,19 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'analytics' && userRole === 'manager' && (
-            <UpgradeGate sub={subscription} feature="analytics" featureName="Business Analytics">
-            <BusinessAnalytics
-              users={filteredUsers}
-              receipts={filteredReceipts}
-              expenses={state.businessExpenses || []}
-              settings={currentSettings}
-            />
-            </UpgradeGate>
+            canAccess(subscription, 'analytics') ? (
+              <BusinessAnalytics
+                users={filteredUsers}
+                receipts={filteredReceipts}
+                expenses={state.businessExpenses || []}
+                settings={currentSettings}
+              />
+            ) : (
+              <UpgradeGate sub={subscription} feature="analytics" featureName="Business Analytics" />
+            )
           )}
           {activeTab === 'equipment' && userRole === 'manager' && (
-            <UpgradeGate sub={subscription} feature="equipment" featureName="Equipment Tracker">
+            canAccess(subscription, 'equipment') ? (
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
               users={filteredUsers}
@@ -1443,10 +1440,8 @@ const App: React.FC = () => {
                 saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
               })}
             />
-            </UpgradeGate>
           )}
           {activeTab === 'leads' && userRole === 'manager' && (
-            <UpgradeGate sub={subscription} feature="leads" featureName="Leads Pipeline">
             <LeadsPipeline
               leads={state.leads || []}
               users={filteredUsers}
@@ -1478,7 +1473,6 @@ const App: React.FC = () => {
                 });
               }}
             />
-            </UpgradeGate>
           )}
           {activeTab === 'aging' && userRole === 'manager' && (
             <AgingReport users={filteredUsers} settings={currentSettings} />
@@ -1518,12 +1512,15 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'area' && userRole === 'manager' && (
-            <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard">
-            <AreaDashboard
-              users={filteredUsers}
-              receipts={filteredReceipts}
-              settings={currentSettings}
-            />
+            canAccess(subscription, 'area') ? (
+              <AreaDashboard
+                users={filteredUsers}
+                receipts={filteredReceipts}
+                settings={currentSettings}
+              />
+            ) : (
+              <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard" />
+            )
           )}
           {activeTab === 'team' && userRole === 'manager' && (
             <SubManagerManagement 
