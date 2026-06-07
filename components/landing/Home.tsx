@@ -88,7 +88,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
     { title: 'Automated Billing', desc: 'Generate monthly invoices and receipts automatically. Zero manual entry required.', icon: <Zap className="w-7 h-7" />, color: '#6366f1', delay: 0 },
     { title: 'Recovery Alerts', desc: 'Smart overdue tracking with automated WhatsApp and SMS reminders.', icon: <Smartphone className="w-7 h-7" />, color: '#8b5cf6', delay: 0.1 },
     { title: 'Secure & Offline', desc: 'AES-256 encrypted local storage. Your data, your device, always private.', icon: <Lock className="w-7 h-7" />, color: '#06b6d4', delay: 0.2 },
-    { title: 'AI Insights', desc: 'Business analytics and revenue forecasts powered by machine learning.', icon: <BarChart className="w-7 h-7" />, color: '#10b981', delay: 0.3 },
+    { title: 'Smart Reports', desc: 'Business analytics, aging reports, area-wise breakdowns and revenue insights.', icon: <BarChart className="w-7 h-7" />, color: '#10b981', delay: 0.3 },
     { title: 'Multi-Manager', desc: 'Role-based access for admin and managers. Each operates independently.', icon: <Users className="w-7 h-7" />, color: '#f59e0b', delay: 0.4 },
     { title: 'Edge Computing', desc: 'Near-zero latency with Vercel edge network. 150+ global cities covered.', icon: <Globe className="w-7 h-7" />, color: '#ec4899', delay: 0.5 },
   ];
@@ -160,14 +160,14 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
               className="px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center gap-3 text-white transition-all shadow-lg shadow-indigo-500/50 hover:shadow-indigo-500/70 hover:-translate-y-0.5"
               whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>
               <span className="flex items-center gap-3">
-                Initialize Node <ArrowRight className="w-4 h-4" />
+                Get Started Free <ArrowRight className="w-4 h-4" />
               </span>
             </motion.button>
 
-            <motion.button onClick={() => setShowSpecs(true)}
+            <motion.button onClick={() => setShowSpecs(true)} // pricing
               className="px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] backdrop-blur-md border border-white/20 bg-white/10 flex items-center gap-3 text-white"
               whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>
-              <Cpu className="w-4 h-4" /> System Specs
+              <Cpu className="w-4 h-4" /> See Features
             </motion.button>
           </motion.div>
 
@@ -186,10 +186,10 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { value: '233+', label: 'Active Users', icon: <Users className="w-5 h-5" />, color: '#6366f1' },
-              { value: '99.9%', label: 'Uptime SLA', icon: <Server className="w-5 h-5" />, color: '#06b6d4' },
-              { value: '<50ms', label: 'Latency', icon: <Zap className="w-5 h-5" />, color: '#8b5cf6' },
-              { value: 'AES-256', label: 'Encryption', icon: <Lock className="w-5 h-5" />, color: '#10b981' },
+              { value: '12+', label: 'Modules', icon: <Zap className="w-5 h-5" />, color: '#6366f1' },
+              { value: '100%', label: 'Cloud Sync', icon: <Server className="w-5 h-5" />, color: '#06b6d4' },
+              { value: 'Free', label: 'To Try', icon: <Users className="w-5 h-5" />, color: '#8b5cf6' },
+              { value: 'PKR', label: 'Billing', icon: <Lock className="w-5 h-5" />, color: '#10b981' },
             ].map((stat, i) => (
               <motion.div key={i}
                 className="relative p-6 rounded-2xl border text-center overflow-hidden bg-white/10 backdrop-blur-md border-white/20"
@@ -238,6 +238,80 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {features.map((feat, i) => <FeatureCard3D key={i} feat={feat} />)}
           </div>
+        </div>
+      </section>
+
+
+      {/* ─── PRICING ─── */}
+      <section className="relative py-32 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4">Simple Pricing</p>
+            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-4">
+              Apna Plan<br />
+              <span style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Chunein
+              </span>
+            </h2>
+            <p className="text-slate-400 text-base max-w-xl mx-auto">Har size ke ISP ke liye flexible pricing. Koi hidden charges nahi.</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                name: 'Starter', price: 'Free', period: 'hamesha', color: '#6366f1',
+                features: ['50 customers tak', 'Receipts & Ledger', 'Basic Reports', '1 Manager', 'WhatsApp reminder'],
+                cta: 'Start Free', highlight: false,
+              },
+              {
+                name: 'Business', price: 'Contact', period: 'per month', color: '#8b5cf6',
+                features: ['Unlimited customers', 'Equipment Tracker', 'Leads Pipeline', 'Aging Reports', 'Area Dashboard', 'Team Management', 'Suspension & Outage Log', 'Priority Support'],
+                cta: 'WhatsApp Karo', highlight: true,
+              },
+              {
+                name: 'Enterprise', price: 'Custom', period: '', color: '#06b6d4',
+                features: ['Multiple branches', 'Custom branding', 'Admin Panel', 'Dedicated support', 'Custom features', 'Data migration'],
+                cta: 'Contact Us', highlight: false,
+              },
+            ].map((plan, i) => (
+              <motion.div key={i}
+                className={"relative p-8 rounded-3xl border overflow-hidden " + (plan.highlight ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-white/10 bg-white/5 backdrop-blur-md')}
+                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}>
+                {plan.highlight && (
+                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent"/>
+                )}
+                {plan.highlight && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="px-4 py-1 bg-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest text-white">Most Popular</span>
+                  </div>
+                )}
+                <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: plan.color }}>{plan.name}</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-black text-white">{plan.price}</span>
+                  {plan.period && <span className="text-slate-400 text-sm ml-2">/{plan.period}</span>}
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((f, fi) => (
+                    <li key={fi} className="flex items-center gap-2 text-sm text-slate-300">
+                      <Check className="w-4 h-4 flex-shrink-0" style={{ color: plan.color }} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={plan.name === 'Starter' ? onGetStarted : () => window.open('https://wa.me/923001234567?text=MYISP ' + plan.name + ' plan ke baare mein baat karni hai', '_blank')}
+                  className={"w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 " + (plan.highlight ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/10')}>
+                  {plan.cta}
+                </button>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.p className="text-center text-slate-500 text-xs mt-10 font-medium"
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
+            Pricing ke liye WhatsApp karein — custom deals available hain Pakistan ke ISPs ke liye 🇵🇰
+          </motion.p>
         </div>
       </section>
 
@@ -313,8 +387,8 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                   <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-tight">MYISP System Specs</h2>
-                <p className="text-indigo-300 text-sm mt-1">Complete platform overview</p>
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight">MYISP Platform Features</h2>
+                <p className="text-indigo-300 text-sm mt-1">Sab kuch jo aapke ISP ko chahiye</p>
               </div>
               <button onClick={() => setShowSpecs(false)} className="text-white/60 hover:text-white text-2xl">✕</button>
             </div>
@@ -326,12 +400,14 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
-                  'Multi-Manager Accounts', 'Customer Management',
-                  'Digital Receipt Generator', 'Monthly Recovery Tracking',
-                  'Expiry Alerts (3/7/30 days)', 'AI Business Insights',
-                  'Cross-Device Cloud Sync', 'WhatsApp Share Integration',
-                  'Dark / Light Theme', 'Onboarding Tour Guide',
-                  'Feature Hint System', 'Role-Based Access (Admin/Manager)',
+                  'Customer Management', 'Digital Receipt Generator',
+                  'Monthly Recovery Ledger', 'Expiry Alerts (3/7/30 days)',
+                  'Equipment / Device Tracker', 'Leads Pipeline',
+                  'Receivable Aging Report', 'Area-wise Dashboard',
+                  'Service Suspension Log', 'Network Outage Tracker',
+                  'Business Expenses', 'Team / Agent Management',
+                  'Smart Notifications', 'Cross-Device Cloud Sync',
+                  'Role-Based Access', 'WhatsApp Reminder Links',
                 ].map((f, i) => (
                   <div key={i} className="text-xs font-medium py-1 text-slate-300 flex items-center gap-2">
                     <Check className="w-3 h-3 text-emerald-400" /> {f}
@@ -343,7 +419,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
               onClick={() => { setShowSpecs(false); onGetStarted(); }}
               className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 shadow-lg shadow-indigo-500/50 transition-all hover:-translate-y-0.5 hover:shadow-indigo-500/70"
               whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-              Initialize Node — Start Free <ArrowRight className="w-4 h-4" />
+              Get Started Free <ArrowRight className="w-4 h-4" />
             </motion.button>
           </div>
         </motion.div>
