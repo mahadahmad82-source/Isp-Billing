@@ -91,7 +91,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   _today.setHours(0, 0, 0, 0);
   const _currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(_today);
   const _isActiveByDate = (u: UserRecord) => {
-    if (u.status === 'deleted') return false;
+    if (u.status === 'deleted' || u.status === 'pending') return false;
     // Active if current month is in activatedMonths (matches Recovery Ledger logic)
     if (u.activatedMonths && u.activatedMonths.includes(_currentMonth)) return true;
     // OR active if expiryDate is today or future
@@ -102,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     return exp >= _today;
   };
   const activeUsersCount = (users || []).filter(_isActiveByDate).length;
-  const expiredUsersCount = (users || []).filter(u => u.status !== 'deleted' && !_isActiveByDate(u)).length;
+  const expiredUsersCount = (users || []).filter(u => u.status !== 'deleted' && u.status !== 'pending' && !_isActiveByDate(u)).length;
   const totalUsersCount = (users || []).length;
 
   // Today Expiry = expiryDate === today (last active day)
