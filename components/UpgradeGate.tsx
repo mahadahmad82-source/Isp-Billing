@@ -6,7 +6,7 @@ interface Props {
   feature: string;
   featureName: string;
   requiredTier?: 'starter' | 'business' | 'pro';
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const TIER_ORDER = { trial: 0, starter: 1, business: 2, pro: 3, suspended: -1 };
@@ -26,7 +26,7 @@ const UpgradeGate: React.FC<Props> = ({ sub, feature, featureName, children }) =
   const features = TIER_FEATURES[tier];
   const hasAccess = typeof (features as any)[feature] === 'boolean' ? (features as any)[feature] : true;
 
-  if (hasAccess || sub.loading) return <>{children}</>;
+  if (hasAccess || sub.loading) return children ? <>{children}</> : null;
 
   const info = UPGRADE_INFO[feature] || { emoji: '🔒', desc: featureName, tier: 'Business' };
 
