@@ -1035,27 +1035,41 @@ const App: React.FC = () => {
   const handleVoidReceipt = (id: string) => {
     setConfirmConfig({
       title: 'Void Transaction',
-      message: 'This will mark the receipt as Pending and restore customer balance. Continue?',
+      message: 'This will mark the receipt as Pending, restore customer balance, and remove activation for that period. Continue?',
       variant: 'danger',
       onConfirm: () => {
         setState(prev => {
           const receipt = prev.receipts.find(r => r.id === id);
           if (!receipt) return prev;
-          
+
+          // Check if any other SUCCESS receipt exists for same user+period
+          const otherSuccessExists = prev.receipts.some(
+            r => r.id !== id && r.userId === receipt.userId && r.period === receipt.period && r.status === PaymentStatus.SUCCESS
+          );
+
           const updatedUsers = prev.users.map(u => {
             if (u.id === receipt.userId) {
-              return { ...u, balance: (u.balance || 0) + receipt.paidAmount };
+              const updatedMonths = otherSuccessExists
+                ? (u.activatedMonths || [])
+                : (u.activatedMonths || []).filter(m => m !== receipt.period);
+              return {
+                ...u,
+                balance: (u.balance || 0) + receipt.paidAmount,
+                activatedMonths: updatedMonths
+              };
             }
             return u;
           });
-          
+
+          const voidLog = createLog('RECEIPT_VOIDED', `Receipt voided: @${receipt.username} — ${receipt.period}`, 'payment');
           return {
             ...prev,
             receipts: prev.receipts.map(r => r.id === id ? { ...r, status: PaymentStatus.PENDING, paidAmount: 0, balanceAmount: r.totalAmount } : r),
-            users: updatedUsers
+            users: updatedUsers,
+            systemLogs: [voidLog, ...(prev.systemLogs || [])].slice(0, 500)
           };
         });
-        setSuccessToast("Receipt has been voided and marked as Pending.");
+        setSuccessToast("Receipt voided. Balance restored and activation removed.");
         setTimeout(() => setSuccessToast(null), 3000);
       }
     });
