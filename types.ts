@@ -273,22 +273,6 @@ export interface EquipmentRecord {
   createdAt: string;
 }
 
-export interface AppState {
-  users: UserRecord[];
-  receipts: Receipt[];
-  archives: Archive[];
-  subManagers?: SubManagerAccount[];
-  attendanceLogs?: AttendanceLog[];
-  companies?: Company[];
-  activeCompanyId?: string;
-  theme?: 'light' | 'dark';
-  settings?: AppSettings;
-  currentManager?: string;
-  dismissedNotificationIds?: string[];
-  complaintTickets?: ComplaintTicket[];
-  businessExpenses?: BusinessExpense[];
-  systemLogs?: SystemLog[];
-
 // ─── SERVICE SUSPENSION LOG ──────────────────────────────────
 export type SuspensionReason = 'non_payment' | 'customer_request' | 'abuse' | 'maintenance' | 'other';
 
@@ -314,7 +298,7 @@ export interface OutageLog {
   severity: OutageSeverity;
   areasAffected: string[];
   startTime: string;
-  endTime?: string;            // empty = still ongoing
+  endTime?: string;
   resolvedBy?: string;
   cause?: string;
   affectedCount?: number;
@@ -322,6 +306,21 @@ export interface OutageLog {
   createdBy: string;
 }
 
+export interface AppState {
+  users: UserRecord[];
+  receipts: Receipt[];
+  archives: Archive[];
+  subManagers?: SubManagerAccount[];
+  attendanceLogs?: AttendanceLog[];
+  companies?: Company[];
+  activeCompanyId?: string;
+  theme?: 'light' | 'dark';
+  settings?: AppSettings;
+  currentManager?: string;
+  dismissedNotificationIds?: string[];
+  complaintTickets?: ComplaintTicket[];
+  businessExpenses?: BusinessExpense[];
+  systemLogs?: SystemLog[];
   equipmentRecords?: EquipmentRecord[];
   leads?: LeadRecord[];
   suspensionLogs?: SuspensionLog[];
