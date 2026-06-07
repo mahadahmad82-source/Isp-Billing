@@ -23,6 +23,7 @@ import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
 import BusinessAnalytics from './components/BusinessAnalytics';
 import EquipmentTracker from './components/EquipmentTracker';
+import LeadsPipeline from './components/LeadsPipeline';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -82,7 +83,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs','equipment'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs','equipment','leads'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -259,6 +260,7 @@ const App: React.FC = () => {
           currentManager: dataOwner,
           systemLogs: finalState.systemLogs || [],
           equipmentRecords: finalState.equipmentRecords || [],
+          leads: finalState.leads || [],
         });
         // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
@@ -1429,6 +1431,44 @@ const App: React.FC = () => {
                 const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).filter(e => e.id !== id) };
                 saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
               })}
+            />
+          )}
+          {activeTab === 'leads' && userRole === 'manager' && (
+            <LeadsPipeline
+              leads={state.leads || []}
+              users={filteredUsers}
+              subManagers={state.subManagers || []}
+              settings={currentSettings}
+              onAdd={(lead) => setState(prev => {
+                const ns = { ...prev, leads: [...(prev.leads || []), lead] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdate={(id, updates) => setState(prev => {
+                const ns = { ...prev, leads: (prev.leads || []).map(l => l.id === id ? { ...l, ...updates } : l) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDelete={(id) => setState(prev => {
+                const ns = { ...prev, leads: (prev.leads || []).filter(l => l.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onConvertToCustomer={(lead) => {
+                const newUser = {
+                  id: `USER-${Date.now()}`,
+                  name: lead.name,
+                  phone: lead.phone,
+                  address: lead.address,
+                  area: lead.area || '',
+                  plan: lead.interestedPlan || '',
+                  status: 'active' as const,
+                  balance: 0,
+                  activatedMonths: [],
+                  createdAt: new Date().toISOString(),
+                };
+                setState(prev => {
+                  const ns = { ...prev, users: [...prev.users, newUser] };
+                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+                });
+              }}
             />
           )}
           {activeTab === 'team' && userRole === 'manager' && (
