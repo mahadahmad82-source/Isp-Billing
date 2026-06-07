@@ -11,10 +11,12 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const faqs = [
-    { q: "How secure is my ISP data?", a: "Your data is stored locally on your device using AES-256 encryption. We never see your customer records." },
-    { q: "Can I import my existing Excel records?", a: "Yes! Our smart import engine supports .xlsx and .csv files with automatic field mapping." },
-    { q: "Does it work without an internet connection?", a: "Absolutely. Ledgerzo is built as a Progressive Web App (PWA) that works 100% offline." },
-    { q: "How do I send receipts to customers?", a: "You can share professional digital receipts directly via WhatsApp or SMS with one click." }
+    { q: "Kya MYISP Pakistan ke ISPs ke liye suitable hai?", a: "Bilkul! MYISP specifically Pakistani local ISPs ke liye banaya gaya hai — PKR billing, WhatsApp reminders, aur Pakistan ke common devices (TP-Link, Huawei ONU) support ke saath." },
+    { q: "Kya main apne Excel records import kar sakta hoon?", a: "Haan! MYISP .xlsx aur .csv files support karta hai — purana data seedha import ho jata hai." },
+    { q: "Ek account mein kitne customers ho sakte hain?", a: "Business plan mein unlimited customers. Starter plan mein 50 customers tak free hain." },
+    { q: "Kya mere agents bhi use kar sakte hain?", a: "Haan! Sub-manager accounts create karo apne field agents ke liye — woh receipts collect kar sakte hain, attendance lagwa sakte hain." },
+    { q: "Data safe hai? Kho toh nahi jayega?", a: "Bilkul safe. Supabase cloud pe real-time sync hoti hai. Phone tod do, data safe rahega — doosre device pe login karo, sab wapas aa jayega." },
+    { q: "Demo ya trial kaise milega?", a: "Abhi free mein start karo — koi credit card nahi chahiye. WhatsApp karein 0300-1234567 pe agar koi help chahiye." }
   ];
 
   return (
@@ -42,14 +44,17 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-40">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-32">
           {[
-            { title: 'Automated Billing', desc: 'Generate monthly invoices and receipts automatically with zero manual entry.', icon: <Zap className="w-8 h-8" /> },
-            { title: 'Recovery Alerts', desc: 'Smart tracking for overdue payments with automated WhatsApp and SMS reminders.', icon: <Smartphone className="w-8 h-8" /> },
-            { title: 'Deep Analytics', desc: 'Real-time insights into your revenue streams, growth trends, and recovery rates.', icon: <Activity className="w-8 h-8" /> },
-            { title: 'Digital Receipts', desc: 'Professional, high-end receipt designs optimized for mobile and digital sharing.', icon: <LayoutIcon className="w-8 h-8" /> },
-            { title: 'Bulk Engine', desc: 'Import and export thousands of subscribers via Excel with our high-speed processing engine.', icon: <Database className="w-8 h-8" /> },
-            { title: 'Encrypted Storage', desc: 'AES-256 encrypted local storage ensures your data never leaves your device.', icon: <ShieldCheck className="w-8 h-8" /> },
+            { title: 'Customer Management', desc: 'Customers add/edit karo, plans assign karo, expiry track karo — sab ek jagah.', icon: <Users className="w-8 h-8" /> },
+            { title: 'Digital Receipts', desc: 'Professional invoices generate karo, WhatsApp pe share karo — ek tap mein.', icon: <LayoutIcon className="w-8 h-8" /> },
+            { title: 'Recovery Ledger', desc: 'Monthly collection ka poora record — kaun paid, kaun unpaid, kaun expire — sab clear.', icon: <Activity className="w-8 h-8" /> },
+            { title: 'Equipment Tracker', desc: 'Routers, ONUs, switches — customer ko assign karo, wapas lo, inventory manage karo.', icon: <Database className="w-8 h-8" /> },
+            { title: 'Leads Pipeline', desc: 'New inquiries track karo — contacted se install pending tak, conversion rate dekho.', icon: <Zap className="w-8 h-8" /> },
+            { title: 'Aging Report', desc: 'Kitna paisa kitne dino se pending hai — 0-30, 30-60, 60-90, 90+ days breakdown.', icon: <Smartphone className="w-8 h-8" /> },
+            { title: 'Area Dashboard', desc: 'Har area ka active/expired breakdown, revenue aur pending amounts alag alag.', icon: <ShieldCheck className="w-8 h-8" /> },
+            { title: 'Suspension Log', desc: 'Connection suspend/restore karo with reason aur full history log.', icon: <Lock className="w-8 h-8" /> },
+            { title: 'Outage Tracker', desc: 'Network downtime log karo — affected areas, severity, duration — sab track hoga.', icon: <CheckCircle className="w-8 h-8" /> },
           ].map((feature, idx) => (
             <motion.div 
               key={idx} 
