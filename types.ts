@@ -232,6 +232,27 @@ export interface SystemLog {
   category: 'user' | 'payment' | 'recovery' | 'system' | 'settings' | 'import';
 }
 
+// ─── EQUIPMENT / DEVICE TRACKER ─────────────────────────────
+export type EquipmentType = 'router' | 'onu_ont' | 'media_converter' | 'switch' | 'cable' | 'power_adapter' | 'other';
+export type EquipmentStatus = 'available' | 'deployed' | 'damaged' | 'lost' | 'maintenance';
+
+export interface EquipmentRecord {
+  id: string;
+  serialNumber: string;
+  brand: string;
+  model: string;
+  type: EquipmentType;
+  status: EquipmentStatus;
+  assignedToUserId?: string;
+  assignedToUserName?: string;
+  assignedDate?: string;        // ISO date
+  returnDate?: string;          // ISO date — when returned
+  purchaseDate?: string;
+  purchasePrice?: number;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface AppState {
   users: UserRecord[];
   receipts: Receipt[];
@@ -247,6 +268,7 @@ export interface AppState {
   complaintTickets?: ComplaintTicket[];
   businessExpenses?: BusinessExpense[];
   systemLogs?: SystemLog[];
+  equipmentRecords?: EquipmentRecord[];
   pendingManagerNotifications?: AppNotification[];
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
