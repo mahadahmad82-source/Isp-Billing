@@ -232,7 +232,27 @@ export interface SystemLog {
   category: 'user' | 'payment' | 'recovery' | 'system' | 'settings' | 'import';
 }
 
-// ─── EQUIPMENT / DEVICE TRACKER ─────────────────────────────
+// ─── LEADS / NEW CONNECTION PIPELINE ─────────────────────────
+export type LeadStatus = 'new' | 'contacted' | 'survey_done' | 'install_pending' | 'converted' | 'lost';
+
+export interface LeadRecord {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  area?: string;
+  interestedPlan?: string;
+  status: LeadStatus;
+  assignedTo?: string;       // agent username
+  note?: string;
+  followUpDate?: string;     // ISO date
+  source?: string;           // walk-in, referral, social media, etc.
+  referredBy?: string;       // customer name who referred
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppState {
 export type EquipmentType = 'router' | 'onu_ont' | 'media_converter' | 'switch' | 'cable' | 'power_adapter' | 'other';
 export type EquipmentStatus = 'available' | 'deployed' | 'damaged' | 'lost' | 'maintenance';
 
@@ -269,6 +289,7 @@ export interface AppState {
   businessExpenses?: BusinessExpense[];
   systemLogs?: SystemLog[];
   equipmentRecords?: EquipmentRecord[];
+  leads?: LeadRecord[];
   pendingManagerNotifications?: AppNotification[];
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
