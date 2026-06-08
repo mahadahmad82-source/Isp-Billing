@@ -257,7 +257,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
             <p className="text-slate-400 text-base max-w-xl mx-auto">Har size ke ISP ke liye flexible pricing. Koi hidden charges nahi.</p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start pt-5">
             {[
               {
                 name: 'Starter', price: 'Free', period: '3 months', color: '#6366f1',
@@ -276,7 +276,8 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
               },
             ].map((plan, i) => (
               <motion.div key={i}
-                className={"relative p-8 rounded-3xl border overflow-hidden " + (plan.highlight ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-white/10 bg-white/5 backdrop-blur-md')}
+                className={"relative rounded-3xl border overflow-visible " + (plan.highlight ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-white/10 bg-white/5 backdrop-blur-md')}
+                style={plan.highlight ? { marginTop: '-8px', paddingTop: '28px', padding: '2rem' } : { padding: '2rem' }}
                 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}>
                 {plan.highlight && (
