@@ -68,7 +68,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* Mobile slide-down menu */}
         {menuOpen && (
-          <div className="fixed top-[65px] left-0 right-0 z-[99] bg-slate-950/95 backdrop-blur-xl border-b border-white/10 flex flex-col sm:hidden">
+          <div className="fixed top-[72px] left-0 right-0 z-[99] bg-slate-950/95 backdrop-blur-xl border-b border-white/10 flex flex-col sm:hidden">
             {navLinks.map(link => (
               <Link key={link.path} to={link.path}
                 onClick={() => setMenuOpen(false)}
