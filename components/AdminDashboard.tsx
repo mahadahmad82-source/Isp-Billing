@@ -555,6 +555,9 @@ const AdminDashboard: React.FC = () => {
         <TabBtn active={tab === 'system'} onClick={() => setTab('system')}>
           <Server className="w-3.5 h-3.5" /> System
         </TabBtn>
+        <TabBtn active={tab === 'subscriptions'} onClick={() => setTab('subscriptions')} count={subscriptions.length}>
+          <Shield className="w-3.5 h-3.5" /> Subscriptions
+        </TabBtn>
       </div>
 
       {/* Loading */}
@@ -1139,6 +1142,198 @@ const AdminDashboard: React.FC = () => {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════ SUBSCRIPTIONS ════════════════════════════ */}
+      {tab === 'subscriptions' && (
+        <div className="space-y-4">
+          {/* Toast */}
+          {subToast && (
+            <div className="fixed top-4 right-4 z-50 px-5 py-3 rounded-xl bg-[#181d2f] border border-white/10 shadow-2xl text-sm font-bold text-white animate-pulse">
+              {subToast}
+            </div>
+          )}
+
+          {/* Header */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-lg font-black text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-[#5a4ff0]" /> Manager Subscriptions
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">Har manager ka plan, status aur access control karein</p>
+            </div>
+            <button onClick={loadSubscriptions}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
+              <RefreshCcw className="w-3.5 h-3.5" /> Refresh
+            </button>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Trial', color: 'text-amber-400', count: subscriptions.filter(s => s.status === 'trial').length },
+              { label: 'Active', color: 'text-emerald-400', count: subscriptions.filter(s => s.status === 'active').length },
+              { label: 'Locked', color: 'text-rose-400', count: subscriptions.filter(s => s.status === 'locked').length },
+              { label: 'Expired', color: 'text-slate-500', count: subscriptions.filter(s => s.status === 'expired').length },
+            ].map(s => (
+              <div key={s.label} className="bg-[#181d2f] rounded-xl border border-white/[0.05] p-4 text-center">
+                <p className={`text-2xl font-black ${s.color}`}>{s.count}</p>
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Managers without subscription entry */}
+          {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+              <p className="text-amber-400 text-[12px] font-bold mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" /> Yeh managers abhi subscription table mein nahi hain:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).map(m => (
+                  <button key={m.username}
+                    onClick={() => updateSubscription(m.username, { plan: 'starter', status: 'trial', trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() })}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-bold hover:bg-amber-500/20 transition-all active:scale-95">
+                    + Add @{m.username}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Loading */}
+          {subLoading ? (
+            <div className="flex items-center justify-center py-20 gap-3">
+              <div className="w-5 h-5 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+              <span className="text-slate-400 font-bold text-sm">Load ho raha hai...</span>
+            </div>
+          ) : subscriptions.length === 0 ? (
+            <div className="text-center py-20 text-slate-600 flex flex-col items-center gap-3">
+              <Shield className="w-12 h-12" />
+              <p className="font-bold text-sm">Koi subscription record nahi. Upar se managers add karein.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {subscriptions.map((sub) => {
+                const mgr = managers.find(m => m.username === sub.manager_id);
+                const statusCfg: Record<string, { color: string; bg: string; label: string }> = {
+                  trial: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', label: 'TRIAL' },
+                  active: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: 'ACTIVE' },
+                  locked: { color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30', label: 'LOCKED' },
+                  expired: { color: 'text-slate-500', bg: 'bg-slate-500/10 border-slate-500/30', label: 'EXPIRED' },
+                };
+                const sc = statusCfg[sub.status] || statusCfg.trial;
+                const planColors: Record<string, string> = {
+                  starter: 'text-indigo-400', business: 'text-purple-400', enterprise: 'text-cyan-400',
+                };
+                return (
+                  <div key={sub.manager_id} className="bg-[#181d2f] rounded-2xl border border-white/[0.05] p-5 hover:border-white/10 transition-all">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      {/* Left: Manager info */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-sm flex-shrink-0"
+                          style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                          {(mgr?.business_name || sub.manager_id).charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-black text-[#867bfb] text-sm">@{sub.manager_id}</p>
+                          {mgr && <p className="text-[11px] text-slate-400 truncate">{mgr.business_name}</p>}
+                          {sub.trial_ends_at && sub.status === 'trial' && (
+                            <p className="text-[10px] text-amber-500 font-bold mt-0.5">
+                              Trial ends: {fmtDate(sub.trial_ends_at)}
+                            </p>
+                          )}
+                          {sub.notes && <p className="text-[10px] text-slate-600 mt-0.5 italic">"{sub.notes}"</p>}
+                        </div>
+                      </div>
+                      {/* Right: Badges */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${sc.bg} ${sc.color}`}>
+                          {sc.label}
+                        </span>
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 ${planColors[sub.plan] || 'text-slate-400'}`}>
+                          {sub.plan}
+                        </span>
+                        {sub.amount_pkr > 0 && (
+                          <span className="text-[10px] font-bold text-[#ffb752] bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                            Rs. {sub.amount_pkr.toLocaleString()}/mo
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/[0.04]">
+                      {/* Plan Change */}
+                      <select
+                        value={sub.plan}
+                        onChange={e => updateSubscription(sub.manager_id, { plan: e.target.value })}
+                        className="px-3 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] font-bold text-slate-300 outline-none focus:ring-2 focus:ring-[#5a4ff0] cursor-pointer">
+                        <option value="starter">Starter</option>
+                        <option value="business">Business</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+
+                      {/* Status Change Buttons */}
+                      {sub.status !== 'active' && (
+                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'active', billing_starts_at: new Date().toISOString() })}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                        </button>
+                      )}
+                      {sub.status !== 'trial' && (
+                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'trial', trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() })}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-bold hover:bg-amber-500/20 transition-all active:scale-95 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" /> Trial Reset
+                        </button>
+                      )}
+                      {sub.status !== 'locked' ? (
+                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'locked' })}
+                          className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold hover:bg-rose-500/20 transition-all active:scale-95 flex items-center gap-1">
+                          <XCircle className="w-3.5 h-3.5" /> Lock
+                        </button>
+                      ) : (
+                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'active' })}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Unlock
+                        </button>
+                      )}
+
+                      {/* Amount input */}
+                      <div className="flex items-center gap-1 ml-auto">
+                        <span className="text-[10px] text-slate-600 font-bold">Rs.</span>
+                        <input
+                          type="number"
+                          placeholder="Amount/mo"
+                          defaultValue={sub.amount_pkr || ''}
+                          onBlur={e => {
+                            const val = parseInt(e.target.value) || 0;
+                            if (val !== sub.amount_pkr) updateSubscription(sub.manager_id, { amount_pkr: val });
+                          }}
+                          className="w-24 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] font-bold text-slate-300 outline-none focus:ring-2 focus:ring-[#5a4ff0]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Notes input */}
+                    <input
+                      type="text"
+                      placeholder="Notes (optional) — Enter se save hoga"
+                      defaultValue={sub.notes || ''}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          updateSubscription(sub.manager_id, { notes: (e.target as HTMLInputElement).value });
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="w-full mt-2 px-3 py-2 rounded-lg bg-black/20 border border-white/[0.05] text-[11px] text-slate-500 placeholder-slate-700 outline-none focus:ring-1 focus:ring-[#5a4ff0] focus:border-[#5a4ff0]/50 transition-all"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
