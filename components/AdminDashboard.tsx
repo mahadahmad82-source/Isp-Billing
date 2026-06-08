@@ -5,48 +5,25 @@ import {
   Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle,
   Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key,
   ChevronUp, ChevronDown, Activity, LogIn, Shield, TrendingUp,
-  Download, Upload, Eye, Clock, BarChart2, Wifi
+  Download, Upload, Eye, Clock, BarChart2, Wifi, Menu, X
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ManagerStat {
-  username: string;
-  business_name: string;
-  email: string;
-  phone: string | null;
-  role: string;
-  joined_at: string;
-  last_login: string;
-  user_count: number;
-  receipt_count: number;
-  active_count: number;
-  expired_count: number;
-  total_revenue: number;
-  total_balance: number;
-  data_updated_at: string | null;
+  username: string; business_name: string; email: string; phone: string | null;
+  role: string; joined_at: string; last_login: string; user_count: number;
+  receipt_count: number; active_count: number; expired_count: number;
+  total_revenue: number; total_balance: number; data_updated_at: string | null;
 }
-
 interface Customer {
-  id: string;
-  name: string;
-  username: string;
-  phone?: string;
-  plan: string;
-  monthlyFee: number;
-  balance: number;
-  expiryDate: string;
+  id: string; name: string; username: string; phone?: string; plan: string;
+  monthlyFee: number; balance: number; expiryDate: string;
   status: 'active' | 'expired' | 'pending' | 'deleted';
-  createdAt?: string;
-  managerUsername?: string;
-  managerBusiness?: string;
+  createdAt?: string; managerUsername?: string; managerBusiness?: string;
 }
-
 interface ActivityEntry {
-  managerUsername: string;
-  managerBusiness: string;
-  action: string;
-  details?: string;
-  timestamp: string;
+  managerUsername: string; managerBusiness: string; action: string;
+  details?: string; timestamp: string;
   type: 'login' | 'receipt' | 'customer' | 'update' | 'system' | 'other';
 }
 
@@ -84,40 +61,24 @@ const StatChip = ({ label, value, color }: { label: string; value: string | numb
   </span>
 );
 
-const KpiCard = ({
-  icon, label, value, sub, bgClass, valColor, accent, pct
-}: {
+const KpiCard = ({ icon, label, value, sub, bgClass, valColor, accent, pct }: {
   icon: React.ReactNode; label: string; value: string | number;
   sub?: string; bgClass: string; valColor?: string; accent: string; pct?: number;
 }) => (
-  <div className={`rounded-2xl p-5 ${bgClass} flex flex-col justify-between shadow-sm border border-white/[0.06] relative overflow-hidden group hover:border-white/10 transition-all`}>
+  <div className={`rounded-2xl p-5 ${bgClass} flex flex-col justify-between shadow-sm border border-white/[0.06] relative overflow-hidden hover:border-white/10 transition-all`}>
     <div className={`absolute top-0 left-0 w-1 h-full ${accent} rounded-l-2xl`} />
     <div className="flex items-start justify-between mb-3">
       <span className={`${accent.replace('bg-', 'text-')} opacity-80`}>{icon}</span>
       {pct !== undefined && (
-        <span className="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
-          {pct}%
-        </span>
+        <span className="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">{pct}%</span>
       )}
     </div>
     <div>
-      <span className={`text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 block mb-1`}>{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 block mb-1">{label}</span>
       <span className={`text-[1.85rem] font-black leading-none ${valColor || 'text-white'}`}>{value}</span>
       {sub && <span className="text-[11px] text-slate-600 font-semibold block mt-1">{sub}</span>}
     </div>
   </div>
-);
-
-const TabBtn = ({ active, onClick, children, count }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number }) => (
-  <button onClick={onClick}
-    className={`px-4 py-2 rounded-xl text-[11px] uppercase tracking-wide font-bold whitespace-nowrap transition-all flex items-center gap-2 ${active
-      ? 'bg-[#5a4ff0] text-white shadow-lg shadow-indigo-500/20'
-      : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}>
-    {children}
-    {count !== undefined && (
-      <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${active ? 'bg-white/20' : 'bg-white/5'}`}>{count}</span>
-    )}
-  </button>
 );
 
 const activityTypeConfig: Record<ActivityEntry['type'], { icon: React.ReactNode; color: string; bg: string }> = {
@@ -129,14 +90,12 @@ const activityTypeConfig: Record<ActivityEntry['type'], { icon: React.ReactNode;
   other: { icon: <Activity className="w-3.5 h-3.5" />, color: 'text-slate-400', bg: 'bg-slate-500/10' },
 };
 
-// ─── Online Status Helper ─────────────────────────────────────────────────────
 type OnlineStatus = 'online' | 'recent' | 'offline';
-
 const getOnlineStatus = (updatedAt: string | null): OnlineStatus => {
   if (!updatedAt) return 'offline';
   const diff = Date.now() - new Date(updatedAt).getTime();
-  if (diff < 5 * 60 * 1000) return 'online';     // < 5 min
-  if (diff < 30 * 60 * 1000) return 'recent';    // < 30 min
+  if (diff < 5 * 60 * 1000) return 'online';
+  if (diff < 30 * 60 * 1000) return 'recent';
   return 'offline';
 };
 
@@ -149,9 +108,7 @@ const OnlineDot = ({ status, showLabel = false }: { status: OnlineStatus; showLa
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="relative flex h-2 w-2">
-        {cfg.pulse && (
-          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${cfg.pulse} opacity-60`} />
-        )}
+        {cfg.pulse && <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${cfg.pulse} opacity-60`} />}
         <span className={`relative inline-flex rounded-full h-2 w-2 ${cfg.dot} shadow-sm`} />
       </span>
       {showLabel && <span className={`text-[10px] font-bold uppercase tracking-wide ${cfg.text}`}>{cfg.label}</span>}
@@ -159,9 +116,50 @@ const OnlineDot = ({ status, showLabel = false }: { status: OnlineStatus; showLa
   );
 };
 
+// ─── Sidebar Nav Item ─────────────────────────────────────────────────────────
+type TabId = 'overview' | 'managers' | 'customers' | 'activity' | 'system' | 'subscriptions';
+
+const SideNavItem = ({ active, onClick, icon, label, count, accent }: {
+  active: boolean; onClick: () => void; icon: React.ReactNode;
+  label: string; count?: number; accent?: string;
+}) => (
+  <button onClick={onClick}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-bold transition-all group relative ${
+      active
+        ? 'bg-[#5a4ff0] text-white shadow-lg shadow-indigo-500/20'
+        : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.04]'
+    }`}>
+    {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/40 rounded-r-full" />}
+    <span className={active ? 'text-white' : 'text-slate-600 group-hover:text-slate-400'}>{icon}</span>
+    <span className="flex-1 text-left uppercase tracking-wider">{label}</span>
+    {count !== undefined && (
+      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${active ? 'bg-white/20 text-white' : 'bg-white/5 text-slate-600'}`}>
+        {count}
+      </span>
+    )}
+  </button>
+);
+
+// ─── Mobile Tab Button ────────────────────────────────────────────────────────
+const MobileTab = ({ active, onClick, icon, label, count }: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count?: number;
+}) => (
+  <button onClick={onClick}
+    className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all flex-shrink-0 ${
+      active ? 'bg-[#5a4ff0] text-white' : 'text-slate-500 hover:text-slate-300'
+    }`}>
+    <span>{icon}</span>
+    <span className="text-[9px] font-black uppercase tracking-wider whitespace-nowrap">{label}</span>
+    {count !== undefined && (
+      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20' : 'bg-white/5'}`}>{count}</span>
+    )}
+  </button>
+);
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
-  const [tab, setTab] = useState<'overview' | 'managers' | 'customers' | 'activity' | 'system' | 'subscriptions'>('overview');
+  const [tab, setTab] = useState<TabId>('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [managers, setManagers] = useState<ManagerStat[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [subLoading, setSubLoading] = useState(false);
@@ -189,7 +187,7 @@ const AdminDashboard: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [mgrSort, setMgrSort] = useState<{ key: keyof ManagerStat; dir: 1 | -1 }>({ key: 'user_count', dir: -1 });
 
-  // ── Load subscriptions ────────────────────────────────────────────────────────
+  // ── Load subscriptions ──────────────────────────────────────────────────────
   const loadSubscriptions = useCallback(async () => {
     setSubLoading(true);
     const { data } = await supabase.from('manager_subscriptions').select('*').order('created_at', { ascending: false });
@@ -197,9 +195,7 @@ const AdminDashboard: React.FC = () => {
     setSubLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (tab === 'subscriptions') loadSubscriptions();
-  }, [tab, loadSubscriptions]);
+  useEffect(() => { if (tab === 'subscriptions') loadSubscriptions(); }, [tab, loadSubscriptions]);
 
   const updateSubscription = async (managerId: string, updates: any) => {
     const { error } = await supabase
@@ -209,7 +205,7 @@ const AdminDashboard: React.FC = () => {
     else showSubToast('❌ Error: ' + error.message);
   };
 
-  // ── Load managers ────────────────────────────────────────────────────────────
+  // ── Load managers ───────────────────────────────────────────────────────────
   const loadManagers = useCallback(async () => {
     setLoading(true);
     try {
@@ -217,105 +213,71 @@ const AdminDashboard: React.FC = () => {
       if (error) throw error;
       setManagers(data || []);
       setLastRefresh(new Date());
-    } catch (err) {
-      console.error('Admin stats load error:', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error('Admin stats load error:', err); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { loadManagers(); }, [loadManagers]);
 
-  // ── Build online map when managers change ────────────────────────────────────
   useEffect(() => {
     const map: Record<string, { status: OnlineStatus; updatedAt: string | null }> = {};
     for (const m of managers) {
-      map[m.username] = {
-        status: getOnlineStatus(m.data_updated_at),
-        updatedAt: m.data_updated_at,
-      };
+      map[m.username] = { status: getOnlineStatus(m.data_updated_at), updatedAt: m.data_updated_at };
     }
     setOnlineMap(map);
   }, [managers]);
 
-  // ── Supabase Realtime subscription ───────────────────────────────────────────
+  // ── Realtime ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const channel = supabase
-      .channel('admin-manager-live')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'manager_data' },
-        (payload) => {
-          const row = payload.new as any;
-          if (!row?.manager_id) return;
-          const username = row.manager_id;
-          const updatedAt = row.updated_at || null;
-          const status = getOnlineStatus(updatedAt);
-          // Update online map live
-          setOnlineMap(prev => ({
-            ...prev,
-            [username]: { status, updatedAt },
-          }));
-          // Also update manager stats if we have them
-          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-            setManagers(prev => prev.map(m => {
-              if (m.username !== username) return m;
-              return { ...m, data_updated_at: updatedAt };
-            }));
-          }
-          if (payload.eventType === 'DELETE') {
-            const deletedId = (payload.old as any)?.manager_id;
-            if (deletedId) setManagers(prev => prev.filter(m => m.username !== deletedId));
-          }
+    const channel = supabase.channel('admin-manager-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'manager_data' }, (payload) => {
+        const row = payload.new as any;
+        if (!row?.manager_id) return;
+        const username = row.manager_id;
+        const updatedAt = row.updated_at || null;
+        setOnlineMap(prev => ({ ...prev, [username]: { status: getOnlineStatus(updatedAt), updatedAt } }));
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          setManagers(prev => prev.map(m => m.username !== username ? m : { ...m, data_updated_at: updatedAt }));
         }
-      )
-      .subscribe((status) => {
-        setRealtimeActive(status === 'SUBSCRIBED');
-      });
+        if (payload.eventType === 'DELETE') {
+          const deletedId = (payload.old as any)?.manager_id;
+          if (deletedId) setManagers(prev => prev.filter(m => m.username !== deletedId));
+        }
+      })
+      .subscribe((status) => setRealtimeActive(status === 'SUBSCRIBED'));
 
-    // Refresh online statuses every minute
     const ticker = setInterval(() => {
       setOnlineMap(prev => {
         const updated = { ...prev };
-        for (const key of Object.keys(updated)) {
+        for (const key of Object.keys(updated))
           updated[key] = { ...updated[key], status: getOnlineStatus(updated[key].updatedAt) };
-        }
         return updated;
       });
     }, 60_000);
 
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(ticker);
-    };
+    return () => { supabase.removeChannel(channel); clearInterval(ticker); };
   }, []);
 
-  // ── Load all customers ───────────────────────────────────────────────────────
+  // ── Load all customers ──────────────────────────────────────────────────────
   const loadAllCustomers = useCallback(async () => {
     setCustLoading(true);
     try {
       const allCusts: Customer[] = [];
       for (const mgr of managers) {
         const { data } = await supabase.rpc('get_manager_customers', { p_username: mgr.username });
-        if (data && Array.isArray(data)) {
-          allCusts.push(...data.map((c: Customer) => ({
-            ...c, managerUsername: mgr.username, managerBusiness: mgr.business_name,
-          })));
-        }
+        if (data && Array.isArray(data))
+          allCusts.push(...data.map((c: Customer) => ({ ...c, managerUsername: mgr.username, managerBusiness: mgr.business_name })));
       }
       setAllCustomers(allCusts);
-    } catch (err) {
-      console.error('Load all customers error:', err);
-    } finally {
-      setCustLoading(false);
-    }
+    } catch (err) { console.error('Load all customers error:', err); }
+    finally { setCustLoading(false); }
   }, [managers]);
 
   useEffect(() => {
     if (tab === 'customers' && allCustomers.length === 0 && managers.length > 0) loadAllCustomers();
   }, [tab, managers, allCustomers.length, loadAllCustomers]);
 
-  // ── Load activity logs ───────────────────────────────────────────────────────
+  // ── Load activity logs ──────────────────────────────────────────────────────
   const loadActivityLogs = useCallback(async () => {
     setActLoading(true);
     try {
@@ -326,12 +288,10 @@ const AdminDashboard: React.FC = () => {
           const mgr = managers.find(m => m.username === row.manager_id);
           const bizName = mgr?.business_name || row.manager_id;
           const d = row.data as any;
-          // From activityLog array in manager data
           if (d?.activityLog && Array.isArray(d.activityLog)) {
             for (const entry of d.activityLog) {
               logs.push({
-                managerUsername: row.manager_id,
-                managerBusiness: bizName,
+                managerUsername: row.manager_id, managerBusiness: bizName,
                 action: entry.action || entry.description || 'Activity',
                 details: entry.details || entry.info,
                 timestamp: entry.timestamp || entry.time || entry.date || '',
@@ -339,37 +299,19 @@ const AdminDashboard: React.FC = () => {
               });
             }
           }
-          // From last_login of the manager stat
           const mgrStat = managers.find(m => m.username === row.manager_id);
           if (mgrStat?.last_login) {
-            logs.push({
-              managerUsername: row.manager_id,
-              managerBusiness: bizName,
-              action: 'Manager Login',
-              timestamp: mgrStat.last_login,
-              type: 'login',
-            });
+            logs.push({ managerUsername: row.manager_id, managerBusiness: bizName, action: 'Manager Login', timestamp: mgrStat.last_login, type: 'login' });
           }
-          // From data_updated_at
           if (row.updated_at) {
-            logs.push({
-              managerUsername: row.manager_id,
-              managerBusiness: bizName,
-              action: 'Data Synced to Cloud',
-              timestamp: row.updated_at,
-              type: 'update',
-            });
+            logs.push({ managerUsername: row.manager_id, managerBusiness: bizName, action: 'Data Synced to Cloud', timestamp: row.updated_at, type: 'update' });
           }
         }
       }
-      // Sort newest first, deduplicate
       logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setActivityLogs(logs);
-    } catch (err) {
-      console.error('Load activity error:', err);
-    } finally {
-      setActLoading(false);
-    }
+    } catch (err) { console.error('Load activity error:', err); }
+    finally { setActLoading(false); }
   }, [managers]);
 
   useEffect(() => {
@@ -386,7 +328,6 @@ const AdminDashboard: React.FC = () => {
     return 'other';
   }
 
-  // ── Expand manager ───────────────────────────────────────────────────────────
   const toggleExpand = async (username: string) => {
     if (expandedMgr === username) { setExpandedMgr(null); return; }
     setExpandedMgr(username);
@@ -398,41 +339,22 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // ── Delete manager ───────────────────────────────────────────────────────────
   const handleDelete = async (username: string) => {
-    // Optimistic: remove from state immediately
     setManagers(prev => prev.filter(m => m.username !== username));
-    setShowDeleteConfirm(null);
-    setDeleteConfirmText('');
-    try {
-      await supabase.rpc('admin_delete_manager', { p_username: username });
-    } catch { /* ignore */ }
-    // Fallback: direct delete from manager_data table
-    try {
-      await supabase.from('manager_data').delete().eq('manager_id', username);
-    } catch { /* ignore */ }
-    // localStorage cleanup
+    setShowDeleteConfirm(null); setDeleteConfirmText('');
+    try { await supabase.rpc('admin_delete_manager', { p_username: username }); } catch { }
+    try { await supabase.from('manager_data').delete().eq('manager_id', username); } catch { }
     removeAccount(username);
     localStorage.removeItem(`myisp_data_${username}`);
   };
 
-  // ── Reset password ───────────────────────────────────────────────────────────
   const handleReset = async () => {
     if (!showResetModal || !newPassword.trim() || newPassword.length < 6) return;
     setResetMsg(null);
     try {
-      const { data, error } = await supabase.rpc('admin_reset_manager_password', {
-        p_username: showResetModal,
-        p_new_password: newPassword.trim(),
-      });
-      if (error || (data && !data.success)) {
-        setResetMsg({ ok: false, text: error?.message || data?.error || 'Failed' });
-        return;
-      }
-    } catch (e: any) {
-      setResetMsg({ ok: false, text: e.message });
-      return;
-    }
+      const { data, error } = await supabase.rpc('admin_reset_manager_password', { p_username: showResetModal, p_new_password: newPassword.trim() });
+      if (error || (data && !data.success)) { setResetMsg({ ok: false, text: error?.message || data?.error || 'Failed' }); return; }
+    } catch (e: any) { setResetMsg({ ok: false, text: e.message }); return; }
     const accs = getAccounts();
     const existing = accs.find((a: any) => a.username === showResetModal);
     if (existing) saveAccount({ ...existing, password: newPassword.trim() });
@@ -440,7 +362,7 @@ const AdminDashboard: React.FC = () => {
     setTimeout(() => { setShowResetModal(null); setNewPassword(''); setResetMsg(null); }, 1500);
   };
 
-  // ── Totals ────────────────────────────────────────────────────────────────────
+  // ── Totals ──────────────────────────────────────────────────────────────────
   const totals = useMemo(() => ({
     managers: managers.length,
     customers: managers.reduce((s, m) => s + m.user_count, 0),
@@ -451,22 +373,16 @@ const AdminDashboard: React.FC = () => {
     receipts: managers.reduce((s, m) => s + m.receipt_count, 0),
   }), [managers]);
 
-  // ── Sorted managers ───────────────────────────────────────────────────────────
   const sortedManagers = useMemo(() => {
     if (!searchMgr.trim()) {
       return [...managers].sort((a, b) => {
-        const av = a[mgrSort.key] as any;
-        const bv = b[mgrSort.key] as any;
+        const av = a[mgrSort.key] as any; const bv = b[mgrSort.key] as any;
         if (typeof av === 'number') return (av - bv) * mgrSort.dir;
         return String(av).localeCompare(String(bv)) * mgrSort.dir;
       });
     }
     const q = searchMgr.toLowerCase();
-    return managers.filter(m =>
-      m.username.toLowerCase().includes(q) ||
-      m.business_name.toLowerCase().includes(q) ||
-      (m.email || '').toLowerCase().includes(q)
-    );
+    return managers.filter(m => m.username.toLowerCase().includes(q) || m.business_name.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q));
   }, [managers, searchMgr, mgrSort]);
 
   const filteredCusts = useMemo(() => {
@@ -474,13 +390,7 @@ const AdminDashboard: React.FC = () => {
     if (custFilter !== 'all') list = list.filter(c => c.status === custFilter);
     if (searchCust.trim()) {
       const q = searchCust.toLowerCase();
-      list = list.filter(c =>
-        c.name?.toLowerCase().includes(q) ||
-        c.username?.toLowerCase().includes(q) ||
-        (c.phone || '').includes(q) ||
-        c.plan?.toLowerCase().includes(q) ||
-        c.managerBusiness?.toLowerCase().includes(q)
-      );
+      list = list.filter(c => c.name?.toLowerCase().includes(q) || c.username?.toLowerCase().includes(q) || (c.phone || '').includes(q) || c.plan?.toLowerCase().includes(q) || c.managerBusiness?.toLowerCase().includes(q));
     }
     return list;
   }, [allCustomers, custFilter, searchCust]);
@@ -490,920 +400,868 @@ const AdminDashboard: React.FC = () => {
     if (actFilter !== 'all') list = list.filter(a => a.type === actFilter);
     if (searchAct.trim()) {
       const q = searchAct.toLowerCase();
-      list = list.filter(a =>
-        a.managerBusiness.toLowerCase().includes(q) ||
-        a.managerUsername.toLowerCase().includes(q) ||
-        a.action.toLowerCase().includes(q)
-      );
+      list = list.filter(a => a.managerBusiness.toLowerCase().includes(q) || a.managerUsername.toLowerCase().includes(q) || a.action.toLowerCase().includes(q));
     }
     return list;
   }, [activityLogs, actFilter, searchAct]);
 
-  const sortCol = (key: keyof ManagerStat) => {
-    setMgrSort(prev => prev.key === key ? { key, dir: prev.dir === 1 ? -1 : 1 } : { key, dir: -1 });
-  };
-
-  // ── Active pct for progress bar ───────────────────────────────────────────────
+  const sortCol = (key: keyof ManagerStat) => setMgrSort(prev => prev.key === key ? { key, dir: prev.dir === 1 ? -1 : 1 } : { key, dir: -1 });
   const activePct = totals.customers > 0 ? Math.round(totals.active / totals.customers * 100) : 0;
+  const onlineCount = Object.values(onlineMap).filter(v => v.status === 'online').length;
+
+  // ── Nav items config ────────────────────────────────────────────────────────
+  const navItems: { id: TabId; label: string; icon: React.ReactNode; count?: number; desc: string }[] = [
+    { id: 'overview', label: 'Overview', icon: <BarChart2 className="w-4 h-4" />, desc: 'Stats & summary' },
+    { id: 'managers', label: 'Managers', icon: <Users className="w-4 h-4" />, count: totals.managers, desc: 'All ISP accounts' },
+    { id: 'customers', label: 'Customers', icon: <UserCheck className="w-4 h-4" />, count: totals.customers, desc: 'All users' },
+    { id: 'activity', label: 'Activity', icon: <Activity className="w-4 h-4" />, desc: 'Logs & timeline' },
+    { id: 'system', label: 'System', icon: <Server className="w-4 h-4" />, desc: 'DB & backup' },
+    { id: 'subscriptions', label: 'Subscriptions', icon: <Shield className="w-4 h-4" />, count: subscriptions.length, desc: 'Plans & billing' },
+  ];
+
+  const handleTabChange = (id: TabId) => { setTab(id); setSidebarOpen(false); };
+  const doRefresh = () => { loadManagers(); setAllCustomers([]); setActivityLogs([]); };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-[1400px] mx-auto min-h-screen text-slate-300"
-      style={{ background: 'linear-gradient(160deg, #08091a 0%, #0b0f1f 50%, #07091a 100%)' }}>
+    <div className="flex min-h-screen" style={{ background: 'linear-gradient(160deg,#07091a 0%,#0b0f1f 60%,#07091a 100%)' }}>
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-[#5a4ff0]/20 border border-[#5a4ff0]/30 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-[#867bfb]" />
+      {/* ══════════ DESKTOP SIDEBAR ══════════ */}
+      <aside className="hidden md:flex flex-col w-60 flex-shrink-0 border-r border-white/[0.05] bg-[#080b18]"
+        style={{ position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+
+        {/* Sidebar Header */}
+        <div className="p-5 border-b border-white/[0.05]">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5a4ff0] to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30 flex-shrink-0">
+              <Shield className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">Admin Control Center</h1>
+            <div>
+              <p className="font-black text-white text-[13px] leading-tight">Admin Panel</p>
+              <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Control Center</p>
+            </div>
           </div>
-          <p className="text-[10px] text-slate-600 uppercase tracking-[0.2em] font-bold pl-12 flex items-center gap-2">
-            <span className="flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-              {realtimeActive ? 'LIVE' : 'CONNECTING'}
-            </span>
-            <span>• SYNCED {lastRefresh.toLocaleTimeString()}</span>
-            <span>• {totals.managers} MANAGERS</span>
-            <span>• {Object.values(onlineMap).filter(v => v.status === 'online').length} ONLINE NOW</span>
-          </p>
-        </div>
-        <button onClick={() => { loadManagers(); setAllCustomers([]); setActivityLogs([]); }}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5a4ff0] text-white text-[11px] uppercase tracking-widest font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
-          <RefreshCcw className="w-3.5 h-3.5" /> Refresh
-        </button>
-      </div>
-
-      {/* ── Tabs ────────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 bg-[#181d2f]/60 p-1.5 rounded-2xl border border-white/[0.05]">
-        <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>
-          <BarChart2 className="w-3.5 h-3.5" /> Overview
-        </TabBtn>
-        <TabBtn active={tab === 'managers'} onClick={() => setTab('managers')} count={totals.managers}>
-          <Users className="w-3.5 h-3.5" /> Managers
-        </TabBtn>
-        <TabBtn active={tab === 'customers'} onClick={() => setTab('customers')} count={totals.customers}>
-          <UserCheck className="w-3.5 h-3.5" /> All Customers
-        </TabBtn>
-        <TabBtn active={tab === 'activity'} onClick={() => setTab('activity')}>
-          <Activity className="w-3.5 h-3.5" /> Activity Logs
-        </TabBtn>
-        <TabBtn active={tab === 'system'} onClick={() => setTab('system')}>
-          <Server className="w-3.5 h-3.5" /> System
-        </TabBtn>
-        <TabBtn active={tab === 'subscriptions'} onClick={() => setTab('subscriptions')} count={subscriptions.length}>
-          <Shield className="w-3.5 h-3.5" /> Subscriptions
-        </TabBtn>
-      </div>
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-24 gap-3">
-          <div className="w-7 h-7 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
-          <span className="text-slate-400 font-bold text-sm">Supabase se live data load ho raha hai...</span>
-        </div>
-      )}
-
-      {/* ══════════════════════════ OVERVIEW ══════════════════════════════════ */}
-      {!loading && tab === 'overview' && (
-        <div className="space-y-6">
-          {/* KPI Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-            <KpiCard icon={<UserCheck className="w-5 h-5" />} label="Managers" value={totals.managers}
-              bgClass="bg-[#12162a]" valColor="text-white"
-              accent="bg-indigo-500" />
-            <KpiCard icon={<Users className="w-5 h-5" />} label="Total Customers" value={totals.customers}
-              bgClass="bg-[#12162a]" valColor="text-blue-300"
-              accent="bg-blue-500" />
-            <KpiCard icon={<CheckCircle2 className="w-5 h-5" />} label="Active" value={totals.active}
-              sub={`${activePct}% of total`}
-              bgClass="bg-[#0a1e17]" valColor="text-[#2bd076]"
-              accent="bg-emerald-500" pct={activePct} />
-            <KpiCard icon={<XCircle className="w-5 h-5" />} label="Expired" value={totals.customers - totals.active}
-              bgClass="bg-[#1e0e14]" valColor="text-[#f16775]"
-              accent="bg-rose-500" />
-            <KpiCard icon={<Banknote className="w-5 h-5" />} label="Total Revenue"
-              value={`Rs.${(totals.revenue / 1000).toFixed(0)}K`}
-              sub={`Rs. ${totals.revenue.toLocaleString()}`}
-              bgClass="bg-[#1e1508]" valColor="text-[#ffb752]"
-              accent="bg-amber-500" />
-            <KpiCard icon={<AlertTriangle className="w-5 h-5" />} label="Pending Dues"
-              value={`Rs.${(totals.balance / 1000).toFixed(0)}K`}
-              sub={`Rs. ${totals.balance.toLocaleString()}`}
-              bgClass="bg-[#1e1008]" valColor="text-[#ff9852]"
-              accent="bg-orange-500" />
-          </div>
-
-          {/* Active pct bar */}
-          <div className="bg-[#181d2f] rounded-2xl border border-white/[0.05] p-5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Network Health</span>
-              <span className="text-[11px] font-bold text-slate-300">{activePct}% Active</span>
-            </div>
-            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-[#5a4ff0] to-[#2bd076] rounded-full transition-all duration-700"
-                style={{ width: `${activePct}%` }} />
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] text-slate-600 font-bold">
-              <span>{totals.active} active customers</span>
-              <span className="flex items-center gap-1.5">
-                <OnlineDot status="online" />
-                {Object.values(onlineMap).filter(v => v.status === 'online').length} online now
+          {/* Status pill */}
+          <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                {realtimeActive ? 'Live' : 'Connecting'}
               </span>
-              <span className="flex items-center gap-1.5">
-                <OnlineDot status="recent" />
-                {Object.values(onlineMap).filter(v => v.status === 'recent').length} recently active
-              </span>
-              <span>{totals.receipts} receipts</span>
+              <span className="text-[10px] font-black text-emerald-400">{onlineCount} online</span>
             </div>
+            <div className="flex justify-between text-[10px] font-bold text-slate-600">
+              <span>{totals.managers} managers</span>
+              <span>{totals.customers} customers</span>
+            </div>
+            <p className="text-[9px] text-slate-700 font-bold">Synced {lastRefresh.toLocaleTimeString('en-PK', { timeStyle: 'short' })}</p>
           </div>
+        </div>
 
-          {/* Overview managers table */}
-          <div className="bg-[#181d2f] rounded-2xl border border-white/[0.05] overflow-hidden">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-white/[0.04]">
-              <h3 className="font-black text-white text-[13px] flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-[#5a4ff0]" /> All Managers — Live Data
-              </h3>
-              <button onClick={() => setTab('managers')} className="text-[11px] text-[#5a4ff0] font-bold hover:text-indigo-300 flex items-center gap-1">
-                View All <ChevronDown className="w-3 h-3 -rotate-90" />
+        {/* Nav Items */}
+        <nav className="flex-1 p-3 space-y-1 pt-4">
+          {navItems.map(item => (
+            <SideNavItem key={item.id} active={tab === item.id} onClick={() => handleTabChange(item.id)}
+              icon={item.icon} label={item.label} count={item.count} />
+          ))}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-white/[0.05]">
+          <button onClick={doRefresh}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#5a4ff0]/10 border border-[#5a4ff0]/20 text-[#867bfb] text-[11px] font-bold uppercase tracking-wider hover:bg-[#5a4ff0]/20 transition-all active:scale-95">
+            <RefreshCcw className="w-3.5 h-3.5" /> Refresh All
+          </button>
+        </div>
+      </aside>
+
+      {/* ══════════ MOBILE SIDEBAR OVERLAY ══════════ */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          {/* Drawer */}
+          <div className="relative z-10 w-72 h-full bg-[#080b18] border-r border-white/[0.06] flex flex-col overflow-y-auto">
+            {/* Drawer header */}
+            <div className="p-5 border-b border-white/[0.05] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5a4ff0] to-indigo-700 flex items-center justify-center">
+                  <Shield className="w-4.5 h-4.5 text-white" />
+                </div>
+                <div>
+                  <p className="font-black text-white text-[13px]">Admin Panel</p>
+                  <p className="text-[10px] text-slate-600 uppercase tracking-wider font-bold">Control Center</p>
+                </div>
+              </div>
+              <button onClick={() => setSidebarOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:text-white transition-all">
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="bg-[#1a1f33]">
-                    {['#', 'Manager', 'Email', 'Customers', 'Active', 'Revenue', 'Dues', 'Last Login'].map(h => (
-                      <th key={h} className="text-left px-5 py-3.5 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {managers.map((m, i) => (
-                    <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-5 py-4 text-slate-600 font-black">{i + 1}</td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-xs flex-shrink-0"
-                              style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
-                              {m.business_name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="absolute -bottom-0.5 -right-0.5">
-                              <OnlineDot status={onlineMap[m.username]?.status || 'offline'} />
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-black text-slate-100 text-[13px]">{m.business_name}</p>
-                            <p className="text-[11px] text-slate-600">@{m.username}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-slate-500 text-[12px]">{m.email.replace('@myisp.local', '')}</td>
-                      <td className="px-5 py-4 font-black text-slate-200">{m.user_count}</td>
-                      <td className="px-5 py-4">
-                        <span className="font-black text-[#2bd076]">{m.active_count}</span>
-                        {m.user_count > 0 && (
-                          <span className="text-[10px] text-slate-600 ml-1">
-                            ({Math.round(m.active_count / m.user_count * 100)}%)
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 font-black text-[#ffb752]">Rs. {Number(m.total_revenue).toLocaleString()}</td>
-                      <td className="px-5 py-4 font-black">{Number(m.total_balance) > 0
-                        ? <span className="text-[#f16775]">Rs. {Number(m.total_balance).toLocaleString()}</span>
-                        : <span className="text-slate-700">—</span>}
-                      </td>
-                      <td className="px-5 py-4 text-[11px] text-slate-500 whitespace-nowrap">
-                        <div>{fmtTime(m.last_login)}</div>
-                        <div className="text-[10px] text-slate-700">{timeAgo(m.last_login)}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {managers.length === 0 && !loading && (
-                <div className="text-center py-10 text-slate-600 text-sm font-medium">Koi manager nahi mila</div>
-              )}
+            {/* Status */}
+            <div className="px-4 py-3 border-b border-white/[0.04]">
+              <div className="bg-white/[0.03] rounded-xl px-3 py-2.5 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                    <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                    {realtimeActive ? 'Live' : 'Connecting'}
+                  </span>
+                  <span className="text-[10px] font-black text-emerald-400">{onlineCount} online</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-600 font-bold">
+                  <span>{totals.managers} managers</span>
+                  <span>{totals.customers} customers</span>
+                </div>
+              </div>
+            </div>
+            {/* Nav items */}
+            <nav className="flex-1 p-3 space-y-1 pt-3">
+              {navItems.map(item => (
+                <button key={item.id} onClick={() => handleTabChange(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all ${
+                    tab === item.id ? 'bg-[#5a4ff0] text-white shadow-lg' : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.04]'
+                  }`}>
+                  <span>{item.icon}</span>
+                  <div className="flex-1 text-left">
+                    <p className="uppercase tracking-wider text-[11px]">{item.label}</p>
+                    <p className={`text-[10px] font-medium ${tab === item.id ? 'text-white/60' : 'text-slate-700'}`}>{item.desc}</p>
+                  </div>
+                  {item.count !== undefined && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${tab === item.id ? 'bg-white/20' : 'bg-white/5 text-slate-600'}`}>
+                      {item.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </nav>
+            <div className="p-4 border-t border-white/[0.05]">
+              <button onClick={() => { doRefresh(); setSidebarOpen(false); }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#5a4ff0]/10 border border-[#5a4ff0]/20 text-[#867bfb] text-[11px] font-bold uppercase tracking-wider hover:bg-[#5a4ff0]/20 transition-all">
+                <RefreshCcw className="w-3.5 h-3.5" /> Refresh All
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══════════════════════════ MANAGERS ══════════════════════════════════ */}
-      {!loading && tab === 'managers' && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-48">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
-              <input type="text" placeholder="Search manager..."
-                value={searchMgr} onChange={e => setSearchMgr(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-[#181d2f] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
-            </div>
-            <div className="flex gap-1 bg-[#181d2f] border border-white/[0.06] rounded-xl p-1 text-[10px]">
-              {[
-                { key: 'user_count', label: 'Customers' },
-                { key: 'total_revenue', label: 'Revenue' },
-                { key: 'last_login', label: 'Last Login' },
-              ].map(s => (
-                <button key={s.key} onClick={() => sortCol(s.key as keyof ManagerStat)}
-                  className={`px-3 py-2 rounded-lg font-bold uppercase tracking-wider transition-all ${mgrSort.key === s.key ? 'bg-[#5a4ff0] text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-                  {s.label} {mgrSort.key === s.key ? (mgrSort.dir === -1 ? '↓' : '↑') : ''}
-                </button>
-              ))}
-            </div>
+      {/* ══════════ MAIN CONTENT ══════════ */}
+      <main className="flex-1 min-w-0 flex flex-col">
+
+        {/* ── Mobile Top Bar ── */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-white/[0.05] bg-[#080b18] sticky top-0 z-10">
+          <button onClick={() => setSidebarOpen(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/[0.06] text-slate-400 hover:text-white transition-all flex-shrink-0">
+            <Menu className="w-4.5 h-4.5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-white text-[13px] leading-tight">{navItems.find(n => n.id === tab)?.label}</p>
+            <p className="text-[10px] text-slate-600 font-bold">{navItems.find(n => n.id === tab)?.desc}</p>
           </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+            <span className="text-[10px] font-bold text-slate-600">{onlineCount} online</span>
+          </div>
+          <button onClick={doRefresh}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#5a4ff0]/15 border border-[#5a4ff0]/20 text-[#867bfb] transition-all active:scale-95 flex-shrink-0">
+            <RefreshCcw className="w-4 h-4" />
+          </button>
+        </div>
 
-          <div className="space-y-3">
-            {sortedManagers.map(m => (
-              <div key={m.username} className="bg-[#181d2f] rounded-2xl border border-white/[0.05] overflow-hidden hover:border-white/10 transition-all">
-                <div className="flex items-center gap-3 p-4">
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-[#867bfb] text-lg"
-                      style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
-                      {m.business_name.charAt(0).toUpperCase()}
+        {/* ── Desktop Page Header ── */}
+        <div className="hidden md:flex items-center justify-between px-8 py-5 border-b border-white/[0.04]">
+          <div>
+            <h1 className="text-xl font-black text-white flex items-center gap-2">
+              {navItems.find(n => n.id === tab)?.icon}
+              {navItems.find(n => n.id === tab)?.label}
+            </h1>
+            <p className="text-[11px] text-slate-600 mt-0.5 font-bold uppercase tracking-wider">
+              {navItems.find(n => n.id === tab)?.desc}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Content Area ── */}
+        <div className="flex-1 p-4 md:p-6 md:pt-5 space-y-5 overflow-y-auto">
+
+          {/* Loading spinner */}
+          {loading && (
+            <div className="flex items-center justify-center py-24 gap-3">
+              <div className="w-7 h-7 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+              <span className="text-slate-400 font-bold text-sm">Supabase se live data load ho raha hai...</span>
+            </div>
+          )}
+
+          {/* ══════════ OVERVIEW ══════════ */}
+          {!loading && tab === 'overview' && (
+            <div className="space-y-5">
+              {/* KPI Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                <KpiCard icon={<UserCheck className="w-5 h-5" />} label="Managers" value={totals.managers}
+                  bgClass="bg-[#0d1020]" accent="bg-indigo-500" />
+                <KpiCard icon={<Users className="w-5 h-5" />} label="Total Customers" value={totals.customers}
+                  bgClass="bg-[#0d1020]" valColor="text-blue-300" accent="bg-blue-500" />
+                <KpiCard icon={<CheckCircle2 className="w-5 h-5" />} label="Active" value={totals.active}
+                  sub={`${activePct}% of total`} bgClass="bg-[#0a1a12]" valColor="text-[#2bd076]"
+                  accent="bg-emerald-500" pct={activePct} />
+                <KpiCard icon={<XCircle className="w-5 h-5" />} label="Expired" value={totals.customers - totals.active}
+                  bgClass="bg-[#1a0a10]" valColor="text-[#f16775]" accent="bg-rose-500" />
+                <KpiCard icon={<Banknote className="w-5 h-5" />} label="Total Revenue"
+                  value={`Rs.${(totals.revenue / 1000).toFixed(0)}K`} sub={`Rs. ${totals.revenue.toLocaleString()}`}
+                  bgClass="bg-[#191208]" valColor="text-[#ffb752]" accent="bg-amber-500" />
+                <KpiCard icon={<AlertTriangle className="w-5 h-5" />} label="Pending Dues"
+                  value={`Rs.${(totals.balance / 1000).toFixed(0)}K`} sub={`Rs. ${totals.balance.toLocaleString()}`}
+                  bgClass="bg-[#190f08]" valColor="text-[#ff9852]" accent="bg-orange-500" />
+              </div>
+
+              {/* Network Health bar */}
+              <div className="bg-[#0d1020] rounded-2xl border border-white/[0.05] p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Network Health</span>
+                  <span className="text-[11px] font-bold text-slate-300">{activePct}% Active</span>
+                </div>
+                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-[#5a4ff0] to-[#2bd076] rounded-full transition-all duration-700"
+                    style={{ width: `${activePct}%` }} />
+                </div>
+                <div className="flex flex-wrap justify-between mt-2 gap-y-1 text-[10px] text-slate-600 font-bold">
+                  <span>{totals.active} active</span>
+                  <span className="flex items-center gap-1"><OnlineDot status="online" /> {onlineCount} online now</span>
+                  <span className="flex items-center gap-1"><OnlineDot status="recent" /> {Object.values(onlineMap).filter(v => v.status === 'recent').length} recent</span>
+                  <span>{totals.receipts} receipts</span>
+                </div>
+              </div>
+
+              {/* Overview table */}
+              <div className="bg-[#0d1020] rounded-2xl border border-white/[0.05] overflow-hidden">
+                <div className="px-6 py-4 flex items-center justify-between border-b border-white/[0.04]">
+                  <h3 className="font-black text-white text-[13px] flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-[#5a4ff0]" /> All Managers — Live Data
+                  </h3>
+                  <button onClick={() => setTab('managers')} className="text-[11px] text-[#5a4ff0] font-bold hover:text-indigo-300 flex items-center gap-1">
+                    View All <ChevronDown className="w-3 h-3 -rotate-90" />
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]">
+                    <thead>
+                      <tr className="bg-[#0b0e1c]">
+                        {['#', 'Manager', 'Email', 'Customers', 'Active', 'Revenue', 'Dues', 'Last Login'].map(h => (
+                          <th key={h} className="text-left px-5 py-3.5 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {managers.map((m, i) => (
+                        <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                          <td className="px-5 py-4 text-slate-600 font-black">{i + 1}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-xs flex-shrink-0"
+                                  style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                                  {m.business_name.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="absolute -bottom-0.5 -right-0.5"><OnlineDot status={onlineMap[m.username]?.status || 'offline'} /></span>
+                              </div>
+                              <div>
+                                <p className="font-black text-slate-100 text-[13px]">{m.business_name}</p>
+                                <p className="text-[11px] text-slate-600">@{m.username}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-slate-500 text-[12px]">{m.email.replace('@myisp.local', '')}</td>
+                          <td className="px-5 py-4 font-black text-slate-200">{m.user_count}</td>
+                          <td className="px-5 py-4">
+                            <span className="font-black text-[#2bd076]">{m.active_count}</span>
+                            {m.user_count > 0 && <span className="text-[10px] text-slate-600 ml-1">({Math.round(m.active_count / m.user_count * 100)}%)</span>}
+                          </td>
+                          <td className="px-5 py-4 font-black text-[#ffb752]">Rs. {Number(m.total_revenue).toLocaleString()}</td>
+                          <td className="px-5 py-4 font-black">{Number(m.total_balance) > 0
+                            ? <span className="text-[#f16775]">Rs. {Number(m.total_balance).toLocaleString()}</span>
+                            : <span className="text-slate-700">—</span>}
+                          </td>
+                          <td className="px-5 py-4 text-[11px] text-slate-500 whitespace-nowrap">
+                            <div>{fmtTime(m.last_login)}</div>
+                            <div className="text-[10px] text-slate-700">{timeAgo(m.last_login)}</div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {managers.length === 0 && !loading && <div className="text-center py-10 text-slate-600 text-sm font-medium">Koi manager nahi mila</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════ MANAGERS ══════════ */}
+          {!loading && tab === 'managers' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-48">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                  <input type="text" placeholder="Search manager..."
+                    value={searchMgr} onChange={e => setSearchMgr(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-[#0d1020] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
+                </div>
+                <div className="flex gap-1 bg-[#0d1020] border border-white/[0.06] rounded-xl p-1 text-[10px]">
+                  {[{ key: 'user_count', label: 'Customers' }, { key: 'total_revenue', label: 'Revenue' }, { key: 'last_login', label: 'Last Login' }].map(s => (
+                    <button key={s.key} onClick={() => sortCol(s.key as keyof ManagerStat)}
+                      className={`px-3 py-2 rounded-lg font-bold uppercase tracking-wider transition-all ${mgrSort.key === s.key ? 'bg-[#5a4ff0] text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                      {s.label} {mgrSort.key === s.key ? (mgrSort.dir === -1 ? '↓' : '↑') : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-3">
+                {sortedManagers.map(m => (
+                  <div key={m.username} className="bg-[#0d1020] rounded-2xl border border-white/[0.05] overflow-hidden hover:border-white/10 transition-all">
+                    <div className="flex items-center gap-3 p-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-[#867bfb] text-lg"
+                          style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                          {m.business_name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5"><OnlineDot status={onlineMap[m.username]?.status || 'offline'} /></span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center flex-wrap gap-2 mb-1">
+                          <p className="font-black text-white text-[15px]">{m.business_name}</p>
+                          <Badge color={m.user_count > 0 ? 'bg-[#0a1e17] text-[#2bd076] border border-emerald-500/20' : 'bg-slate-800/60 text-slate-500'}>
+                            {m.user_count > 0 ? 'Active' : 'Empty'}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                          <span className="font-bold text-[#867bfb]">@{m.username}</span>
+                          <span>{m.email.replace('@myisp.local', '')}</span>
+                          {m.phone && <span>{m.phone}</span>}
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {timeAgo(m.last_login)}</span>
+                          <OnlineDot status={onlineMap[m.username]?.status || 'offline'} showLabel />
+                        </div>
+                      </div>
+                      <div className="hidden md:flex flex-wrap gap-2 mr-3">
+                        <StatChip label="customers" value={m.user_count} color="text-blue-300" />
+                        <StatChip label="active" value={m.active_count} color="text-[#2bd076]" />
+                        <StatChip label="revenue" value={`${(Number(m.total_revenue) / 1000).toFixed(0)}K`} color="text-[#ffb752]" />
+                        {Number(m.total_balance) > 0 && <StatChip label="due" value={`${(Number(m.total_balance) / 1000).toFixed(0)}K`} color="text-[#f16775]" />}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => { setShowResetModal(m.username); setNewPassword(''); setResetMsg(null); }} title="Reset Password"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-[#5a4ff0]/15 hover:text-[#867bfb] transition-all">
+                          <Key className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => { setShowDeleteConfirm(m.username); setDeleteConfirmText(''); }} title="Delete Manager"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => toggleExpand(m.username)}
+                          className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-white/5 hover:text-white transition-all">
+                          {expandedMgr === m.username ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                    <span className="absolute -bottom-0.5 -right-0.5">
-                      <OnlineDot status={onlineMap[m.username]?.status || 'offline'} />
-                    </span>
-                  </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center flex-wrap gap-2 mb-1">
-                      <p className="font-black text-white text-[15px]">{m.business_name}</p>
-                      <Badge color={m.user_count > 0 ? 'bg-[#0a1e17] text-[#2bd076] border border-emerald-500/20' : 'bg-slate-800/60 text-slate-500'}>
-                        {m.user_count > 0 ? 'Active' : 'Empty'}
-                      </Badge>
+                    <div className="flex md:hidden gap-2 px-4 pb-3 flex-wrap">
+                      <StatChip label="customers" value={m.user_count} color="text-blue-300" />
+                      <StatChip label="active" value={m.active_count} color="text-[#2bd076]" />
+                      <StatChip label="revenue" value={`${(Number(m.total_revenue) / 1000).toFixed(0)}K`} color="text-[#ffb752]" />
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-                      <span className="font-bold text-[#867bfb]">@{m.username}</span>
-                      <span>{m.email.replace('@myisp.local', '')}</span>
-                      {m.phone && <span>{m.phone}</span>}
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {timeAgo(m.last_login)}</span>
-                      <OnlineDot status={onlineMap[m.username]?.status || 'offline'} showLabel />
-                    </div>
-                  </div>
-                  {/* Stats */}
-                  <div className="hidden md:flex flex-wrap gap-2 mr-3">
-                    <StatChip label="customers" value={m.user_count} color="text-blue-300" />
-                    <StatChip label="active" value={m.active_count} color="text-[#2bd076]" />
-                    <StatChip label="revenue" value={`${(Number(m.total_revenue) / 1000).toFixed(0)}K`} color="text-[#ffb752]" />
-                    {Number(m.total_balance) > 0 && (
-                      <StatChip label="due" value={`${(Number(m.total_balance) / 1000).toFixed(0)}K`} color="text-[#f16775]" />
+                    {expandedMgr === m.username && (
+                      <div className="border-t border-white/[0.04] bg-[#080b16]">
+                        <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-2">
+                          <Eye className="w-3.5 h-3.5 text-slate-600" />
+                          <span className="text-[10px] font-black text-[#8695b0] uppercase tracking-widest">{m.user_count} Customers</span>
+                        </div>
+                        {!expandedCustomers[m.username] ? (
+                          <div className="flex items-center justify-center py-8 gap-2">
+                            <div className="w-4 h-4 border-2 border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+                            <span className="text-slate-500 text-xs">Loading...</span>
+                          </div>
+                        ) : expandedCustomers[m.username].length === 0 ? (
+                          <p className="px-5 py-8 text-center text-slate-600 text-xs">Koi customer nahi</p>
+                        ) : (
+                          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                            <table className="w-full text-xs">
+                              <thead className="sticky top-0 bg-[#080b14] z-10 border-b border-white/[0.04]">
+                                <tr>{['#', 'Name', 'Username', 'Phone', 'Plan', 'Monthly', 'Balance', 'Expiry', 'Status'].map(h => (
+                                  <th key={h} className="text-left px-5 py-3 font-bold text-[#8695b0] uppercase tracking-widest text-[10px] whitespace-nowrap">{h}</th>
+                                ))}</tr>
+                              </thead>
+                              <tbody>
+                                {expandedCustomers[m.username].map((c, idx) => (
+                                  <tr key={c.id || idx} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
+                                    <td className="px-5 py-2.5 text-slate-600 font-bold">{idx + 1}</td>
+                                    <td className="px-5 py-2.5 font-bold text-slate-200 whitespace-nowrap">{c.name}</td>
+                                    <td className="px-5 py-2.5 text-slate-500">@{c.username}</td>
+                                    <td className="px-5 py-2.5 text-slate-500">{c.phone || '—'}</td>
+                                    <td className="px-5 py-2.5 text-slate-400 whitespace-nowrap">{c.plan}</td>
+                                    <td className="px-5 py-2.5 font-bold text-[#ffb752] whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
+                                    <td className="px-5 py-2.5 font-bold whitespace-nowrap">{c.balance > 0 ? <span className="text-[#f16775]">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-700">—</span>}</td>
+                                    <td className="px-5 py-2.5 text-slate-600 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
+                                    <td className="px-5 py-2.5">
+                                      <Badge color={c.status === 'active' ? 'bg-[#0a1e17] text-[#2bd076]' : c.status === 'expired' ? 'bg-[#1e0e14] text-[#f16775]' : 'bg-slate-800/60 text-slate-500'}>
+                                        {c.status}
+                                      </Badge>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => { setShowResetModal(m.username); setNewPassword(''); setResetMsg(null); }}
-                      title="Reset Password"
-                      className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-[#5a4ff0]/15 hover:text-[#867bfb] transition-all">
-                      <Key className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => { setShowDeleteConfirm(m.username); setDeleteConfirmText(''); }}
-                      title="Delete Manager"
-                      className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => toggleExpand(m.username)}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-white/5 hover:text-white transition-all">
-                      {expandedMgr === m.username ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Mobile stats row */}
-                <div className="flex md:hidden gap-2 px-4 pb-3 flex-wrap">
-                  <StatChip label="customers" value={m.user_count} color="text-blue-300" />
-                  <StatChip label="active" value={m.active_count} color="text-[#2bd076]" />
-                  <StatChip label="revenue" value={`${(Number(m.total_revenue) / 1000).toFixed(0)}K`} color="text-[#ffb752]" />
-                </div>
-
-                {/* Expanded customer list */}
-                {expandedMgr === m.username && (
-                  <div className="border-t border-white/[0.04] bg-[#0c1020]">
-                    <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-2">
-                      <Eye className="w-3.5 h-3.5 text-slate-600" />
-                      <span className="text-[10px] font-black text-[#8695b0] uppercase tracking-widest">
-                        {m.user_count} Customers
-                      </span>
-                    </div>
-                    {!expandedCustomers[m.username] ? (
-                      <div className="flex items-center justify-center py-8 gap-2">
-                        <div className="w-4 h-4 border-2 border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
-                        <span className="text-slate-500 text-xs">Loading...</span>
-                      </div>
-                    ) : expandedCustomers[m.username].length === 0 ? (
-                      <p className="px-5 py-8 text-center text-slate-600 text-xs">Koi customer nahi</p>
-                    ) : (
-                      <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                        <table className="w-full text-xs">
-                          <thead className="sticky top-0 bg-[#0b0f1a] z-10 border-b border-white/[0.04]">
-                            <tr>
-                              {['#', 'Name', 'Username', 'Phone', 'Plan', 'Monthly', 'Balance', 'Expiry', 'Status'].map(h => (
-                                <th key={h} className="text-left px-5 py-3 font-bold text-[#8695b0] uppercase tracking-widest text-[10px] whitespace-nowrap">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {expandedCustomers[m.username].map((c, idx) => (
-                              <tr key={c.id || idx} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
-                                <td className="px-5 py-2.5 text-slate-600 font-bold">{idx + 1}</td>
-                                <td className="px-5 py-2.5 font-bold text-slate-200 whitespace-nowrap">{c.name}</td>
-                                <td className="px-5 py-2.5 text-slate-500">@{c.username}</td>
-                                <td className="px-5 py-2.5 text-slate-500">{c.phone || '—'}</td>
-                                <td className="px-5 py-2.5 text-slate-400 whitespace-nowrap">{c.plan}</td>
-                                <td className="px-5 py-2.5 font-bold text-[#ffb752] whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
-                                <td className="px-5 py-2.5 font-bold whitespace-nowrap">
-                                  {c.balance > 0 ? <span className="text-[#f16775]">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-700">—</span>}
-                                </td>
-                                <td className="px-5 py-2.5 text-slate-600 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
-                                <td className="px-5 py-2.5">
-                                  <Badge color={c.status === 'active' ? 'bg-[#0a1e17] text-[#2bd076]' : c.status === 'expired' ? 'bg-[#1e0e14] text-[#f16775]' : 'bg-slate-800/60 text-slate-500'}>
-                                    {c.status}
-                                  </Badge>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                ))}
+                {sortedManagers.length === 0 && (
+                  <div className="text-center py-16 flex flex-col items-center text-slate-600">
+                    <Inbox className="w-12 h-12 mb-3" />
+                    <p className="font-bold text-sm">Koi manager nahi mila</p>
                   </div>
                 )}
               </div>
-            ))}
-            {sortedManagers.length === 0 && (
-              <div className="text-center py-16 flex flex-col items-center text-slate-600">
-                <Inbox className="w-12 h-12 mb-3" />
-                <p className="font-bold text-sm">Koi manager nahi mila</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* ══════════════════════════ ALL CUSTOMERS ════════════════════════════ */}
-      {!loading && tab === 'customers' && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-48 max-w-md">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
-              <input type="text" placeholder="Name, username, phone, plan, manager..."
-                value={searchCust} onChange={e => setSearchCust(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-[#181d2f] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
-            </div>
-            <div className="flex gap-1 bg-[#181d2f] border border-white/[0.06] rounded-xl p-1">
-              {(['all', 'active', 'expired'] as const).map(f => (
-                <button key={f} onClick={() => setCustFilter(f)}
-                  className={`px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${custFilter === f ? 'bg-[#5a4ff0] text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>
-                  {f} ({f === 'all' ? allCustomers.length : allCustomers.filter(c => c.status === f).length})
-                </button>
-              ))}
-            </div>
-            {allCustomers.length === 0 && !custLoading && (
-              <button onClick={loadAllCustomers}
-                className="px-5 py-3 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
-                Load Customers
-              </button>
-            )}
-          </div>
-          {custLoading ? (
-            <div className="flex items-center justify-center py-24 gap-3">
-              <div className="w-6 h-6 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-400 font-bold text-sm">Tamam customers load ho rahe hain...</span>
-            </div>
-          ) : (
-            <div className="bg-[#181d2f] rounded-2xl border border-white/[0.05] overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
-                <h3 className="font-black text-white text-[13px] flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#5a4ff0]" /> Customer Directory
-                </h3>
-                <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{filteredCusts.length} shown</p>
+          {/* ══════════ ALL CUSTOMERS ══════════ */}
+          {!loading && tab === 'customers' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-48 max-w-md">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                  <input type="text" placeholder="Name, username, phone, plan, manager..."
+                    value={searchCust} onChange={e => setSearchCust(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-[#0d1020] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
+                </div>
+                <div className="flex gap-1 bg-[#0d1020] border border-white/[0.06] rounded-xl p-1">
+                  {(['all', 'active', 'expired'] as const).map(f => (
+                    <button key={f} onClick={() => setCustFilter(f)}
+                      className={`px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${custFilter === f ? 'bg-[#5a4ff0] text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+                      {f} ({f === 'all' ? allCustomers.length : allCustomers.filter(c => c.status === f).length})
+                    </button>
+                  ))}
+                </div>
+                {allCustomers.length === 0 && !custLoading && (
+                  <button onClick={loadAllCustomers}
+                    className="px-5 py-3 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
+                    Load Customers
+                  </button>
+                )}
               </div>
-              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-[#1a1f33] z-10 border-b border-white/[0.04]">
-                    <tr>
-                      {['#', 'Customer', 'Manager', 'Plan', 'Monthly', 'Balance', 'Expiry', 'Status'].map(h => (
+              {custLoading ? (
+                <div className="flex items-center justify-center py-24 gap-3">
+                  <div className="w-6 h-6 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-slate-400 font-bold text-sm">Tamam customers load ho rahe hain...</span>
+                </div>
+              ) : (
+                <div className="bg-[#0d1020] rounded-2xl border border-white/[0.05] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
+                    <h3 className="font-black text-white text-[13px] flex items-center gap-2">
+                      <Users className="w-4 h-4 text-[#5a4ff0]" /> Customer Directory
+                    </h3>
+                    <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{filteredCusts.length} shown</p>
+                  </div>
+                  <div className="overflow-x-auto max-h-[65vh] overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-[#0b0e1c] z-10 border-b border-white/[0.04]">
+                        <tr>{['#', 'Customer', 'Manager', 'Plan', 'Monthly', 'Balance', 'Expiry', 'Status'].map(h => (
+                          <th key={h} className="text-left px-5 py-3.5 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody>
+                        {filteredCusts.length === 0 ? (
+                          <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-600">
+                            {allCustomers.length === 0 ? 'Click "Load Customers" to fetch data' : 'Koi result nahi mila'}
+                          </td></tr>
+                        ) : filteredCusts.map((c, i) => (
+                          <tr key={`${c.id}-${i}`} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                            <td className="px-5 py-3.5 text-slate-700 font-black">{i + 1}</td>
+                            <td className="px-5 py-3.5"><p className="font-black text-slate-200 whitespace-nowrap">{c.name}</p><p className="text-[11px] text-slate-600">@{c.username}{c.phone ? ` · ${c.phone}` : ''}</p></td>
+                            <td className="px-5 py-3.5"><p className="font-bold text-slate-300 whitespace-nowrap">{c.managerBusiness}</p><p className="text-[11px] text-slate-600">@{c.managerUsername}</p></td>
+                            <td className="px-5 py-3.5 font-bold text-slate-400 whitespace-nowrap">{c.plan}</td>
+                            <td className="px-5 py-3.5 font-black text-[#ffb752] whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
+                            <td className="px-5 py-3.5 font-black whitespace-nowrap">{c.balance > 0 ? <span className="text-[#f16775]">Rs. {c.balance.toLocaleString()}</span> : <span className="text-slate-700">—</span>}</td>
+                            <td className="px-5 py-3.5 text-[11px] text-slate-600 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
+                            <td className="px-5 py-3.5"><Badge color={c.status === 'active' ? 'bg-[#0a1e17] text-[#2bd076]' : c.status === 'expired' ? 'bg-[#1e0e14] text-[#f16775]' : 'bg-slate-800/60 text-slate-500'}>{c.status}</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════════ ACTIVITY LOGS ══════════ */}
+          {!loading && tab === 'activity' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-48 max-w-sm">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                  <input type="text" placeholder="Manager ya action search..."
+                    value={searchAct} onChange={e => setSearchAct(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-[#0d1020] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
+                </div>
+                <div className="flex gap-1 bg-[#0d1020] border border-white/[0.06] rounded-xl p-1 flex-wrap">
+                  {(['all', 'login', 'receipt', 'customer', 'update', 'system'] as const).map(f => (
+                    <button key={f} onClick={() => setActFilter(f)}
+                      className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${actFilter === f ? 'bg-[#5a4ff0] text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                      {f === 'all' ? `All (${activityLogs.length})` : f}
+                    </button>
+                  ))}
+                </div>
+                {activityLogs.length === 0 && !actLoading && (
+                  <button onClick={loadActivityLogs}
+                    className="px-5 py-3 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
+                    Load Logs
+                  </button>
+                )}
+              </div>
+              {actLoading ? (
+                <div className="flex items-center justify-center py-24 gap-3">
+                  <div className="w-6 h-6 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-slate-400 font-bold text-sm">Activity logs load ho rahe hain...</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {([
+                      { type: 'login', label: 'Logins', color: 'text-blue-400' },
+                      { type: 'receipt', label: 'Receipts', color: 'text-emerald-400' },
+                      { type: 'customer', label: 'Customers', color: 'text-purple-400' },
+                      { type: 'update', label: 'Updates', color: 'text-amber-400' },
+                      { type: 'system', label: 'System', color: 'text-slate-400' },
+                      { type: 'other', label: 'Other', color: 'text-slate-500' },
+                    ] as const).map(s => (
+                      <div key={s.type} className="bg-[#0d1020] rounded-xl border border-white/[0.05] p-3 text-center cursor-pointer hover:border-white/10 transition-all"
+                        onClick={() => setActFilter(s.type)}>
+                        <p className={`text-xl font-black ${s.color}`}>{activityLogs.filter(a => a.type === s.type).length}</p>
+                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-[#0d1020] rounded-2xl border border-white/[0.05] overflow-hidden">
+                    <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
+                      <h3 className="font-black text-white text-[13px] flex items-center gap-2"><Activity className="w-4 h-4 text-[#5a4ff0]" /> Activity Timeline</h3>
+                      <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{filteredAct.length} events</p>
+                    </div>
+                    <div className="max-h-[65vh] overflow-y-auto">
+                      {filteredAct.length === 0 ? (
+                        <div className="text-center py-16 text-slate-600 flex flex-col items-center gap-3">
+                          <Activity className="w-12 h-12" />
+                          <p className="font-bold text-sm">{activityLogs.length === 0 ? 'Click "Load Logs" to fetch activity' : 'Koi activity nahi mili'}</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-white/[0.03]">
+                          {filteredAct.map((log, i) => {
+                            const cfg = activityTypeConfig[log.type];
+                            return (
+                              <div key={i} className="flex items-start gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
+                                <div className={`w-7 h-7 rounded-lg ${cfg.bg} ${cfg.color} flex items-center justify-center flex-shrink-0 mt-0.5`}>{cfg.icon}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="text-[13px] font-bold text-slate-200">{log.action}</p>
+                                      {log.details && <p className="text-[11px] text-slate-600 mt-0.5">{log.details}</p>}
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="text-[11px] text-slate-500 whitespace-nowrap">{fmtTime(log.timestamp)}</p>
+                                      <p className="text-[10px] text-slate-700">{timeAgo(log.timestamp)}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    <div className="w-4 h-4 rounded flex items-center justify-center text-[#867bfb] text-[9px] font-black"
+                                      style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                                      {log.managerBusiness.charAt(0)}
+                                    </div>
+                                    <span className="text-[11px] text-slate-600">
+                                      <span className="text-[#867bfb] font-bold">@{log.managerUsername}</span>
+                                      {' · '}{log.managerBusiness}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════════ SYSTEM ══════════ */}
+          {!loading && tab === 'system' && (
+            <div className="space-y-4 max-w-3xl">
+              <div className="bg-[#0d1020] rounded-2xl border border-white/[0.05] p-5 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-black text-white text-[13px] flex items-center gap-2"><Server className="w-4 h-4 text-[#5a4ff0]" /> Live Database Stats</h3>
+                  <div className="flex gap-2">
+                    <button onClick={async () => {
+                      try {
+                        const { data, error } = await supabase.from('manager_data').select('*');
+                        if (error) throw error;
+                        const blob = new Blob([JSON.stringify({ databaseDump: data, version: 'admin_1.0', timestamp: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = `MYISP_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                      } catch (e: any) { alert('Backup failed: ' + e?.message); }
+                    }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-[11px] uppercase tracking-widest transition-all active:scale-95">
+                      <Download className="w-3.5 h-3.5" /> Backup
+                    </button>
+                    <label className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 cursor-pointer rounded-xl text-slate-300 font-bold text-[11px] uppercase tracking-widest transition-all border border-white/[0.06]">
+                      <Upload className="w-3.5 h-3.5" /> Restore
+                      <input type="file" className="hidden" accept=".json" onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          try {
+                            const json = JSON.parse(event.target?.result as string);
+                            if (json.databaseDump && Array.isArray(json.databaseDump)) {
+                              const { error } = await supabase.from('manager_data').upsert(json.databaseDump, { onConflict: 'manager_id' });
+                              if (error) throw error;
+                              alert('✅ Database restored successfully!'); window.location.reload();
+                            } else { alert('Invalid backup file format.'); }
+                          } catch (e: any) { alert('Restore failed: ' + e?.message); }
+                        };
+                        reader.readAsText(file);
+                      }} />
+                    </label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: 'Total Managers', value: totals.managers, color: 'text-indigo-300' },
+                    { label: 'Total Customers', value: totals.customers, color: 'text-blue-300' },
+                    { label: 'Active Customers', value: totals.active, color: 'text-[#2bd076]' },
+                    { label: 'Total Receipts', value: totals.receipts, color: 'text-purple-300' },
+                    { label: 'Total Revenue', value: `Rs. ${totals.revenue.toLocaleString()}`, color: 'text-[#ffb752]' },
+                    { label: 'Pending Dues', value: `Rs. ${totals.balance.toLocaleString()}`, color: 'text-[#f16775]' },
+                  ].map(item => (
+                    <div key={item.label} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 hover:border-white/10 transition-all">
+                      <p className="text-[#8695b0] font-bold uppercase tracking-wider text-[10px] mb-2">{item.label}</p>
+                      <p className={`font-black text-xl ${item.color}`}>{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-[#0d1020] rounded-2xl border border-white/[0.05] overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.04]">
+                  <h3 className="font-black text-white text-[13px] flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#5a4ff0]" /> Manager Accounts Log</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead><tr className="bg-[#0b0e1c]">
+                      {['Username', 'Business', 'Joined', 'Last Login', 'Customers', 'Revenue'].map(h => (
                         <th key={h} className="text-left px-5 py-3.5 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCusts.length === 0 ? (
-                      <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-600">
-                        {allCustomers.length === 0 ? 'Click "Load Customers" to fetch data' : 'Koi result nahi mila'}
-                      </td></tr>
-                    ) : filteredCusts.map((c, i) => (
-                      <tr key={`${c.id}-${i}`} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                        <td className="px-5 py-3.5 text-slate-700 font-black">{i + 1}</td>
-                        <td className="px-5 py-3.5">
-                          <p className="font-black text-slate-200 whitespace-nowrap">{c.name}</p>
-                          <p className="text-[11px] text-slate-600">@{c.username}{c.phone ? ` · ${c.phone}` : ''}</p>
+                    </tr></thead>
+                    <tbody>{managers.map(m => (
+                      <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
+                        <td className="px-5 py-3.5 font-black text-[#867bfb]">@{m.username}</td>
+                        <td className="px-5 py-3.5 font-black text-slate-200">{m.business_name}</td>
+                        <td className="px-5 py-3.5 text-[11px] text-slate-600 whitespace-nowrap">{fmtDate(m.joined_at)}</td>
+                        <td className="px-5 py-3.5 text-[11px] whitespace-nowrap">
+                          <span className="text-slate-400">{fmtTime(m.last_login)}</span>
+                          <span className="text-slate-700 ml-1">({timeAgo(m.last_login)})</span>
                         </td>
-                        <td className="px-5 py-3.5">
-                          <p className="font-bold text-slate-300 whitespace-nowrap">{c.managerBusiness}</p>
-                          <p className="text-[11px] text-slate-600">@{c.managerUsername}</p>
-                        </td>
-                        <td className="px-5 py-3.5 font-bold text-slate-400 whitespace-nowrap">{c.plan}</td>
-                        <td className="px-5 py-3.5 font-black text-[#ffb752] whitespace-nowrap">Rs. {(c.monthlyFee || 0).toLocaleString()}</td>
-                        <td className="px-5 py-3.5 font-black whitespace-nowrap">{c.balance > 0
-                          ? <span className="text-[#f16775]">Rs. {c.balance.toLocaleString()}</span>
-                          : <span className="text-slate-700">—</span>}
-                        </td>
-                        <td className="px-5 py-3.5 text-[11px] text-slate-600 whitespace-nowrap">{fmtDate(c.expiryDate)}</td>
-                        <td className="px-5 py-3.5">
-                          <Badge color={c.status === 'active' ? 'bg-[#0a1e17] text-[#2bd076]' : c.status === 'expired' ? 'bg-[#1e0e14] text-[#f16775]' : 'bg-slate-800/60 text-slate-500'}>
-                            {c.status}
-                          </Badge>
-                        </td>
+                        <td className="px-5 py-3.5 font-bold text-blue-300">{m.user_count}</td>
+                        <td className="px-5 py-3.5 font-bold text-[#ffb752]">Rs. {Number(m.total_revenue).toLocaleString()}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    ))}</tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* ══════════════════════════ ACTIVITY LOGS ════════════════════════════ */}
-      {!loading && tab === 'activity' && (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-48 max-w-sm">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
-              <input type="text" placeholder="Manager ya action search..."
-                value={searchAct} onChange={e => setSearchAct(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-[#181d2f] text-sm text-slate-200 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
-            </div>
-            <div className="flex gap-1 bg-[#181d2f] border border-white/[0.06] rounded-xl p-1 flex-wrap">
-              {(['all', 'login', 'receipt', 'customer', 'update', 'system'] as const).map(f => (
-                <button key={f} onClick={() => setActFilter(f)}
-                  className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${actFilter === f ? 'bg-[#5a4ff0] text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-                  {f === 'all' ? `All (${activityLogs.length})` : f}
+          {/* ══════════ SUBSCRIPTIONS ══════════ */}
+          {tab === 'subscriptions' && (
+            <div className="space-y-4">
+              {subToast && (
+                <div className="fixed top-4 right-4 z-50 px-5 py-3 rounded-xl bg-[#0d1020] border border-white/10 shadow-2xl text-sm font-bold text-white animate-pulse">{subToast}</div>
+              )}
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <p className="text-[11px] text-slate-500">Har manager ka plan, status aur access control karein</p>
+                <button onClick={loadSubscriptions}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
+                  <RefreshCcw className="w-3.5 h-3.5" /> Refresh
                 </button>
-              ))}
-            </div>
-            {activityLogs.length === 0 && !actLoading && (
-              <button onClick={loadActivityLogs}
-                className="px-5 py-3 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
-                Load Logs
-              </button>
-            )}
-          </div>
-
-          {actLoading ? (
-            <div className="flex items-center justify-center py-24 gap-3">
-              <div className="w-6 h-6 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-400 font-bold text-sm">Activity logs load ho rahe hain...</span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Stats row */}
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {([
-                  { type: 'login', label: 'Logins', color: 'text-blue-400' },
-                  { type: 'receipt', label: 'Receipts', color: 'text-emerald-400' },
-                  { type: 'customer', label: 'Customers', color: 'text-purple-400' },
-                  { type: 'update', label: 'Updates', color: 'text-amber-400' },
-                  { type: 'system', label: 'System', color: 'text-slate-400' },
-                  { type: 'other', label: 'Other', color: 'text-slate-500' },
-                ] as const).map(s => (
-                  <div key={s.type} className="bg-[#181d2f] rounded-xl border border-white/[0.05] p-3 text-center cursor-pointer hover:border-white/10 transition-all"
-                    onClick={() => setActFilter(s.type)}>
-                    <p className={`text-xl font-black ${s.color}`}>{activityLogs.filter(a => a.type === s.type).length}</p>
-                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{s.label}</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Trial', color: 'text-amber-400', count: subscriptions.filter(s => s.status === 'trial').length },
+                  { label: 'Active', color: 'text-emerald-400', count: subscriptions.filter(s => s.status === 'active').length },
+                  { label: 'Locked', color: 'text-rose-400', count: subscriptions.filter(s => s.status === 'locked').length },
+                  { label: 'Expired', color: 'text-slate-500', count: subscriptions.filter(s => s.status === 'expired').length },
+                ].map(s => (
+                  <div key={s.label} className="bg-[#0d1020] rounded-xl border border-white/[0.05] p-4 text-center">
+                    <p className={`text-2xl font-black ${s.color}`}>{s.count}</p>
+                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-1">{s.label}</p>
                   </div>
                 ))}
               </div>
-
-              {/* Timeline */}
-              <div className="bg-[#181d2f] rounded-2xl border border-white/[0.05] overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
-                  <h3 className="font-black text-white text-[13px] flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-[#5a4ff0]" /> Activity Timeline
-                  </h3>
-                  <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{filteredAct.length} events</p>
+              {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).length > 0 && (
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+                  <p className="text-amber-400 text-[12px] font-bold mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Yeh managers abhi subscription table mein nahi hain:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).map(m => (
+                      <button key={m.username}
+                        onClick={() => updateSubscription(m.username, { plan: 'starter', status: 'trial', trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() })}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-bold hover:bg-amber-500/20 transition-all active:scale-95">
+                        + Add @{m.username}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="max-h-[65vh] overflow-y-auto">
-                  {filteredAct.length === 0 ? (
-                    <div className="text-center py-16 text-slate-600 flex flex-col items-center gap-3">
-                      <Activity className="w-12 h-12" />
-                      <p className="font-bold text-sm">
-                        {activityLogs.length === 0 ? 'Click "Load Logs" to fetch activity' : 'Koi activity nahi mili is filter ke liye'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-white/[0.03]">
-                      {filteredAct.map((log, i) => {
-                        const cfg = activityTypeConfig[log.type];
-                        return (
-                          <div key={i} className="flex items-start gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
-                            {/* Icon */}
-                            <div className={`w-7 h-7 rounded-lg ${cfg.bg} ${cfg.color} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                              {cfg.icon}
+              )}
+              {subLoading ? (
+                <div className="flex items-center justify-center py-20 gap-3">
+                  <div className="w-5 h-5 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-slate-400 font-bold text-sm">Load ho raha hai...</span>
+                </div>
+              ) : subscriptions.length === 0 ? (
+                <div className="text-center py-20 text-slate-600 flex flex-col items-center gap-3">
+                  <Shield className="w-12 h-12" />
+                  <p className="font-bold text-sm">Koi subscription record nahi. Upar se managers add karein.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {subscriptions.map((sub) => {
+                    const mgr = managers.find(m => m.username === sub.manager_id);
+                    const statusCfg: Record<string, { color: string; bg: string; label: string }> = {
+                      trial: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', label: 'TRIAL' },
+                      active: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: 'ACTIVE' },
+                      locked: { color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30', label: 'LOCKED' },
+                      expired: { color: 'text-slate-500', bg: 'bg-slate-500/10 border-slate-500/30', label: 'EXPIRED' },
+                    };
+                    const sc = statusCfg[sub.status] || statusCfg.trial;
+                    const planColors: Record<string, string> = { starter: 'text-indigo-400', business: 'text-purple-400', enterprise: 'text-cyan-400' };
+                    return (
+                      <div key={sub.manager_id} className="bg-[#0d1020] rounded-2xl border border-white/[0.05] p-5 hover:border-white/10 transition-all">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-sm flex-shrink-0"
+                              style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
+                              {(mgr?.business_name || sub.manager_id).charAt(0).toUpperCase()}
                             </div>
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <p className="text-[13px] font-bold text-slate-200">{log.action}</p>
-                                  {log.details && <p className="text-[11px] text-slate-600 mt-0.5">{log.details}</p>}
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                  <p className="text-[11px] text-slate-500 whitespace-nowrap">{fmtTime(log.timestamp)}</p>
-                                  <p className="text-[10px] text-slate-700">{timeAgo(log.timestamp)}</p>
-                                </div>
-                              </div>
-                              {/* Manager tag */}
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <div className="w-4 h-4 rounded flex items-center justify-center text-[#867bfb] text-[9px] font-black"
-                                  style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
-                                  {log.managerBusiness.charAt(0)}
-                                </div>
-                                <span className="text-[11px] text-slate-600">
-                                  <span className="text-[#867bfb] font-bold">@{log.managerUsername}</span>
-                                  {' · '}{log.managerBusiness}
-                                </span>
-                              </div>
+                            <div className="min-w-0">
+                              <p className="font-black text-[#867bfb] text-sm">@{sub.manager_id}</p>
+                              {mgr && <p className="text-[11px] text-slate-400 truncate">{mgr.business_name}</p>}
+                              {sub.trial_ends_at && sub.status === 'trial' && <p className="text-[10px] text-amber-500 font-bold mt-0.5">Trial ends: {fmtDate(sub.trial_ends_at)}</p>}
+                              {sub.notes && <p className="text-[10px] text-slate-600 mt-0.5 italic">"{sub.notes}"</p>}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ══════════════════════════ SYSTEM ════════════════════════════════════ */}
-      {!loading && tab === 'system' && (
-        <div className="space-y-4 max-w-3xl">
-          {/* DB Stats */}
-          <div className="bg-[#181d2f] rounded-2xl border border-white/[0.05] p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-white text-[13px] flex items-center gap-2">
-                <Server className="w-4 h-4 text-[#5a4ff0]" /> Live Database Stats
-              </h3>
-              <div className="flex gap-2">
-                <button onClick={async () => {
-                  try {
-                    const { data, error } = await supabase.from('manager_data').select('*');
-                    if (error) throw error;
-                    const blob = new Blob([JSON.stringify({ databaseDump: data, version: 'admin_1.0', timestamp: new Date().toISOString() }, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = `MYISP_Backup_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                  } catch (e: any) { alert('Backup failed: ' + e?.message); }
-                }}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-[11px] uppercase tracking-widest transition-all active:scale-95">
-                  <Download className="w-3.5 h-3.5" /> Backup
-                </button>
-                <label className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 cursor-pointer rounded-xl text-slate-300 font-bold text-[11px] uppercase tracking-widest transition-all border border-white/[0.06]">
-                  <Upload className="w-3.5 h-3.5" /> Restore
-                  <input type="file" className="hidden" accept=".json" onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                      try {
-                        const json = JSON.parse(event.target?.result as string);
-                        if (json.databaseDump && Array.isArray(json.databaseDump)) {
-                          const { error } = await supabase.from('manager_data').upsert(json.databaseDump, { onConflict: 'manager_id' });
-                          if (error) throw error;
-                          alert('✅ Database restored successfully!');
-                          window.location.reload();
-                        } else { alert('Invalid backup file format.'); }
-                      } catch (e: any) { alert('Restore failed: ' + e?.message); }
-                    };
-                    reader.readAsText(file);
-                  }} />
-                </label>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {[
-                { label: 'Total Managers', value: totals.managers, color: 'text-indigo-300' },
-                { label: 'Total Customers', value: totals.customers, color: 'text-blue-300' },
-                { label: 'Active Customers', value: totals.active, color: 'text-[#2bd076]' },
-                { label: 'Total Receipts', value: totals.receipts, color: 'text-purple-300' },
-                { label: 'Total Revenue', value: `Rs. ${totals.revenue.toLocaleString()}`, color: 'text-[#ffb752]' },
-                { label: 'Pending Dues', value: `Rs. ${totals.balance.toLocaleString()}`, color: 'text-[#f16775]' },
-              ].map(item => (
-                <div key={item.label} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 hover:border-white/10 transition-all">
-                  <p className="text-[#8695b0] font-bold uppercase tracking-wider text-[10px] mb-2">{item.label}</p>
-                  <p className={`font-black text-xl ${item.color}`}>{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Manager Accounts Log */}
-          <div className="bg-[#181d2f] rounded-2xl border border-white/[0.05] overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/[0.04]">
-              <h3 className="font-black text-white text-[13px] flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#5a4ff0]" /> Manager Accounts Log
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-[#1a1f33]">
-                    {['Username', 'Business', 'Joined', 'Last Login', 'Customers', 'Revenue'].map(h => (
-                      <th key={h} className="text-left px-5 py-3.5 font-bold text-[#8695b0] uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {managers.map(m => (
-                    <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
-                      <td className="px-5 py-3.5 font-black text-[#867bfb]">@{m.username}</td>
-                      <td className="px-5 py-3.5 font-black text-slate-200">{m.business_name}</td>
-                      <td className="px-5 py-3.5 text-[11px] text-slate-600 whitespace-nowrap">{fmtDate(m.joined_at)}</td>
-                      <td className="px-5 py-3.5 text-[11px] whitespace-nowrap">
-                        <span className="text-slate-400">{fmtTime(m.last_login)}</span>
-                        <span className="text-slate-700 ml-1">({timeAgo(m.last_login)})</span>
-                      </td>
-                      <td className="px-5 py-3.5 font-bold text-blue-300">{m.user_count}</td>
-                      <td className="px-5 py-3.5 font-bold text-[#ffb752]">Rs. {Number(m.total_revenue).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════ SUBSCRIPTIONS ════════════════════════════ */}
-      {tab === 'subscriptions' && (
-        <div className="space-y-4">
-          {/* Toast */}
-          {subToast && (
-            <div className="fixed top-4 right-4 z-50 px-5 py-3 rounded-xl bg-[#181d2f] border border-white/10 shadow-2xl text-sm font-bold text-white animate-pulse">
-              {subToast}
-            </div>
-          )}
-
-          {/* Header */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#5a4ff0]" /> Manager Subscriptions
-              </h2>
-              <p className="text-[11px] text-slate-500 mt-0.5">Har manager ka plan, status aur access control karein</p>
-            </div>
-            <button onClick={loadSubscriptions}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5a4ff0] text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
-              <RefreshCcw className="w-3.5 h-3.5" /> Refresh
-            </button>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Trial', color: 'text-amber-400', count: subscriptions.filter(s => s.status === 'trial').length },
-              { label: 'Active', color: 'text-emerald-400', count: subscriptions.filter(s => s.status === 'active').length },
-              { label: 'Locked', color: 'text-rose-400', count: subscriptions.filter(s => s.status === 'locked').length },
-              { label: 'Expired', color: 'text-slate-500', count: subscriptions.filter(s => s.status === 'expired').length },
-            ].map(s => (
-              <div key={s.label} className="bg-[#181d2f] rounded-xl border border-white/[0.05] p-4 text-center">
-                <p className={`text-2xl font-black ${s.color}`}>{s.count}</p>
-                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Managers without subscription entry */}
-          {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).length > 0 && (
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
-              <p className="text-amber-400 text-[12px] font-bold mb-2 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> Yeh managers abhi subscription table mein nahi hain:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).map(m => (
-                  <button key={m.username}
-                    onClick={() => updateSubscription(m.username, { plan: 'starter', status: 'trial', trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() })}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-bold hover:bg-amber-500/20 transition-all active:scale-95">
-                    + Add @{m.username}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Loading */}
-          {subLoading ? (
-            <div className="flex items-center justify-center py-20 gap-3">
-              <div className="w-5 h-5 border-[3px] border-[#5a4ff0] border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-400 font-bold text-sm">Load ho raha hai...</span>
-            </div>
-          ) : subscriptions.length === 0 ? (
-            <div className="text-center py-20 text-slate-600 flex flex-col items-center gap-3">
-              <Shield className="w-12 h-12" />
-              <p className="font-bold text-sm">Koi subscription record nahi. Upar se managers add karein.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {subscriptions.map((sub) => {
-                const mgr = managers.find(m => m.username === sub.manager_id);
-                const statusCfg: Record<string, { color: string; bg: string; label: string }> = {
-                  trial: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', label: 'TRIAL' },
-                  active: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: 'ACTIVE' },
-                  locked: { color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30', label: 'LOCKED' },
-                  expired: { color: 'text-slate-500', bg: 'bg-slate-500/10 border-slate-500/30', label: 'EXPIRED' },
-                };
-                const sc = statusCfg[sub.status] || statusCfg.trial;
-                const planColors: Record<string, string> = {
-                  starter: 'text-indigo-400', business: 'text-purple-400', enterprise: 'text-cyan-400',
-                };
-                return (
-                  <div key={sub.manager_id} className="bg-[#181d2f] rounded-2xl border border-white/[0.05] p-5 hover:border-white/10 transition-all">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      {/* Left: Manager info */}
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[#867bfb] font-black text-sm flex-shrink-0"
-                          style={{ background: 'linear-gradient(135deg,#1e1c3a,#2a2460)' }}>
-                          {(mgr?.business_name || sub.manager_id).charAt(0).toUpperCase()}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${sc.bg} ${sc.color}`}>{sc.label}</span>
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 ${planColors[sub.plan] || 'text-slate-400'}`}>{sub.plan}</span>
+                            {sub.amount_pkr > 0 && <span className="text-[10px] font-bold text-[#ffb752] bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">Rs. {sub.amount_pkr.toLocaleString()}/mo</span>}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-[#867bfb] text-sm">@{sub.manager_id}</p>
-                          {mgr && <p className="text-[11px] text-slate-400 truncate">{mgr.business_name}</p>}
-                          {sub.trial_ends_at && sub.status === 'trial' && (
-                            <p className="text-[10px] text-amber-500 font-bold mt-0.5">
-                              Trial ends: {fmtDate(sub.trial_ends_at)}
-                            </p>
+                        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/[0.04]">
+                          <select value={sub.plan} onChange={e => updateSubscription(sub.manager_id, { plan: e.target.value })}
+                            className="px-3 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] font-bold text-slate-300 outline-none focus:ring-2 focus:ring-[#5a4ff0] cursor-pointer">
+                            <option value="starter">Starter</option>
+                            <option value="business">Business</option>
+                            <option value="enterprise">Enterprise</option>
+                          </select>
+                          {sub.status !== 'active' && (
+                            <button onClick={() => updateSubscription(sub.manager_id, { status: 'active', billing_starts_at: new Date().toISOString() })}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                            </button>
                           )}
-                          {sub.notes && <p className="text-[10px] text-slate-600 mt-0.5 italic">"{sub.notes}"</p>}
+                          {sub.status !== 'trial' && (
+                            <button onClick={() => updateSubscription(sub.manager_id, { status: 'trial', trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() })}
+                              className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-bold hover:bg-amber-500/20 transition-all active:scale-95 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" /> Trial Reset
+                            </button>
+                          )}
+                          {sub.status !== 'locked' ? (
+                            <button onClick={() => updateSubscription(sub.manager_id, { status: 'locked' })}
+                              className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold hover:bg-rose-500/20 transition-all active:scale-95 flex items-center gap-1">
+                              <XCircle className="w-3.5 h-3.5" /> Lock
+                            </button>
+                          ) : (
+                            <button onClick={() => updateSubscription(sub.manager_id, { status: 'active' })}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Unlock
+                            </button>
+                          )}
+                          <div className="flex items-center gap-1 ml-auto">
+                            <span className="text-[10px] text-slate-600 font-bold">Rs.</span>
+                            <input type="number" placeholder="Amount/mo" defaultValue={sub.amount_pkr || ''}
+                              onBlur={e => { const val = parseInt(e.target.value) || 0; if (val !== sub.amount_pkr) updateSubscription(sub.manager_id, { amount_pkr: val }); }}
+                              className="w-24 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] font-bold text-slate-300 outline-none focus:ring-2 focus:ring-[#5a4ff0]" />
+                          </div>
                         </div>
+                        <input type="text" placeholder="Notes (optional) — Enter se save hoga" defaultValue={sub.notes || ''}
+                          onKeyDown={e => { if (e.key === 'Enter') { updateSubscription(sub.manager_id, { notes: (e.target as HTMLInputElement).value }); (e.target as HTMLInputElement).blur(); } }}
+                          className="w-full mt-2 px-3 py-2 rounded-lg bg-black/20 border border-white/[0.05] text-[11px] text-slate-500 placeholder-slate-700 outline-none focus:ring-1 focus:ring-[#5a4ff0] focus:border-[#5a4ff0]/50 transition-all" />
                       </div>
-                      {/* Right: Badges */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${sc.bg} ${sc.color}`}>
-                          {sc.label}
-                        </span>
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 ${planColors[sub.plan] || 'text-slate-400'}`}>
-                          {sub.plan}
-                        </span>
-                        {sub.amount_pkr > 0 && (
-                          <span className="text-[10px] font-bold text-[#ffb752] bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
-                            Rs. {sub.amount_pkr.toLocaleString()}/mo
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/[0.04]">
-                      {/* Plan Change */}
-                      <select
-                        value={sub.plan}
-                        onChange={e => updateSubscription(sub.manager_id, { plan: e.target.value })}
-                        className="px-3 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] font-bold text-slate-300 outline-none focus:ring-2 focus:ring-[#5a4ff0] cursor-pointer">
-                        <option value="starter">Starter</option>
-                        <option value="business">Business</option>
-                        <option value="enterprise">Enterprise</option>
-                      </select>
-
-                      {/* Status Change Buttons */}
-                      {sub.status !== 'active' && (
-                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'active', billing_starts_at: new Date().toISOString() })}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                        </button>
-                      )}
-                      {sub.status !== 'trial' && (
-                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'trial', trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() })}
-                          className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-bold hover:bg-amber-500/20 transition-all active:scale-95 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" /> Trial Reset
-                        </button>
-                      )}
-                      {sub.status !== 'locked' ? (
-                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'locked' })}
-                          className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold hover:bg-rose-500/20 transition-all active:scale-95 flex items-center gap-1">
-                          <XCircle className="w-3.5 h-3.5" /> Lock
-                        </button>
-                      ) : (
-                        <button onClick={() => updateSubscription(sub.manager_id, { status: 'active' })}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Unlock
-                        </button>
-                      )}
-
-                      {/* Amount input */}
-                      <div className="flex items-center gap-1 ml-auto">
-                        <span className="text-[10px] text-slate-600 font-bold">Rs.</span>
-                        <input
-                          type="number"
-                          placeholder="Amount/mo"
-                          defaultValue={sub.amount_pkr || ''}
-                          onBlur={e => {
-                            const val = parseInt(e.target.value) || 0;
-                            if (val !== sub.amount_pkr) updateSubscription(sub.manager_id, { amount_pkr: val });
-                          }}
-                          className="w-24 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] font-bold text-slate-300 outline-none focus:ring-2 focus:ring-[#5a4ff0]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Notes input */}
-                    <input
-                      type="text"
-                      placeholder="Notes (optional) — Enter se save hoga"
-                      defaultValue={sub.notes || ''}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          updateSubscription(sub.manager_id, { notes: (e.target as HTMLInputElement).value });
-                          (e.target as HTMLInputElement).blur();
-                        }
-                      }}
-                      className="w-full mt-2 px-3 py-2 rounded-lg bg-black/20 border border-white/[0.05] text-[11px] text-slate-500 placeholder-slate-700 outline-none focus:ring-1 focus:ring-[#5a4ff0] focus:border-[#5a4ff0]/50 transition-all"
-                    />
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* ══════════════════════════ RESET PASSWORD MODAL ═════════════════════ */}
+        </div>{/* end content area */}
+      </main>
+
+      {/* ══════════ RESET PASSWORD MODAL ══════════ */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#050815]/85 backdrop-blur-md" onClick={() => { setShowResetModal(null); setResetMsg(null); }} />
-          <div className="relative z-10 w-full max-w-sm bg-[#12162a] rounded-2xl shadow-2xl border border-white/[0.08] p-6">
+          <div className="relative z-10 w-full max-w-sm bg-[#0d1020] rounded-2xl shadow-2xl border border-white/[0.08] p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#5a4ff0]/15 border border-[#5a4ff0]/20 flex items-center justify-center">
-                <Key className="w-5 h-5 text-[#867bfb]" />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-white">Reset Password</h2>
-                <p className="text-[11px] text-slate-500">@{showResetModal}</p>
-              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#5a4ff0]/15 border border-[#5a4ff0]/20 flex items-center justify-center"><Key className="w-5 h-5 text-[#867bfb]" /></div>
+              <div><h2 className="text-lg font-black text-white">Reset Password</h2><p className="text-[11px] text-slate-500">@{showResetModal}</p></div>
             </div>
             <input type="text" placeholder="Naya password (min 6 chars)" value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleReset()}
+              onChange={e => setNewPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleReset()}
               className="w-full px-4 py-3 rounded-xl border border-white/10 bg-black/30 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-[#5a4ff0] mb-3" />
             {newPassword.length > 0 && newPassword.length < 6 && (
-              <p className="text-[11px] text-amber-500 font-bold flex items-center gap-1 mb-3">
-                <AlertTriangle className="w-3.5 h-3.5" /> Kam az kam 6 characters chahiye
-              </p>
+              <p className="text-[11px] text-amber-500 font-bold flex items-center gap-1 mb-3"><AlertTriangle className="w-3.5 h-3.5" /> Kam az kam 6 characters chahiye</p>
             )}
             {resetMsg && (
               <p className={`text-[11px] font-bold flex items-center gap-1 mb-3 ${resetMsg.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {resetMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                {resetMsg.text}
+                {resetMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}{resetMsg.text}
               </p>
             )}
             <div className="flex gap-2">
               <button onClick={() => { setShowResetModal(null); setNewPassword(''); setResetMsg(null); }}
                 className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
               <button onClick={handleReset} disabled={!newPassword.trim() || newPassword.length < 6}
-                className="flex-1 py-3 rounded-xl bg-[#5a4ff0] text-white text-xs font-black hover:bg-indigo-500 disabled:opacity-30 active:scale-95 transition-all">
-                Update Password
-              </button>
+                className="flex-1 py-3 rounded-xl bg-[#5a4ff0] text-white text-xs font-black hover:bg-indigo-500 disabled:opacity-30 active:scale-95 transition-all">Update Password</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══════════════════════════ DELETE MODAL ═════════════════════════════ */}
+      {/* ══════════ DELETE MODAL ══════════ */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#050815]/85 backdrop-blur-md" onClick={() => setShowDeleteConfirm(null)} />
-          <div className="relative z-10 w-full max-w-sm bg-[#12162a] rounded-2xl shadow-2xl border border-rose-500/20 p-6 text-center">
-            <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-7 h-7 text-rose-400" />
-            </div>
+          <div className="relative z-10 w-full max-w-sm bg-[#0d1020] rounded-2xl shadow-2xl border border-rose-500/20 p-6 text-center">
+            <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash2 className="w-7 h-7 text-rose-400" /></div>
             <h2 className="text-lg font-black text-white mb-1">Manager Delete Karein?</h2>
-            <p className="inline-block text-sm font-black text-rose-400 border border-rose-500/20 bg-rose-500/5 px-3 py-1 rounded-xl mb-3">
-              @{showDeleteConfirm}
-            </p>
+            <p className="inline-block text-sm font-black text-rose-400 border border-rose-500/20 bg-rose-500/5 px-3 py-1 rounded-xl mb-3">@{showDeleteConfirm}</p>
             <p className="text-xs text-slate-500 mb-4">Yeh action <span className="font-black text-rose-400">permanent</span> hai — undo nahi ho sakti.</p>
             <p className="text-[10px] text-slate-600 mb-2 uppercase tracking-widest font-bold">Confirm karne ke liye "DELETE" likhein:</p>
-            <input type="text" placeholder="DELETE"
-              value={deleteConfirmText}
-              onChange={e => setDeleteConfirmText(e.target.value.toUpperCase())}
+            <input type="text" placeholder="DELETE" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value.toUpperCase())}
               className="w-full px-4 py-3 rounded-xl border border-white/10 bg-black/30 text-sm text-center font-black text-white outline-none focus:ring-2 focus:ring-rose-500 mb-5 uppercase tracking-widest" />
             <div className="flex gap-2">
               <button onClick={() => { setShowDeleteConfirm(null); setDeleteConfirmText(''); }}
                 className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
               <button onClick={() => deleteConfirmText === 'DELETE' && handleDelete(showDeleteConfirm)}
                 disabled={deleteConfirmText !== 'DELETE'}
-                className="flex-1 py-3 rounded-xl bg-rose-500 text-white text-xs font-black hover:bg-rose-600 disabled:opacity-30 active:scale-95 transition-all">
-                Confirm Delete
-              </button>
+                className="flex-1 py-3 rounded-xl bg-rose-500 text-white text-xs font-black hover:bg-rose-600 disabled:opacity-30 active:scale-95 transition-all">Confirm Delete</button>
             </div>
           </div>
         </div>
