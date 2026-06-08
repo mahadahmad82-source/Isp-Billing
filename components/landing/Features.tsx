@@ -16,7 +16,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
     { q: "Ek account mein kitne customers ho sakte hain?", a: "Business plan mein unlimited customers. Starter plan mein 50 customers tak free hain." },
     { q: "Kya mere agents bhi use kar sakte hain?", a: "Haan! Sub-manager accounts create karo apne field agents ke liye — woh receipts collect kar sakte hain, attendance lagwa sakte hain." },
     { q: "Data safe hai? Kho toh nahi jayega?", a: "Bilkul safe. Supabase cloud pe real-time sync hoti hai. Phone tod do, data safe rahega — doosre device pe login karo, sab wapas aa jayega." },
-    { q: "Demo ya trial kaise milega?", a: "Abhi free mein start karo — koi credit card nahi chahiye. WhatsApp karein 0300-1234567 pe agar koi help chahiye." }
+    { q: "Demo ya trial kaise milega?", a: "Abhi free mein start karo — koi credit card nahi chahiye. WhatsApp karein 0304-2773453 pe agar koi help chahiye." }
   ];
 
   return (
