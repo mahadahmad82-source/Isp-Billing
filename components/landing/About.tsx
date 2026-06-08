@@ -132,4 +132,32 @@ const About: React.FC = () => {
   );
 };
 
+
+const AboutContact = () => (
+  <div className="py-16 px-6 border-t border-white/10">
+    <div className="max-w-xl mx-auto text-center">
+      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6">Contact Us</p>
+      <div className="grid grid-cols-2 gap-4">
+        <a href="https://wa.me/923042773453?text=MYISP%20ke%20baare%20mein%20baat%20karni%20hai"
+          target="_blank" rel="noreferrer"
+          className="flex items-center gap-3 p-4 bg-green-600/15 border border-green-500/30 rounded-2xl hover:bg-green-600/25 transition-all">
+          <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-sm">💬</div>
+          <div className="text-left">
+            <p className="font-black text-green-400 text-xs">WhatsApp</p>
+            <p className="text-white/60 text-[10px]">0304-2773453</p>
+          </div>
+        </a>
+        <a href="mailto:myispnetwork@gmail.com"
+          className="flex items-center gap-3 p-4 bg-indigo-600/15 border border-indigo-500/30 rounded-2xl hover:bg-indigo-600/25 transition-all">
+          <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-sm">✉️</div>
+          <div className="text-left">
+            <p className="font-black text-indigo-400 text-xs">Email</p>
+            <p className="text-white/60 text-[10px]">myispnetwork@gmail.com</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+);
+
 export default About;
