@@ -32,6 +32,8 @@ import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
+import { useSubscription, canAccess } from './hooks/useSubscription';
+import UpgradeGate from './components/UpgradeGate';
 
 interface ConfirmationConfig {
   title: string;
@@ -178,6 +180,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
+  const subscription = useSubscription(activeManager);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   
   const lastActivityRef = useRef<number>(Date.now());
