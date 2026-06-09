@@ -182,6 +182,7 @@ const App: React.FC = () => {
   const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
   const subscription = useSubscription(activeManager);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const lastActivityRef = useRef<number>(Date.now());
 
@@ -254,6 +255,7 @@ const App: React.FC = () => {
 
       // Smart sync: compare localStorage vs Supabase, use richer data
       const localState = loadState(activeManager);
+      setIsSyncing(true);
       smartLoadAndSync(dataOwner, localState).then(finalState => {
         setState({
           ...finalState,
@@ -276,7 +278,7 @@ const App: React.FC = () => {
             setTourMode('welcome');
           }
         }
-      });
+      }).finally(() => setIsSyncing(false));
     } else {
       setActiveSession(null);
     }
@@ -1256,6 +1258,7 @@ const App: React.FC = () => {
           businessName={currentSettings.businessName} 
           onToggleTheme={handleToggleTheme}
           lastSavedTime={lastSavedTime}
+          isSyncing={isSyncing}
           onNavigateCustomers={(filter) => {
             setCustomerStatusFilter(filter);
             // also sync userFilter: 'all' for all/expired views, 'current_month' only for active
