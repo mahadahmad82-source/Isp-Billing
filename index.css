@@ -159,12 +159,12 @@ html, body {
 }
 
 /* ============================================
-   LIGHT MODE AUTO-FIX  (v2 - surgical)
-   Only fixes hardcoded dark colors in components.
-   Does NOT override gradient cards or colored badges.
+   LIGHT MODE FIX (v3 - minimal)
+   ONLY fixes dark-hardcoded page backgrounds.
+   Borders & bg-white/* left untouched (already fine in light mode).
    ============================================ */
 
-/* ── 1. Root dark page containers → slate-50 bg ── */
+/* ── Dark page root backgrounds ── */
 html:not(.dark) .bg-\[\#0b1120\],
 html:not(.dark) .bg-\[\#0b0f1a\],
 html:not(.dark) .bg-\[\#0d1225\],
@@ -172,30 +172,24 @@ html:not(.dark) .bg-\[\#030712\] {
   background-color: #f8fafc !important;
 }
 
-/* ── 2. All white-text AND white/opacity-text inside dark-hex containers → dark ── */
+/* ── All white text inside dark-hex containers → slate ── */
 html:not(.dark) .bg-\[\#0b1120\] [class*="text-white"],
 html:not(.dark) .bg-\[\#0b0f1a\] [class*="text-white"] {
   color: #334155 !important;
 }
 
-/* ── 3. Global opacity white-text fix (text-white/50, text-white/60 etc) ── */
+/* ── Global opacity white-text (text-white/50, /60 etc.) ── */
 html:not(.dark) [class*="text-white/"] {
   color: #475569 !important;
 }
 
-/* ── 4. bg-white/5 and bg-white/10: transparent on white → subtle tint ── */
-html:not(.dark) .bg-white\/5  { background-color: rgba(0,0,0,0.04) !important; }
-html:not(.dark) .bg-white\/10 { background-color: rgba(0,0,0,0.06) !important; }
-html:not(.dark) .bg-white\/\[0\.03\] { background-color: rgba(0,0,0,0.03) !important; }
-html:not(.dark) .bg-white\/\[0\.04\] { background-color: rgba(0,0,0,0.04) !important; }
-
-/* ── 5. Card/container dark backgrounds → light equivalents ── */
+/* ── AdminDashboard card backgrounds ── */
 html:not(.dark) .bg-slate-800\/60 { background-color: rgba(241,245,249,0.9) !important; }
 html:not(.dark) .bg-slate-900\/50 { background-color: rgba(226,232,240,0.7) !important; }
 html:not(.dark) .bg-slate-900     { background-color: #f1f5f9 !important; }
 html:not(.dark) .bg-slate-800     { background-color: #e8edf3 !important; }
 
-/* ── 6. White text inside dark card containers → dark text ── */
+/* ── White text inside dark AdminDashboard containers → dark ── */
 html:not(.dark) .bg-slate-800\/60 [class*="text-white"],
 html:not(.dark) .bg-slate-900\/50 [class*="text-white"],
 html:not(.dark) .bg-slate-900     [class*="text-white"],
@@ -203,24 +197,11 @@ html:not(.dark) .bg-slate-800     [class*="text-white"] {
   color: #1e293b !important;
 }
 
-/* ── 7. Borders: subtle in light mode (not harsh gray lines) ── */
-html:not(.dark) .border-white\/5  { border-color: #f1f5f9 !important; }
-html:not(.dark) .border-white\/10 { border-color: #e8edf3 !important; }
-html:not(.dark) .border-white\/20 { border-color: #e2e8f0 !important; }
-html:not(.dark) .border-white\/\[0\.06\] { border-color: #eff2f7 !important; }
-html:not(.dark) .border-white\/\[0\.04\] { border-color: #f4f6fb !important; }
-html:not(.dark) .border-white\/\[0\.08\] { border-color: #e8edf3 !important; }
-
-/* ── 8. Neutral gray text that's too light for light mode ── */
+/* ── Light-invisible gray text ── */
 html:not(.dark) .text-slate-200 { color: #334155 !important; }
 html:not(.dark) .text-slate-300 { color: #475569 !important; }
 
-/* ── 9. bg-black overlays (toned down on light bg) ── */
-html:not(.dark) .bg-black\/20 { background-color: rgba(0,0,0,0.05) !important; }
-html:not(.dark) .bg-black\/30 { background-color: rgba(0,0,0,0.06) !important; }
-html:not(.dark) .bg-black\/40 { background-color: rgba(0,0,0,0.08) !important; }
-
-/* ── 10. Input fields inside dark containers ── */
+/* ── Input fields inside dark page containers ── */
 html:not(.dark) .bg-\[\#0b0f1a\] input,
 html:not(.dark) .bg-\[\#0b1120\] input,
 html:not(.dark) .bg-\[\#0b0f1a\] select,
