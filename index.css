@@ -157,3 +157,82 @@ html, body {
   50% { opacity: 1; }
   100% { transform: translateX(350%); opacity: 0.5; }
 }
+
+/* ============================================
+   LIGHT MODE AUTO-FIX
+   Corrects components with hardcoded dark-mode
+   colors so they look right in light mode.
+   Dark mode is unaffected (specificity: not .dark)
+   ============================================ */
+
+/* ── Card & container backgrounds ── */
+html:not(.dark) .bg-slate-800\/60 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+html:not(.dark) .bg-slate-900\/50 {
+  background-color: rgba(226, 232, 240, 0.7) !important;
+}
+html:not(.dark) .bg-slate-900 {
+  background-color: #f1f5f9 !important;
+}
+html:not(.dark) .bg-slate-800 {
+  background-color: #e8edf3 !important;
+}
+
+/* ── Arbitrary hex dark backgrounds ── */
+html:not(.dark) .bg-\[\#0b1120\],
+html:not(.dark) .bg-\[\#0b0f1a\],
+html:not(.dark) .bg-\[\#0d1225\],
+html:not(.dark) .bg-\[\#030712\] {
+  background-color: #f8fafc !important;
+}
+
+/* ── Borders: white/opacity → slate ── */
+html:not(.dark) .border-white\/5    { border-color: #e2e8f0 !important; }
+html:not(.dark) .border-white\/10   { border-color: #e2e8f0 !important; }
+html:not(.dark) .border-white\/20   { border-color: #cbd5e1 !important; }
+html:not(.dark) .border-white\/\[0\.06\] { border-color: #e2e8f0 !important; }
+html:not(.dark) .border-white\/\[0\.04\] { border-color: #e2e8f0 !important; }
+html:not(.dark) .border-white\/\[0\.08\] { border-color: #d1d5db !important; }
+
+/* ── Text: light grays invisible on white bg ── */
+html:not(.dark) .text-slate-200 { color: #334155 !important; }
+html:not(.dark) .text-slate-300 { color: #475569 !important; }
+
+/* ── White text inside dark non-gradient sections ── */
+html:not(.dark) .bg-slate-800\/60 .text-white,
+html:not(.dark) .bg-slate-900\/50 .text-white,
+html:not(.dark) .bg-slate-900 .text-white,
+html:not(.dark) .bg-slate-800 .text-white,
+html:not(.dark) .bg-\[\#0b1120\] .text-white,
+html:not(.dark) .bg-\[\#0b0f1a\] .text-white {
+  color: #0f172a !important;
+}
+
+/* ── Semi-transparent white overlays in dark sections ── */
+html:not(.dark) .bg-slate-800\/60 .bg-white\/5,
+html:not(.dark) .bg-slate-800\/60 .bg-white\/\[0\.03\],
+html:not(.dark) .bg-slate-800\/60 .bg-white\/\[0\.04\] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* ── Input fields inside dark containers ── */
+html:not(.dark) input.bg-slate-800\/60,
+html:not(.dark) .bg-slate-800\/60 input,
+html:not(.dark) select.bg-slate-800\/60 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+html:not(.dark) input.text-slate-200,
+html:not(.dark) .text-slate-200 input { color: #0f172a !important; }
+
+/* ── Toast / popup dark bg ── */
+html:not(.dark) .bg-slate-800 { color: #1e293b; }
+
+/* ── bg-black overlays that look harsh on light bg ── */
+html:not(.dark) .bg-black\/20 { background-color: rgba(0,0,0,0.05) !important; }
+html:not(.dark) .bg-black\/30 { background-color: rgba(0,0,0,0.06) !important; }
+html:not(.dark) .bg-black\/40 { background-color: rgba(0,0,0,0.08) !important; }
+
