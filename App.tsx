@@ -87,7 +87,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -185,8 +185,8 @@ const App: React.FC = () => {
   useEffect(() => {
     // Basic initialization
     setIsAdmin(activeManager === 'admin');
-    if (activeManager === 'admin' && activeTab !== 'admin') {
-      setActiveTab('admin');
+    if (activeManager === 'admin' && activeTab !== 'admin-overview' && !activeTab.startsWith('admin-')) {
+      setActiveTab('admin-overview');
     }
     
     // Check local accounts for role/area
@@ -550,7 +550,7 @@ const App: React.FC = () => {
         setShowTour(true);
       }
     } else {
-      setActiveTab('admin');
+      setActiveTab('admin-overview');
     }
   };
 
@@ -1326,7 +1326,7 @@ const App: React.FC = () => {
           )}
           {activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
           {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
-          {activeTab === 'admin' && isAdmin && <AdminDashboard />}
+          {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
           {activeTab === 'complaints' && userRole === 'manager' && (
             <ComplaintManager
               tickets={state.complaintTickets || []}
