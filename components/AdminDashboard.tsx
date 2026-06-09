@@ -274,9 +274,12 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     setManagers(prev => prev.filter(m => m.username !== username));
     setShowDeleteConfirm(null); setDeleteConfirmText('');
     try { await supabase.rpc('admin_delete_manager', { p_username: username }); } catch { }
-    try { await supabase.from('manager_data').delete().eq('manager_id', username); } catch { }
+    const { error: delError } = await supabase.from('manager_data').delete().eq('manager_id', username);
+    if (delError) { console.error('Delete error:', delError.message); }
+    try { await supabase.from('manager_subscriptions').delete().eq('manager_id', username); } catch { }
     removeAccount(username);
     localStorage.removeItem(`myisp_data_${username}`);
+    await loadManagers();
   };
 
   const handleReset = async () => {
@@ -363,7 +366,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {!loading && tab === 'overview' && (
         <div className="space-y-5">
           {/* KPI Cards — same style as manager Dashboard */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4">
             <KpiCard icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>}
               label="Managers" value={totals.managers}
               gradient="bg-gradient-to-br from-indigo-600 to-indigo-800" accent="text-indigo-300" />
@@ -840,7 +843,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                         <option value="business">Business</option>
                         <option value="enterprise">Enterprise</option>
                       </select>
-                      {sub.status!=='active' && <button onClick={()=>updateSubscription(sub.manager_id,{status:'active',billing_starts_at:new Date().toISOString()})}
+                      {sub.status!=='active' && <button onClick={()=>updateSubscription(sub.manager_id,{status:'active'})}
                         className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black hover:bg-emerald-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                       </button>}
