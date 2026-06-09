@@ -14,6 +14,7 @@ interface LayoutProps {
   businessName: string;
   onToggleTheme: () => void;
   lastSavedTime?: string;
+  isSyncing?: boolean;
   notifications: AppNotification[];
   onDismissNotification: (id: string) => void;
   onClearAllNotifications: () => void;
@@ -136,6 +137,7 @@ const Layout: React.FC<LayoutProps> = ({
   businessName,
   onToggleTheme,
   lastSavedTime,
+  isSyncing = false,
   notifications,
   onDismissNotification,
   onClearAllNotifications,
@@ -219,6 +221,9 @@ const Layout: React.FC<LayoutProps> = ({
         {/* ── LEFT: DB Status (above) + Burger (below) ── */}
         <div className="flex flex-col items-start justify-center gap-1 w-12 flex-shrink-0">
           <DbStatusIndicator lastSavedTime={lastSavedTime} />
+          {isSyncing && (
+            <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500 animate-pulse px-1">SYNCING…</span>
+          )}
           <button
             onClick={() => setDrawerOpen(true)}
             className={`p-1.5 rounded-xl border transition-all shadow-sm flex items-center justify-center w-9 h-9 active:scale-90
@@ -483,6 +488,12 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
 
         <div className="w-full">
+          {/* Supabase sync indicator */}
+          {isSyncing && (
+            <div className="w-full h-0.5 bg-indigo-100 dark:bg-indigo-950 overflow-hidden">
+              <div className="h-full bg-indigo-500 animate-[loading-bar_1.2s_infinite_linear] w-[40%] rounded-full" />
+            </div>
+          )}
           {children}
         </div>
       </main>
