@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, SuspensionLog } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
@@ -25,6 +25,9 @@ import BusinessAnalytics from './components/BusinessAnalytics';
 import AgingReport from './components/AgingReport';
 import OutageTracker from './components/OutageTracker';
 import AreaDashboard from './components/AreaDashboard';
+import EquipmentTracker from './components/EquipmentTracker';
+import LeadsPipeline from './components/LeadsPipeline';
+import SuspensionManager from './components/SuspensionManager';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -58,6 +61,9 @@ const App: React.FC = () => {
       businessExpenses: loaded.businessExpenses || [],
       systemLogs: loaded.systemLogs || [],
       equipmentRecords: loaded.equipmentRecords || [],
+      leads: loaded.leads || [],
+      suspensionLogs: loaded.suspensionLogs || [],
+      outageLogs: loaded.outageLogs || [],
     };
 
     // Initialize first company if none exists
@@ -266,6 +272,9 @@ const App: React.FC = () => {
           currentManager: dataOwner,
           systemLogs: finalState.systemLogs || [],
           equipmentRecords: finalState.equipmentRecords || [],
+          leads: finalState.leads || [],
+          suspensionLogs: finalState.suspensionLogs || [],
+          outageLogs: finalState.outageLogs || [],
         });
         // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
@@ -1427,6 +1436,79 @@ const App: React.FC = () => {
           )}
           {activeTab === 'aging' && userRole === 'manager' && (
             <AgingReport users={filteredUsers} settings={currentSettings} />
+          )}
+          {activeTab === 'equipment' && userRole === 'manager' && (
+            <EquipmentTracker
+              equipment={state.equipmentRecords || []}
+              users={filteredUsers}
+              onAdd={(e) => setState(prev => {
+                const ns = { ...prev, equipmentRecords: [...(prev.equipmentRecords || []), e] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdate={(id, updates) => setState(prev => {
+                const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).map(e => e.id === id ? { ...e, ...updates } : e) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDelete={(id) => setState(prev => {
+                const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).filter(e => e.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+            />
+          )}
+          {activeTab === 'leads' && userRole === 'manager' && (
+            <LeadsPipeline
+              leads={state.leads || []}
+              users={filteredUsers}
+              subManagers={(state.subManagers || []).map(sm => ({ id: sm.id, username: sm.username, name: sm.name }))}
+              settings={{ availablePlans: Object.entries(currentSettings.planPrices || {}).map(([name, price]) => ({ name, price: price as number })) }}
+              onAdd={(lead) => setState(prev => {
+                const ns = { ...prev, leads: [...(prev.leads || []), lead] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdate={(id, updates) => setState(prev => {
+                const ns = { ...prev, leads: (prev.leads || []).map(l => l.id === id ? { ...l, ...updates } : l) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDelete={(id) => setState(prev => {
+                const ns = { ...prev, leads: (prev.leads || []).filter(l => l.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onConvertToCustomer={(lead) => {
+                setState(prev => {
+                  const newUser: UserRecord = {
+                    id: generateId(),
+                    name: lead.name,
+                    phone: lead.phone,
+                    address: lead.address,
+                    area: lead.area || '',
+                    plan: lead.interestedPlan || '',
+                    monthlyFee: currentSettings.planPrices?.[lead.interestedPlan || ''] as number || 0,
+                    status: 'active',
+                    activatedMonths: [],
+                    companyId: state.activeCompanyId,
+                    createdAt: new Date().toISOString(),
+                  } as any;
+                  const updatedLeads = (prev.leads || []).map(l => l.id === lead.id ? { ...l, status: 'converted' as any } : l);
+                  const ns = { ...prev, users: [...prev.users, newUser], leads: updatedLeads };
+                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+                });
+              }}
+            />
+          )}
+          {activeTab === 'suspension' && userRole === 'manager' && (
+            <SuspensionManager
+              suspensionLogs={state.suspensionLogs || []}
+              users={filteredUsers}
+              currentUser={activeManager || ''}
+              onAdd={(log) => setState(prev => {
+                const ns = { ...prev, suspensionLogs: [...(prev.suspensionLogs || []), log] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onUpdateUserStatus={(userId, status) => setState(prev => {
+                const ns = { ...prev, users: prev.users.map(u => u.id === userId ? { ...u, status } : u) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+            />
           )}
           {activeTab === 'outage' && userRole === 'manager' && (
             <OutageTracker
