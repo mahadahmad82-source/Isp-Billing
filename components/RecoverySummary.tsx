@@ -1136,7 +1136,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
           <div className="relative z-10 w-full max-w-2xl my-8 animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-4 px-2">
               <h3 className="text-white font-black uppercase tracking-widest text-xs">Receipt Preview</h3>
-              <button onClick={() => setViewingReceipt(null)} className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors">✕</button>
+              <button onClick={() => setViewingReceipt(null)} className="w-10 h-10 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-slate-700 dark:text-white rounded-full flex items-center justify-center transition-colors">✕</button>
             </div>
             
             <div className="bg-white rounded-[1.5rem] shadow-2xl overflow-x-auto mb-6 custom-scrollbar">
