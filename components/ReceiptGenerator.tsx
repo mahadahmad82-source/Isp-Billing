@@ -116,15 +116,22 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       ? settings.planPrices[user.plan] 
       : (user.monthlyFee || 0);
     
-    // 2. Detect Arrears/Advance from most recent past receipt
+    // 2. Detect Arrears/Advance from most recent PREVIOUS receipt
+    // Exclude the current billing period so we never carry forward the same month's balance
+    const currentBillingPeriod = `${billingMonth} ${billingYear}`;
     const userReceipts = receipts.filter(r => r.userId === user.id);
     
-    // Get the latest receipt (excluding current billing period if already set)
-    const sortedReceipts = [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const latestReceipt = sortedReceipts.length > 0 ? sortedReceipts[0] : null;
+    // Filter out current billing period receipts, then sort by date desc
+    const previousReceipts = [...userReceipts]
+      .filter(r => r.period !== currentBillingPeriod)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestPreviousReceipt = previousReceipts.length > 0 ? previousReceipts[0] : null;
     
-    // Use balanceAmount from latest receipt (negative = advance/credit, positive = arrears owed)
-    const balance = latestReceipt ? (latestReceipt.balanceAmount || 0) : (user.balance || 0);
+    // Use balanceAmount from most recent PREVIOUS receipt
+    // If no previous receipt exists at all → fallback to Master Directory balance (user.balance)
+    const balance = latestPreviousReceipt 
+      ? (latestPreviousReceipt.balanceAmount || 0) 
+      : (user.balance || 0);
     const persistentDisc = user.persistentDiscount || 0;
     
     setMonthlyFee(fee);
@@ -133,7 +140,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     setAmountPaid((fee + balance) - persistentDisc);
     setAdvanceAmount(0);
     setDescription(user.description || settings.globalNote || '');
-  }, [users, receipts, settings.planPrices, settings.globalNote]);
+  }, [users, receipts, settings.planPrices, settings.globalNote, billingMonth, billingYear]);
 
   useEffect(() => {
     if (viewMode === 'create') {
