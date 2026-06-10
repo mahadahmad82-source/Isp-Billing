@@ -57,7 +57,7 @@ export const loadState = (username: string | null): AppState => {
   const activeUser = username || getActiveSession();
   
   const defaultSettings: AppSettings = {
-    businessName: 'Ledgerzo',
+    businessName: account?.businessName || 'My ISP',
     businessPhone: '',
     businessEmail: '',
     businessAddress: 'Pakistan',
