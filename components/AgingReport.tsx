@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useIsDark } from '../hooks/useIsDark';
 import { UserRecord } from '../types';
 
 interface Props {
@@ -21,6 +22,7 @@ const BUCKET_CONFIG = {
 };
 
 const AgingReport: React.FC<Props> = ({ users, settings }) => {
+  const isDark = useIsDark();
   const [activeBucket, setActiveBucket] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'days' | 'amount'>('days');
@@ -87,18 +89,18 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
   }, [agingData, activeBucket, search, sortBy]);
 
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-2xl font-black">Receivable Aging</h1>
-        <p className="text-white/40 text-xs mt-0.5">Kitna paisa kitne dino se pending hai</p>
+        <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Kitna paisa kitne dino se pending hai</p>
       </div>
 
       {/* Total Due Banner */}
       <div className="bg-gradient-to-r from-red-600/20 to-rose-600/20 border border-red-500/30 rounded-2xl p-5 mb-5">
-        <p className="text-xs font-bold text-white/50 uppercase tracking-wider mb-1">Total Outstanding</p>
+        <p className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mb-1`}>Total Outstanding</p>
         <p className="text-3xl font-black text-red-400">Rs. {totalDue.toLocaleString()}</p>
-        <p className="text-white/40 text-xs mt-1">{agingData.length} expired customers</p>
+        <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-1`}>{agingData.length} expired customers</p>
       </div>
 
       {/* Bucket Summary Cards */}
@@ -114,7 +116,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${cfg.bg} ${cfg.color}`}>{cfg.priority}</span>
               </div>
               <p className={`text-xl font-black ${cfg.color}`}>{data.count} <span className="text-sm font-semibold">users</span></p>
-              <p className="text-white/50 text-xs mt-1 font-semibold">Rs. {data.amount.toLocaleString()}</p>
+              <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-xs mt-1 font-semibold`}>Rs. {data.amount.toLocaleString()}</p>
             </button>
           );
         })}
@@ -123,9 +125,9 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
       {/* Search + Sort */}
       <div className="flex gap-2 mb-4">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search naam, phone, area..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-white/30"/>
+          className={`flex-1 ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`}/>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none focus:border-indigo-500">
+          className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-xs focus:outline-none focus:border-indigo-500`}>
           <option value="days">By Days</option>
           <option value="amount">By Amount</option>
         </select>
@@ -133,7 +135,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
           <div className="text-5xl mb-4">✅</div>
           <p className="font-bold text-lg">Sab clear hai!</p>
           <p className="text-sm mt-1">Koi overdue customer nahi</p>
@@ -143,12 +145,12 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
           {filtered.map(entry => {
             const cfg = BUCKET_CONFIG[entry.bucket];
             return (
-              <div key={entry.user.id} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <div key={entry.user.id} className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl p-4`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="font-black text-base">{entry.user.name}</p>
-                    <p className="text-white/50 text-sm">{entry.user.phone}</p>
-                    {entry.user.area && <p className="text-white/30 text-xs mt-0.5">📍 {entry.user.area}</p>}
+                    <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-sm`}>{entry.user.phone}</p>
+                    {entry.user.area && <p className={`${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'} text-xs mt-0.5`}>📍 {entry.user.area}</p>}
                   </div>
                   <div className="text-right">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${cfg.bg} ${cfg.color}`}>
@@ -158,7 +160,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex gap-2 text-xs text-white/40">
+                  <div className={`flex gap-2 text-xs ${isDark ? 'text-white/40' : 'text-slate-500'}`}>
                     <span>📦 {entry.user.plan || 'No Plan'}</span>
                     {entry.user.expiryDate && (
                       <span>• Expired: {new Date(entry.user.expiryDate).toLocaleDateString('en-PK', {day:'2-digit',month:'short',year:'numeric'})}</span>
