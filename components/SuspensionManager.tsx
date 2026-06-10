@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useIsDark } from '../hooks/useIsDark';
 import { SuspensionLog, SuspensionReason, UserRecord } from '../types';
 
 interface Props {
@@ -20,6 +21,7 @@ const REASON_LABELS: Record<SuspensionReason, string> = {
 const genId = () => `SUS-${Date.now()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
 
 const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser, onAdd, onUpdateUserStatus }) => {
+  const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'action'>('list');
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
   const [actionType, setActionType] = useState<'suspended' | 'restored'>('suspended');
@@ -75,16 +77,16 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
   // ── ACTION FORM ────────────────────────────────────────────
   if (view === 'action') return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
       <button onClick={() => { setView('list'); setSelectedUser(null); }}
-        className="flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+        className={`flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-slate-500'} hover:${isDark ? 'text-white' : 'text-slate-900'} mb-6 text-sm`}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         Back
       </button>
       <h2 className="text-2xl font-black mb-6">Suspend / Restore Customer</h2>
 
       {/* Action toggle */}
-      <div className="flex gap-2 mb-5 p-1 bg-white/5 rounded-2xl">
+      <div className={`flex gap-2 mb-5 p-1 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl`}>
         <button onClick={() => setActionType('suspended')}
           className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${actionType === 'suspended' ? 'bg-red-600 text-white' : 'text-white/40'}`}>
           ❌ Suspend
@@ -97,10 +99,10 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
       {/* Customer search */}
       <div className="mb-4">
-        <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Customer Select Karo</label>
+        <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Customer Select Karo</label>
         <input value={userSearch} onChange={e => setUserSearch(e.target.value)}
           placeholder="Search naam ya phone..."
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 mb-2 placeholder-white/30"/>
+          className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 mb-2 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`}/>
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {filteredUsers.map(u => (
             <button key={u.id} onClick={() => setSelectedUser(u)}
@@ -110,7 +112,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
                   : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
               }`}>
               <span className="font-bold">{u.name}</span>
-              <span className="text-white/40 ml-2 text-xs">{u.phone}</span>
+              <span className={`${isDark ? 'text-white/40' : 'text-slate-500'} ml-2 text-xs`}>{u.phone}</span>
               <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full ${
                 (u as any).isSuspended ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
               }`}>{(u as any).isSuspended ? 'Suspended' : u.status}</span>
@@ -121,18 +123,18 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
       {/* Reason */}
       <div className="mb-4">
-        <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Reason</label>
+        <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Reason</label>
         <select value={reason} onChange={e => setReason(e.target.value as SuspensionReason)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500">
+          className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`}>
           {Object.entries(REASON_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
 
       {/* Note */}
       <div className="mb-5">
-        <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Note (optional)</label>
+        <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Note (optional)</label>
         <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="Koi note..."
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 resize-none"/>
+          className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 resize-none`}/>
       </div>
 
       <button onClick={handleAction} disabled={!selectedUser}
@@ -147,11 +149,11 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
   // ── MAIN LIST ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-black">Suspension Log</h1>
-          <p className="text-white/40 text-xs mt-0.5">Connection suspend/restore history</p>
+          <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Connection suspend/restore history</p>
         </div>
         <button onClick={() => setView('action')}
           className="bg-red-600 hover:bg-red-500 px-4 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95">
@@ -163,15 +165,15 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center">
           <p className="text-2xl font-black text-red-400">{suspendedUsers.length}</p>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">Suspended</p>
+          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-bold uppercase tracking-wider mt-1`}>Suspended</p>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-black text-white">{suspensionLogs.filter(l => l.action === 'suspended').length}</p>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">Total Suspended</p>
+        <div className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl p-4 text-center`}>
+          <p className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{suspensionLogs.filter(l => l.action === 'suspended').length}</p>
+          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-bold uppercase tracking-wider mt-1`}>Total Suspended</p>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
           <p className="text-2xl font-black text-emerald-400">{suspensionLogs.filter(l => l.action === 'restored').length}</p>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">Restored</p>
+          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-bold uppercase tracking-wider mt-1`}>Restored</p>
         </div>
       </div>
 
@@ -184,7 +186,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
               <div key={u.id} className="flex items-center justify-between">
                 <div>
                   <span className="font-bold text-sm">{u.name}</span>
-                  <span className="text-white/40 text-xs ml-2">{u.phone}</span>
+                  <span className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs ml-2`}>{u.phone}</span>
                 </div>
                 <button onClick={() => {
                   setSelectedUser(u); setActionType('restored'); setView('action');
@@ -200,9 +202,9 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
       {/* Search + filter */}
       <div className="flex gap-2 mb-4">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search naam, phone..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-white/30"/>
+          className={`flex-1 ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`}/>
         <select value={filterAction} onChange={e => setFilterAction(e.target.value as any)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none">
+          className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-xs focus:outline-none`}>
           <option value="all">All</option>
           <option value="suspended">Suspended</option>
           <option value="restored">Restored</option>
@@ -211,7 +213,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
       {/* Log list */}
       {filteredLogs.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
           <div className="text-5xl mb-4">📋</div>
           <p className="font-bold">Koi record nahi</p>
         </div>
@@ -222,18 +224,18 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-black text-base">{log.userName}</p>
-                  <p className="text-white/40 text-xs">{log.userPhone}</p>
+                  <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>{log.userPhone}</p>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
                   log.action === 'suspended' ? 'bg-red-500/15 border-red-500/30 text-red-400' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
                 }`}>{log.action === 'suspended' ? '❌ Suspended' : '✅ Restored'}</span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-white/40 flex-wrap">
+              <div className={`flex items-center gap-3 text-xs ${isDark ? 'text-white/40' : 'text-slate-500'} flex-wrap`}>
                 <span>{REASON_LABELS[log.reason]}</span>
                 <span>• By: {log.performedBy}</span>
                 <span>• {new Date(log.createdAt).toLocaleDateString('en-PK', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
               </div>
-              {log.note && <p className="mt-2 text-xs text-white/50 italic bg-white/5 rounded-lg px-3 py-2">"{log.note}"</p>}
+              {log.note && <p className={`mt-2 text-xs ${isDark ? 'text-white/50' : 'text-slate-500'} italic ${isDark ? 'bg-white/5' : 'bg-white'} rounded-lg px-3 py-2`}>"{log.note}"</p>}
             </div>
           ))}
         </div>
@@ -241,7 +243,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
       {toast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-          <div className="bg-slate-800 border border-white/20 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold">{toast}</div>
+          <div className={`${isDark ? 'bg-slate-800' : 'bg-white'} border ${isDark ? 'border-white/20' : 'border-slate-200'} ${isDark ? 'text-white' : 'text-slate-900'} px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold`}>{toast}</div>
         </div>
       )}
     </div>
