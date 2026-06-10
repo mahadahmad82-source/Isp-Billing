@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useIsDark } from '../hooks/useIsDark';
 import { UserRecord, Receipt } from '../types';
 
 interface Props {
@@ -19,6 +20,7 @@ interface AreaStats {
 }
 
 const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
+  const isDark = useIsDark();
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'total' | 'revenue' | 'expired'>('total');
@@ -97,13 +99,13 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
 
   // ── AREA DETAIL ────────────────────────────────────────────
   if (selectedArea && selectedAreaData) return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
-      <button onClick={() => setSelectedArea(null)} className="flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
+      <button onClick={() => setSelectedArea(null)} className={`flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-slate-500'} hover:${isDark ? 'text-white' : 'text-slate-900'} mb-6 text-sm`}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         Back
       </button>
       <h2 className="text-2xl font-black mb-1">📍 {selectedArea}</h2>
-      <p className="text-white/40 text-xs mb-5">{selectedAreaData.total} customers</p>
+      <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mb-5`}>{selectedAreaData.total} customers</p>
 
       <div className="grid grid-cols-2 gap-3 mb-5">
         {[
@@ -114,20 +116,20 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
         ].map(s => (
           <div key={s.label} className={`rounded-2xl p-4 border ${s.bg}`}>
             <p className={`text-xl font-black ${s.color}`}>{s.val}</p>
-            <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">{s.label}</p>
+            <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-bold uppercase tracking-wider mt-1`}>{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Plans breakdown */}
       {Object.keys(selectedAreaData.plans).length > 0 && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-5">
-          <p className="text-xs font-black text-white/50 uppercase tracking-wider mb-3">Plans Breakdown</p>
+        <div className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl p-4 mb-5`}>
+          <p className={`text-xs font-black ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Plans Breakdown</p>
           {Object.entries(selectedAreaData.plans).sort((a,b)=>b[1]-a[1]).map(([plan, count]) => (
             <div key={plan} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
               <span className="text-sm font-semibold">{plan}</span>
               <div className="flex items-center gap-3">
-                <div className="w-24 bg-white/10 rounded-full h-1.5">
+                <div className={`w-24 ${isDark ? 'bg-white/10' : 'bg-slate-100'} rounded-full h-1.5`}>
                   <div className="bg-indigo-500 h-1.5 rounded-full" style={{width:`${(count/selectedAreaData.total)*100}%`}}/>
                 </div>
                 <span className="text-sm font-black text-indigo-400 w-6 text-right">{count}</span>
@@ -138,15 +140,15 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
       )}
 
       {/* Customer list */}
-      <p className="text-xs font-black text-white/50 uppercase tracking-wider mb-3">Customers</p>
+      <p className={`text-xs font-black ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Customers</p>
       <div className="space-y-2">
         {selectedAreaUsers.map(u => {
           const active = isActive(u);
           return (
-            <div key={u.id} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div key={u.id} className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 flex items-center justify-between`}>
               <div>
                 <p className="font-bold text-sm">{u.name}</p>
-                <p className="text-white/40 text-xs">{u.phone} • {u.plan}</p>
+                <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>{u.phone} • {u.plan}</p>
               </div>
               <span className={`text-[10px] px-2.5 py-1 rounded-full font-black border ${
                 (u as any).isSuspended ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' :
@@ -164,40 +166,40 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
 
   // ── MAIN VIEW ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
       <div className="mb-5">
         <h1 className="text-2xl font-black">Area Dashboard</h1>
-        <p className="text-white/40 text-xs mt-0.5">Har area ka alag breakdown</p>
+        <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Har area ka alag breakdown</p>
       </div>
 
       {/* Overall totals */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="col-span-2 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center">
           <div>
-            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">This Month Revenue</p>
+            <p className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>This Month Revenue</p>
             <p className="text-2xl font-black text-indigo-300">Rs. {totals.revenue.toLocaleString()}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Pending Recovery</p>
+            <p className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>Pending Recovery</p>
             <p className="text-xl font-black text-orange-400">Rs. {totals.pending.toLocaleString()}</p>
           </div>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
           <p className="text-2xl font-black text-emerald-400">{totals.active}</p>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">Total Active</p>
+          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-bold uppercase tracking-wider mt-1`}>Total Active</p>
         </div>
         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center">
           <p className="text-2xl font-black text-red-400">{totals.expired}</p>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">Total Expired</p>
+          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-bold uppercase tracking-wider mt-1`}>Total Expired</p>
         </div>
       </div>
 
       {/* Search + Sort */}
       <div className="flex gap-2 mb-4">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search area..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-white/30"/>
+          className={`flex-1 ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`}/>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none">
+          className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-xs focus:outline-none`}>
           <option value="total">By Total</option>
           <option value="revenue">By Revenue</option>
           <option value="expired">By Expired</option>
@@ -206,7 +208,7 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
 
       {/* Area cards */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
           <div className="text-5xl mb-4">📍</div>
           <p className="font-bold">Koi area nahi mila</p>
           <p className="text-sm mt-1">Customers mein area set karo</p>
@@ -217,25 +219,25 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
             const activeRate = area.total > 0 ? Math.round((area.active / area.total) * 100) : 0;
             return (
               <button key={area.area} onClick={() => setSelectedArea(area.area)}
-                className="w-full bg-white/5 border border-white/10 hover:bg-white/8 rounded-2xl p-4 text-left transition-all active:scale-[0.98]">
+                className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} hover:${isDark ? 'bg-white/8' : 'bg-slate-50'} rounded-2xl p-4 text-left transition-all active:scale-[0.98]`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="font-black text-base">📍 {area.area}</p>
-                    <p className="text-white/40 text-xs mt-0.5">{area.total} customers</p>
+                    <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>{area.total} customers</p>
                   </div>
                   <div className="text-right">
                     <p className="text-blue-400 font-black text-sm">Rs. {area.revenue.toLocaleString()}</p>
-                    <p className="text-white/30 text-xs">this month</p>
+                    <p className={`${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'} text-xs`}>this month</p>
                   </div>
                 </div>
 
                 {/* Progress bar */}
                 <div className="mb-2">
-                  <div className="flex justify-between text-[10px] text-white/40 mb-1">
+                  <div className={`flex justify-between text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} mb-1`}>
                     <span>{area.active} active</span>
                     <span>{activeRate}%</span>
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-2">
+                  <div className={`w-full ${isDark ? 'bg-white/10' : 'bg-slate-100'} rounded-full h-2`}>
                     <div className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
                       style={{ width: `${activeRate}%` }}/>
                   </div>
