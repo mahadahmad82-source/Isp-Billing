@@ -22,10 +22,7 @@ import SubManagerManagement from './components/SubManager/SubManagerManagement';
 import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
 import BusinessAnalytics from './components/BusinessAnalytics';
-import EquipmentTracker from './components/EquipmentTracker';
-import LeadsPipeline from './components/LeadsPipeline';
 import AgingReport from './components/AgingReport';
-import SuspensionManager from './components/SuspensionManager';
 import OutageTracker from './components/OutageTracker';
 import AreaDashboard from './components/AreaDashboard';
 import LandingPage from './components/LandingPage';
@@ -1428,78 +1425,8 @@ const App: React.FC = () => {
               <UpgradeGate sub={subscription} feature="analytics" featureName="Business Analytics" />
             )
           )}
-          {activeTab === 'equipment' && userRole === 'manager' && (
-            canAccess(subscription, 'equipment') ? (
-              <EquipmentTracker
-                equipment={state.equipmentRecords || []}
-                users={filteredUsers}
-                onAdd={(rec) => setState(prev => {
-                  const ns = { ...prev, equipmentRecords: [...(prev.equipmentRecords || []), rec] };
-                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-                })}
-                onUpdate={(id, updates) => setState(prev => {
-                  const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).map(e => e.id === id ? { ...e, ...updates } : e) };
-                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-                })}
-                onDelete={(id) => setState(prev => {
-                  const ns = { ...prev, equipmentRecords: (prev.equipmentRecords || []).filter(e => e.id !== id) };
-                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-                })}
-              />
-            ) : (
-              <UpgradeGate sub={subscription} feature="equipment" featureName="Equipment Tracker" />
-            )
-          )}
-          {activeTab === 'leads' && userRole === 'manager' && (
-            <LeadsPipeline
-              leads={state.leads || []}
-              users={filteredUsers}
-              subManagers={state.subManagers || []}
-              settings={currentSettings}
-              onAdd={(lead) => setState(prev => {
-                const ns = { ...prev, leads: [...(prev.leads || []), lead] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onUpdate={(id, updates) => setState(prev => {
-                const ns = { ...prev, leads: (prev.leads || []).map(l => l.id === id ? { ...l, ...updates } : l) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onDelete={(id) => setState(prev => {
-                const ns = { ...prev, leads: (prev.leads || []).filter(l => l.id !== id) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onConvertToCustomer={(lead) => {
-                const newUser = {
-                  id: `USER-${Date.now()}`,
-                  name: lead.name, phone: lead.phone, address: lead.address,
-                  area: lead.area || '', plan: lead.interestedPlan || '',
-                  status: 'active' as const, balance: 0, activatedMonths: [],
-                  createdAt: new Date().toISOString(),
-                };
-                setState(prev => {
-                  const ns = { ...prev, users: [...prev.users, newUser] };
-                  saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-                });
-              }}
-            />
-          )}
           {activeTab === 'aging' && userRole === 'manager' && (
             <AgingReport users={filteredUsers} settings={currentSettings} />
-          )}
-          {activeTab === 'suspension' && userRole === 'manager' && (
-            <SuspensionManager
-              suspensionLogs={state.suspensionLogs || []}
-              users={filteredUsers}
-              currentUser={activeManager || 'admin'}
-              onAdd={(log) => setState(prev => {
-                const ns = { ...prev, suspensionLogs: [...(prev.suspensionLogs || []), log] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onUpdateUserStatus={(userId, status) => setState(prev => {
-                const ns = { ...prev, users: prev.users.map(u => u.id === userId ? { ...u, status, isSuspended: status === 'suspended' } : u) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-            />
           )}
           {activeTab === 'outage' && userRole === 'manager' && (
             <OutageTracker
