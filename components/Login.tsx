@@ -226,11 +226,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const heading = getHeading();
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#030712]">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#020617]">
 
       {/* Three.js Background */}
       <div className="absolute inset-0 z-0"><ThreeBackground isDark={true} /></div>
-      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-slate-950/40 via-indigo-950/20 to-slate-950/40 pointer-events-none" />
+      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(2,6,23,0.35) 100%)' }} />
 
       <div className="w-full max-w-sm relative z-[10]">
 
@@ -248,11 +248,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <div
           className="relative rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000"
           style={{
-            background: 'rgba(10,15,45,0.80)',
-            backdropFilter: 'blur(24px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-            border: '1px solid rgba(99,102,241,0.22)',
-            boxShadow: '0 32px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 40px rgba(99,102,241,0.08)',
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(28px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)',
           }}
         >
 
