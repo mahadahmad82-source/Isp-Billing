@@ -159,9 +159,14 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   }, [receipts, agentId, agent?.username, subManagerName]);
 
   const augmentedUsers = useMemo(() => {
+    // Fully dynamic — always reflects the ACTUAL current billing month
     const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
-    const currentMonthNum = new Date().getMonth();
-    const currentYearNum = new Date().getFullYear();
+
+    // Compute previous month label dynamically (for arrears baseline)
+    const prevMonthDate = new Date();
+    prevMonthDate.setDate(1);
+    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+    const prevMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(prevMonthDate);
 
     const activeThisMonthUsers = users.filter(u => {
       // STRICT FILTER: Only 'active' status users (not deleted, not expired/others)
@@ -170,18 +175,14 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       // Area Restriction: Still respect agent's area if defined
       if (agentArea && u.area && u.area !== agentArea) return false;
 
-      // STRICTION: Only show users officially activated for this period in the Ledger
-      // Hardcoded to "May 2026" as requested for strictness
-      const strictlyMay2026 = "May 2026";
-      const isActivatedForThisMonth = (u.activatedMonths || []).includes(strictlyMay2026);
-      const hasReceiptForThisMonth = receipts.some(r => r.userId === u.id && r.period === strictlyMay2026);
+      // Only show users officially activated for the CURRENT billing period in the Ledger
+      const isActivatedForThisMonth = (u.activatedMonths || []).includes(currentMonthLabel);
+      const hasReceiptForThisMonth = receipts.some(r => r.userId === u.id && r.period === currentMonthLabel);
       
       return isActivatedForThisMonth || hasReceiptForThisMonth;
     });
 
     return activeThisMonthUsers.map((u) => {
-      // Find recent receipts for May 2026
-      const strictlyMay2026 = "May 2026";
       const userReceipts = receipts.filter(r => r.userId === u.id);
       
       const successfulReceipts = userReceipts.filter(r => r.status === PaymentStatus.SUCCESS);
@@ -189,28 +190,36 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
         ? [...successfulReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
 
-      // STRICTION: Avoid marking previous months' payments as current month "Clear"
-      const hasPaidForCurrentMonth = userReceipts.some(r => r.period === strictlyMay2026 && r.status === PaymentStatus.SUCCESS);
+      // Paid = has a successful receipt for CURRENT month only
+      const hasPaidForCurrentMonth = userReceipts.some(r => r.period === currentMonthLabel && r.status === PaymentStatus.SUCCESS);
       
       const planPrice = settings?.planPrices?.[u.plan || ''] || 1500;
       
-      // Arrears must load data dynamically based on the unpaid balance remaining at the end of April 2026
-      // STRICT ARREARS BASELINE: Hardcoded to April 2026 lookup
-      const strictlyApril2026 = "April 2026";
-      const aprilReceipts = userReceipts.filter(r => r.period === strictlyApril2026 || r.period === "04/2026");
-      
-      // Prioritize April 2026 records. Do not allow skipping to older months unless April is found or confirmed empty.
-      const latestAprilReceipt = aprilReceipts.length > 0
-        ? [...aprilReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+      // Arrears: look at most recent receipt BEFORE current month
+      // 1. Try previous month's receipts first
+      // 2. If none, fallback to ANY previous receipt (most recent)
+      // 3. If no previous receipts at all, fallback to Master Directory balance
+      const prevMonthReceipts = userReceipts.filter(r => r.period === prevMonthLabel);
+      const prevMonthLatest = prevMonthReceipts.length > 0
+        ? [...prevMonthReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
         : null;
-      
-      const arrears = latestAprilReceipt ? (latestAprilReceipt.balanceAmount || 0) : (u.balance || 0);
+
+      const anyPreviousReceipt = prevMonthLatest
+        ? prevMonthLatest
+        : [...userReceipts]
+            .filter(r => r.period !== currentMonthLabel)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] || null;
+
+      // arrears: from most recent previous receipt → fallback to Master Directory user.balance
+      const arrears = anyPreviousReceipt 
+        ? (anyPreviousReceipt.balanceAmount || 0) 
+        : (u.balance || 0);
       const discount = u.persistentDiscount || 0;
       
       // Total Outstanding Dues = (Current Monthly Bill + Arrears) - Applied Discount
       const totalOutstanding = (planPrice + Math.max(0, arrears)) - discount;
       
-      // User is clear ONLY if they have paid for the exact billing period OR they have credit
+      // User is clear ONLY if they have paid for current billing period OR they have credit/advance
       const isClear = hasPaidForCurrentMonth || (arrears < 0); 
       
       let dues = 0;
