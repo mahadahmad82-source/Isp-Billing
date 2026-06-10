@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useIsDark } from '../hooks/useIsDark';
 import { EquipmentRecord, EquipmentType, EquipmentStatus, UserRecord } from '../types';
 
 interface Props {
@@ -36,6 +37,7 @@ const emptyForm = (): Partial<EquipmentRecord> => ({
 const generateId = () => `EQ-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
 const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, onDelete }) => {
+  const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'edit' | 'assign' | 'detail'>('list');
   const [formData, setFormData] = useState<Partial<EquipmentRecord>>(emptyForm());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -123,25 +125,25 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
     <button onClick={onClick}
       className={`flex-1 min-w-[80px] bg-white/5 border border-white/10 rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 ${onClick ? 'cursor-pointer' : ''}`}>
       <p className={`text-2xl font-black ${color}`}>{value}</p>
-      <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider mt-1">{label}</p>
+      <p className={`text-[10px] font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mt-1`}>{label}</p>
     </button>
   );
 
   // ─── ASSIGN MODAL ─────────────────────────────────────────
   if (view === 'assign' && assignItem) return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
-      <button onClick={() => setView('list')} className="flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
+      <button onClick={() => setView('list')} className={`flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-slate-500'} hover:${isDark ? 'text-white' : 'text-slate-900'} mb-6 text-sm`}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         Back
       </button>
       <h2 className="text-2xl font-black mb-1">Assign Equipment</h2>
-      <p className="text-white/40 text-sm mb-6">{assignItem.brand} {assignItem.model} — {assignItem.serialNumber}</p>
+      <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>{assignItem.brand} {assignItem.model} — {assignItem.serialNumber}</p>
 
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Customer Select Karo</label>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Customer Select Karo</label>
           <select value={assignUserId} onChange={e => setAssignUserId(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500">
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`}>
             <option value="">— Customer chunein —</option>
             {users.filter(u => u.status !== 'deleted').map(u => (
               <option key={u.id} value={u.id}>{u.name} — {u.phone}</option>
@@ -149,9 +151,9 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
           </select>
         </div>
         <div>
-          <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Assignment Date</label>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Assignment Date</label>
           <input type="date" value={assignDate} onChange={e => setAssignDate(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500" />
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`} />
         </div>
         <button onClick={handleAssign}
           className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-sm uppercase tracking-widest transition-all active:scale-95">
@@ -163,9 +165,9 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
 
   // ─── ADD / EDIT FORM ─────────────────────────────────────
   if (view === 'add' || view === 'edit') return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
       <button onClick={() => { setView('list'); setFormData(emptyForm()); setEditingId(null); }}
-        className="flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+        className={`flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-slate-500'} hover:${isDark ? 'text-white' : 'text-slate-900'} mb-6 text-sm`}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         Back
       </button>
@@ -174,37 +176,37 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Brand *</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Brand *</label>
             <input value={formData.brand || ''} onChange={e => setFormData(p => ({ ...p, brand: e.target.value }))}
-              placeholder="TP-Link, Huawei..." className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-indigo-500" />
+              placeholder="TP-Link, Huawei..." className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`} />
           </div>
           <div>
-            <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Model *</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Model *</label>
             <input value={formData.model || ''} onChange={e => setFormData(p => ({ ...p, model: e.target.value }))}
-              placeholder="TL-WR840N..." className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-indigo-500" />
+              placeholder="TL-WR840N..." className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`} />
           </div>
         </div>
 
         <div>
-          <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Serial Number *</label>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Serial Number *</label>
           <input value={formData.serialNumber || ''} onChange={e => setFormData(p => ({ ...p, serialNumber: e.target.value }))}
-            placeholder="SN-XXXX-XXXX" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 font-mono" />
+            placeholder="SN-XXXX-XXXX" className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 font-mono`} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Type</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Type</label>
             <select value={formData.type} onChange={e => setFormData(p => ({ ...p, type: e.target.value as EquipmentType }))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-indigo-500">
+              className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`}>
               {Object.entries(EQUIPMENT_TYPE_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Status</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Status</label>
             <select value={formData.status} onChange={e => setFormData(p => ({ ...p, status: e.target.value as EquipmentStatus }))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-indigo-500">
+              className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`}>
               {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                 <option key={k} value={k}>{v.label}</option>
               ))}
@@ -214,22 +216,22 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Purchase Date</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Purchase Date</label>
             <input type="date" value={formData.purchaseDate || ''} onChange={e => setFormData(p => ({ ...p, purchaseDate: e.target.value }))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-indigo-500" />
+              className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`} />
           </div>
           <div>
-            <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Price (Rs.)</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Price (Rs.)</label>
             <input type="number" value={formData.purchasePrice || ''} onChange={e => setFormData(p => ({ ...p, purchasePrice: Number(e.target.value) }))}
-              placeholder="2500" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-indigo-500" />
+              placeholder="2500" className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500`} />
           </div>
         </div>
 
         <div>
-          <label className="text-xs font-bold text-white/50 uppercase tracking-wider block mb-2">Notes</label>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Notes</label>
           <textarea value={formData.notes || ''} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
             placeholder="Koi khaas note..." rows={3}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 resize-none" />
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 resize-none`} />
         </div>
 
         <button onClick={handleSave}
@@ -245,44 +247,44 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
     const cfg = STATUS_CONFIG[detailItem.status];
     const customer = users.find(u => u.id === detailItem.assignedToUserId);
     return (
-      <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
-        <button onClick={() => setView('list')} className="flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+      <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
+        <button onClick={() => setView('list')} className={`flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-slate-500'} hover:${isDark ? 'text-white' : 'text-slate-900'} mb-6 text-sm`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Back
         </button>
 
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-6 mb-4">
+        <div className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-6 mb-4`}>
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-3xl font-black">{detailItem.brand}</p>
-              <p className="text-white/60 text-lg font-semibold">{detailItem.model}</p>
+              <p className={`${isDark ? 'text-white/60' : 'text-slate-500'} text-lg font-semibold`}>{detailItem.model}</p>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-black border ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Serial</p>
+            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
+              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs uppercase tracking-wider`}>Serial</p>
               <p className="font-mono font-bold mt-1">{detailItem.serialNumber}</p>
             </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Type</p>
+            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
+              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs uppercase tracking-wider`}>Type</p>
               <p className="font-bold mt-1">{EQUIPMENT_TYPE_LABELS[detailItem.type]}</p>
             </div>
             {detailItem.purchasePrice && (
-              <div className="bg-white/5 rounded-xl p-3">
-                <p className="text-white/40 text-xs uppercase tracking-wider">Purchase Price</p>
+              <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
+                <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs uppercase tracking-wider`}>Purchase Price</p>
                 <p className="font-bold mt-1 text-emerald-400">Rs. {detailItem.purchasePrice.toLocaleString()}</p>
               </div>
             )}
             {detailItem.purchaseDate && (
-              <div className="bg-white/5 rounded-xl p-3">
-                <p className="text-white/40 text-xs uppercase tracking-wider">Purchase Date</p>
+              <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
+                <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs uppercase tracking-wider`}>Purchase Date</p>
                 <p className="font-bold mt-1">{new Date(detailItem.purchaseDate).toLocaleDateString('en-PK')}</p>
               </div>
             )}
           </div>
           {detailItem.notes && (
-            <div className="mt-3 bg-white/5 rounded-xl p-3 text-sm text-white/60">{detailItem.notes}</div>
+            <div className={`mt-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3 text-sm ${isDark ? 'text-white/60' : 'text-slate-500'}`}>{detailItem.notes}</div>
           )}
         </div>
 
@@ -290,9 +292,9 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-3xl p-5 mb-4">
             <p className="text-xs font-black text-blue-400 uppercase tracking-wider mb-3">Assigned To</p>
             <p className="text-lg font-black">{customer.name}</p>
-            <p className="text-white/50 text-sm">{customer.phone} • {customer.plan}</p>
+            <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-sm`}>{customer.phone} • {customer.plan}</p>
             {detailItem.assignedDate && (
-              <p className="text-white/40 text-xs mt-2">Since: {new Date(detailItem.assignedDate).toLocaleDateString('en-PK')}</p>
+              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-2`}>Since: {new Date(detailItem.assignedDate).toLocaleDateString('en-PK')}</p>
             )}
             <button onClick={() => handleReturn(detailItem)}
               className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95">
@@ -311,7 +313,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
         <div className="flex gap-3 mt-2">
           <button onClick={() => {
             setFormData({ ...detailItem }); setEditingId(detailItem.id); setView('edit');
-          }} className="flex-1 py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl font-bold text-sm transition-all">
+          }} className={`flex-1 py-3 ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} hover:${isDark ? 'bg-white/10' : 'bg-slate-100'} rounded-2xl font-bold text-sm transition-all`}>
             ✏️ Edit
           </button>
           <button onClick={() => setConfirmDelete(detailItem.id)}
@@ -325,16 +327,16 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
 
   // ─── MAIN LIST ───────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white p-4 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black">Equipment Tracker</h1>
-          <p className="text-white/40 text-xs mt-0.5">Devices aur hardware ka record</p>
+          <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Devices aur hardware ka record</p>
         </div>
         <button onClick={() => { setFormData(emptyForm()); setEditingId(null); setView('add'); }}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2">
+          className={`bg-indigo-600 hover:bg-indigo-500 ${isDark ? 'text-white' : 'text-slate-900'} px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2`}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
           Add
         </button>
@@ -352,7 +354,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
       {/* Total Value */}
       {stats.totalValue > 0 && (
         <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 rounded-2xl px-5 py-3 mb-4 flex items-center justify-between">
-          <span className="text-xs font-bold text-white/50 uppercase tracking-wider">Total Inventory Value</span>
+          <span className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>Total Inventory Value</span>
           <span className="text-lg font-black text-indigo-300">Rs. {stats.totalValue.toLocaleString()}</span>
         </div>
       )}
@@ -360,9 +362,9 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
       {/* Search + Filters */}
       <div className="flex gap-2 mb-4">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search serial, brand, customer..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-white/30" />
+          className={`flex-1 ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`} />
         <select value={filterType} onChange={e => setFilterType(e.target.value as any)}
-          className="bg-white/5 border border-white/10 rounded-xl px-2 py-2.5 text-white text-xs focus:outline-none focus:border-indigo-500">
+          className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-2 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-xs focus:outline-none focus:border-indigo-500`}>
           <option value="all">All Types</option>
           {Object.entries(EQUIPMENT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v.replace(/^.+? /, '')}</option>)}
         </select>
@@ -384,7 +386,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
           <div className="text-5xl mb-4">📦</div>
           <p className="font-bold text-lg">Koi equipment nahi</p>
           <p className="text-sm mt-1">Pehla device add karo</p>
@@ -395,15 +397,15 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
             const cfg = STATUS_CONFIG[item.status];
             return (
               <button key={item.id} onClick={() => { setDetailItem(item); setView('detail'); }}
-                className="w-full bg-white/5 border border-white/10 hover:bg-white/8 rounded-2xl p-4 text-left transition-all active:scale-[0.98]">
+                className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} hover:${isDark ? 'bg-white/8' : 'bg-slate-50'} rounded-2xl p-4 text-left transition-all active:scale-[0.98]`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-black text-base">{item.brand} {item.model}</span>
+                      <span className={`${isDark ? 'text-white' : 'text-slate-900'} font-black text-base`}>{item.brand} {item.model}</span>
                     </div>
-                    <p className="font-mono text-xs text-white/40 mb-2">{item.serialNumber}</p>
+                    <p className={`font-mono text-xs ${isDark ? 'text-white/40' : 'text-slate-500'} mb-2`}>{item.serialNumber}</p>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-white/40">{EQUIPMENT_TYPE_LABELS[item.type]}</span>
+                      <span className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-500'}`}>{EQUIPMENT_TYPE_LABELS[item.type]}</span>
                       {item.assignedToUserName && (
                         <span className="text-xs text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full">
                           👤 {item.assignedToUserName}
@@ -416,7 +418,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
                       {cfg.label}
                     </span>
                     {item.purchasePrice && (
-                      <span className="text-xs text-white/30">Rs. {item.purchasePrice.toLocaleString()}</span>
+                      <span className={`text-xs ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>Rs. {item.purchasePrice.toLocaleString()}</span>
                     )}
                   </div>
                 </div>
@@ -430,13 +432,13 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmDelete(null)} />
-          <div className="relative z-10 bg-slate-900 border border-white/10 rounded-3xl p-8 w-full max-w-sm text-center">
+          <div className={`relative z-10 ${isDark ? 'bg-slate-900' : 'bg-slate-50'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-8 w-full max-w-sm text-center`}>
             <p className="text-lg font-black mb-2">Delete Equipment?</p>
-            <p className="text-white/40 text-sm mb-6">Yeh action undo nahi ho sakti.</p>
+            <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>Yeh action undo nahi ho sakti.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-3 bg-white/5 rounded-2xl font-bold text-sm">Cancel</button>
+              <button onClick={() => setConfirmDelete(null)} className={`flex-1 py-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl font-bold text-sm`}>Cancel</button>
               <button onClick={() => { onDelete(confirmDelete); setConfirmDelete(null); setView('list'); showToast('Deleted!'); }}
-                className="flex-1 py-3 bg-red-600 rounded-2xl font-bold text-sm text-white">Delete</button>
+                className={`flex-1 py-3 bg-red-600 rounded-2xl font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>Delete</button>
             </div>
           </div>
         </div>
@@ -445,7 +447,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-          <div className="bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold">{toast}</div>
+          <div className={`bg-emerald-600 ${isDark ? 'text-white' : 'text-slate-900'} px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold`}>{toast}</div>
         </div>
       )}
     </div>
