@@ -9,8 +9,6 @@ import ThreeBackground from './landing/ThreeBackground';
 interface LoginProps {
   onLogin: (username: string) => void;
   onBack?: () => void;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
 }
 
 const ADMIN_USERNAME = 'admin';
@@ -28,7 +26,7 @@ const MailIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColo
 // ── Input with left icon (outside component to prevent keyboard dismiss on re-render) ──
 const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode }) => (
   <div className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all duration-300 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-    style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)' }}>
+    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(99,102,241,0.18)' }}>
     <span className="text-indigo-400 flex-shrink-0">{icon}</span>
     <input
       type={type}
@@ -43,7 +41,7 @@ const InputField = ({ icon, type = 'text', placeholder, value, onChange, disable
   </div>
 );
 
-const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
   const [view, setView] = useState<ViewType>('login');
   const [businessName, setBusinessName] = useState('');
@@ -250,11 +248,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
         <div
           className="relative rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000"
           style={{
-            background: 'rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            boxShadow: '0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1px rgba(99,102,241,0.1)',
+            background: 'rgba(10,15,45,0.80)',
+            backdropFilter: 'blur(24px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+            border: '1px solid rgba(99,102,241,0.22)',
+            boxShadow: '0 32px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 40px rgba(99,102,241,0.08)',
           }}
         >
 
@@ -292,9 +290,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                     <div key={acc.username} className="relative group/wrapper">
                       <button onClick={() => handleSelectAccount(acc)}
                         className="w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left pr-10"
-                        style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
+                        style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(99,102,241,0.18)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.5)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.18)'; }}>
                         <div className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-black text-indigo-300 flex-shrink-0"
                           style={{ background: 'rgba(99,102,241,0.15)' }}>
                           {(acc.businessName || acc.username).charAt(0).toUpperCase()}
@@ -313,8 +311,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack, theme, onToggleTheme }) 
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-1">
-                  <button onClick={handleGoToSignup} className="py-3.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-400 transition-all" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>+ New Node</button>
-                  <button onClick={handleGoToLogin} className="py-3.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-400 transition-all" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>Manual Login</button>
+                  <button onClick={handleGoToSignup} className="py-3.5 rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-300 transition-all" style={{ border: '1.5px dashed rgba(99,102,241,0.35)', background: 'rgba(99,102,241,0.05)' }}>+ Register Node</button>
+                  <button onClick={handleGoToLogin} className="py-3.5 rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-300 transition-all" style={{ border: '1.5px dashed rgba(99,102,241,0.35)', background: 'rgba(99,102,241,0.05)' }}>Manual Login</button>
                 </div>
               </div>
             )}
