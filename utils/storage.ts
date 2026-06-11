@@ -55,9 +55,10 @@ export const saveState = (state: AppState) => {
 
 export const loadState = (username: string | null): AppState => {
   const activeUser = username || getActiveSession();
-  
+  const account = getAccounts().find(a => a.username === activeUser);
+
   const defaultSettings: AppSettings = {
-    businessName: account?.businessName || 'My ISP',
+    businessName: (account as any)?.businessName || 'My ISP',
     businessPhone: '',
     businessEmail: '',
     businessAddress: 'Pakistan',
@@ -67,7 +68,6 @@ export const loadState = (username: string | null): AppState => {
     isInitialized: false
   };
 
-  const account = getAccounts().find(a => a.username === activeUser);
   const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeUser;
 
   const emptyState: AppState = { 
