@@ -213,7 +213,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
 
       {/* Log list */}
       {filteredLogs.length === 0 ? (
-        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">📋</div>
           <p className="font-bold">Koi record nahi</p>
         </div>
