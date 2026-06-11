@@ -135,7 +135,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">✅</div>
           <p className="font-bold text-lg">Sab clear hai!</p>
           <p className="text-sm mt-1">Koi overdue customer nahi</p>
@@ -150,7 +150,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
                   <div>
                     <p className="font-black text-base">{entry.user.name}</p>
                     <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-sm`}>{entry.user.phone}</p>
-                    {entry.user.area && <p className={`${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'} text-xs mt-0.5`}>📍 {entry.user.area}</p>}
+                    {entry.user.area && <p className={`${isDark ? 'text-white/30' : 'text-slate-400'} text-xs mt-0.5`}>📍 {entry.user.area}</p>}
                   </div>
                   <div className="text-right">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${cfg.bg} ${cfg.color}`}>
