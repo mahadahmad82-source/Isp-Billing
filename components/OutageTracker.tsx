@@ -301,7 +301,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
                     <p className="font-bold text-sm flex-1 mr-2 text-white/80">{o.title}</p>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${cfg.bg} ${cfg.color}`}>{cfg.emoji}</span>
                   </div>
-                  <div className={`flex gap-3 text-xs ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'} flex-wrap`}>
+                  <div className={`flex gap-3 text-xs ${isDark ? 'text-white/30' : 'text-slate-400'} flex-wrap`}>
                     <span>✅ {duration(o.startTime, o.endTime)}</span>
                     <span>• {new Date(o.startTime).toLocaleDateString('en-PK', {day:'2-digit',month:'short'})}</span>
                     {o.affectedCount && <span>• {o.affectedCount} users</span>}
@@ -314,7 +314,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       )}
 
       {outageLogs.length === 0 && (
-        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">🌐</div>
           <p className="font-bold text-lg">Koi outage nahi</p>
           <p className="text-sm mt-1">Alhamdulillah sab theek hai!</p>
