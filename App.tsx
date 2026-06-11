@@ -28,6 +28,9 @@ import AreaDashboard from './components/AreaDashboard';
 import EquipmentTracker from './components/EquipmentTracker';
 import LeadsPipeline from './components/LeadsPipeline';
 import SuspensionManager from './components/SuspensionManager';
+import BulkReminder from './components/BulkReminder';
+import DayEndSummary from './components/DayEndSummary';
+import RouteSheet from './components/RouteSheet';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -1539,6 +1542,25 @@ const App: React.FC = () => {
             ) : (
               <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard" />
             )
+          )}
+          {activeTab === 'reminders' && userRole === 'manager' && (
+            <BulkReminder
+              users={filteredUsers}
+              settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
+            />
+          )}
+          {activeTab === 'dayend' && userRole === 'manager' && (
+            <DayEndSummary
+              receipts={filteredReceipts}
+              subManagers={(state.subManagers || []).map(sm => ({ id: sm.id, username: sm.username, name: sm.name }))}
+              businessName={currentSettings.businessName}
+            />
+          )}
+          {activeTab === 'route' && userRole === 'manager' && (
+            <RouteSheet
+              users={filteredUsers}
+              businessName={currentSettings.businessName}
+            />
           )}
           {activeTab === 'team' && userRole === 'manager' && (
             <SubManagerManagement 
