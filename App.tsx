@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, SuspensionLog } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, SuspensionLog, PlanChange } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
@@ -31,6 +31,8 @@ import SuspensionManager from './components/SuspensionManager';
 import BulkReminder from './components/BulkReminder';
 import DayEndSummary from './components/DayEndSummary';
 import RouteSheet from './components/RouteSheet';
+import MonthlyInvoice from './components/MonthlyInvoice';
+import CustomerPortal from './components/CustomerPortal';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -67,6 +69,7 @@ const App: React.FC = () => {
       leads: loaded.leads || [],
       suspensionLogs: loaded.suspensionLogs || [],
       outageLogs: loaded.outageLogs || [],
+      planHistory: loaded.planHistory || [],
     };
 
     // Initialize first company if none exists
@@ -95,7 +98,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -278,6 +281,7 @@ const App: React.FC = () => {
           leads: finalState.leads || [],
           suspensionLogs: finalState.suspensionLogs || [],
           outageLogs: finalState.outageLogs || [],
+          planHistory: finalState.planHistory || [],
         });
         // Show onboarding welcome for new managers
         if (activeManager !== 'admin') {
@@ -920,6 +924,24 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, users: prev.users.map(u => u.id === user.id ? user : u) }));
   };
 
+  const handlePlanChange = (userId: string, oldPlan: string, newPlan: string, oldFee: number, newFee: number, reason?: string) => {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) return;
+    const entry: PlanChange = {
+      id: `PC-${Date.now()}`,
+      userId,
+      userName: user.name,
+      oldPlan, newPlan, oldFee, newFee,
+      changedAt: new Date().toISOString(),
+      changedBy: activeManager || 'manager',
+      reason,
+    };
+    setState(prev => {
+      const ns = { ...prev, planHistory: [...(prev.planHistory || []), entry] };
+      saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+    });
+  };
+
 
 
   const handleMarkUserReminded = (userId: string) => {
@@ -1089,6 +1111,7 @@ const App: React.FC = () => {
       <ErrorBoundary>
         <BrowserRouter>
           <Routes>
+            <Route path="/portal" element={<CustomerPortal />} />
             <Route path="*" element={
               showLanding ? (
                 <LandingPage 
@@ -1313,7 +1336,7 @@ const App: React.FC = () => {
               onUpdateUser={handleFullUpdateUser}
             />
           )}
-          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} />}
+          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} />}
           {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} />}
           {activeTab === 'recoveries' && (
             <RecoverySummary 
@@ -1560,6 +1583,14 @@ const App: React.FC = () => {
             <RouteSheet
               users={filteredUsers}
               businessName={currentSettings.businessName}
+            />
+          )}
+          {activeTab === 'invoice' && userRole === 'manager' && (
+            <MonthlyInvoice
+              users={filteredUsers}
+              receipts={filteredReceipts}
+              settings={currentSettings}
+              planHistory={state.planHistory || []}
             />
           )}
           {activeTab === 'team' && userRole === 'manager' && (
