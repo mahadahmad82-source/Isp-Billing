@@ -306,6 +306,19 @@ export interface OutageLog {
   createdBy: string;
 }
 
+export interface PlanChange {
+  id: string;
+  userId: string;
+  userName: string;
+  oldPlan: string;
+  newPlan: string;
+  oldFee: number;
+  newFee: number;
+  changedAt: string;
+  changedBy: string;
+  reason?: string;
+}
+
 export interface AppState {
   users: UserRecord[];
   receipts: Receipt[];
@@ -325,6 +338,7 @@ export interface AppState {
   leads?: LeadRecord[];
   suspensionLogs?: SuspensionLog[];
   outageLogs?: OutageLog[];
+  planHistory?: PlanChange[];
   pendingManagerNotifications?: AppNotification[];
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
