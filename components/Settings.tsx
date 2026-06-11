@@ -20,6 +20,12 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [mikrotikHost, setMikrotikHost] = useState((settings as any).mikrotikHost || '');
+  const [mikrotikPort, setMikrotikPort] = useState((settings as any).mikrotikPort || '8728');
+  const [mikrotikUser, setMikrotikUser] = useState((settings as any).mikrotikUser || '');
+  const [mikrotikPass, setMikrotikPass] = useState((settings as any).mikrotikPass || '');
+  const [mikrotikStatus, setMikrotikStatus] = useState<'idle'|'testing'|'ok'|'fail'>('idle');
+  const [mikrotikSyncing, setMikrotikSyncing] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported] = useState(isPushSupported());
@@ -1074,6 +1080,70 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Mikrotik Integration */}
+        <div className="bg-white/5 dark:bg-white/5 bg-slate-50 border border-white/10 dark:border-white/10 border-slate-200 rounded-[2.5rem] p-6 mb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-orange-500/20 rounded-2xl flex items-center justify-center text-xl">🔧</div>
+            <div>
+              <p className="font-black text-sm dark:text-white text-slate-900">Mikrotik / RouterOS</p>
+              <p className="text-xs dark:text-white/40 text-slate-500">Auto-disconnect expired users via API</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2">
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Router IP</label>
+                <input value={mikrotikHost} onChange={e=>setMikrotikHost(e.target.value)} placeholder="192.168.1.1"
+                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Port</label>
+                <input value={mikrotikPort} onChange={e=>setMikrotikPort(e.target.value)} placeholder="8728"
+                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Username</label>
+                <input value={mikrotikUser} onChange={e=>setMikrotikUser(e.target.value)} placeholder="admin"
+                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Password</label>
+                <input type="password" value={mikrotikPass} onChange={e=>setMikrotikPass(e.target.value)} placeholder="••••••"
+                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={async () => {
+                setMikrotikStatus('testing');
+                try {
+                  const r = await fetch(`http://${mikrotikHost}:${mikrotikPort}/rest/system/identity`, {
+                    headers: { 'Authorization': 'Basic ' + btoa(`${mikrotikUser}:${mikrotikPass}`) }
+                  });
+                  setMikrotikStatus(r.ok ? 'ok' : 'fail');
+                } catch { setMikrotikStatus('fail'); }
+              }} className="flex-1 py-2.5 rounded-xl text-xs font-black border border-white/10 dark:text-white text-slate-700 transition-all hover:bg-white/5">
+                {mikrotikStatus === 'testing' ? '...' : mikrotikStatus === 'ok' ? '✅ Connected' : mikrotikStatus === 'fail' ? '❌ Failed' : '🔌 Test Connection'}
+              </button>
+              <button onClick={async () => {
+                if (!mikrotikHost) return;
+                setMikrotikSyncing(true);
+                try {
+                  const headers = { 'Authorization': 'Basic ' + btoa(`${mikrotikUser}:${mikrotikPass}`), 'Content-Type': 'application/json' };
+                  const r = await fetch(`http://${mikrotikHost}:${mikrotikPort}/rest/ppp/secret`, { headers });
+                  const secrets = await r.json();
+                  setModalStatus({ title: 'Mikrotik', message: `${secrets?.length || 0} PPP secrets found. Full sync coming soon.`, type: 'info' });
+                } catch { setModalStatus({ title: 'Error', message: 'Could not reach router. Make sure app is on same network.', type: 'error' }); }
+                setMikrotikSyncing(false);
+              }} className="flex-1 py-2.5 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-xl text-xs font-black transition-all hover:bg-orange-500/30">
+                {mikrotikSyncing ? '⏳ Syncing...' : '🔄 Sync Users'}
+              </button>
+            </div>
+            <p className="text-[10px] dark:text-white/30 text-slate-400">⚠️ Router same network pe hona chahiye. RouterOS v7+ REST API required.</p>
           </div>
         </div>
 
