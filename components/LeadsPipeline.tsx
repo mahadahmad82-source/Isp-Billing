@@ -332,7 +332,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
 
       {/* Lead Cards */}
       {filtered.length === 0 ? (
-        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">🎯</div>
           <p className="font-bold text-lg">Koi lead nahi</p>
           <p className="text-sm mt-1">Pehla inquiry add karo</p>
@@ -352,7 +352,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
                       {isFollowUpToday && <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full font-bold">Follow-up Today</span>}
                     </div>
                     <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-sm`}>{lead.phone}</p>
-                    {lead.area && <p className={`${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'} text-xs mt-1`}>📍 {lead.area}</p>}
+                    {lead.area && <p className={`${isDark ? 'text-white/30' : 'text-slate-400'} text-xs mt-1`}>📍 {lead.area}</p>}
                     {lead.interestedPlan && <p className="text-indigo-400 text-xs mt-1">📦 {lead.interestedPlan}</p>}
                   </div>
                   <span className={`ml-3 px-2.5 py-1 rounded-full text-[10px] font-black border whitespace-nowrap ${cfg.bg} ${cfg.color}`}>
