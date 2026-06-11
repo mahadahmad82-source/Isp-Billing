@@ -450,6 +450,47 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         </div>
       </div>
 
+      {/* ── Churn Risk ── */}
+      {(() => {
+        const today2 = new Date(); today2.setHours(0,0,0,0);
+        const atRisk = users.filter(u => {
+          if (u.status === 'deleted') return false;
+          const exp = u.expiryDate ? new Date(u.expiryDate) : null;
+          if (!exp) return false;
+          exp.setHours(0,0,0,0);
+          const diff = Math.ceil((exp.getTime()-today2.getTime())/86400000);
+          const noPayRecent = !u.lastPaymentDate || (new Date().getTime()-new Date(u.lastPaymentDate).getTime()) > 60*86400000;
+          return diff < -7 && noPayRecent;
+        }).slice(0,8);
+        if (atRisk.length === 0) return null;
+        return (
+          <div className="mt-4 mx-4">
+            <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">⚠️</span>
+                <p className="font-black text-sm dark:text-white text-slate-900">Churn Risk</p>
+                <span className="ml-auto text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold">{atRisk.length} at risk</span>
+              </div>
+              <div className="space-y-2">
+                {atRisk.map(u => {
+                  const exp = new Date(u.expiryDate!);
+                  const days = Math.ceil((exp.getTime()-today2.getTime())/86400000);
+                  return (
+                    <div key={u.id} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold dark:text-white text-slate-900">{u.name}</p>
+                        <p className="text-xs dark:text-white/40 text-slate-500">{u.plan} • {u.phone}</p>
+                      </div>
+                      <span className="text-xs font-black text-red-400">{Math.abs(days)}d overdue</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Modals ── */}
       {activeModal === 'BALANCE' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
