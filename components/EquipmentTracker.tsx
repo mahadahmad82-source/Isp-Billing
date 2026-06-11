@@ -386,7 +386,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">📦</div>
           <p className="font-bold text-lg">Koi equipment nahi</p>
           <p className="text-sm mt-1">Pehla device add karo</p>
@@ -418,7 +418,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, onAdd, onUpdate, 
                       {cfg.label}
                     </span>
                     {item.purchasePrice && (
-                      <span className={`text-xs ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>Rs. {item.purchasePrice.toLocaleString()}</span>
+                      <span className={`text-xs ${isDark ? 'text-white/30' : 'text-slate-400'}`}>Rs. {item.purchasePrice.toLocaleString()}</span>
                     )}
                   </div>
                 </div>
