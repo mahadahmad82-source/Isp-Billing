@@ -208,7 +208,7 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
 
       {/* Area cards */}
       {filtered.length === 0 ? (
-        <div className={`text-center py-20 ${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'}`}>
+        <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">📍</div>
           <p className="font-bold">Koi area nahi mila</p>
           <p className="text-sm mt-1">Customers mein area set karo</p>
@@ -227,7 +227,7 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
                   </div>
                   <div className="text-right">
                     <p className="text-blue-400 font-black text-sm">Rs. {area.revenue.toLocaleString()}</p>
-                    <p className={`${isDark ? 'text-white/30' : '${isDark ? 'text-slate-400' : 'text-slate-500'}'} text-xs`}>this month</p>
+                    <p className={`${isDark ? 'text-white/30' : 'text-slate-400'} text-xs`}>this month</p>
                   </div>
                 </div>
 
