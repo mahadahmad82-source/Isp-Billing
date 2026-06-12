@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, SuspensionLog, PlanChange } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
-import { saveStateToSupabase, smartLoadAndSync } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import Layout from './components/Layout';
@@ -192,6 +192,23 @@ const App: React.FC = () => {
   const subscription = useSubscription(activeManager);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+
+  // Listen to sync status updates
+  useEffect(() => {
+    const unsub = onSyncStatus(setSyncStatus);
+    return unsub;
+  }, []);
+
+  // Background flush every 45s — retries any failed saves
+  useEffect(() => {
+    if (!activeManager || activeManager === 'admin') return;
+    const flush = setInterval(() => { flushPendingSync(); }, 45000);
+    // Also flush immediately on tab becoming visible (user switches back to app)
+    const onVisible = () => { if (document.visibilityState === 'visible') flushPendingSync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(flush); document.removeEventListener('visibilitychange', onVisible); };
+  }, [activeManager]);
   
   const lastActivityRef = useRef<number>(Date.now());
 
@@ -1291,6 +1308,7 @@ const App: React.FC = () => {
           onToggleTheme={handleToggleTheme}
           lastSavedTime={lastSavedTime}
           isSyncing={isSyncing}
+          syncStatus={syncStatus}
           onNavigateCustomers={(filter) => {
             setCustomerStatusFilter(filter);
             // also sync userFilter: 'all' for all/expired views, 'current_month' only for active
