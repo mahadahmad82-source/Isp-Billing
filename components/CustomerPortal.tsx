@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import ThreeBackground from './landing/ThreeBackground';
 
 const supabase = createClient(
   'https://mzmajmjzopmkzboizrbm.supabase.co',
@@ -144,9 +145,10 @@ const CustomerPortal: React.FC = () => {
 
   /* ════ RENDER ════ */
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}
-      className="flex flex-col items-center justify-start p-4 pt-8 pb-16">
-      <div style={{ width: '100%', maxWidth: '420px' }}>
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.text, position: 'relative' }}
+      className="flex flex-col items-center justify-center p-4 py-8">
+      <div className="absolute inset-0 z-0"><ThreeBackground isDark={true} /></div>
+      <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
