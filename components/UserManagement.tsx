@@ -223,8 +223,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
     e.preventDefault();
     if (!isCurrentMonth) return;
 
-    const expiryObj = formData.expiryDate ? new Date(formData.expiryDate) : new Date();
-    const finalExpiryDate = isNaN(expiryObj.getTime()) ? new Date().toISOString() : expiryObj.toISOString();
+    // Parse datetime-local value as local time (format: YYYY-MM-DDTHH:MM)
+    let finalExpiryDate = new Date().toISOString();
+    if (formData.expiryDate) {
+      const parts = String(formData.expiryDate).match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (parts) {
+        const local = new Date(+parts[1], +parts[2]-1, +parts[3], +parts[4], +parts[5], 0, 0);
+        if (!isNaN(local.getTime())) finalExpiryDate = local.toISOString();
+      }
+    }
     const currentPrice = settings.planPrices?.[formData.plan || ''] || formData.monthlyFee || 0;
 
     if (editingUser) {
