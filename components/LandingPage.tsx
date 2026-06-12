@@ -52,9 +52,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <a href="/portal"
+              className="bg-gradient-to-r from-cyan-600 to-teal-500 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/40 transition-all active:scale-95 hover:shadow-cyan-500/60 hidden sm:inline-flex items-center gap-1.5">
+              <span>👤</span> User Portal
+            </a>
             <button onClick={onGetStarted}
               className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/50 transition-all active:scale-95 hover:shadow-indigo-500/70">
-              Login
+              Manager Login
             </button>
             {/* Mobile hamburger */}
             <button onClick={() => setMenuOpen(o => !o)}
@@ -78,6 +82,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 {link.label}
               </Link>
             ))}
+            <a href="/portal"
+              onClick={() => setMenuOpen(false)}
+              className="px-6 py-4 text-sm font-bold text-cyan-400 flex items-center gap-2 border-b border-white/5">
+              <span>👤</span> User Portal
+            </a>
             <a href="https://wa.me/923042773453?text=MYISP%20ke%20baare%20mein%20maloomat%20chahiye"
               target="_blank" rel="noreferrer"
               onClick={() => setMenuOpen(false)}
