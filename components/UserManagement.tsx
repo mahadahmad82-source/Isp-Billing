@@ -165,7 +165,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const getDefaultExpiryString = () => {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
-    return d.toISOString().split('T')[0];
+    d.setHours(23, 59, 0, 0);
+    // Format: YYYY-MM-DDTHH:MM for datetime-local input
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
   const [formData, setFormData] = useState<Partial<UserRecord>>({
@@ -207,7 +210,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setEditingUser(user);
     setFormData({
       ...user,
-      expiryDate: new Date(user.expiryDate || new Date()).toISOString().split('T')[0]
+      expiryDate: (() => {
+        const d = new Date(user.expiryDate || new Date());
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      })()
     });
     setShowForm(true);
   };
@@ -995,7 +1002,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">EXPIRY DATE</label>
-                    <input type="date" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} />
+                    <input type="datetime-local" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-xl focus:border-indigo-500 transition-all" value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
