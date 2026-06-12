@@ -506,18 +506,28 @@ const UserManagement: React.FC<UserManagementProps> = ({
       const rawDate = parts[1].trim();
       const rawTime = parts[2]?.trim() || '23:59';
 
-      // Parse date: support YYYY-MM-DD and DD/MM/YYYY and DD-MM-YYYY
-      let dateStr = rawDate;
-      if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(rawDate)) {
-        const [dd, mm, yyyy] = rawDate.split(/[\/\-]/);
-        dateStr = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
-      }
+      // Parse time HH:MM
       const timeParts = rawTime.match(/^(\d{1,2}):(\d{2})$/);
       const hh = timeParts ? +timeParts[1] : 23;
       const mn = timeParts ? +timeParts[2] : 59;
-      const dtParts = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!dtParts) { notFound.push(`${parts[0]} (invalid date)`); return; }
-      const local = new Date(+dtParts[1], +dtParts[2]-1, +dtParts[3], hh, mn, 0, 0);
+
+      // Parse date — support multiple formats
+      let yr = 0, mo = 0, dy = 0;
+      const isoMatch = rawDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      const slashDash = rawDate.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (isoMatch) {
+        yr = +isoMatch[1]; mo = +isoMatch[2]; dy = +isoMatch[3];
+      } else if (slashDash) {
+        // if first part > 12 → DD/MM/YYYY, else treat as M/DD/YYYY (US format)
+        if (+slashDash[1] > 12) {
+          dy = +slashDash[1]; mo = +slashDash[2]; yr = +slashDash[3];
+        } else {
+          mo = +slashDash[1]; dy = +slashDash[2]; yr = +slashDash[3];
+        }
+      } else {
+        notFound.push(`${parts[0]} (invalid date)`); return;
+      }
+      const local = new Date(yr, mo - 1, dy, hh, mn, 0, 0);
       if (isNaN(local.getTime())) { notFound.push(`${parts[0]} (invalid date)`); return; }
       const isoDate = local.toISOString();
 
