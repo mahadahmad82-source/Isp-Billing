@@ -1,51 +1,104 @@
 import { supabase } from '../lib/supabase';
 import { AppState } from '../types';
 
+// ─── Sync status broadcast ────────────────────────────────────────────────────
+export type SyncStatus = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
+type StatusListener = (s: SyncStatus) => void;
+const listeners: StatusListener[] = [];
+export const onSyncStatus = (fn: StatusListener) => { listeners.push(fn); return () => { const i = listeners.indexOf(fn); if (i > -1) listeners.splice(i, 1); }; };
+const emit = (s: SyncStatus) => listeners.forEach(fn => fn(s));
+
+// ─── Pending queue (survives page reload) ────────────────────────────────────
+const QUEUE_KEY = '__supabase_pending_sync__';
+interface PendingItem { managerId: string; stateJson: string; ts: string; }
+
+const getQueue = (): PendingItem[] => {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
+};
+const setQueue = (q: PendingItem[]) => {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {}
+};
+const enqueue = (managerId: string, state: AppState) => {
+  const q = getQueue().filter(x => x.managerId !== managerId); // one pending per manager
+  q.push({ managerId, stateJson: JSON.stringify(state), ts: new Date().toISOString() });
+  setQueue(q);
+  console.warn('[Supabase] Queued for retry:', managerId);
+};
+const dequeue = (managerId: string) => {
+  setQueue(getQueue().filter(x => x.managerId !== managerId));
+};
+
+// ─── Core upsert with retries ─────────────────────────────────────────────────
+const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts = 3): Promise<boolean> => {
+  const stateWithTs = { ...state, _syncedAt: new Date().toISOString() };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      emit(attempt === 1 ? 'saving' : 'retrying');
+      const { error } = await supabase
+        .from('manager_data')
+        .upsert(
+          { manager_id: managerId, data: stateWithTs, updated_at: stateWithTs._syncedAt },
+          { onConflict: 'manager_id' }
+        );
+      if (!error) {
+        localStorage.setItem(`${managerId}_syncedAt`, stateWithTs._syncedAt);
+        dequeue(managerId);
+        emit('saved');
+        console.log(`[Supabase] ✅ Saved (attempt ${attempt})`);
+        return true;
+      }
+      console.error(`[Supabase] Attempt ${attempt} error:`, error.message);
+    } catch (err) {
+      console.error(`[Supabase] Attempt ${attempt} exception:`, err);
+    }
+    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, attempt * 2000)); // 2s, 4s backoff
+  }
+  emit('failed');
+  return false;
+};
+
+// ─── Public: save state ───────────────────────────────────────────────────────
 export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
   if (!managerId) return;
 
   const userCount    = state?.users?.length    || 0;
   const receiptCount = state?.receipts?.length || 0;
 
-  // Safety: never overwrite real data with empty state
+  // Safety: never overwrite real DB data with empty state
   if (userCount === 0 && receiptCount === 0) {
     try {
       const { data: existing } = await supabase
         .from('manager_data').select('data').eq('manager_id', managerId).maybeSingle();
-      const existingUsers    = (existing?.data as any)?.users?.length    || 0;
-      const existingReceipts = (existing?.data as any)?.receipts?.length || 0;
-      if (existingUsers > 0 || existingReceipts > 0) {
-        console.warn(`[Supabase] BLOCKED empty save for ${managerId}`);
+      const eu = (existing?.data as any)?.users?.length    || 0;
+      const er = (existing?.data as any)?.receipts?.length || 0;
+      if (eu > 0 || er > 0) {
+        console.warn(`[Supabase] BLOCKED empty save — DB has ${eu} users`);
         return;
       }
-    } catch (e) {
-      console.error('[Supabase] Safety check failed:', e);
-      return;
-    }
+    } catch { return; }
   }
 
-  // Stamp the state with current save time before pushing
-  const stateWithTimestamp = { ...state, _syncedAt: new Date().toISOString() };
+  const ok = await upsertWithRetry(managerId, state, 3);
+  if (!ok) enqueue(managerId, state); // queue for later retry
+};
 
-  try {
-    const { error } = await supabase
-      .from('manager_data')
-      .upsert(
-        { manager_id: managerId, data: stateWithTimestamp, updated_at: new Date().toISOString() },
-        { onConflict: 'manager_id' }
-      );
-    if (error) {
-      console.error('[Supabase] Save error:', error.message);
-    } else {
-      // Also store local sync timestamp so smartLoadAndSync can compare
-      localStorage.setItem(`${managerId}_syncedAt`, stateWithTimestamp._syncedAt);
-      console.log(`[Supabase] Saved OK at ${stateWithTimestamp._syncedAt}`);
+// ─── Public: flush pending queue (call every 30–60s from App.tsx) ─────────────
+export const flushPendingSync = async (): Promise<void> => {
+  const q = getQueue();
+  if (q.length === 0) return;
+  console.log(`[Supabase] Flushing ${q.length} pending item(s)…`);
+  for (const item of q) {
+    try {
+      const state = JSON.parse(item.stateJson) as AppState;
+      const ok = await upsertWithRetry(item.managerId, state, 2);
+      if (!ok) console.warn('[Supabase] Flush failed for', item.managerId);
+    } catch (e) {
+      console.error('[Supabase] Flush parse error:', e);
     }
-  } catch (err) {
-    console.error('[Supabase] Save exception:', err);
   }
 };
 
+// ─── Public: load from Supabase ───────────────────────────────────────────────
 export const loadStateFromSupabase = async (managerId: string): Promise<AppState | null> => {
   if (!managerId) return null;
   try {
@@ -59,6 +112,7 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
   }
 };
 
+// ─── Public: smart sync on login ─────────────────────────────────────────────
 export const smartLoadAndSync = async (
   managerId: string,
   localState: AppState
@@ -72,25 +126,22 @@ export const smartLoadAndSync = async (
   const localScore     = localUsers  + localReceipts;
   const remoteScore    = remoteUsers + remoteReceipts;
 
-  // ── Timestamp-based comparison (most recently saved wins) ──
-  const localTs  = new Date((localState as any)?._syncedAt  || localStorage.getItem(`${managerId}_syncedAt`) || 0).getTime();
+  // Timestamp comparison — newer device wins
+  const localTs  = new Date((localState as any)?._syncedAt || localStorage.getItem(`${managerId}_syncedAt`) || 0).getTime();
   const remoteTs = new Date((supabaseState as any)?._syncedAt || 0).getTime();
 
-  console.log(`[Sync] Local: ${localUsers}u ${localReceipts}r @${new Date(localTs).toISOString()}`);
-  console.log(`[Sync] Supabase: ${remoteUsers}u ${remoteReceipts}r @${new Date(remoteTs).toISOString()}`);
+  console.log(`[Sync] Local: ${localUsers}u ${localReceipts}r ts=${new Date(localTs).toISOString()}`);
+  console.log(`[Sync] Supabase: ${remoteUsers}u ${remoteReceipts}r ts=${new Date(remoteTs).toISOString()}`);
 
-  // No Supabase data at all → use local and push up
+  // No Supabase data → use local and push
   if (!supabaseState || remoteScore === 0) {
-    if (localScore > 0) {
-      console.log('[Sync] Supabase empty — pushing local up');
-      await saveStateToSupabase(managerId, localState);
-    }
+    if (localScore > 0) await saveStateToSupabase(managerId, localState);
     return localState;
   }
 
-  // Supabase is newer or same time → always use Supabase
+  // Supabase is newer or equal → use Supabase
   if (remoteTs >= localTs) {
-    console.log('[Sync] Supabase is newer — using Supabase');
+    console.log('[Sync] ✅ Using Supabase (newer)');
     return {
       ...supabaseState,
       users:                    supabaseState.users                    || [],
@@ -107,8 +158,8 @@ export const smartLoadAndSync = async (
     };
   }
 
-  // Local is newer → push local to Supabase
-  console.log('[Sync] Local is newer — pushing local to Supabase');
+  // Local is newer → push to Supabase
+  console.log('[Sync] ✅ Using Local (newer) — pushing to Supabase');
   await saveStateToSupabase(managerId, localState);
   return localState;
 };
