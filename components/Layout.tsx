@@ -15,6 +15,7 @@ interface LayoutProps {
   onToggleTheme: () => void;
   lastSavedTime?: string;
   isSyncing?: boolean;
+  syncStatus?: 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
   notifications: AppNotification[];
   onDismissNotification: (id: string) => void;
   onClearAllNotifications: () => void;
@@ -135,6 +136,7 @@ const Layout: React.FC<LayoutProps> = ({
   onToggleTheme,
   lastSavedTime,
   isSyncing = false,
+  syncStatus = 'idle',
   notifications,
   onDismissNotification,
   onClearAllNotifications,
@@ -222,8 +224,17 @@ const Layout: React.FC<LayoutProps> = ({
         {/* ── LEFT: DB Status (above) + Burger (below) ── */}
         <div className="flex flex-col items-start justify-center gap-1 w-12 flex-shrink-0">
           <DbStatusIndicator lastSavedTime={lastSavedTime} />
-          {isSyncing && (
-            <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500 animate-pulse px-1">SYNCING…</span>
+          {syncStatus === 'saving' && (
+            <span className="text-[7px] font-black uppercase tracking-widest text-indigo-400 animate-pulse px-1">SAVING…</span>
+          )}
+          {syncStatus === 'retrying' && (
+            <span className="text-[7px] font-black uppercase tracking-widest text-amber-400 animate-pulse px-1">RETRY…</span>
+          )}
+          {syncStatus === 'saved' && (
+            <span className="text-[7px] font-black uppercase tracking-widest text-emerald-400 px-1">✓ SAVED</span>
+          )}
+          {syncStatus === 'failed' && (
+            <span className="text-[7px] font-black uppercase tracking-widest text-red-400 animate-pulse px-1">⚠ QUEUED</span>
           )}
           <button
             onClick={() => setDrawerOpen(true)}
