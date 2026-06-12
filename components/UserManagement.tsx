@@ -922,7 +922,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           {visibleColumns.expiry && (
                           <td className="px-6 py-6">
                              <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">
-                               {new Date(user.expiryDate).toLocaleDateString()}
+                               {new Date(user.expiryDate).toLocaleDateString()}<br/>
+                               <span className="text-indigo-400">{new Date(user.expiryDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}</span>
                              </span>
                           </td>)}
                           {!readOnly && (
