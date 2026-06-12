@@ -499,21 +499,27 @@ const UserManagement: React.FC<UserManagementProps> = ({
     lines.forEach(line => {
       const trimmed = line.trim();
       if (!trimmed) return;
-      // Support: username,date | username date | username\tdate
+      // Support: username,date | username date HH:MM (time optional, default 23:59)
       const parts = trimmed.split(/[\s,;\t]+/);
       if (parts.length < 2) return;
       const username = parts[0].trim().toLowerCase();
       const rawDate = parts[1].trim();
+      const rawTime = parts[2]?.trim() || '23:59';
 
       // Parse date: support YYYY-MM-DD and DD/MM/YYYY and DD-MM-YYYY
-      let isoDate = rawDate;
+      let dateStr = rawDate;
       if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(rawDate)) {
         const [dd, mm, yyyy] = rawDate.split(/[\/\-]/);
-        isoDate = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+        dateStr = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
       }
-      // Validate date
-      const parsed = new Date(isoDate);
-      if (isNaN(parsed.getTime())) { notFound.push(`${parts[0]} (invalid date)`); return; }
+      const timeParts = rawTime.match(/^(\d{1,2}):(\d{2})$/);
+      const hh = timeParts ? +timeParts[1] : 23;
+      const mn = timeParts ? +timeParts[2] : 59;
+      const dtParts = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!dtParts) { notFound.push(`${parts[0]} (invalid date)`); return; }
+      const local = new Date(+dtParts[1], +dtParts[2]-1, +dtParts[3], hh, mn, 0, 0);
+      if (isNaN(local.getTime())) { notFound.push(`${parts[0]} (invalid date)`); return; }
+      const isoDate = local.toISOString();
 
       const user = users.find(u => (u.username || '').toLowerCase() === username);
       if (!user) { notFound.push(parts[0]); return; }
@@ -1317,9 +1323,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <div className="space-y-4">
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 text-[10px] text-slate-500 dark:text-slate-400 font-mono leading-relaxed">
                     <div className="font-black text-slate-700 dark:text-slate-300 mb-1 text-[9px] uppercase tracking-widest">Format (ek line mein ek user):</div>
-                    <div>username 2025-02-28</div>
-                    <div>username,28/02/2025</div>
-                    <div>username 28-02-2025</div>
+                    <div>username 2025-02-28 21:40</div>
+                    <div>username,28/02/2025 23:59</div>
+                    <div>username 28-02-2025 (time optional)</div>
                   </div>
                   <label className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-white/10 cursor-pointer select-none">
                     <div
@@ -1336,7 +1342,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   <textarea
                     value={bulkExpiryText}
                     onChange={e => setBulkExpiryText(e.target.value)}
-                    placeholder={"ali123 2025-02-28\nbilal456 2025-03-31\nahmed789,28-02-2025"}
+                    placeholder={"ali123 2025-02-28 21:40\nbilal456 2025-03-31 23:59\nahmed789,28-02-2025 08:00"}
                     rows={8}
                     className="w-full p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-white outline-none resize-none focus:border-violet-500/50 transition-all placeholder-slate-300 dark:placeholder-slate-600"
                   />
