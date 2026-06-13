@@ -102,10 +102,17 @@ const App: React.FC = () => {
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
+  const [tabLoading, setTabLoading] = useState(false);
 
   // Sync URL hash with activeTab — enables right-click "Open in new tab"
   React.useEffect(() => {
     window.location.hash = activeTab;
+  }, [activeTab]);
+  // Tab switch loading indicator
+  useEffect(() => {
+    setTabLoading(true);
+    const timer = setTimeout(() => setTabLoading(false), 380);
+    return () => clearTimeout(timer);
   }, [activeTab]);
   const [tourMode, setTourMode] = useState<string>('welcome');
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
@@ -938,7 +945,12 @@ const App: React.FC = () => {
   };
 
   const handleFullUpdateUser = (user: UserRecord) => {
-    setState(prev => ({ ...prev, users: prev.users.map(u => u.id === user.id ? user : u) }));
+    setState(prev => {
+      const ns = { ...prev, users: prev.users.map(u => u.id === user.id ? user : u) };
+      saveState(ns);
+      saveStateToSupabase(activeManager || '', ns);
+      return ns;
+    });
   };
 
   const handlePlanChange = (userId: string, oldPlan: string, newPlan: string, oldFee: number, newFee: number, reason?: string) => {
@@ -1331,7 +1343,19 @@ const App: React.FC = () => {
           currentAddress={currentSettings.businessAddress}
           currentEmail={currentSettings.businessEmail || ""}
         >
-          {activeTab === 'dashboard' && (
+          {tabLoading && (
+            <div className="animate-pulse space-y-4 p-2">
+              <div className="h-7 bg-white/10 rounded-xl w-2/5"></div>
+              <div className="grid grid-cols-2 gap-3">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="h-28 bg-white/10 rounded-2xl border border-white/5"></div>
+                ))}
+              </div>
+              <div className="h-40 bg-white/10 rounded-2xl border border-white/5"></div>
+              <div className="h-32 bg-white/10 rounded-2xl border border-white/5"></div>
+            </div>
+          )}
+          {!tabLoading && activeTab === 'dashboard' && (
             <Dashboard 
               users={filteredUsers} 
               receipts={filteredReceipts} 
@@ -1354,9 +1378,9 @@ const App: React.FC = () => {
               onUpdateUser={handleFullUpdateUser}
             />
           )}
-          {activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} />}
-          {activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} />}
-          {activeTab === 'recoveries' && (
+          {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} />}
+          {!tabLoading && activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} />}
+          {!tabLoading && activeTab === 'recoveries' && (
             <RecoverySummary 
               users={filteredUsers} 
               receipts={filteredReceipts} 
@@ -1373,17 +1397,17 @@ const App: React.FC = () => {
               onUpdateUser={handleFullUpdateUser}
             />
           )}
-          {activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
-          {activeTab === 'systemlogs' && (
+          {!tabLoading && activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
+          {!tabLoading && activeTab === 'systemlogs' && (
             <SystemLogs
               logs={state.systemLogs || []}
               onClearLogs={() => setState(prev => ({ ...prev, systemLogs: [] }))}
             />
           )}
-          {activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
-          {activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
+          {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
+          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
-          {activeTab === 'complaints' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'complaints' && userRole === 'manager' && (
             <ComplaintManager
               tickets={state.complaintTickets || []}
               subManagers={state.subManagers || []}
@@ -1448,7 +1472,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {activeTab === 'expenses' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'expenses' && userRole === 'manager' && (
             <BusinessExpenses
               expenses={state.businessExpenses || []}
               receipts={filteredReceipts}
@@ -1466,7 +1490,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {activeTab === 'analytics' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'analytics' && userRole === 'manager' && (
             canAccess(subscription, 'analytics') ? (
               <BusinessAnalytics
                 users={filteredUsers}
@@ -1478,10 +1502,10 @@ const App: React.FC = () => {
               <UpgradeGate sub={subscription} feature="analytics" featureName="Business Analytics" />
             )
           )}
-          {activeTab === 'aging' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'aging' && userRole === 'manager' && (
             <AgingReport users={filteredUsers} settings={currentSettings} />
           )}
-          {activeTab === 'equipment' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'equipment' && userRole === 'manager' && (
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
               users={filteredUsers}
@@ -1499,7 +1523,7 @@ const App: React.FC = () => {
               })}
             />
           )}
-          {activeTab === 'leads' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'leads' && userRole === 'manager' && (
             <LeadsPipeline
               leads={state.leads || []}
               users={filteredUsers}
@@ -1539,7 +1563,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {activeTab === 'suspension' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'suspension' && userRole === 'manager' && (
             <SuspensionManager
               suspensionLogs={state.suspensionLogs || []}
               users={filteredUsers}
@@ -1554,7 +1578,7 @@ const App: React.FC = () => {
               })}
             />
           )}
-          {activeTab === 'outage' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'outage' && userRole === 'manager' && (
             <OutageTracker
               outageLogs={state.outageLogs || []}
               currentUser={activeManager || 'admin'}
@@ -1573,7 +1597,7 @@ const App: React.FC = () => {
               })}
             />
           )}
-          {activeTab === 'area' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'area' && userRole === 'manager' && (
             canAccess(subscription, 'area') ? (
               <AreaDashboard
                 users={filteredUsers}
@@ -1584,26 +1608,26 @@ const App: React.FC = () => {
               <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard" />
             )
           )}
-          {activeTab === 'reminders' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'reminders' && userRole === 'manager' && (
             <BulkReminder
               users={filteredUsers}
               settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
             />
           )}
-          {activeTab === 'dayend' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'dayend' && userRole === 'manager' && (
             <DayEndSummary
               receipts={filteredReceipts}
               subManagers={(state.subManagers || []).map(sm => ({ id: sm.id, username: sm.username, name: sm.name }))}
               businessName={currentSettings.businessName}
             />
           )}
-          {activeTab === 'route' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'route' && userRole === 'manager' && (
             <RouteSheet
               users={filteredUsers}
               businessName={currentSettings.businessName}
             />
           )}
-          {activeTab === 'invoice' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'invoice' && userRole === 'manager' && (
             <MonthlyInvoice
               users={filteredUsers}
               receipts={filteredReceipts}
@@ -1611,7 +1635,7 @@ const App: React.FC = () => {
               planHistory={state.planHistory || []}
             />
           )}
-          {activeTab === 'team' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'team' && userRole === 'manager' && (
             <SubManagerManagement 
               subManagers={state.subManagers || []}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
