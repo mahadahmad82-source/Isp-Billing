@@ -78,8 +78,12 @@ const CustomerPortal: React.FC = () => {
           || companies[0]?.settings;
 
         // All receipts for this user, newest first
+        // Filter by userId OR username, AND companyId to avoid cross-company leaks
         const allUserReceipts = receipts
-          .filter((r: any) => r.userId === found.id || r.username === found.username)
+          .filter((r: any) =>
+            (r.userId === found.id || r.username === found.username) &&
+            (!r.companyId || !found.companyId || r.companyId === found.companyId)
+          )
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         /* ── PRIORITY LOGIC (mirrors RecoverySummary) ──
@@ -141,7 +145,8 @@ const CustomerPortal: React.FC = () => {
   const exp = u?.expiryDate ? new Date(u.expiryDate) : null;
   if (exp) exp.setHours(0, 0, 0, 0);
   const diff    = exp ? Math.ceil((exp.getTime() - today.getTime()) / 86400000) : 0;
-  const expired = diff < 0;
+  // isActivatedCur = paid this month → always Active regardless of expiryDate
+  const expired = !result?.isActivatedCur && diff < 0;
 
   /* ════ RENDER ════ */
   return (
