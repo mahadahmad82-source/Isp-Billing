@@ -129,9 +129,23 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     
     // Use balanceAmount from most recent PREVIOUS receipt
     // If no previous receipt exists at all → fallback to Master Directory balance (user.balance)
-    const balance = latestPreviousReceipt 
+    const lastReceiptBalance = latestPreviousReceipt 
       ? (latestPreviousReceipt.balanceAmount || 0) 
       : (user.balance || 0);
+
+    // Detect missed months — if last receipt was > 1 month ago, add unpaid months as arrears
+    let missedMonthsArrears = 0;
+    if (latestPreviousReceipt && latestPreviousReceipt.period) {
+      const parseMonthYear = (str: string) => { const d = new Date(str + ' 1'); return isNaN(d.getTime()) ? null : d; };
+      const currentDate = parseMonthYear(`${billingMonth} ${billingYear}`);
+      const lastDate = parseMonthYear(latestPreviousReceipt.period);
+      if (currentDate && lastDate) {
+        const monthsDiff = (currentDate.getFullYear() - lastDate.getFullYear()) * 12
+          + (currentDate.getMonth() - lastDate.getMonth());
+        if (monthsDiff > 1) missedMonthsArrears = (monthsDiff - 1) * fee;
+      }
+    }
+    const balance = lastReceiptBalance + missedMonthsArrears;
     const persistentDisc = user.persistentDiscount || 0;
     
     setMonthlyFee(fee);
