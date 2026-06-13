@@ -103,7 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
   };
   const activeUsersCount = (users || []).filter(_isActiveByDate).length;
   const expiredUsersCount = (users || []).filter(u => u.status !== 'deleted' && u.status !== 'pending' && !_isActiveByDate(u)).length;
-  const totalUsersCount = (users || []).length;
+  const totalUsersCount = (users || []).filter(u => u.status !== 'deleted').length;
 
   // Today Expiry = expiryDate === today (last active day)
   const todayExpiringUsers = useMemo(() => {
