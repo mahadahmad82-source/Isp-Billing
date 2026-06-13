@@ -120,32 +120,54 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     // Exclude the current billing period so we never carry forward the same month's balance
     const currentBillingPeriod = `${billingMonth} ${billingYear}`;
     const userReceipts = receipts.filter(r => r.userId === user.id);
-    
-    // Filter out current billing period receipts, then sort by date desc
+
+    // Reliable period parser: "May 2026" → new Date("May 1, 2026")
+    const parseMonthYear = (str: string) => {
+      if (!str) return null;
+      const parts = str.trim().split(' ');
+      if (parts.length < 2) return null;
+      const d = new Date(`${parts[0]} 1, ${parts[1]}`);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    // Sort by parsed PERIOD (not receipt creation date) to get true latest billing period
     const previousReceipts = [...userReceipts]
-      .filter(r => r.period !== currentBillingPeriod)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .filter(r => r.period && r.period !== currentBillingPeriod)
+      .sort((a, b) => {
+        const da = parseMonthYear(a.period);
+        const db = parseMonthYear(b.period);
+        if (!da || !db) return 0;
+        return db.getTime() - da.getTime();
+      });
     const latestPreviousReceipt = previousReceipts.length > 0 ? previousReceipts[0] : null;
-    
+
     // Use balanceAmount from most recent PREVIOUS receipt
     // If no previous receipt exists at all → fallback to Master Directory balance (user.balance)
-    const lastReceiptBalance = latestPreviousReceipt 
-      ? (latestPreviousReceipt.balanceAmount || 0) 
+    const lastReceiptBalance = latestPreviousReceipt
+      ? (latestPreviousReceipt.balanceAmount || 0)
       : (user.balance || 0);
 
-    // Detect missed months — if last receipt was > 1 month ago, add unpaid months as arrears
+    // Detect missed months: iterate each month between last receipt and current period
+    // Only add fee for months that have NO receipt at all (not just gap math)
     let missedMonthsArrears = 0;
     if (latestPreviousReceipt && latestPreviousReceipt.period) {
-      const parseMonthYear = (str: string) => { const d = new Date(str + ' 1'); return isNaN(d.getTime()) ? null : d; };
-      const currentDate = parseMonthYear(`${billingMonth} ${billingYear}`);
+      const currentDate = parseMonthYear(currentBillingPeriod);
       const lastDate = parseMonthYear(latestPreviousReceipt.period);
-      if (currentDate && lastDate) {
-        const monthsDiff = (currentDate.getFullYear() - lastDate.getFullYear()) * 12
-          + (currentDate.getMonth() - lastDate.getMonth());
-        if (monthsDiff > 1) missedMonthsArrears = (monthsDiff - 1) * fee;
+      if (currentDate && lastDate && currentDate > lastDate) {
+        const cursor = new Date(lastDate);
+        cursor.setMonth(cursor.getMonth() + 1);
+        while (cursor < currentDate) {
+          const mName = cursor.toLocaleString('en-US', { month: 'long' });
+          const mYear = cursor.getFullYear().toString();
+          const mPeriod = `${mName} ${mYear}`;
+          const hasPaid = userReceipts.some(r => r.period === mPeriod);
+          if (!hasPaid) missedMonthsArrears += fee;
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
       }
     }
     const balance = lastReceiptBalance + missedMonthsArrears;
+
     const persistentDisc = user.persistentDiscount || 0;
     
     setMonthlyFee(fee);
