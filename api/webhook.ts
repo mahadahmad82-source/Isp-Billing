@@ -1,16 +1,16 @@
 // api/webhook.ts — MahadNet "Ayesha" WhatsApp AI Bot (Production)
 
-const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
-const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_ayesha_bot';
+const SUPABASE_URL  = 'https://mzmajmjzopmkzboizrbm.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
+const VERIFY_TOKEN  = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_ayesha_bot';
 
-// ─── Keywords ────────────────────────────────────────────────────────────────
-const GREETING  = ['assalamu','assalam','salaam','aoa','hi','hello','helo','salam','hey','hii','helloo','السلام'];
-const BILL      = ['bill','balance','payment','paisa','dues','fee','fees','amount','kitna','baqi','baki','paid','jama'];
-const NET       = ['internet','net','wifi','speed','slow','band','nahi chal','masla','problem','down','issue','kaam nahi','light','signal'];
-const COMPLAINT = ['complaint','complain','shikayat','kharab','slow','down','issue','masla','band','nahi aya','nahi chal'];
-const CONNECT   = ['new','connection','naya','nayi','install','lena','chahiye','chahta','chahti','price','package','parcel','plan'];
-const EXPIRY    = ['expiry','expire','kab','khatam','end','band hoga','date','kitne din'];
+// ─── Keyword groups ───────────────────────────────────────────────────────────
+const GREETING_WORDS   = ['assalamu','assalam','salaam','aoa','hi','hello','helo','salam','hey','hii'];
+const BILL_WORDS       = ['bill','balance','payment','paisa','dues','fee','amount','kitna','baqi','pending'];
+const NET_WORDS        = ['internet','net','wifi','speed','slow','band','chal','masla','problem','down','issue','kaam'];
+const COMPLAINT_WORDS  = ['complaint','complain','shikayat','kharab','nahi chal','band hai','slow hai','down hai'];
+const CONNECT_WORDS    = ['new connection','naya connection','nai connection','install','lena hai','chahiye','new sim','new user'];
+const EXPIRY_WORDS     = ['expiry','expire','kab khatam','khatam','band hoga','end date'];
 
 type Intent = 'bill' | 'complaint' | 'new_connection' | 'expiry' | 'greeting' | 'personal';
 
@@ -20,18 +20,17 @@ function normalizePhone(p: string): string {
 
 function detectIntent(text: string): Intent {
   const t = text.toLowerCase();
-  if (GREETING.some(w => t.includes(w)) && t.length < 25) return 'greeting';
-  if (COMPLAINT.some(w => t.includes(w))) return 'complaint';
-  if (BILL.some(w => t.includes(w)))      return 'bill';
-  if (EXPIRY.some(w => t.includes(w)))    return 'expiry';
-  if (CONNECT.some(w => t.includes(w)))   return 'new_connection';
-  if (NET.some(w => t.includes(w)))       return 'complaint';
+  if (EXPIRY_WORDS.some(w => t.includes(w)))   return 'expiry';
+  if (COMPLAINT_WORDS.some(w => t.includes(w))) return 'complaint';
+  if (NET_WORDS.some(w => t.includes(w)))       return 'complaint';
+  if (BILL_WORDS.some(w => t.includes(w)))      return 'bill';
+  if (CONNECT_WORDS.some(w => t.includes(w)))   return 'new_connection';
+  if (GREETING_WORDS.some(w => t.includes(w)) && t.length < 40) return 'greeting';
   return 'personal';
 }
 
-// ─── Supabase: find customer by WhatsApp number ───────────────────────────────
-async function findCustomerByPhone(from: string): Promise<{ managerId: string; user: any } | null> {
-  const norm = normalizePhone(from);
+async function findCustomerByPhone(whatsappNumber: string): Promise<{ manager_id: string; user: any } | null> {
+  const normalized = normalizePhone(whatsappNumber);
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
@@ -40,32 +39,35 @@ async function findCustomerByPhone(from: string): Promise<{ managerId: string; u
     const rows = await res.json();
     for (const row of rows) {
       const users: any[] = row.data?.users || [];
-      const user = users.find((u: any) => {
+      const found = users.find((u: any) => {
         if (!u || u.status === 'deleted') return false;
-        return normalizePhone(u.phone || '') === norm || normalizePhone(u.phone2 || '') === norm;
+        return normalizePhone(u.phone || '') === normalized ||
+               normalizePhone(u.phone2 || '') === normalized;
       });
-      if (user) return { managerId: row.manager_id, user };
+      if (found) return { manager_id: row.manager_id, user: found };
     }
-  } catch (e: any) { console.error('Supabase lookup error:', e?.message); }
+  } catch (e: any) {
+    console.error('[Supabase lookup error]', e?.message);
+  }
   return null;
 }
 
-// ─── Supabase: save complaint ─────────────────────────────────────────────────
-async function saveComplaint(managerId: string, user: any, issue: string): Promise<string> {
-  const ticketId = `WA-${Date.now()}`;
+async function saveComplaint(managerId: string, userId: string, userName: string, phone: string, issue: string): Promise<string> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}&select=data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    if (!res.ok) return ticketId;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}&select=data`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return `WA${Date.now()}`;
     const rows = await res.json();
-    if (!rows.length) return ticketId;
+    if (!rows.length) return `WA${Date.now()}`;
     const data = rows[0].data || {};
-    const complaints = data.complaints || [];
+    const complaints: any[] = data.complaints || [];
+    const ticketId = `WA${Date.now()}`;
     complaints.push({
-      id: ticketId, userId: user.id, userName: user.name,
-      phone: user.phone, issue, source: 'whatsapp',
-      status: 'open', createdAt: new Date().toISOString(),
+      id: ticketId, userId, userName, phone, issue,
+      source: 'whatsapp', status: 'open',
+      createdAt: new Date().toISOString(),
     });
     await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
       method: 'PATCH',
@@ -75,98 +77,97 @@ async function saveComplaint(managerId: string, user: any, issue: string): Promi
       },
       body: JSON.stringify({ data: { ...data, complaints } }),
     });
-  } catch (e: any) { console.error('Save complaint error:', e?.message); }
-  return ticketId;
+    return ticketId;
+  } catch (e: any) {
+    console.error('[saveComplaint error]', e?.message);
+    return `WA${Date.now()}`;
+  }
 }
 
-// ─── WhatsApp: send reply ─────────────────────────────────────────────────────
-async function sendReply(to: string, body: string) {
+async function sendReply(to: string, message: string) {
   const token = process.env.WHATSAPP_TOKEN;
   const pid   = process.env.PHONE_NUMBER_ID;
-  if (!token || !pid) { console.error('❌ Missing WHATSAPP_TOKEN or PHONE_NUMBER_ID'); return; }
+  if (!token || !pid) { console.error('❌ Env vars missing'); return; }
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body } }),
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: message } }),
     });
     const d = await r.json();
-    if (!r.ok) console.error(`❌ Meta ${r.status}:`, JSON.stringify(d));
-    else console.log(`✅ Reply sent to ${to}`);
-  } catch (e: any) { console.error('sendReply error:', e?.message); }
+    if (!r.ok) console.error('❌ Meta error:', JSON.stringify(d));
+    else console.log('✅ Sent to', to, '| ID:', d?.messages?.[0]?.id);
+  } catch (e: any) { console.error('❌ sendReply:', e?.message); }
 }
 
 // ─── Reply builders ───────────────────────────────────────────────────────────
 const greetingReply = () =>
-  `Walaikum Assalam! 😊 Main Ayesha hoon, MahadNet ki virtual assistant.\n\n` +
-  `Mujhe batayein main aap ki kya madad kar sakti hoon?\n\n` +
-  `1️⃣  Bill / Balance check karna hai\n` +
-  `2️⃣  Internet masla / Complaint darj karni hai\n` +
-  `3️⃣  Naya connection lena hai\n` +
-  `4️⃣  Package / Expiry date dekhni hai\n\n` +
-  `Apna masla seedha likh dein, main samajh jaungi! 🙏`;
+  `Walaikum Assalam! 😊 Main Ayesha hoon, MahadNet Support.\n\n` +
+  `Mujhe batayein, main aap ki kya madad kar sakti hoon?\n\n` +
+  `1️⃣  Bill / Balance check\n` +
+  `2️⃣  Internet masla / Complaint\n` +
+  `3️⃣  Naya connection\n` +
+  `4️⃣  Package / Expiry date\n\n` +
+  `Apna masla seedha likh dein! 🙏`;
 
 const billReply = (u: any) => {
   const bal    = u.balance ?? 0;
   const expiry = u.expiryDate ? new Date(u.expiryDate).toLocaleDateString('en-PK') : 'N/A';
-  let msg = `Assalam o Alaikum *${u.name}*! 😊\n\n📋 *Aap ka Account:*\n`;
-  msg += `👤 Username: ${u.username || 'N/A'}\n`;
-  msg += `📦 Package: ${u.plan || 'Standard'}\n`;
-  msg += `💰 Monthly Fee: Rs. ${u.monthlyFee || 0}\n`;
-  msg += `💳 Balance: Rs. ${Math.abs(bal)}`;
-  msg += bal > 0 ? ' _(pending)_' : bal < 0 ? ' _(advance)_' : ' _(clear ✅)_';
-  msg += `\n📅 Expiry: ${expiry}\n\n`;
-  msg += bal > 0
-    ? `⚠️ Aap ka bill pending hai. Jaldi payment karein taake service active rahe!\n\n`
-    : `✅ Aap ka account bilkul clear hai, shukriya!\n\n`;
-  msg += `Koi aur madad chahiye? 🙏`;
-  return msg;
-};
-
-const complaintReply = (u: any, tid: string) =>
-  `Aap ki complaint darj ho gayi *${u.name}*! 🛠️\n\n` +
-  `🎫 *Ticket:* ${tid}\n` +
-  `📞 Hamara team jald aap se rabta karega.\n\n` +
-  `Agar urgent ho to Mahad bhai ko directly message karein.\n` +
-  `Shukriya aap ki patience ke liye! 🙏`;
-
-const expiryReply = (u: any) => {
-  const expiry = u.expiryDate ? new Date(u.expiryDate).toLocaleDateString('en-PK') : 'N/A';
   return (
-    `Assalam o Alaikum *${u.name}*! 😊\n\n` +
-    `📦 Package: *${u.plan || 'Standard'}*\n` +
-    `📅 Expiry date: *${expiry}*\n\n` +
-    `Renewal ke liye hamare office se rabta karein!\n` +
-    `Koi aur cheez chahiye? 🙏`
+    `Assalam o Alaikum ${u.name}! 😊\n\n` +
+    `📋 *Account Summary*\n` +
+    `👤 Username: ${u.username || 'N/A'}\n` +
+    `📦 Package: ${u.plan || 'Standard'}\n` +
+    `💰 Monthly Fee: Rs. ${u.monthlyFee || 0}\n` +
+    `💳 Balance: Rs. ${Math.abs(bal)}${bal > 0 ? ' _(pending)_' : bal < 0 ? ' _(advance)_' : ' _(clear)_'}\n` +
+    `📅 Expiry: ${expiry}\n\n` +
+    (bal > 0
+      ? `⚠️ Bill pending hai. Jaldi payment karein!\n\n`
+      : `✅ Account clear hai, shukriya!\n\n`) +
+    `Koi aur masla? Batayein! 🙏`
   );
 };
 
-const newConnReply = () =>
+const complaintReply = (u: any, tid: string) =>
+  `Complaint darj ho gayi ${u.name}! 🛠️\n\n` +
+  `🎫 Ticket ID: *${tid}*\n` +
+  `Hamara team jald aap se rabta karega.\n\n` +
+  `Shukriya patience ke liye! 🙏`;
+
+const expiryReply = (u: any) =>
+  `Assalam o Alaikum ${u.name}! 😊\n\n` +
+  `📦 Package: *${u.plan || 'Standard'}*\n` +
+  `📅 Expiry: *${u.expiryDate ? new Date(u.expiryDate).toLocaleDateString('en-PK') : 'N/A'}*\n\n` +
+  `Renewal ke liye hamse rabta karein! 🙏`;
+
+const newConnectionReply = () =>
   `Walaikum Assalam! MahadNet mein khushamdeed! 🎉\n\n` +
   `Main Ayesha hoon. Naye connection ke liye yeh details bhejein:\n\n` +
-  `1️⃣  Aap ka *naam*\n` +
-  `2️⃣  Aap ka *area / mohalla*\n` +
-  `3️⃣  Kaunsa *package* chahiye? (10 Mbps / 20 Mbps / etc.)\n\n` +
-  `Hamara team coverage check kar ke jald rabta karega! 📡`;
+  `1️⃣  Aap ka naam\n` +
+  `2️⃣  Area / mohalla\n` +
+  `3️⃣  Package (10 Mbps / 20 Mbps / other)\n\n` +
+  `Hamara team jald coverage check kar ke rabta karega! 📡`;
+
+const unknownReply = () =>
+  `Assalam o Alaikum! Main Ayesha hoon, MahadNet Support. 😊\n\n` +
+  `Aap ka number hamare system mein nahi mila.\n\n` +
+  `Apna *username* bhejein (e.g. mahad01), ya\n` +
+  `*naya connection* likhein agar pehli baar contact kar rahe hain! 🙏`;
 
 const personalReply = () =>
   `Assalam o Alaikum! 😊 Main Ayesha hoon, MahadNet Support Bot.\n\n` +
-  `Mahad bhai is waqt available nahi hain — main aap ka message unhe pahuncha dungi.\n\n` +
-  `Agar internet, bill ya kisi masle mein madad chahiye to batayein! 🙏`;
+  `Mahad bhai is waqt available nahi hain.\n` +
+  `Aap ka message unhe pahuncha dungi!\n\n` +
+  `Internet, bill ya kisi masle mein madad chahiye to batayein. 🙏`;
 
 const voiceReply = () =>
   `Assalam o Alaikum! Main Ayesha hoon. 😊\n\n` +
-  `Aap ki voice note mili, lekin main abhi voice process nahi kar sakti.\n\n` +
-  `Kripya apna masla *text* mein likhein — main foran madad karungi! ✍️`;
-
-const unknownCustomerReply = () =>
-  `Assalam o Alaikum! Main Ayesha hoon, MahadNet Support. 😊\n\n` +
-  `Aap ka number hamare system mein nahi mila.\n\n` +
-  `Kripya apna *username* bhejein (jo aap ke connection ka ID hai),\n` +
-  `ya *"naya connection"* likhein agar pehli baar contact kar rahe hain! 🙏`;
+  `Voice note mili lekin main audio process nahi kar sakti abhi.\n` +
+  `Kripya apna masla *text* mein likhein, foran madad karungi! ✍️`;
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
+  // GET — verification
   if (req.method === 'GET') {
     const { 'hub.mode': mode, 'hub.verify_token': token, 'hub.challenge': challenge } = req.query;
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -186,40 +187,39 @@ export default async function handler(req: any, res: any) {
       const msgType: string = msg.type;
       const text: string    = msg?.text?.body || '';
 
-      console.log(`📩 from=${from} type=${msgType} text="${text.slice(0,60)}"`);
+      console.log(`📩 from=${from} type=${msgType} text="${text}"`);
 
       // Voice / audio
       if (msgType === 'audio' || msgType === 'voice') {
         await sendReply(from, voiceReply()); continue;
       }
-
-      // Non-text (images, stickers, etc.) — acknowledge only
+      // Non-text (sticker, image, etc.) — politely ask for text
       if (msgType !== 'text') {
-        await sendReply(from, `Assalam o Alaikum! Main Ayesha hoon 😊\nApna masla text mein likhein, main madad karungi! 🙏`);
+        await sendReply(from, `Assalam o Alaikum! 😊 Main sirf text messages samajh sakti hoon abhi. Apna masla text mein likhein! 🙏`);
         continue;
       }
 
       const intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
 
-      if (intent === 'greeting')        { await sendReply(from, greetingReply()); continue; }
-      if (intent === 'personal')        { await sendReply(from, personalReply()); continue; }
-      if (intent === 'new_connection')  { await sendReply(from, newConnReply());  continue; }
+      if (intent === 'greeting') { await sendReply(from, greetingReply()); continue; }
+      if (intent === 'personal') { await sendReply(from, personalReply()); continue; }
+      if (intent === 'new_connection') { await sendReply(from, newConnectionReply()); continue; }
 
-      // Business intents → Supabase lookup
+      // Needs Supabase lookup
       const found = await findCustomerByPhone(from);
-      if (!found) { await sendReply(from, unknownCustomerReply()); continue; }
+      if (!found) { await sendReply(from, unknownReply()); continue; }
 
-      const { managerId, user } = found;
+      const { manager_id, user } = found;
       if (intent === 'bill')      await sendReply(from, billReply(user));
-      if (intent === 'expiry')    await sendReply(from, expiryReply(user));
-      if (intent === 'complaint') {
-        const tid = await saveComplaint(managerId, user, text);
+      else if (intent === 'expiry') await sendReply(from, expiryReply(user));
+      else if (intent === 'complaint') {
+        const tid = await saveComplaint(manager_id, user.id, user.name, from, text);
         await sendReply(from, complaintReply(user, tid));
       }
     }
   } catch (err: any) {
-    console.error('❌ Webhook error:', err?.message);
+    console.error('[webhook error]', err?.message || err);
   }
 
   return res.status(200).json({ status: 'ok' });
