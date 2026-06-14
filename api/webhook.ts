@@ -104,18 +104,32 @@ async function saveComplaint(managerId: string, userId: string, userName: string
 async function sendReply(to: string, message: string) {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.PHONE_NUMBER_ID;
-  if (!token || !phoneNumberId) return;
 
-  await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to,
-      type: 'text',
-      text: { body: message },
-    }),
-  });
+  if (!token) { console.error('❌ WHATSAPP_TOKEN missing from env'); return; }
+  if (!phoneNumberId) { console.error('❌ PHONE_NUMBER_ID missing from env'); return; }
+
+  console.log(`📤 Sending reply to ${to} via phoneNumberId: ${phoneNumberId}`);
+
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: message },
+      }),
+    });
+    const metaData = await metaRes.json();
+    if (!metaRes.ok) {
+      console.error(`❌ Meta API error ${metaRes.status}:`, JSON.stringify(metaData));
+    } else {
+      console.log(`✅ Reply sent! Message ID: ${metaData?.messages?.[0]?.id}`);
+    }
+  } catch (err: any) {
+    console.error('❌ sendReply exception:', err?.message);
+  }
 }
 
 // ─── Build reply messages ─────────────────────────────────────────────────────
