@@ -249,9 +249,6 @@ export default async function handler(req: any, res: any) {
   // ── POST: Incoming message ──
   if (req.method !== 'POST') return res.status(405).end();
 
-  // Always respond 200 immediately (Meta requires this)
-  res.status(200).json({ status: 'ok' });
-
   try {
     const body = req.body;
     const entry   = body?.entry?.[0];
@@ -260,8 +257,8 @@ export default async function handler(req: any, res: any) {
     const messages: any[] = value?.messages || [];
 
     for (const msg of messages) {
-      const from: string = msg.from; // sender's WhatsApp number (with country code)
-      const msgType: string = msg.type; // text | audio | image | etc.
+      const from: string = msg.from;
+      const msgType: string = msg.type;
 
       console.log(`📩 Message from ${from}, type: ${msgType}`);
 
@@ -319,4 +316,7 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('Webhook processing error:', err?.message || err);
   }
+
+  // Respond 200 AFTER all processing is done
+  return res.status(200).json({ status: 'ok' });
 }
