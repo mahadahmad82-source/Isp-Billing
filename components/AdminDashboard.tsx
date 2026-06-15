@@ -151,6 +151,22 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [actFilter, setActFilter] = useState<ActivityEntry['type'] | 'all'>('all');
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [mgrSort, setMgrSort] = useState<{ key: keyof ManagerStat; dir: 1 | -1 }>({ key: 'user_count', dir: -1 });
+  const [storageInfo, setStorageInfo] = useState<{
+    db_size_bytes: number; db_size_pretty: string;
+    table_size_bytes: number; table_size_pretty: string;
+    row_count: number; avg_row_size_bytes: number;
+  } | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+
+  // ── Storage Info ─────────────────────────────────────────────────────────────
+  const loadStorageInfo = useCallback(async () => {
+    setStorageLoading(true);
+    const { data, error } = await supabase.rpc('get_db_storage_info');
+    if (data && data.length > 0) setStorageInfo(data[0]);
+    if (error) console.error('Storage info error:', error.message);
+    setStorageLoading(false);
+  }, []);
+  useEffect(() => { if (tab === 'system') loadStorageInfo(); }, [tab, loadStorageInfo]);
 
   // ── Subscriptions ───────────────────────────────────────────────────────────
   const loadSubscriptions = useCallback(async () => {
@@ -684,7 +700,80 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {/* ══════════ SYSTEM ══════════ */}
       {!loading && tab === 'system' && (
         <div className="space-y-4 max-w-3xl">
-          <div className="bg-slate-800/60 rounded-3xl border border-white/[0.06] p-5 space-y-5">
+
+          {/* ── Storage Usage Card ── */}
+          <div className="bg-slate-800/60 rounded-3xl border border-white/[0.06] p-5 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="font-black text-white text-[13px] flex items-center gap-2">
+                <Server className="w-4 h-4 text-emerald-400" /> Supabase Storage Usage
+              </h3>
+              <button onClick={loadStorageInfo} disabled={storageLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl text-slate-300 font-black text-[11px] uppercase tracking-wider transition-all border border-white/[0.06] disabled:opacity-50">
+                <RefreshCcw className={`w-3 h-3 ${storageLoading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+            </div>
+            {storageLoading && !storageInfo ? (
+              <div className="text-center py-6 text-slate-500 text-sm">Loading storage info…</div>
+            ) : storageInfo ? (() => {
+              const FREE_LIMIT_BYTES = 500 * 1024 * 1024; // 500 MB Supabase free tier
+              const usedPct = Math.min(100, Math.round((storageInfo.db_size_bytes / FREE_LIMIT_BYTES) * 100));
+              const barColor = usedPct >= 90 ? '#f43f5e' : usedPct >= 70 ? '#f97316' : '#10b981';
+              const statusLabel = usedPct >= 90 ? '🔴 Critical' : usedPct >= 70 ? '🟡 Warning' : '🟢 Healthy';
+              const remainingMB = Math.max(0, Math.round((FREE_LIMIT_BYTES - storageInfo.db_size_bytes) / 1024 / 1024));
+              const usedMB = Math.round(storageInfo.db_size_bytes / 1024 / 1024);
+              return (
+                <div className="space-y-4">
+                  {/* Big progress bar */}
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Database Usage</span>
+                      <span className="font-black text-white text-lg">{usedPct}%</span>
+                    </div>
+                    <div className="w-full bg-slate-700/60 rounded-full h-4 overflow-hidden">
+                      <div className="h-4 rounded-full transition-all duration-700"
+                        style={{ width: `${usedPct}%`, background: barColor, boxShadow: `0 0 10px ${barColor}60` }} />
+                    </div>
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-[10px] text-slate-500 font-bold">{storageInfo.db_size_pretty} used</span>
+                      <span className="text-[10px] text-slate-500 font-bold">500 MB limit (Free tier)</span>
+                    </div>
+                  </div>
+
+                  {/* Stat chips */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: 'Used', value: `${usedMB} MB`, color: 'text-indigo-300', icon: '💾' },
+                      { label: 'Remaining', value: `${remainingMB} MB`, color: 'text-emerald-400', icon: '✅' },
+                      { label: 'Status', value: statusLabel, color: usedPct >= 90 ? 'text-rose-400' : usedPct >= 70 ? 'text-amber-400' : 'text-emerald-400', icon: '' },
+                      { label: 'Managers (rows)', value: storageInfo.row_count.toString(), color: 'text-blue-300', icon: '👥' },
+                      { label: 'Table Size', value: storageInfo.table_size_pretty, color: 'text-purple-300', icon: '📊' },
+                      { label: 'Avg Row Size', value: `${Math.round(storageInfo.avg_row_size_bytes / 1024)} KB`, color: 'text-amber-300', icon: '📦' },
+                    ].map(item => (
+                      <div key={item.label} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-3">
+                        <p className="text-slate-500 font-black uppercase tracking-wider text-[10px] mb-1">{item.icon} {item.label}</p>
+                        <p className={`font-black text-base ${item.color}`}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Upgrade warning if needed */}
+                  {usedPct >= 70 && (
+                    <div className={`rounded-2xl border p-3 flex items-start gap-3 ${usedPct >= 90 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                      <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${usedPct >= 90 ? 'text-rose-400' : 'text-amber-400'}`} />
+                      <div>
+                        <p className={`font-black text-[12px] ${usedPct >= 90 ? 'text-rose-300' : 'text-amber-300'}`}>
+                          {usedPct >= 90 ? 'Storage critical! Supabase Pro plan upgrade karein.' : 'Storage 70% se zyada. Monitor karte rahein.'}
+                        </p>
+                        <p className="text-slate-500 text-[11px] mt-0.5">Supabase Pro: $25/mo — 8 GB database included</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })() : (
+              <div className="text-center py-4 text-slate-500 text-sm">Storage info load nahi ho saka.</div>
+            )}
+          </div>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <h3 className="font-black text-white text-[13px] flex items-center gap-2"><Server className="w-4 h-4 text-indigo-400" /> Database Stats</h3>
               <div className="flex gap-2">
