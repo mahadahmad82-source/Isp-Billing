@@ -34,6 +34,7 @@ import RouteSheet from './components/RouteSheet';
 import MonthlyInvoice from './components/MonthlyInvoice';
 import CustomerPortal from './components/CustomerPortal';
 import LandingPage from './components/LandingPage';
+import TermsAndPolicy from './components/TermsAndPolicy';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingTour from './components/OnboardingTour';
@@ -1141,6 +1142,7 @@ const App: React.FC = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/portal" element={<CustomerPortal />} />
+            <Route path="/terms" element={<TermsAndPolicy onBack={() => window.history.back()} />} />
             <Route path="*" element={
               showLanding ? (
                 <LandingPage 
