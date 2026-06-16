@@ -84,6 +84,18 @@ const DEFAULT_SUB: SubscriptionInfo = {
   loading: true,
 };
 
+// Maps admin panel's status+plan columns → PlanTier
+function deriveTier(status: string, plan: string): PlanTier {
+  if (status === 'trial') return 'trial';
+  if (status === 'locked' || status === 'expired') return 'suspended';
+  if (status === 'active') {
+    if (plan === 'pro' || plan === 'enterprise') return 'pro';
+    if (plan === 'business') return 'business';
+    return 'starter';
+  }
+  return 'trial';
+}
+
 export function useSubscription(managerId: string | null): SubscriptionInfo {
   const [info, setInfo] = useState<SubscriptionInfo>(DEFAULT_SUB);
 
@@ -102,19 +114,23 @@ export function useSubscription(managerId: string | null): SubscriptionInfo {
           .single();
 
         if (error || !data) {
-          // No row = auto-trial
+          // No row = auto-trial (30 days)
           setInfo({
             ...DEFAULT_SUB, managerId, tier: 'trial', loading: false,
-            trialExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            daysLeftInTrial: 90, isActive: true,
+            trialExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            daysLeftInTrial: 30, isActive: true,
           });
           return;
         }
 
         const now = new Date();
-        const trialExpires = data.trial_expires_at ? new Date(data.trial_expires_at) : null;
+        // Admin panel writes: status, plan, trial_ends_at
+        const status = (data.status as string) || 'trial';
+        const plan = (data.plan as string) || 'starter';
+        const trialExpires = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
         const planExpires = data.plan_expires_at ? new Date(data.plan_expires_at) : null;
-        const tier = data.plan_tier as PlanTier;
+
+        const tier = deriveTier(status, plan);
 
         const isTrialExpired = tier === 'trial' && trialExpires ? trialExpires < now : false;
         const daysLeftInTrial = trialExpires
@@ -122,12 +138,12 @@ export function useSubscription(managerId: string | null): SubscriptionInfo {
           : 0;
 
         const isActive = tier !== 'suspended' && !isTrialExpired;
-
-        const features = TIER_FEATURES[isTrialExpired ? 'starter' : tier];
+        const effectiveTier: PlanTier = isTrialExpired ? 'starter' : tier;
+        const features = TIER_FEATURES[effectiveTier];
 
         setInfo({
           managerId,
-          tier: isTrialExpired ? 'starter' : tier,
+          tier: effectiveTier,
           trialExpiresAt: trialExpires,
           planExpiresAt: planExpires,
           customerLimit: data.customer_limit ?? features.customerLimit,
