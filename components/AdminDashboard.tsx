@@ -298,15 +298,25 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   };
 
   const handleDelete = async (username: string) => {
-    setManagers(prev => prev.filter(m => m.username !== username));
     setShowDeleteConfirm(null); setDeleteConfirmText('');
-    try { await supabase.rpc('admin_delete_manager', { p_username: username }); } catch { }
-    const { error: delError } = await supabase.from('manager_data').delete().eq('manager_id', username);
-    if (delError) { console.error('Delete error:', delError.message); }
-    try { await supabase.from('manager_subscriptions').delete().eq('manager_id', username); } catch { }
+    try {
+      // RPC handles: manager_data + manager_subscriptions + auth.users cleanup
+      const { data: rpcResult } = await supabase.rpc('admin_delete_manager', { p_username: username });
+      if (rpcResult && !rpcResult.success) {
+        // RPC failed — fallback: direct deletes
+        await supabase.from('manager_data').delete().eq('manager_id', username);
+        await supabase.from('manager_subscriptions').delete().eq('manager_id', username);
+      }
+    } catch {
+      // Final fallback
+      await supabase.from('manager_data').delete().eq('manager_id', username);
+      await supabase.from('manager_subscriptions').delete().eq('manager_id', username);
+    }
+    // Clean up local state
     removeAccount(username);
     localStorage.removeItem(`myisp_data_${username}`);
-    await loadManagers();
+    // Remove from UI immediately
+    setManagers(prev => prev.filter(m => m.username !== username));
   };
 
   const handleReset = async () => {
