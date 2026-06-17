@@ -1,39 +1,94 @@
-// api/webhook.ts — Ayesha Bot v5 | MahadNet WhatsApp Support
+// api/webhook.ts — Ayesha Bot v6 | MahadNet WhatsApp Support
+// Dynamic packages from Supabase + Router catalog with images + session state
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_ayesha_bot';
+const IMG_BASE = 'https://raw.githubusercontent.com/mahadahmad82-source/Isp-Billing/main/public/whatsapp-images';
 
 // ══════════════════════════════════════════════════════
-// ⚙️  MAHADNET CONFIG — Update karo apni info ke mutabiq
+// ⚙️  MAHADNET CONFIG
 // ══════════════════════════════════════════════════════
 const CONFIG = {
   businessName: 'MahadNet',
   supportNumber: '0304-2773453',
   ownerName: 'Mahad',
 
-  packages: [
-    { name: 'Basic',    speed: '10 Mbps',  price: 1500,  details: 'Ghar ke regular use ke liye best' },
-    { name: 'Standard', speed: '20 Mbps',  price: 2500,  details: 'Work from home aur HD streaming' },
-    { name: 'Premium',  speed: '50 Mbps',  price: 4000,  details: 'Gaming + multiple devices' },
-    { name: 'Ultra',    speed: '100 Mbps', price: 6500,  details: 'Office aur heavy users ke liye' },
-  ],
+  fiberInfo: `🌐 *Naya Fiber Connection*
 
-  routers: [
-    { model: 'TP-Link TL-WR841N', speed: '300 Mbps WiFi', price: 2500,  best: 'Basic package' },
-    { model: 'Tenda F3',          speed: '300 Mbps WiFi', price: 2200,  best: 'Budget choice' },
-    { model: 'TP-Link Archer C6', speed: 'AC1200 Dual Band', price: 5500, best: 'Standard/Premium' },
-    { model: 'TP-Link Archer AX23', speed: 'WiFi 6 AX1800', price: 9500, best: 'Ultra package' },
-  ],
+✅ *Installation FREE hai!*
+Sirf yeh chahiye aap ke paas:
+• Fiber Optic ONU/Router (GPON device)
+• Fiber patch cord
 
-  fiberInfo: `🌐 *MahadNet Fiber Connection:*
-• Pure Fiber Optic cable ghar tak
-• No speed drop during peak hours
-• 99.9% uptime guarantee
-• Free installation (limited areas)
-• 1 mahina free trial available
+Agar yeh nahi hai aap ke paas, koi masla nahi — hum se naya router purchase kar sakte hain! Router dekhne ke liye *"router"* likh kar bhejein. 📡
 
-📍 Coverage: Apna area batain, main check karti hoon!`,
+📍 Apna area batain, coverage check karke confirm karti hoon!`,
+
+  routers: {
+    '2.4g': [
+      {
+        model: 'GS3101',
+        company: 'China Mobile',
+        band: '2.4GHz Single Band',
+        price: 3000,
+        image: `${IMG_BASE}/gs3101.jpg`,
+        specs: `📡 *GS3101 — China Mobile*
+💰 Price: Rs. 3,000
+
+🔧 *Specs:*
+• Chipset: EcoNet EN7526F @ 900MHz
+• Memory: 256MB RAM + 256MB Flash
+• Ports: 1x Gigabit + 3x Fast Ethernet
+• Fiber: GPON/EPON auto-detect
+• WiFi: 2.4GHz (802.11 b/g/n)
+• Extra: 1x VoIP port + 1x USB 2.0
+
+📶 *Range:* 1-2 rooms (30-40 feet), 1 deewar cross karta hai achi tarah
+✅ *Best for:* Budget-friendly, single room/small space use, stable connection`,
+      },
+      {
+        model: 'HG8546M',
+        company: 'Huawei EchoLife',
+        band: '2.4GHz Single Band',
+        price: 3500,
+        image: `${IMG_BASE}/huawei-hg8546m.jpg`,
+        specs: `📡 *Huawei EchoLife HG8546M*
+💰 Price: Rs. 3,500
+
+🔧 *Specs:*
+• PON: XPON (GPON/EPON adaptive)
+• Ports: 1x Gigabit + 3x Fast Ethernet
+• WiFi: 2.4GHz only (802.11 b/g/n, 2x2 MIMO)
+• Antennas: 2x External (5dBi)
+• Extra: 1x Telephone port + 1x USB 2.0
+
+📶 *Range:* Open space mein 60-80 feet, indoor 1 deewar easily, 2+ deewaron ke baad weak
+✅ *Best for:* 10 marla ghar ka 1 floor (center mein lagayein)`,
+      },
+    ],
+    '5g': [
+      {
+        model: 'Q2 Dual Band',
+        company: 'Huawei',
+        band: '5GHz + 2.4GHz Dual Band',
+        price: 6000,
+        image: `${IMG_BASE}/huawei-q2.jpg`,
+        specs: `📡 *Huawei Q2 — Dual Band 5G*
+💰 Price: Rs. 6,000 _(Refurbished)_
+📦 Box mein: Router + Original Power Adapter
+
+🔧 *Specs:*
+• Dedicated Gigabit WAN — full speed, no drop
+• 5GHz Ultra-Speed WiFi — low ping, 4K streaming
+• Heavy bandwidth handling, 24/7 use
+• 64 devices ek sath connect ho sakte hain
+
+📶 *Range:* Moti deewaron ke through bhi 50-80 feet — 2-3 kamron ya pure medium flat ke liye perfect
+✅ *Best for:* Gaming, multiple devices, bara ghar/flat`,
+      },
+    ],
+  } as Record<string, Array<{ model: string; company: string; band: string; price: number; image: string; specs: string }>>,
 
   bankAccounts: `💳 *Payment Options:*
 
@@ -70,6 +125,7 @@ async function findCustomer(from: string) {
     const rows: any[] = await res.json();
 
     for (const row of rows) {
+      if (row.manager_id === '_bot_sessions') continue;
       const users: any[] = row.data?.users || [];
       const user = users.find((u: any) =>
         u && u.status !== 'deleted' &&
@@ -80,13 +136,26 @@ async function findCustomer(from: string) {
           .filter((r: any) => r.userId === user.id && r.status === 'Success')
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, 5);
+        const planPrices: Record<string, number> = row.data?.settings?.planPrices || {};
         console.log(`✅ Customer found: ${user.name} | bal=${user.balance}`);
-        return { managerId: row.manager_id, rowData: row.data, user, receipts };
+        return { managerId: row.manager_id, rowData: row.data, user, receipts, planPrices };
       }
     }
     console.log(`⚠️ No customer for: ${norm}`);
   } catch (e: any) { console.error('[findCustomer]', e?.message); }
   return null;
+}
+
+// Get planPrices from ANY manager (used when sender isn't a known customer yet)
+async function getAnyPlanPrices(): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.mahadnet`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    if (rows?.[0]?.data?.settings?.planPrices) return rows[0].data.settings.planPrices;
+  } catch (e: any) { console.error('[getAnyPlanPrices]', e?.message); }
+  return {};
 }
 
 async function saveComplaint(managerId: string, rowData: any, user: any, issue: string) {
@@ -111,6 +180,45 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
   return ticketId;
 }
 
+// ── Lightweight session state (for 2.4G/5G sub-menu) ──────────────────────────
+async function getSession(phone: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    const sessions = rows?.[0]?.data?.sessions || {};
+    return sessions[phone]?.state || null;
+  } catch (e: any) { console.error('[getSession]', e?.message); return null; }
+}
+
+async function setSession(phone: string, state: string | null) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    const existing = rows?.[0]?.data || { sessions: {} };
+    const sessions = existing.sessions || {};
+    if (state) sessions[phone] = { state, ts: Date.now() };
+    else delete sessions[phone];
+
+    if (rows?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ data: { ...existing, sessions } }),
+      });
+    } else {
+      await fetch(`${SUPABASE_URL}/rest/v1/manager_data`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ manager_id: '_bot_sessions', data: { sessions } }),
+      });
+    }
+  } catch (e: any) { console.error('[setSession]', e?.message); }
+}
+
 // ══════════════════════════════════════════════════════
 // 🧠 INTENT DETECTION
 // ══════════════════════════════════════════════════════
@@ -118,25 +226,32 @@ type Intent =
   | 'greeting' | 'menu_complaint' | 'menu_bill' | 'menu_payment'
   | 'menu_expiry' | 'menu_new_conn' | 'menu_packages'
   | 'complaint' | 'bill' | 'payment_how' | 'payment_history'
-  | 'expiry' | 'new_conn' | 'packages' | 'router_info' | 'personal';
+  | 'expiry' | 'new_conn' | 'packages' | 'router_info'
+  | 'router_24g' | 'router_5g' | 'personal';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
 
-  // Numbered menu responses
-  if (/^1$|^one$/.test(t)) return 'menu_complaint';
-  if (/^2$|^two$/.test(t)) return 'menu_bill';
-  if (/^3$|^three$/.test(t)) return 'menu_payment';
-  if (/^4$|^four$/.test(t)) return 'menu_expiry';
-  if (/^5$|^five$/.test(t)) return 'menu_new_conn';
-  if (/^6$|^six$/.test(t)) return 'menu_packages';
+  // Router band selection (checked first — works regardless of session)
+  if (/^1$|2\.?4\s*g(hz)?|single\s*band/.test(t) && /\b(2\.?4|g(hz)?|single)\b/.test(t)) {
+    // handled separately with session check
+  }
+  if (/2\.?4\s*g(hz)?|single\s*band/.test(t)) return 'router_24g';
+  if (/\b5\s*g(hz)?\b|dual\s*band/.test(t)) return 'router_5g';
+
+  // Numbered main menu
+  if (/^1$/.test(t)) return 'menu_complaint';
+  if (/^2$/.test(t)) return 'menu_bill';
+  if (/^3$/.test(t)) return 'menu_payment';
+  if (/^4$/.test(t)) return 'menu_expiry';
+  if (/^5$/.test(t)) return 'menu_new_conn';
+  if (/^6$/.test(t)) return 'menu_packages';
 
   // Greeting
   if (/^(as+ala+m+[\w\s]*|aoa|a\.?o\.?a\.?|salam+|hi+|hey+|hello+|good\s*(morning|evening|night|afternoon)|kya\s*hal|assalamu)/.test(t) && t.length < 60)
     return 'greeting';
 
-  // Specific intents
-  if (/router|device|modem|equipment|hardware/.test(t)) return 'router_info';
+  if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
   if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps|fiber/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
   if (/kese\s*pay|kaise\s*pay|payment\s*kaise|kahan\s*pay|account\s*num|bank\s*detail|easypaisa|jazzcash|nayapay|transfer/.test(t)) return 'payment_how';
@@ -149,13 +264,13 @@ function detectIntent(text: string): Intent {
 }
 
 // ══════════════════════════════════════════════════════
-// 💬 STATIC REPLY BUILDERS (No AI needed)
+// 💬 STATIC REPLY BUILDERS
 // ══════════════════════════════════════════════════════
 
 function welcomeMenu(name?: string): string {
   const greet = name
     ? `Walaikum Assalam, *${name}*! 😊`
-    : `Walaikum Assalam! 😊 MahadNet Support mein aap ka swaagat hai!`;
+    : `Walaikum Assalam! 😊 MahadNet Support mein khushamdeed!`;
   return `${greet}
 
 Main *Ayesha* hoon, aap ki dedicated support executive.
@@ -234,20 +349,22 @@ Renewal ke liye payment karein aur screenshot bhejein!
 Bank details chahiye? *"3"* likh kar bhejein 😊`;
 }
 
-function packagesReply(): string {
-  const pkgList = CONFIG.packages.map(p =>
-    `📦 *${p.name}* — ${p.speed}\n   💰 Rs. ${p.price.toLocaleString()}/month\n   ✅ ${p.details}`
-  ).join('\n\n');
+function packagesReply(planPrices: Record<string, number>): string {
+  const entries = Object.entries(planPrices || {});
+  const pkgList = entries.length
+    ? entries.map(([name, price]) => `📦 *${name}* — Rs. ${price.toLocaleString()}/month`).join('\n')
+    : `📦 Hamare packages ki updated list ${CONFIG.ownerName} bhai se confirm karein: *${CONFIG.supportNumber}*`;
 
-  return `MahadNet ke *Internet Packages* 🌐\n\n${pkgList}\n\n${CONFIG.fiberInfo}\n\nPackage choose karna hai? Ya naya connection chahiye? Batain! 😊`;
+  return `MahadNet ke *Internet Packages* 🌐\n\n${pkgList}\n\n${CONFIG.fiberInfo}\n\nRouter dekhna hai? Likhein *"router"* 📡`;
 }
 
-function routerReply(): string {
-  const list = CONFIG.routers.map(r =>
-    `🔌 *${r.model}*\n   📶 ${r.speed}\n   💰 Rs. ${r.price.toLocaleString()}\n   ✅ Best for: ${r.best}`
-  ).join('\n\n');
+function routerChoicePrompt(): string {
+  return `Router ke 2 types available hain MahadNet pe 📡
 
-  return `*Available Routers — MahadNet* 📡\n\n${list}\n\n_Router ke sath package bhi lena hai? Apna area batain — main check karti hoon coverage! 😊_`;
+1️⃣  *2.4G* — Single band, budget-friendly, chhoti space ke liye
+2️⃣  *5G* — Dual band, fast speed, bara coverage
+
+Likhein *"2.4G"* ya *"5G"* — main detail bhej deti hoon! 😊`;
 }
 
 function newConnReply(): string {
@@ -258,7 +375,6 @@ Naya connection ke liye bas yeh 3 cheezein batain:
 1️⃣ *Aap ka naam*
 2️⃣ *Area / Mohalla / Gali*
 3️⃣ *Package preference*
-   (10 Mbps / 20 Mbps / 50 Mbps / 100 Mbps)
 
 Packages dekhne hain? *"6"* likh kar bhejein 📦
 
@@ -320,9 +436,9 @@ Koi sawaal? Call karein: *${CONFIG.supportNumber}* 🙏`;
 }
 
 // ══════════════════════════════════════════════════════
-// 🤖 GROQ (Sirf complex/open-ended queries ke liye)
+// 🤖 GROQ (fallback for complex/open-ended queries)
 // ══════════════════════════════════════════════════════
-async function askGroq(customerName: string | null, customerData: string, userMessage: string): Promise<string> {
+async function askGroq(custData: string, userMessage: string): Promise<string> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('No GROQ key');
 
@@ -334,18 +450,11 @@ dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | s
 
 SAHI WORDS: shukriya, haan ji, acha, theek hai, bilkul, zaroor, foran, masla, hal, batao, dekhti hoon, chalo
 
-BANNED PHRASES (har reply mein same nahi aana chahiye):
-- "aray bura laga" — BAND
-- "sun ke bura hua" — BAND  
-- "main aap ki madad ke liye haazir hoon" — BAND
-- Har reply alag honi chahiye
+BANNED PHRASES: "aray bura laga", "sun ke bura hua", "main aap ki madad ke liye haazir hoon" — har reply alag honi chahiye, repeat nahi.
 
-TONE: Warm, caring, human. Jaise ek real office support girl baat kar rahi ho.
-- Short replies — max 4-5 lines
-- 1-2 emoji max
-- Kabhi "As an AI" ya "I'm a bot" mat kaho
+TONE: Warm, caring, human — ek real office support girl. Short replies, max 4-5 lines, 1-2 emoji max. Kabhi "AI" ya "bot" mat kaho.
 
-CUSTOMER INFO: ${customerData}
+CUSTOMER INFO: ${custData}
 COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -353,10 +462,7 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'llama-3.1-8b-instant',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userMessage },
-      ],
+      messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
       temperature: 0.8,
       max_tokens: 350,
     }),
@@ -383,16 +489,41 @@ async function sendText(to: string, body: string) {
       body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body } }),
     });
     const d = await r.json();
-    if (!r.ok) console.error('❌ Meta:', JSON.stringify(d).slice(0, 200));
-    else console.log('✅ Sent to', to);
+    if (!r.ok) console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200));
   } catch (e: any) { console.error('❌ sendText:', e?.message); }
+}
+
+async function sendImage(to: string, imageUrl: string, caption: string) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const pid   = process.env.PHONE_NUMBER_ID;
+  if (!token || !pid) return;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp', to, type: 'image',
+        image: { link: imageUrl, caption },
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) console.error('❌ Meta image:', JSON.stringify(d).slice(0, 200));
+  } catch (e: any) { console.error('❌ sendImage:', e?.message); }
+}
+
+async function sendRouterCatalog(to: string, band: '2.4g' | '5g') {
+  const list = CONFIG.routers[band];
+  for (const r of list) {
+    await sendImage(to, r.image, `${r.model} — ${r.company}`);
+    await sendText(to, r.specs);
+  }
+  await sendText(to, `Koi router pasand aaya? Order ke liye batain ya call karein: *${CONFIG.supportNumber}* 😊`);
 }
 
 // ══════════════════════════════════════════════════════
 // 🚀 MAIN HANDLER
 // ══════════════════════════════════════════════════════
 export default async function handler(req: any, res: any) {
-  // Webhook verification
   if (req.method === 'GET') {
     const { 'hub.mode': mode, 'hub.verify_token': token, 'hub.challenge': challenge } = req.query;
     if (mode === 'subscribe' && token === VERIFY_TOKEN) return res.status(200).send(challenge);
@@ -411,38 +542,53 @@ export default async function handler(req: any, res: any) {
 
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
 
-      // ── Voice ──
       if (type === 'audio' || type === 'voice') {
         await sendText(from, `Assalam o Alaikum! 😊 Voice note mili — lekin main abhi audio process nahi kar sakti.\n\nApna masla text mein likhein ya call karein: *${CONFIG.supportNumber}* 📞`);
         continue;
       }
 
-      // ── Non-text ──
       if (type !== 'text' || !text) continue;
 
       const intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
 
-      // ── Greetings — always show welcome menu ──
+      // ── Greeting → menu (clear any pending session) ──
       if (intent === 'greeting') {
+        await setSession(from, null);
         const found = await findCustomer(from);
         await sendText(from, welcomeMenu(found?.user?.name));
         continue;
       }
 
-      // ── Menu number shortcuts (no DB needed) ──
+      // ── Router band selection ──
+      if (intent === 'router_24g') { await setSession(from, null); await sendRouterCatalog(from, '2.4g'); continue; }
+      if (intent === 'router_5g')  { await setSession(from, null); await sendRouterCatalog(from, '5g');   continue; }
+
+      // ── Router info request → show choice prompt ──
+      if (intent === 'router_info') {
+        await setSession(from, 'router_choice');
+        await sendText(from, routerChoicePrompt());
+        continue;
+      }
+
+      // ── Menu shortcuts (no DB needed) ──
       if (intent === 'menu_payment')  { await sendText(from, CONFIG.bankAccounts); continue; }
-      if (intent === 'menu_packages') { await sendText(from, packagesReply()); continue; }
       if (intent === 'menu_new_conn') { await sendText(from, newConnReply()); continue; }
-      if (intent === 'packages')      { await sendText(from, packagesReply()); continue; }
-      if (intent === 'router_info')   { await sendText(from, routerReply()); continue; }
       if (intent === 'new_conn')      { await sendText(from, newConnReply()); continue; }
       if (intent === 'payment_how')   { await sendText(from, CONFIG.bankAccounts); continue; }
+
+      if (intent === 'menu_packages' || intent === 'packages') {
+        const found = await findCustomer(from);
+        const planPrices = found?.planPrices && Object.keys(found.planPrices).length
+          ? found.planPrices
+          : await getAnyPlanPrices();
+        await sendText(from, packagesReply(planPrices));
+        continue;
+      }
 
       // ── DB required intents ──
       const found = await findCustomer(from);
 
-      // ── Menu numbers that need DB ──
       if (intent === 'menu_complaint') {
         if (!found) { await sendText(from, unknownCustomerReply()); continue; }
         await sendText(from, `Ji ${found.user.name}! Apna masla likhein — main abhi note kar leti hoon aur team ko bhejti hoon. 🛠️\n\nKya ho raha hai internet mein?`);
@@ -459,9 +605,7 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
-      // ── Direct intents with DB ──
       if (!found) {
-        // Could be personal contact
         if (intent === 'personal') { await sendText(from, personalReply()); continue; }
         await sendText(from, unknownCustomerReply());
         continue;
@@ -469,9 +613,9 @@ export default async function handler(req: any, res: any) {
 
       const { managerId, rowData, user, receipts } = found;
 
-      if (intent === 'bill')             { await sendText(from, billReply(user, receipts)); continue; }
-      if (intent === 'payment_history')  { await sendText(from, paymentHistoryReply(user, receipts)); continue; }
-      if (intent === 'expiry')           { await sendText(from, expiryReply(user)); continue; }
+      if (intent === 'bill')            { await sendText(from, billReply(user, receipts)); continue; }
+      if (intent === 'payment_history') { await sendText(from, paymentHistoryReply(user, receipts)); continue; }
+      if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
       if (intent === 'complaint') {
         const tid = await saveComplaint(managerId, rowData, user, text);
@@ -479,18 +623,14 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
-      if (intent === 'personal') {
-        await sendText(from, personalReply(user.name));
-        continue;
-      }
+      if (intent === 'personal') { await sendText(from, personalReply(user.name)); continue; }
 
-      // ── Fallback: ask Groq for anything complex ──
+      // ── Fallback: Groq for open-ended questions ──
       const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}`;
       try {
-        const reply = await askGroq(user.name, custData, text);
+        const reply = await askGroq(custData, text);
         await sendText(from, reply);
       } catch (e: any) {
-        console.error('Groq fallback failed:', e?.message);
         await sendText(from, `Ji ${user.name}! Is waqt thodi delay aa rahi hai.\nCall karein: *${CONFIG.supportNumber}* — main foran help karungi! 😊`);
       }
     }
