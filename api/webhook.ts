@@ -167,7 +167,7 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
   const priority = /urgent|emergency|2\s*din|3\s*din|kal\s*se|bilkul\s*nahi|completely/.test(t)
     ? 'high' : /slow|thoda|kabhi/.test(t) ? 'low' : 'medium';
   const ticketId = `WA-${Date.now()}`;
-  const complaints = [...(rowData.complaints || []), {
+  const complaintTickets = [...(rowData.complaintTickets || []), {
     id: ticketId, customerId: user.id, customerName: user.name,
     customerPhone: user.phone, title: `WA: ${issue.slice(0, 60)}`,
     description: issue, status: 'open', priority,
@@ -177,10 +177,10 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
     await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
       method: 'PATCH',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ data: { ...rowData, complaints } }),
+      body: JSON.stringify({ data: { ...rowData, complaintTickets } }),
     });
     console.log(`✅ Complaint saved: ${ticketId} (${priority})`);
-    await notifyManager(managerId, { ...rowData, complaints }, {
+    await notifyManager(managerId, { ...rowData, complaintTickets }, {
       title: '🛠️ Nayi Complaint (WhatsApp)',
       message: `${user.name}: ${issue.slice(0, 100)}`,
       priority: priority === 'high' ? 'HIGH' : priority === 'low' ? 'LOW' : 'MEDIUM',
@@ -347,10 +347,10 @@ function detectIntent(text: string): Intent {
 
   if (/password\s*(bhool|change|reset|nahi\s*yaad|pata\s*nahi|update)|wifi\s*ka\s*password|router\s*(ka\s*)?password|password\s*(kese|kaise)/.test(t)) return 'password_change';
   if (/coverage|area\s*cover|cover\s*hota|service\s*available|yaha\s*available|hamare\s*area|apke\s*area|hamara\s*area/.test(t)) return 'coverage';
+  if (/payment\s*(method|option|detail|info)|bank\s*(detail|account|number)|account\s*(number|detail|num)|kis\s*account|paisay?\s*(kaise|kahan|kese)|paise\s*(kaise|kahan|kese)|pay\s*(kese|kaise|kahan)|kese\s*pay|kaise\s*pay|kahan\s*pay|payment\s*kaise|easypaisa|jazzcash|nayapay|transfer|deposit\s*kahan|kahan\s*jama/.test(t)) return 'payment_how';
   if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
   if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps|fiber/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
-  if (/kese\s*pay|kaise\s*pay|payment\s*kaise|kahan\s*pay|account\s*num|bank\s*detail|easypaisa|jazzcash|nayapay|transfer/.test(t)) return 'payment_how';
   if (/expir|khatam|kab\s*band|band\s*hoga|kitne\s*din|end\s*date/.test(t)) return 'expiry';
   if (/complaint|shikayat|internet\s*(nahi|band|slow|down|problem)|net\s*(nahi|band|slow|down)|speed\s*(slow|kam)|wifi\s*(nahi|band)|masla|issue|kharab|chal\s*nahi|nahi\s*chal/.test(t)) return 'complaint';
   if (/bill|balance|dues|arrear|baqi|kitna\s*banta|kitna\s*hai|monthly|fees?/.test(t)) return 'bill';
@@ -834,9 +834,9 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
-      if (intent === 'personal') { await sendText(from, personalReply(user.name)); continue; }
-
-      // ── Fallback: Groq for open-ended questions (human-like, on-topic aware) ──
+      // ── Fallback: Groq for everything else (personal chat, open-ended, off-topic) ──
+      // 'personal' is the catch-all intent — route it to Groq instead of a canned reply,
+      // so the bot actually thinks instead of just refusing with "Mahad bhai available nahi".
       const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}`;
       try {
         const result = await askGroq(custData, text);
