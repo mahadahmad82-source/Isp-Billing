@@ -346,10 +346,21 @@ type Intent =
   | 'complaint' | 'bill' | 'payment_how' | 'payment_history'
   | 'expiry' | 'new_conn' | 'packages' | 'router_info' | 'fiber_info'
   | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
-  | 'password_change' | 'coverage';
+  | 'password_change' | 'coverage' | 'thanks' | 'bot_identity'
+  | 'panel_issue' | 'router_recommend';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
+
+  // Gratitude / closing remarks — checked FIRST so "thanks"/"shukriya"/"mehrbani" never
+  // falls through to the Groq off-topic fallback and gets stuck repeating "note ho gaya hai".
+  if (/^(thanks?|thank\s*you|thank\s*u|thnx|ty|tysm|shukriya|shukran|shukar(i+ya?)?a?|mehrbani|meherbani|bohot\s*shukriya|ji\s*shukriya|ok\s*thanks|okay\s*thanks|great\s*thanks)\b/.test(t) && t.length < 40)
+    return 'thanks';
+
+  // "What's your name / who are you" — answered with a fixed, correctly-gendered reply
+  // instead of leaving it to the LLM (which sometimes slipped into Hindi/male grammar).
+  if (/(aap|ap|tum|tu)\s*(ka|ki)?\s*na+m\s*(kya|kiya)\s*hai|tumhara\s*na+m|aap\s*kaun\s*hai|tum\s*kaun\s*ho|who\s*are\s*you|what'?s?\s*(is\s*)?your\s*name|(ap|aap|tum)\s*kya\s*kar(ti|te)?\s*ho?n?|(ap|aap|tum)\s*kya\s*kar(ti)?\s*hai/.test(t))
+    return 'bot_identity';
 
   // Router band selection (checked first — works regardless of session)
   if (/2\.?4\s*g(hz)?|single\s*band/.test(t)) return 'router_24g';
@@ -368,23 +379,99 @@ function detectIntent(text: string): Intent {
   if (/^(as+ala+m+[\w\s]*|aoa|a\.?o\.?a\.?|salam+|hi+|hey+|hello+|good\s*(morning|evening|night|afternoon)|kya\s*hal|assalamu)/.test(t) && t.length < 60)
     return 'greeting';
 
+  // Router/device control-panel or login trouble (e.g. "192.168.1.1 open nahi horaha") —
+  // checked BEFORE the generic router_info catch-all so it isn't misread as a buying inquiry.
+  if (/(192\.168|control\s*panel|admin\s*panel|device\s*(ka\s*)?panel|router\s*panel|login\s*page)/.test(t) && /nahi|na\s*ho|problem|nahi\s*khul|nahi\s*hot/.test(t))
+    return 'panel_issue';
+
   if (/password\s*(bhool|change|reset|nahi\s*yaad|pata\s*nahi|update)|wifi\s*ka\s*password|router\s*(ka\s*)?password|password\s*(kese|kaise)/.test(t)) return 'password_change';
   if (/coverage|area\s*cover|cover\s*hota|service\s*available|yaha\s*available|hamare\s*area|apke\s*area|hamara\s*area/.test(t)) return 'coverage';
-  // Activation / recharge / renewal — checked before generic packages/pricing
-  if (/activat|reactivat|recharge|chalu\s*kar|continue\s*kar(wa)?|dobara\s*chalu|package\s*(karwa|laga)|plan\s*(karwa|laga)/.test(t)) return 'recharge_request';
-  if (/payment\s*(method|option|detail|info)|bank\s*(detail|account|number)|account\s*(number|detail|num)|kis\s*account|paisay?\s*(kaise|kahan|kese)|paise\s*(kaise|kahan|kese)|pay\s*(kese|kaise|kahan)|kese\s*pay|kaise\s*pay|kahan\s*pay|payment\s*kaise|easypaisa|jazzcash|nayapay|transfer|deposit\s*kahan|kahan\s*jama/.test(t)) return 'payment_how';
+  // Activation / recharge / renewal — checked before generic packages/pricing.
+  // "activ\w*" now also catches plain "active" (e.g. "package active karwana hai"),
+  // not just "activate"/"activation".
+  if (/activ\w*|recharge|chalu\s*kar|continue\s*kar(wa)?|dobara\s*chalu|package\s*(karwa|laga)|plan\s*(karwa|laga)/.test(t)) return 'recharge_request';
+  if (/payment\s*(method|option|detail|info)|bank\s*(detail|account|number)|account\s*(number|detail|num|no)\b|kis\s*account|paisay?\s*(kaise|kahan|kese)|paise\s*(kaise|kahan|kese)|pay\s*(kese|kaise|kahan)|kese\s*pay|kaise\s*pay|kahan\s*pay|payment\s*kaise|easypaisa|jazzcash|nayapay|transfer|deposit\s*kahan|kahan\s*jama/.test(t)) return 'payment_how';
   // Fiber info — checked before generic "router_info"/"packages" since both regexes would otherwise catch "fiber"
   if (/^fiber$/.test(t) || /fiber\s*(connection|install|lagwa|chahiye|info|detail|charges?|home|to\s*home)/.test(t)) return 'fiber_info';
+
+  // Router recommendation by package speed — e.g. "15 to 20mb ke liye konsa router acha hai"
+  if (/router|device|modem/.test(t) && /\d+\s*-?\s*\d*\s*mb(ps)?\b/.test(t)) return 'router_recommend';
+
   if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
   if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
   if (/expir|khatam|kab\s*band|band\s*hoga|kitne\s*din|end\s*date/.test(t)) return 'expiry';
-  // Complaint — loosened spacing (`.{0,15}`) so phrases like "internet bhut slow" still match
-  if (/complaint|shikayat|internet.{0,15}(nahi|band|slow|down|problem)|net.{0,12}(nahi|band|slow|down)|speed.{0,12}(slow|kam)|wifi.{0,12}(nahi|band)|masla|issue|kharab|chal\s*nahi|nahi\s*chal|atak\s*raha|ruk\s*ja(ta|ya)|buffer/.test(t)) return 'complaint';
+
+  // Complaint — symptom described directly (e.g. "internet bhut slow") → register right away.
+  if (/internet.{0,15}(nahi|band|slow|down|problem)|net.{0,12}(nahi|band|slow|down)|speed.{0,12}(slow|kam)|wifi.{0,12}(nahi|band)|kharab|chal\s*nahi|nahi\s*chal|atak\s*raha|ruk\s*ja(ta|ya)|buffer/.test(t)) return 'complaint';
+  // Vague complaint mention with NO symptom yet (e.g. "mujhe complain karni hai") → ask what's
+  // wrong first, same as the numbered-menu flow, instead of registering a blank ticket.
+  if (/\bcomplain(t)?\b|\bshikayat\b|\bmasla\b|\bissue\b/.test(t)) return 'menu_complaint';
+
   if (/bill|balance|dues|arrear|baqi|kitna\s*banta|kitna\s*hai|monthly|fees?/.test(t)) return 'bill';
-  if (/nay[ai]\s*conn|new\s*conn|install|lagwana|connection\s*chahiye|naya\s*lena/.test(t)) return 'new_conn';
+  // "lagwana" now matches even when typed with a stray space ("lag wana"), plus a few more phrasings.
+  if (/nay[ai]\s*conn|new\s*conn|install|lag\s*wa|lagwa|lagana|connection\s*(chahiye|laga|lagana)|naya\s*lena|naya\s*connection/.test(t)) return 'new_conn';
 
   return 'personal';
+}
+
+// ── Small helpers for the deterministic (non-Groq) replies below ──────────────
+function isEnglishText(text: string): boolean {
+  const t = text.toLowerCase();
+  const urduMarkers = /\b(hai|hain|ka|ki|ke|kya|kyun|mujhe|mujhy|ap|aap|tha|thi|raha|rahi|kar|wala|wali|chahiye|nahi|han|haan|bhai|acha|theek|zaroor|hoon|horaha)\b/;
+  return !urduMarkers.test(t);
+}
+
+const THANKS_REPLIES_UR = [
+  'Aap ka shukriya! 😊 Koi aur madad chahiye to zaroor batayen.',
+  'Khush rahein! 😊 Kabhi bhi zarurat ho to message kar dein.',
+  'Welcome! 🙏 Aur kisi masle mein madad chahiye to batayen.',
+  'Bilkul! Hum hamesha hazir hain madad ke liye. 😊',
+];
+const THANKS_REPLIES_EN = [
+  "You're welcome! 😊 Let me know if you need anything else.",
+  'Glad to help! Feel free to reach out anytime. 🙏',
+  'No problem at all! Happy to assist further if needed. 😊',
+];
+function thanksReply(text: string): string {
+  const pool = isEnglishText(text) ? THANKS_REPLIES_EN : THANKS_REPLIES_UR;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function botIdentityReply(text: string): string {
+  return isEnglishText(text)
+    ? `I'm Ayesha, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`
+    : `Main Ayesha hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`;
+}
+
+function panelIssueReply(): string {
+  return `Samajh gayi! 😊 Aksar yeh issue tab hota hai jab device WiFi se connect na ho ya browser purana page yaad rakh leta hai.
+
+1️⃣ Mobile/laptop ka mobile data band kar dein, sirf router ke WiFi se connect rahein
+2️⃣ Browser band karke dobara kholein aur *192.168.1.1* try karein
+3️⃣ Kabhi kabhi address *192.168.100.1* hota hai — yeh bhi try kar lein
+4️⃣ Router ko 30 second ke liye power se nikal kar dobara laga dein, phir try karein
+
+Phir bhi panel na khule to call karein: *${CONFIG.supportNumber}* — main guide karti hoon! 📞`;
+}
+
+function extractRouterRecommendMbps(text: string): number {
+  const matches = [...text.toLowerCase().matchAll(/(\d+)\s*mb(ps)?/g)];
+  if (!matches.length) return 0;
+  return Math.max(...matches.map((m) => parseInt(m[1], 10)));
+}
+
+function routerRecommendReply(mbps: number, english: boolean): string {
+  const band = mbps > 20 ? '5g' : '2.4g';
+  const mbpsLabel = mbps > 0 ? `${mbps}Mbps` : 'aap ke';
+  if (band === '2.4g') {
+    return english
+      ? `For a ${mbpsLabel} package, our *2.4G single-band router* is the perfect fit — budget-friendly and great for smaller spaces. Sending you the specs now! 📡`
+      : `${mbpsLabel} package ke liye hamara *2.4G single band router* perfect rahega — budget-friendly aur chhoti space ke liye behtareen. Specs bhej rahi hoon! 📡`;
+  }
+  return english
+    ? `For a ${mbpsLabel} package, I'd recommend our *5G Dual Band Huawei Q2* router — it handles higher speed smoothly with wider coverage. Sending specs now! 📡`
+    : `${mbpsLabel} package ke liye main *5G Dual Band Huawei Q2* router recommend karungi — high speed achi tarah handle karta hai aur coverage bhi behtar deta hai. Specs bhej rahi hoon! 📡`;
 }
 
 // ══════════════════════════════════════════════════════
@@ -552,9 +639,11 @@ Naya connection ke liye bas yeh batain:
 
 Agar available nahi hai, koi masla nahi — hum se purchase kar sakte hain (fiber Rs. 30/meter, 2-core, length site visit pe measure hogi).
 
+✅ *Installation hamesha FREE hai* — sirf package ki monthly payment honi hoti hai!
+
 Packages dekhne hain? *"6"* likh kar bhejein 📦
 
-Yeh details milte hi team 24 ghante mein coverage check kar ke rabta karegi! 📡`;
+Yeh details milte hi team 1-2 ghante mein coverage check kar ke rabta karegi! 📡`;
 }
 
 function coverageReply(): string {
@@ -564,7 +653,7 @@ function coverageReply(): string {
 2️⃣ *Pura address / area*
 3️⃣ *Konsa package chahiye*
 
-Yeh milte hi coverage check kar ke 24 ghante mein confirm kar dengi! 📍`;
+Yeh milte hi coverage check kar ke 1-2 ghante mein confirm kar dengi! 📍`;
 }
 
 function routerPasswordGuide(modelInput: string): string {
@@ -669,15 +758,32 @@ async function askGroq(custData: string, userMessage: string): Promise<{ onTopic
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('No GROQ key');
 
-  const system = `Tu Ayesha hai — MahadNet ISP ki customer support executive. Ek real Pakistani larki ki tarah baat kar, AI ya bot bilkul mat lago.
+  const system = `Tu Ayesha hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha Ayesha, MahadNet ki support team ka hissa.
 
 LANGUAGE MATCHING (zaroori):
 - Agar customer pure English mein likhe, tum bhi professional English mein jawab do.
 - Agar customer Urdu/Roman Urdu mein likhe, tum sirf Roman Urdu mein jawab do.
 - Kabhi do zabanon ko mix mat karo ek hi reply mein.
 
-SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage) se related sawalon ka khud jawab do.
-Agar sawal in topics se bilkul mutaliq NAHI hai (jaise: jokes, siyasat, mazhab, Ayesha ke baray mein personal sawal, random chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur reply mein hamesha yeh matlab waala jumla do (alfaz har baar thore badal kar): "Aap ka message Mahad bhai ko note kar liya gaya hai, jald hi unke through pohcha diya jayega" — har dafa alag wording mein.
+FEMALE TONE — ZAROORI (Urdu replies mein, kabhi male/larko wale verb forms mat use karo):
+GHALAT (male) → SAHI (female):
+raha hoon → rahi hoon | karoon ga / karunga → karungi | doon ga / dunga → dungi
+loon ga / lunga → lungi | bhejoon ga → bhejungi | samajhta hoon → samajhti hoon
+rahunga → rahungi | sakta hoon → sakti hoon | tha → thi | hua tha → hui thi
+madad karta hoon → madad karti hoon | dekhta hoon → dekhti hoon
+
+SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage, payment) se related sawalon ka khud jawab do.
+Agar sawal in topics se bilkul mutaliq NAHI hai (jokes, siyasat, mazhab, Ayesha ke baray mein random/frank personal sawal, chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur politely maazrat karte hue redirect karo — har dafa alfaz badal kar, jese: "Maazrat chahti hoon, main sirf MahadNet ki internet services ke mutaliq baat kar sakti hoon 😊 Koi internet, bill ya package se related sawal ho to zaroor batayen." Kabhi yeh mat kaho ke "aap ka message note kar liya gaya hai / Mahad bhai tak pohcha diya jayega" jab tak masla wakai business-related ho — woh jumla sirf genuine business messages ke liye hai, casual chit-chat ke liye nahi.
+
+PAYMENT & COLLECTION GUIDANCE:
+- Agar customer bole ke abhi payment nahi kar sakta / thodi dair mein karega: usay assure karo ke Mahad bhai ko inform kar diya jayega, jab convenient ho payment kar dein, koi pressure nahi.
+- Agar customer bole ke online/bank/easypaisa se payment nahi ho sakti: usay batao ke hamara "recovery boy" ghar aa kar cash collect kar sakta hai — uska *username* aur *address* maango taake visit arrange ho sake.
+- Agar koi seedha "account number" ya "bank details" maange: foran bank account details share karo, ghuma phira kar baat mat karo ya "zarooratmand details" jese vague jawab mat do.
+- Naya connection ke liye installation hamesha *FREE* hai — sirf monthly package ki payment honi hoti hai. Yeh hamesha clear batao jab koi charges ke baare mein poochay.
+
+TIMING: Kabhi "24 ghante" jaisa lamba wada mat karo — "thodi dair" ya "1-2 ghante mein" kaho.
+
+ROUTER RECOMMENDATION: Agar koi package speed (Mbps) ke against router pochay — 20Mbps tak *2.4G single band* router refer karo, 20Mbps se zyada ke liye *5G Dual Band Huawei Q2* refer karo.
 
 TONE RULES (zaroori):
 - Cooperative aur warm raho lekin ziyada chamchagiri ya overpraise mat karo ("great question", "you're amazing" jese phrases mana hain)
@@ -687,7 +793,7 @@ TONE RULES (zaroori):
 
 LANGUAGE — SIRF PAKISTANI ROMAN URDU (jab Urdu mein jawab do):
 Hindi ke ye words BILKUL FORBIDDEN hain:
-dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | seva→khidmat | uplabdh→available | sunishchit→pakka | jankaari→baat | turant→foran | vyavastha→intezam | prayas→koshish | uttar→jawab | pradan→dena
+dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | seva→khidmat | uplabdh→available | sunishchit→pakka | jankaari→baat | turant→foran | vyavastha→intezam | prayas→koshish | uttar→jawab | pradan→dena | sahayata/sahyta→madad | vyakti→shaks | samay→waqt | yogdaan→hissa | nirdesh→hidayat | anurodh→darkhwast
 
 SAHI WORDS: shukriya, haan ji, acha, theek hai, bilkul, zaroor, foran, masla, hal, batao, dekhti hoon, chalo
 
@@ -803,7 +909,7 @@ export default async function handler(req: any, res: any) {
       const sessionObj = await getSession(from);
       const session = sessionObj?.state || null;
       const sessionData = sessionObj?.data || {};
-      const isOverrideCommand = intent === 'greeting' || /^[1-7]$/.test(text.trim());
+      const isOverrideCommand = intent === 'greeting' || intent === 'thanks' || intent === 'bot_identity' || /^[1-7]$/.test(text.trim());
 
       if (session && !isOverrideCommand) {
         if (session === 'lead_awaiting_details') {
@@ -815,10 +921,10 @@ export default async function handler(req: any, res: any) {
             const wantsFiber = /^(haan|han|ji\s*haan|yes|bilkul|theek|chahiye|sure|ok)/.test(t);
             if (wantsFiber) {
               await saveStrayLead(from, sessionData.priorNote || text, 'Fiber upgrade — interested');
-              await sendText(from, `${CONFIG.fiberInfo}\n\nAap ki interest note kar li hai, hamari team 24 ghante mein rabta karegi! 🙏`);
+              await sendText(from, `${CONFIG.fiberInfo}\n\nAap ki interest note kar li hai, hamari team 1-2 ghante mein rabta karegi! 🙏`);
             } else {
               await saveStrayLead(from, sessionData.priorNote || text, 'Apna existing router rakhna chahte hain — fiber upgrade se inkar');
-              await sendText(from, `Theek hai! 😊 Aap ki details note kar li hain — team 24 ghante mein contact karegi.`);
+              await sendText(from, `Theek hai! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.`);
             }
             continue;
           }
@@ -852,7 +958,7 @@ export default async function handler(req: any, res: any) {
           let offer = '';
           if (missingRouter) offer += `\n📡 Router chahiye? *"router"* likh kar bhejein, catalog bhej deti hoon!`;
           if (missingFiber) offer += `\n🌐 Fiber cable Rs. 30/meter (2-core) milta hai — installation ke waqt length measure ho jayegi.`;
-          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 24 ghante mein contact karegi.${offer}`);
+          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.${offer}`);
           continue;
         }
 
@@ -880,7 +986,7 @@ export default async function handler(req: any, res: any) {
         if (session === 'router_choice' && intent !== 'router_24g' && intent !== 'router_5g') {
           await setSession(from, null);
           await saveStrayLead(from, text, 'Router selection ke dauran area/masla bataya');
-          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 24 ghante mein contact karegi.\n\nRouter dekhna ho to *"2.4G"* ya *"5G"* likh kar bhejein. 📡`);
+          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.\n\nRouter dekhna ho to *"2.4G"* ya *"5G"* likh kar bhejein. 📡`);
           continue;
         }
 
@@ -936,6 +1042,25 @@ export default async function handler(req: any, res: any) {
         await setSession(from, null);
         const found = await findCustomer(from);
         await sendText(from, welcomeMenu(greetingSalutation(text), found?.user?.name));
+        continue;
+      }
+
+      // ── Gratitude / closing remark — quick natural reply, no Groq call, no notification spam ──
+      if (intent === 'thanks') { await sendText(from, thanksReply(text)); continue; }
+
+      // ── "What's your name / who are you" — fixed, correctly-gendered identity reply ──
+      if (intent === 'bot_identity') { await sendText(from, botIdentityReply(text)); continue; }
+
+      // ── Router/device control-panel or login trouble — troubleshooting, not a sales pitch ──
+      if (intent === 'panel_issue') { await setSession(from, null); await sendText(from, panelIssueReply()); continue; }
+
+      // ── Router recommendation based on package speed mentioned in the message ──
+      if (intent === 'router_recommend') {
+        await setSession(from, null);
+        const mbps = extractRouterRecommendMbps(text);
+        const band: '2.4g' | '5g' = mbps > 20 ? '5g' : '2.4g';
+        await sendText(from, routerRecommendReply(mbps, isEnglishText(text)));
+        await sendRouterCatalog(from, band);
         continue;
       }
 
@@ -1054,6 +1179,24 @@ export default async function handler(req: any, res: any) {
       try {
         const result = await askGroq(custData, text);
         await sendText(from, result.reply);
+
+        // Even though Groq's reply already addresses these conversationally, also flag them
+        // to Mahad bhai so a human can act (arrange a recovery visit, follow up on a delay, etc.)
+        const lowerText = text.toLowerCase();
+        if (/recovery\s*boy|cash\s*(de|len|dena|collect)|bank\s*account\s*nahi|online\s*payment\s*nahi|ghar\s*pe\s*aa\s*k|aa\s*k.{0,10}le\s*lo/.test(lowerText)) {
+          await notifyManager(managerId, rowData, {
+            title: '💵 Cash Collection Request (WhatsApp)',
+            message: `${user.name} (${from}) cash payment / recovery visit chahta hai: ${text.slice(0, 150)}`,
+            priority: 'MEDIUM',
+          });
+        }
+        if (/abhi\s*nahi\s*kar\s*sakta|paisay?\s*nahi\s*hai|baad\s*mein\s*kar\s*dunga|thodi\s*dair\s*mein\s*kar\s*doon|\budhar\b/.test(lowerText)) {
+          await notifyManager(managerId, rowData, {
+            title: '⏳ Payment Delay Request (WhatsApp)',
+            message: `${user.name} (${from}) abhi payment nahi kar sakta: ${text.slice(0, 150)}`,
+            priority: 'LOW',
+          });
+        }
         if (!result.onTopic) {
           await notifyManager(managerId, rowData, {
             title: '💬 Off-topic Message (WhatsApp)',
