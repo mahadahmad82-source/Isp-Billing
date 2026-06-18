@@ -237,19 +237,44 @@ async function saveLead(managerId: string, rowData: any, lead: { name: string; p
   return newLead.id;
 }
 
-// ── Lightweight session state (for 2.4G/5G sub-menu) ──────────────────────────
-async function getSession(phone: string): Promise<string | null> {
+// Saves any stray WhatsApp text as a new-connection lead against the main 'mahadnet' manager.
+async function saveStrayLead(from: string, text: string, note?: string) {
+  try {
+    const row = await getManagerRow('mahadnet');
+    if (!row) return;
+    await saveLead('mahadnet', row, {
+      name: 'WhatsApp Lead', phone: from, address: text.slice(0, 200),
+      note: note ? `${note} | ${text}` : text, source: 'WhatsApp Bot',
+    });
+    await notifyManager('mahadnet', row, {
+      title: '🆕 Naya Connection Lead (WhatsApp)',
+      message: `Number: ${from}\nDetails: ${text.slice(0, 150)}`,
+      priority: 'MEDIUM',
+    });
+  } catch (e: any) { console.error('[saveStrayLead]', e?.message); }
+}
+
+// Returns the currently active (unresolved) outage log for a manager, if any.
+function getActiveOutage(rowData: any): any | null {
+  const logs: any[] = rowData?.outageLogs || [];
+  const now = Date.now();
+  return logs.find((o: any) => !o.endTime || new Date(o.endTime).getTime() > now) || null;
+}
+
+// ── Lightweight session state (for slot-filling flows) ──────────────────────────
+async function getSession(phone: string): Promise<{ state: string; data?: any } | null> {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     const rows = await res.json();
     const sessions = rows?.[0]?.data?.sessions || {};
-    return sessions[phone]?.state || null;
+    const s = sessions[phone];
+    return s ? { state: s.state, data: s.data } : null;
   } catch (e: any) { console.error('[getSession]', e?.message); return null; }
 }
 
-async function setSession(phone: string, state: string | null) {
+async function setSession(phone: string, state: string | null, data?: any) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
@@ -257,7 +282,7 @@ async function setSession(phone: string, state: string | null) {
     const rows = await res.json();
     const existing = rows?.[0]?.data || { sessions: {} };
     const sessions = existing.sessions || {};
-    if (state) sessions[phone] = { state, ts: Date.now() };
+    if (state) sessions[phone] = { state, ts: Date.now(), data };
     else delete sessions[phone];
 
     if (rows?.length) {
@@ -317,19 +342,16 @@ async function markGreetedBefore(phone: string) {
 // ══════════════════════════════════════════════════════
 type Intent =
   | 'greeting' | 'menu_complaint' | 'menu_bill' | 'menu_payment'
-  | 'menu_expiry' | 'menu_new_conn' | 'menu_packages'
+  | 'menu_expiry' | 'menu_new_conn' | 'menu_packages' | 'menu_talk_owner'
   | 'complaint' | 'bill' | 'payment_how' | 'payment_history'
-  | 'expiry' | 'new_conn' | 'packages' | 'router_info'
-  | 'router_24g' | 'router_5g' | 'personal'
+  | 'expiry' | 'new_conn' | 'packages' | 'router_info' | 'fiber_info'
+  | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
   | 'password_change' | 'coverage';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
 
   // Router band selection (checked first — works regardless of session)
-  if (/^1$|2\.?4\s*g(hz)?|single\s*band/.test(t) && /\b(2\.?4|g(hz)?|single)\b/.test(t)) {
-    // handled separately with session check
-  }
   if (/2\.?4\s*g(hz)?|single\s*band/.test(t)) return 'router_24g';
   if (/\b5\s*g(hz)?\b|dual\s*band/.test(t)) return 'router_5g';
 
@@ -340,6 +362,7 @@ function detectIntent(text: string): Intent {
   if (/^4$/.test(t)) return 'menu_expiry';
   if (/^5$/.test(t)) return 'menu_new_conn';
   if (/^6$/.test(t)) return 'menu_packages';
+  if (/^7$/.test(t)) return 'menu_talk_owner';
 
   // Greeting
   if (/^(as+ala+m+[\w\s]*|aoa|a\.?o\.?a\.?|salam+|hi+|hey+|hello+|good\s*(morning|evening|night|afternoon)|kya\s*hal|assalamu)/.test(t) && t.length < 60)
@@ -347,12 +370,17 @@ function detectIntent(text: string): Intent {
 
   if (/password\s*(bhool|change|reset|nahi\s*yaad|pata\s*nahi|update)|wifi\s*ka\s*password|router\s*(ka\s*)?password|password\s*(kese|kaise)/.test(t)) return 'password_change';
   if (/coverage|area\s*cover|cover\s*hota|service\s*available|yaha\s*available|hamare\s*area|apke\s*area|hamara\s*area/.test(t)) return 'coverage';
+  // Activation / recharge / renewal — checked before generic packages/pricing
+  if (/activat|reactivat|recharge|chalu\s*kar|continue\s*kar(wa)?|dobara\s*chalu|package\s*(karwa|laga)|plan\s*(karwa|laga)/.test(t)) return 'recharge_request';
   if (/payment\s*(method|option|detail|info)|bank\s*(detail|account|number)|account\s*(number|detail|num)|kis\s*account|paisay?\s*(kaise|kahan|kese)|paise\s*(kaise|kahan|kese)|pay\s*(kese|kaise|kahan)|kese\s*pay|kaise\s*pay|kahan\s*pay|payment\s*kaise|easypaisa|jazzcash|nayapay|transfer|deposit\s*kahan|kahan\s*jama/.test(t)) return 'payment_how';
+  // Fiber info — checked before generic "router_info"/"packages" since both regexes would otherwise catch "fiber"
+  if (/^fiber$/.test(t) || /fiber\s*(connection|install|lagwa|chahiye|info|detail|charges?|home|to\s*home)/.test(t)) return 'fiber_info';
   if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
-  if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps|fiber/.test(t)) return 'packages';
+  if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
   if (/expir|khatam|kab\s*band|band\s*hoga|kitne\s*din|end\s*date/.test(t)) return 'expiry';
-  if (/complaint|shikayat|internet\s*(nahi|band|slow|down|problem)|net\s*(nahi|band|slow|down)|speed\s*(slow|kam)|wifi\s*(nahi|band)|masla|issue|kharab|chal\s*nahi|nahi\s*chal/.test(t)) return 'complaint';
+  // Complaint — loosened spacing (`.{0,15}`) so phrases like "internet bhut slow" still match
+  if (/complaint|shikayat|internet.{0,15}(nahi|band|slow|down|problem)|net.{0,12}(nahi|band|slow|down)|speed.{0,12}(slow|kam)|wifi.{0,12}(nahi|band)|masla|issue|kharab|chal\s*nahi|nahi\s*chal|atak\s*raha|ruk\s*ja(ta|ya)|buffer/.test(t)) return 'complaint';
   if (/bill|balance|dues|arrear|baqi|kitna\s*banta|kitna\s*hai|monthly|fees?/.test(t)) return 'bill';
   if (/nay[ai]\s*conn|new\s*conn|install|lagwana|connection\s*chahiye|naya\s*lena/.test(t)) return 'new_conn';
 
@@ -363,11 +391,26 @@ function detectIntent(text: string): Intent {
 // 💬 STATIC REPLY BUILDERS
 // ══════════════════════════════════════════════════════
 
-function welcomeMenu(name?: string, isFirstTime?: boolean): string {
+function greetingSalutation(text: string): string {
+  const t = text.trim().toLowerCase();
+  if (/^(as+ala+m+|aoa|a\.?o\.?a\.?|salam+|assalamu)/.test(t)) return 'Walaikum Assalam';
+  if (/^good\s*morning/.test(t)) return 'Good Morning';
+  if (/^good\s*afternoon/.test(t)) return 'Good Afternoon';
+  if (/^good\s*evening/.test(t)) return 'Good Evening';
+  if (/^good\s*night/.test(t)) return 'Good Night';
+  return 'Hello';
+}
+
+function extractMbps(planName: string): number {
+  const m = planName.match(/(\d+)\s*mb?ps/i) || planName.match(/(\d+)\s*mb\b/i) || planName.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 999999;
+}
+
+function welcomeMenu(salutation: string, name?: string): string {
   const greet = name
-    ? `Walaikum Assalam, *${name}*! 😊`
-    : `Walaikum Assalam! 😊 MahadNet Support mein khushamdeed!`;
-  const intro = isFirstTime ? `\n\nMain *Ayesha* hoon, aap ki dedicated support executive.` : '';
+    ? `${salutation}, *${name}*! 😊`
+    : `${salutation}! 😊 MahadNet Support mein khushamdeed!`;
+  const intro = `\n\nMain *Ayesha* hoon, aap ki dedicated support executive.`;
   return `${greet}${intro}
 
 Aap kis cheez mein madad chahte hain? Neeche se option chunein:
@@ -378,6 +421,7 @@ Aap kis cheez mein madad chahte hain? Neeche se option chunein:
 4️⃣  Package Expiry Date
 5️⃣  Naya Connection
 6️⃣  Packages, Pricing & Routers
+7️⃣  Mahad Bhai se Baat Karein
 
 Bas number likh kar bhej dein ya seedha apna masla bataein! 🙏`;
 }
@@ -446,11 +490,45 @@ Bank details chahiye? *"3"* likh kar bhejein 😊`;
 
 function packagesReply(planPrices: Record<string, number>): string {
   const entries = Object.entries(planPrices || {});
-  const pkgList = entries.length
-    ? entries.map(([name, price]) => `📦 *${name}* — Rs. ${price.toLocaleString()}/month`).join('\n')
-    : `📦 Hamare packages ki updated list ${CONFIG.ownerName} bhai se confirm karein: *${CONFIG.supportNumber}*`;
+  if (!entries.length) {
+    return `📦 Hamare packages ki updated list ${CONFIG.ownerName} bhai se confirm karein: *${CONFIG.supportNumber}*`;
+  }
+  entries.sort((a, b) => extractMbps(a[0]) - extractMbps(b[0]));
+  const pkgList = entries.map(([name, price]) => `📦 *${name}* — Rs. ${price.toLocaleString()}/month`).join('\n');
 
-  return `MahadNet ke *Internet Packages* 🌐\n\n${pkgList}\n\n${CONFIG.fiberInfo}\n\nRouter dekhna hai? Likhein *"router"* 📡`;
+  return `MahadNet ke *Internet Packages* 🌐\n\n${pkgList}\n\nRouter ya Fiber installation ki pricing janni hai? Likhein *"router"* ya *"fiber"* — detail bhej deti hoon! 📡`;
+}
+
+function fiberUpsellPitch(): string {
+  return `Samajh gayi! 😊 Normal WiFi router (jese TP-Link) seedha fiber line se nahi chalta — fiber ke liye ek alag *ONU/GPON device* chahiye hota hai jo fiber signal ko WiFi mein convert karta hai.
+
+🌟 *Fiber to Home* lene ke fawaide:
+• Bohot zyada stable aur fast speed
+• Buffering/disconnect ki tension khatam
+• Gaming, streaming, multiple devices ke liye behtareen
+
+Kya aap *Fiber Connection* lena pasand karenge? Reply karein *"Haan"* ya *"Nahi"* 🙏`;
+}
+
+function troubleshootingReply(issue: string): string {
+  const t = issue.toLowerCase();
+  const isWifiAuth = /password|connect\s*nahi|wifi\s*(nahi|disconnect)/.test(t);
+
+  const tips = isWifiAuth
+    ? `1️⃣ Mobile/laptop ka WiFi off karke wapis on karein\n2️⃣ Sahi WiFi password dobara check karein (case-sensitive hota hai)\n3️⃣ Router se 5-6 feet door na hon, deewaron ke peeche signal weak ho jata hai`
+    : `1️⃣ Router/ONU ki light check karein — green/blue blink honi chahiye\n2️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n3️⃣ 1-2 minute device ko boot hone ka time dein\n4️⃣ Phir dobara internet try karein`;
+
+  return `Aap ka masla note ho gaya hai 🛠️\n\nPehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:\n\n${tips}\n\nAgar phir bhi masla rahe to bas yahan likh dein — main turant complaint register kar ke technical team ko bhej dungi! 👍`;
+}
+
+function outageReply(outage: any): string {
+  const areas = (outage.areasAffected || []).join(', ') || 'aap ke area';
+  return `${CONFIG.ownerName} bhai ki team ko *${areas}* mein network outage ka pehle se pata hai aur kaam jaari hai! 🛠️
+${outage.cause ? `\nWajah: ${outage.cause}` : ''}
+
+Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi.
+
+Update ke liye thori dair sabar karein, shukriya! 🙏`;
 }
 
 function routerChoicePrompt(): string {
@@ -492,21 +570,26 @@ Yeh milte hi coverage check kar ke 24 ghante mein confirm kar dengi! 📍`;
 function routerPasswordGuide(modelInput: string): string {
   const m = modelInput.toLowerCase();
   let ip = '192.168.1.1';
-  let note = 'username/password device ke peeche sticker pe likha hota hai';
-  if (/gs3101/.test(m)) { ip = '192.168.1.1'; note = 'default login *admin/admin* try karein'; }
-  else if (/hg8546|echolife/.test(m)) { ip = '192.168.100.1'; note = 'default login *telecomadmin/admintelecom* ya *admin/admin* try karein'; }
+  let note = 'username/password device ke peeche/neeche lage sticker pe likha hota hai';
+  if (/gs3101/.test(m)) { ip = '192.168.1.1'; note = 'default login *admin / admin* try karein'; }
+  else if (/hg8546|echolife/.test(m)) { ip = '192.168.100.1'; note = 'default login *telecomadmin / admintelecom* ya *admin / admin* try karein'; }
   else if (/\bq2\b/.test(m)) { ip = '192.168.100.1'; note = 'login device ke sticker pe check karein'; }
 
-  return `Theek hai! *${modelInput}* ke liye yeh steps follow karein 🔧
+  return `Theek hai! *${modelInput}* ka WiFi password change karna bohot asaan hai, yeh steps follow karein 🔧
 
-1️⃣ Mobile/laptop ko router ke WiFi se connect karein
-2️⃣ Browser mein yeh address likhein: *${ip}*
-3️⃣ Login karein — ${note}
-4️⃣ *Wireless* ya *WLAN Settings* mein jayein
-5️⃣ Naya WiFi password likhein aur *Save/Apply* karein
-6️⃣ Router ek baar restart kar lein
+1️⃣ Apna mobile ya laptop *router ke WiFi* se connect karein (jo bhi naam abhi WiFi list mein dikh raha ho)
+2️⃣ Phone/laptop ka *browser* (Chrome ya koi bhi) khol kar address bar mein yeh likhein: *${ip}*
+   _(yeh kisi website ka link nahi — yeh router ka khud ka control panel hai)_
+3️⃣ Login screen aayegi — ${note}
+   _(agar yeh login chal na ho to device ke sticker pe likha username/password try karein)_
+4️⃣ Andar *Wireless* ya *WLAN Settings* (kabhi *WiFi Settings* bhi likha hota hai) wala option dhoondein
+5️⃣ Wahan *Password / WiFi Key* ka box milega — naya password likhein (kam az kam 8 letters, mix of numbers achi rahegi)
+6️⃣ Sab se neeche *Save* ya *Apply* button dabayen
+7️⃣ Router ko ek baar *power se nikal kar 10 second baad dobara laga dein* — naya password apply ho jayega
 
-Masla aaye to call karein: *${CONFIG.supportNumber}* 📞`;
+📱 Phir apne sabhi devices mein WiFi se dobara connect hote waqt *naya password* dalna hoga.
+
+Koi step samajh na aaye ya page open na ho to call karein: *${CONFIG.supportNumber}* — main guide kar dungi! 📞`;
 }
 
 function complaintAckReply(user: any, ticketId: string, issue: string): string {
@@ -563,6 +646,22 @@ Naya connection chahiye? *"5"* likh kar bhejein!
 Koi sawaal? Call karein: *${CONFIG.supportNumber}* 🙏`;
 }
 
+function rechargeReply(user?: any, planPrices?: Record<string, number>): string {
+  const planLine = user?.plan
+    ? `\n📦 Aap ka package: *${user.plan}* — Rs. ${(user.monthlyFee || planPrices?.[user.plan] || 0).toLocaleString()}/month`
+    : '';
+  return `Ji zaroor! 😊 Package activate/renew karne ke liye yeh steps follow karein:
+
+${CONFIG.bankAccounts}${planLine}
+
+✅ Payment karne ke baad yeh *teen* cheezein zaroor bhejein:
+1️⃣ Payment ka *screenshot*
+2️⃣ Apna *username*
+3️⃣ Apna *address*
+
+Yeh milte hi turant activate/renew kar diya jayega! 🙏`;
+}
+
 // ══════════════════════════════════════════════════════
 // 🤖 GROQ (fallback for complex/open-ended queries)
 // ══════════════════════════════════════════════════════
@@ -572,16 +671,21 @@ async function askGroq(custData: string, userMessage: string): Promise<{ onTopic
 
   const system = `Tu Ayesha hai — MahadNet ISP ki customer support executive. Ek real Pakistani larki ki tarah baat kar, AI ya bot bilkul mat lago.
 
+LANGUAGE MATCHING (zaroori):
+- Agar customer pure English mein likhe, tum bhi professional English mein jawab do.
+- Agar customer Urdu/Roman Urdu mein likhe, tum sirf Roman Urdu mein jawab do.
+- Kabhi do zabanon ko mix mat karo ek hi reply mein.
+
 SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage) se related sawalon ka khud jawab do.
-Agar sawal in topics se bilkul mutaliq NAHI hai (jaise: jokes, siyasat, mazhab, Ayesha ke baray mein personal sawal, random chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur reply mein politely batao ke yeh tumhara scope nahi, unka message note kar liya hai aur Mahad bhai ko inform kar degi — har dafa alag andaaz mein kaho.
+Agar sawal in topics se bilkul mutaliq NAHI hai (jaise: jokes, siyasat, mazhab, Ayesha ke baray mein personal sawal, random chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur reply mein hamesha yeh matlab waala jumla do (alfaz har baar thore badal kar): "Aap ka message Mahad bhai ko note kar liya gaya hai, jald hi unke through pohcha diya jayega" — har dafa alag wording mein.
 
 TONE RULES (zaroori):
 - Cooperative aur warm raho lekin ziyada chamchagiri ya overpraise mat karo ("great question", "you're amazing" jese phrases mana hain)
 - Har reply mein wording badlo, ek hi stock jumla baar baar mat daalo
 - "afsos hua", "bura laga", "main madad ke liye haazir hoon" jese generic fillers repeat mat karo
-- Seedhi, samajhdaar, professional lekin insaan jesi baat karo
+- Seedhi, samajhdaar, professional lekin insaan jesi baat karo — jese kisi achi call-center agent se baat ho rahi ho
 
-LANGUAGE — SIRF PAKISTANI ROMAN URDU:
+LANGUAGE — SIRF PAKISTANI ROMAN URDU (jab Urdu mein jawab do):
 Hindi ke ye words BILKUL FORBIDDEN hain:
 dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | seva→khidmat | uplabdh→available | sunishchit→pakka | jankaari→baat | turant→foran | vyavastha→intezam | prayas→koshish | uttar→jawab | pradan→dena
 
@@ -696,13 +800,39 @@ export default async function handler(req: any, res: any) {
       console.log(`💬 intent=${intent}`);
 
       // ── Priority: mid-flow slot-filling sessions (unless user issues a fresh command) ──
-      const session = await getSession(from);
-      const isOverrideCommand = intent === 'greeting' || /^[1-6]$/.test(text.trim());
+      const sessionObj = await getSession(from);
+      const session = sessionObj?.state || null;
+      const sessionData = sessionObj?.data || {};
+      const isOverrideCommand = intent === 'greeting' || /^[1-7]$/.test(text.trim());
 
       if (session && !isOverrideCommand) {
         if (session === 'lead_awaiting_details') {
-          await setSession(from, null);
           const t = text.toLowerCase();
+
+          // Step: user is answering the fiber-upgrade pitch (Haan/Nahi)
+          if (sessionData?.fiberPitched) {
+            await setSession(from, null);
+            const wantsFiber = /^(haan|han|ji\s*haan|yes|bilkul|theek|chahiye|sure|ok)/.test(t);
+            if (wantsFiber) {
+              await saveStrayLead(from, sessionData.priorNote || text, 'Fiber upgrade — interested');
+              await sendText(from, `${CONFIG.fiberInfo}\n\nAap ki interest note kar li hai, hamari team 24 ghante mein rabta karegi! 🙏`);
+            } else {
+              await saveStrayLead(from, sessionData.priorNote || text, 'Apna existing router rakhna chahte hain — fiber upgrade se inkar');
+              await sendText(from, `Theek hai! 😊 Aap ki details note kar li hain — team 24 ghante mein contact karegi.`);
+            }
+            continue;
+          }
+
+          // Step: free-text mentions a non-fiber router brand → pitch fiber upgrade first
+          const hasNonFiberRouter = /tp-?link|tenda|netgear|d-?link|mercusys|totolink|asus\s*router|wifi\s*router|wireless\s*router|taar\s*wala/.test(t);
+          if (hasNonFiberRouter) {
+            await setSession(from, 'lead_awaiting_details', { fiberPitched: true, priorNote: text });
+            await sendText(from, fiberUpsellPitch());
+            continue;
+          }
+
+          // Default: save as lead
+          await setSession(from, null);
           const missingRouter = /router\s*(nahi|nai|available\s*nahi)|no\s*router/.test(t);
           const missingFiber = /fiber\s*(nahi|nai|available\s*nahi)|no\s*fiber|cable\s*nahi/.test(t);
           const planPrices = await getAnyPlanPrices();
@@ -725,11 +855,13 @@ export default async function handler(req: any, res: any) {
           await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 24 ghante mein contact karegi.${offer}`);
           continue;
         }
+
         if (session === 'awaiting_router_model') {
           await setSession(from, null);
           await sendText(from, routerPasswordGuide(text));
           continue;
         }
+
         if (session === 'awaiting_unknown_details') {
           await setSession(from, null);
           const row = await getManagerRow('mahadnet');
@@ -743,15 +875,67 @@ export default async function handler(req: any, res: any) {
           await sendText(from, `Shukriya! 😊 Details mil gai hain, team verify kar ke aap se rabta karegi. Koi urgent masla ho to call karein: *${CONFIG.supportNumber}* 📞`);
           continue;
         }
+
+        // User went off-script while choosing a router band → still capture their text as a lead
+        if (session === 'router_choice' && intent !== 'router_24g' && intent !== 'router_5g') {
+          await setSession(from, null);
+          await saveStrayLead(from, text, 'Router selection ke dauran area/masla bataya');
+          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 24 ghante mein contact karegi.\n\nRouter dekhna ho to *"2.4G"* ya *"5G"* likh kar bhejein. 📡`);
+          continue;
+        }
+
+        // Direct message meant for Mahad bhai
+        if (session === 'awaiting_owner_message') {
+          await setSession(from, null);
+          const found = await findCustomer(from);
+          const row = found?.rowData || await getManagerRow('mahadnet');
+          const managerId = found?.managerId || 'mahadnet';
+          if (row) {
+            await notifyManager(managerId, row, {
+              title: `📨 Direct Message for ${CONFIG.ownerName} Bhai`,
+              message: `${found?.user?.name || from} (${from}): ${text.slice(0, 200)}`,
+              priority: 'MEDIUM',
+            });
+          }
+          await sendText(from, `Aap ka message note ho gaya hai ✅ ${CONFIG.ownerName} bhai available hote hi aap ko reply karenge. Shukriya! 🙏`);
+          continue;
+        }
+
+        // Complaint described via menu option 1 → check outage, else give troubleshooting tips first
+        if (session === 'awaiting_complaint_text') {
+          await setSession(from, null);
+          const found = await findCustomer(from);
+          if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+          const outage = getActiveOutage(found.rowData);
+          if (outage) { await sendText(from, outageReply(outage)); continue; }
+          await setSession(from, 'awaiting_complaint_confirm', { issue: text });
+          await sendText(from, troubleshootingReply(text));
+          continue;
+        }
+
+        // After troubleshooting tips — confirm if resolved, else register the ticket
+        if (session === 'awaiting_complaint_confirm') {
+          await setSession(from, null);
+          const t = text.toLowerCase();
+          const resolved = /^(shukriya|thanks|theek\s*ho\s*gaya|fix\s*ho\s*gaya|ho\s*gaya|chal\s*gaya|sahi\s*ho\s*gaya|thank\s*you)/.test(t);
+          if (resolved) {
+            await sendText(from, `Bohot khushi hui ke masla hal ho gaya! 😊 Koi aur madad chahiye to zaroor batayen.`);
+            continue;
+          }
+          const found = await findCustomer(from);
+          if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+          const combinedIssue = sessionData?.issue ? `${sessionData.issue} | Follow-up: ${text}` : text;
+          const tid = await saveComplaint(found.managerId, found.rowData, found.user, combinedIssue);
+          await sendText(from, complaintAckReply(found.user, tid, combinedIssue));
+          continue;
+        }
       }
 
       // ── Greeting → menu (clear any pending session) ──
       if (intent === 'greeting') {
         await setSession(from, null);
         const found = await findCustomer(from);
-        const firstTime = !(await hasGreetedBefore(from));
-        if (firstTime) await markGreetedBefore(from);
-        await sendText(from, welcomeMenu(found?.user?.name, firstTime));
+        await sendText(from, welcomeMenu(greetingSalutation(text), found?.user?.name));
         continue;
       }
 
@@ -766,10 +950,24 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
+      // ── Fiber info → share details, then capture the area reply as a lead ──
+      if (intent === 'fiber_info') {
+        await sendText(from, CONFIG.fiberInfo);
+        await setSession(from, 'lead_awaiting_details');
+        continue;
+      }
+
       // ── Password change → ask router model first ──
       if (intent === 'password_change') {
         await setSession(from, 'awaiting_router_model');
         await sendText(from, `Zaroor madad karti hoon! 😊\n\nAap ka router/ONU konsa model hai? (jaise GS3101, HG8546M, Huawei Q2 — ya jo bhi likha ho device pe)`);
+        continue;
+      }
+
+      // ── Talk to Mahad bhai directly ──
+      if (intent === 'menu_talk_owner') {
+        await setSession(from, 'awaiting_owner_message');
+        await sendText(from, `Zaroor! 😊 Apna message likh dein — main ${CONFIG.ownerName} bhai tak foran pohcha dungi.`);
         continue;
       }
 
@@ -796,12 +994,25 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
+      // ── Activate / recharge / renew ──
+      if (intent === 'recharge_request') {
+        const found = await findCustomer(from);
+        const planPrices = found?.planPrices && Object.keys(found.planPrices).length
+          ? found.planPrices
+          : await getAnyPlanPrices();
+        await sendText(from, rechargeReply(found?.user, planPrices));
+        continue;
+      }
+
       // ── DB required intents ──
       const found = await findCustomer(from);
 
       if (intent === 'menu_complaint') {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-        await sendText(from, `Ji ${found.user.name}! Apna masla likhein — main abhi note kar leti hoon aur team ko bhejti hoon. 🛠️\n\nKya ho raha hai internet mein?`);
+        const outage = getActiveOutage(found.rowData);
+        if (outage) { await sendText(from, outageReply(outage)); continue; }
+        await setSession(from, 'awaiting_complaint_text');
+        await sendText(from, `Ji ${found.user.name}! Kya ho raha hai internet mein? Thori detail bata dein. 🛠️`);
         continue;
       }
       if (intent === 'menu_bill') {
@@ -829,8 +1040,10 @@ export default async function handler(req: any, res: any) {
       if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
       if (intent === 'complaint') {
-        const tid = await saveComplaint(managerId, rowData, user, text);
-        await sendText(from, complaintAckReply(user, tid, text));
+        const outage = getActiveOutage(rowData);
+        if (outage) { await sendText(from, outageReply(outage)); continue; }
+        await setSession(from, 'awaiting_complaint_confirm', { issue: text });
+        await sendText(from, troubleshootingReply(text));
         continue;
       }
 
