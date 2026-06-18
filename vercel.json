@@ -54,5 +54,11 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-expiry-reminders",
+      "schedule": "0 4 * * *"
+    }
   ]
 }
