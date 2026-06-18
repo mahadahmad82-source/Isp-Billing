@@ -109,6 +109,20 @@ const App: React.FC = () => {
   React.useEffect(() => {
     window.location.hash = activeTab;
   }, [activeTab]);
+
+  // Fix browser back/forward button — update activeTab when user navigates via browser history
+  React.useEffect(() => {
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice'];
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (validTabs.includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Tab switch loading indicator
   useEffect(() => {
     setTabLoading(true);
@@ -1858,3 +1872,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
