@@ -74,6 +74,7 @@ export interface AppSettings {
   showBusinessNameOnReceipt?: boolean; // Default true
   receiptSerialStart?: number; // Starting serial number for receipts (e.g. 1, 900, 5000)
   receiptSerialPrefix?: string; // Prefix for serial like MN, ISP, etc.
+  ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
 }
 
 export interface UserRecord {
@@ -96,6 +97,16 @@ export interface UserRecord {
   status: 'active' | 'expired' | 'pending' | 'deleted';
   companyId?: string;
   area?: string;
+  // Ayesha bot — reactivation targeting: true once customer has physically moved out
+  // of the coverage area (excludes them from "disconnected 90+ days" reactivation campaigns).
+  movedOut?: boolean;
+  // Ayesha bot — credit/advance recovery tracking. Auto-cleared when a receipt/payment
+  // is recorded against this customer.
+  creditRecharge?: boolean;
+  creditAmount?: number;
+  creditDate?: string;
+  creditLastReminderSent?: string;
+  creditReminderCount?: number; // capped at 5-6, then surfaced for manual follow-up
 }
 
 export interface Receipt {
