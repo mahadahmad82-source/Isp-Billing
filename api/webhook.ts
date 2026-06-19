@@ -873,6 +873,30 @@ Yeh milte hi turant activate/renew kar diya jayega! 🙏`;
 // ══════════════════════════════════════════════════════
 // 🤖 GROQ (fallback for complex/open-ended queries)
 // ══════════════════════════════════════════════════════
+// Deterministic backstop: prompt instructions alone don't 100% stop a small/fast LLM
+// from occasionally slipping in a Hindi-coded word. This runs on every Groq reply
+// (text AND voice) and force-replaces any known offender with its Pakistani Urdu
+// equivalent — matters more for voice since a wrong word is far more noticeable spoken
+// aloud than read silently.
+const HINDI_TO_URDU: Record<string, string> = {
+  dhanyawad: 'shukriya', kripya: 'meherbani', samasya: 'masla', samadhan: 'hal',
+  seva: 'khidmat', uplabdh: 'available', sunishchit: 'pakka', jankaari: 'maloomat',
+  jankari: 'maloomat', turant: 'foran', vyavastha: 'intezam', prayas: 'koshish',
+  uttar: 'jawab', pradan: 'faraham', sahayata: 'madad', sahyta: 'madad',
+  vyakti: 'shaks', samay: 'waqt', yogdaan: 'hissa', nirdesh: 'hidayat',
+  anurodh: 'darkhwast', namaste: 'Assalam o Alaikum', namaskar: 'Assalam o Alaikum',
+  sahayog: 'tawaqo', uchit: 'munasib', vishesh: 'khaas', anumati: 'ijazat',
+  nivedan: 'darkhwast', uddeshya: 'maqsad', sthiti: 'soorat-e-haal',
+  kshama: 'maazrat', vidhi: 'tareeqa', abhar: 'shukriya',
+};
+function sanitizeHindiWords(text: string): string {
+  let out = text;
+  for (const [hi, ur] of Object.entries(HINDI_TO_URDU)) {
+    out = out.replace(new RegExp(`\\b${hi}\\b`, 'gi'), ur);
+  }
+  return out;
+}
+
 async function askGroq(custData: string, userMessage: string): Promise<{ onTopic: boolean; reply: string }> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('No GROQ key');
@@ -941,9 +965,9 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
 
   try {
     const parsed = JSON.parse(raw);
-    return { onTopic: parsed.onTopic !== false, reply: parsed.reply || raw };
+    return { onTopic: parsed.onTopic !== false, reply: sanitizeHindiWords(parsed.reply || raw) };
   } catch {
-    return { onTopic: true, reply: raw };
+    return { onTopic: true, reply: sanitizeHindiWords(raw) };
   }
 }
 
