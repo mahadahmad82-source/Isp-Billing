@@ -380,6 +380,20 @@ async function textToSpeech(text: string): Promise<string | null> {
   } catch (e: any) { console.error('[textToSpeech]', e?.message); return null; }
 }
 
+// Phase 4 — conversation memory: pulls the last few logged messages for this
+// customer so Ayesha doesn't lose track mid-conversation across separate webhook
+// invocations (each WhatsApp message is its own serverless call with no in-memory state).
+async function getRecentHistory(phone: string, managerId: string, limit = 6): Promise<string> {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/whatsapp_messages?manager_id=eq.${managerId}&customer_phone=eq.${normPhone(phone)}&order=created_at.desc&limit=${limit}&select=direction,content`;
+    const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+    if (!r.ok) return '';
+    const rows: any[] = await r.json();
+    if (!rows.length) return '';
+    return rows.reverse().map(m => `${m.direction === 'in' ? 'Customer' : 'Ayesha'}: ${(m.content || '').slice(0, 200)}`).join('\n');
+  } catch (e: any) { console.error('[getRecentHistory]', e?.message); return ''; }
+}
+
 // ── Lightweight session state (for slot-filling flows) ──────────────────────────
 async function getSession(phone: string): Promise<{ state: string; data?: any } | null> {
   try {
@@ -557,10 +571,10 @@ function thanksReply(text: string): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function botIdentityReply(text: string): string {
+function botIdentityReply(text: string, botName: string = 'Ayesha'): string {
   return isEnglishText(text)
-    ? `I'm Ayesha, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`
-    : `Main Ayesha hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`;
+    ? `I'm ${botName}, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`
+    : `Main ${botName} hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`;
 }
 
 function panelIssueReply(): string {
@@ -612,11 +626,11 @@ function extractMbps(planName: string): number {
   return m ? parseInt(m[1], 10) : 999999;
 }
 
-function welcomeMenu(salutation: string, name?: string): string {
+function welcomeMenu(salutation: string, name?: string, botName: string = 'Ayesha'): string {
   const greet = name
     ? `${salutation}, *${name}*! 😊`
     : `${salutation}! 😊 MahadNet Support mein khushamdeed!`;
-  const intro = `\n\nMain *Ayesha* hoon, aap ki dedicated support executive.`;
+  const intro = `\n\nMain *${botName}* hoon, aap ki dedicated support executive.`;
   return `${greet}${intro}
 
 Aap kis cheez mein madad chahte hain? Neeche se option chunein:
@@ -933,8 +947,8 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
   }
 }
 
-async function askGroq(custData: string, userMessage: string): Promise<{ onTopic: boolean; reply: string }> {
-  const system = `Tu Ayesha hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha Ayesha, MahadNet ki support team ka hissa.
+async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha'): Promise<{ onTopic: boolean; reply: string }> {
+  const system = `Tu ${botName} hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha ${botName}, MahadNet ki support team ka hissa.
 
 LANGUAGE MATCHING (zaroori):
 - Agar customer pure English mein likhe, tum bhi professional English mein jawab do.
@@ -950,7 +964,7 @@ rahunga → rahungi | sakta hoon → sakti hoon | tha → thi | hua tha → hui 
 madad karta hoon → madad karti hoon | dekhta hoon → dekhti hoon
 
 SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage, payment) se related sawalon ka khud jawab do.
-Agar sawal in topics se bilkul mutaliq NAHI hai (jokes, siyasat, mazhab, Ayesha ke baray mein random/frank personal sawal, chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur politely maazrat karte hue redirect karo — har dafa alfaz badal kar, jese: "Maazrat chahti hoon, main sirf MahadNet ki internet services ke mutaliq baat kar sakti hoon 😊 Koi internet, bill ya package se related sawal ho to zaroor batayen." Kabhi yeh mat kaho ke "aap ka message note kar liya gaya hai / Mahad bhai tak pohcha diya jayega" jab tak masla wakai business-related ho — woh jumla sirf genuine business messages ke liye hai, casual chit-chat ke liye nahi.
+Agar sawal in topics se bilkul mutaliq NAHI hai (jokes, siyasat, mazhab, ${botName} ke baray mein random/frank personal sawal, chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur politely maazrat karte hue redirect karo — har dafa alfaz badal kar, jese: "Maazrat chahti hoon, main sirf MahadNet ki internet services ke mutaliq baat kar sakti hoon 😊 Koi internet, bill ya package se related sawal ho to zaroor batayen." Kabhi yeh mat kaho ke "aap ka message note kar liya gaya hai / Mahad bhai tak pohcha diya jayega" jab tak masla wakai business-related ho — woh jumla sirf genuine business messages ke liye hai, casual chit-chat ke liye nahi.
 
 PAYMENT & COLLECTION GUIDANCE:
 - Agar customer bole ke abhi payment nahi kar sakta / thodi dair mein karega: usay assure karo ke Mahad bhai ko inform kar diya jayega, jab convenient ho payment kar dein, koi pressure nahi.
@@ -978,7 +992,7 @@ OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence n
 {"onTopic": true ya false, "reply": "tumhari reply yahan — Roman/Latin letters mein, max 4-5 lines, 1-2 emoji max"}
 
 CUSTOMER INFO: ${custData}
-COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
+COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat):\n${recentHistory}` : ''}`;
 
   let result = await callGroqOnce(system, userMessage);
 
@@ -1282,7 +1296,7 @@ export default async function handler(req: any, res: any) {
       if (intent === 'greeting') {
         await setSession(from, null);
         const found = await findCustomer(from);
-        await sendText(from, welcomeMenu(greetingSalutation(text), found?.user?.name));
+        await sendText(from, welcomeMenu(greetingSalutation(text), found?.user?.name, found?.rowData?.settings?.ayeshaBotName));
         continue;
       }
 
@@ -1290,7 +1304,11 @@ export default async function handler(req: any, res: any) {
       if (intent === 'thanks') { await sendText(from, thanksReply(text)); continue; }
 
       // ── "What's your name / who are you" — fixed, correctly-gendered identity reply ──
-      if (intent === 'bot_identity') { await sendText(from, botIdentityReply(text)); continue; }
+      if (intent === 'bot_identity') {
+        const cfgRow = await getManagerRow('mahadnet');
+        await sendText(from, botIdentityReply(text, cfgRow?.settings?.ayeshaBotName));
+        continue;
+      }
 
       // ── Router/device control-panel or login trouble — troubleshooting, not a sales pitch ──
       if (intent === 'panel_issue') { await setSession(from, null); await sendText(from, panelIssueReply()); continue; }
@@ -1418,7 +1436,8 @@ export default async function handler(req: any, res: any) {
       // so the bot actually thinks instead of just refusing with "Mahad bhai available nahi".
       const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}`;
       try {
-        const result = await askGroq(custData, text);
+        const recentHistory = await getRecentHistory(from, managerId);
+        const result = await askGroq(custData, text, recentHistory, rowData?.settings?.ayeshaBotName);
         await sendText(from, result.reply);
 
         // Even though Groq's reply already addresses these conversationally, also flag them
