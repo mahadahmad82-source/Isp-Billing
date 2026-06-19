@@ -311,6 +311,75 @@ async function downloadAndStoreMedia(mediaId: string): Promise<string | null> {
   } catch (e: any) { console.error('[downloadAndStoreMedia]', e?.message); return null; }
 }
 
+// Phones that should receive THIS turn's reply as a voice note instead of text.
+// Cleared defensively at the top of every invocation, and per-message via try/finally
+// in the main handler — see voiceReplyTargets.delete(from) below.
+const voiceReplyTargets = new Set<string>();
+
+// Downloads a WhatsApp voice note and transcribes it via Groq's hosted Whisper
+// (same GROQ_API_KEY already used for the chat fallback). Auto-detects language,
+// so Urdu-script transcripts naturally fall through detectIntent() to the Groq
+// chat fallback (askGroq), which already replies in Roman Urdu either way.
+async function transcribeAudio(mediaId: string): Promise<string | null> {
+  const waToken = process.env.WHATSAPP_TOKEN;
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!waToken || !groqKey || !mediaId) return null;
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, { headers: { Authorization: `Bearer ${waToken}` } });
+    if (!metaRes.ok) { console.error('[transcribeAudio meta]', metaRes.status); return null; }
+    const meta: any = await metaRes.json();
+    const audioRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${waToken}` } });
+    if (!audioRes.ok) { console.error('[transcribeAudio download]', audioRes.status); return null; }
+    const buf = Buffer.from(await audioRes.arrayBuffer());
+
+    const form = new FormData();
+    form.append('file', new Blob([buf], { type: meta.mime_type || 'audio/ogg' }), 'voice.ogg');
+    form.append('model', 'whisper-large-v3-turbo');
+    form.append('response_format', 'json');
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${groqKey}` },
+      body: form as any,
+    });
+    if (!groqRes.ok) { console.error('[transcribeAudio groq]', groqRes.status, await groqRes.text()); return null; }
+    const data: any = await groqRes.json();
+    return (data.text || '').trim() || null;
+  } catch (e: any) { console.error('[transcribeAudio]', e?.message); return null; }
+}
+
+// Converts text to a female-voice MP3 via ElevenLabs, stores it in the public
+// whatsapp-media bucket, and returns its public URL. Returns null on any failure
+// so the caller can gracefully fall back to a text reply.
+async function textToSpeech(text: string): Promise<string | null> {
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (!key || !text) return null;
+  // "Rachel" — ElevenLabs' long-stable default female voice ID. Override via
+  // ELEVENLABS_VOICE_ID if a different (e.g. more Urdu-natural) voice is picked later.
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+  try {
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+      method: 'POST',
+      headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+      body: JSON.stringify({
+        text,
+        model_id: 'eleven_flash_v2_5', // low-latency multilingual model, supports Urdu
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      }),
+    });
+    if (!r.ok) { console.error('[textToSpeech]', r.status, await r.text()); return null; }
+    const buf = Buffer.from(await r.arrayBuffer());
+    const path = `tts-replies/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
+    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg' },
+      body: buf,
+    });
+    if (!upRes.ok) { console.error('[textToSpeech upload]', upRes.status, await upRes.text()); return null; }
+    return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
+  } catch (e: any) { console.error('[textToSpeech]', e?.message); return null; }
+}
+
 // ── Lightweight session state (for slot-filling flows) ──────────────────────────
 async function getSession(phone: string): Promise<{ state: string; data?: any } | null> {
   try {
@@ -882,6 +951,14 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
 // 📤 WHATSAPP SEND
 // ══════════════════════════════════════════════════════
 async function sendText(to: string, body: string) {
+  // Voice-in → voice-out: if this customer's message this turn was a transcribed
+  // voice note, every sendText() call for the rest of this turn becomes a voice reply.
+  if (voiceReplyTargets.has(to)) {
+    const audioUrl = await textToSpeech(body);
+    if (audioUrl) { await sendAudio(to, audioUrl); return; }
+    console.error('[sendText] TTS failed, falling back to text reply');
+  }
+
   const token = process.env.WHATSAPP_TOKEN;
   const pid   = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) { console.error('❌ WA env missing'); return; }
@@ -895,6 +972,22 @@ async function sendText(to: string, body: string) {
     if (!r.ok) console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200));
   } catch (e: any) { console.error('❌ sendText:', e?.message); }
   await logMessage(to, 'out', 'text', body);
+}
+
+async function sendAudio(to: string, audioUrl: string) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const pid   = process.env.PHONE_NUMBER_ID;
+  if (!token || !pid) return;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'audio', audio: { link: audioUrl } }),
+    });
+    const d = await r.json();
+    if (!r.ok) console.error('❌ Meta audio:', JSON.stringify(d).slice(0, 200));
+  } catch (e: any) { console.error('❌ sendAudio:', e?.message); }
+  await logMessage(to, 'out', 'audio', audioUrl);
 }
 
 async function sendImage(to: string, imageUrl: string, caption: string) {
@@ -939,18 +1032,34 @@ export default async function handler(req: any, res: any) {
 
   try {
     const messages: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.messages || [];
+    voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
 
     for (const msg of messages) {
       const from: string = msg.from;
-      const type: string = msg.type;
-      const text: string = msg?.text?.body?.trim() || '';
+      let type: string = msg.type;
+      let text: string = msg?.text?.body?.trim() || '';
 
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
 
+      try {
+
+      let alreadyLoggedThisTurn = false;
+
       if (type === 'audio' || type === 'voice') {
-        await logMessage(from, 'in', 'audio', '[voice note]');
-        await sendText(from, `Assalam o Alaikum! 😊 Voice note mili — lekin main abhi audio process nahi kar sakti.\n\nApna masla text mein likhein ya call karein: *${CONFIG.supportNumber}* 📞`);
-        continue;
+        const mediaId: string | undefined = msg?.audio?.id || msg?.voice?.id;
+        const transcript = mediaId ? await transcribeAudio(mediaId) : null;
+        if (transcript) {
+          await logMessage(from, 'in', 'audio', transcript);
+          alreadyLoggedThisTurn = true;
+          voiceReplyTargets.add(from); // every sendText() below now auto-becomes a voice reply
+          text = transcript;
+          type = 'text';
+          // falls through into the normal text pipeline below — same intents, same logic
+        } else {
+          await logMessage(from, 'in', 'audio', '[voice note — transcription unavailable]');
+          await sendText(from, `Assalam o Alaikum! 😊 Voice note mili lekin abhi samajh nahi paayi.\n\nApna masla text mein likhein ya call karein: *${CONFIG.supportNumber}* 📞`);
+          continue;
+        }
       }
 
       // ── Image (typically a payment screenshot) — previously silently dropped ──
@@ -977,7 +1086,7 @@ export default async function handler(req: any, res: any) {
 
       if (type !== 'text' || !text) continue;
 
-      await logMessage(from, 'in', 'text', text);
+      if (!alreadyLoggedThisTurn) await logMessage(from, 'in', 'text', text);
 
       const intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
@@ -1283,6 +1392,10 @@ export default async function handler(req: any, res: any) {
         }
       } catch (e: any) {
         await sendText(from, `Ji ${user.name}! Is waqt thodi delay aa rahi hai.\nCall karein: *${CONFIG.supportNumber}* — main foran help karungi! 😊`);
+      }
+
+      } finally {
+        voiceReplyTargets.delete(from); // never let a voice-reply flag leak into the next message
       }
     }
   } catch (err: any) { console.error('[webhook error]', err?.message); }
