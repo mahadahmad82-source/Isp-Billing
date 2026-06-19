@@ -32,6 +32,7 @@ import BulkReminder from './components/BulkReminder';
 import DayEndSummary from './components/DayEndSummary';
 import RouteSheet from './components/RouteSheet';
 import MonthlyInvoice from './components/MonthlyInvoice';
+import WABotInbox from './components/WABotInbox';
 import CustomerPortal from './components/CustomerPortal';
 import LandingPage from './components/LandingPage';
 import TermsAndPolicy from './components/TermsAndPolicy';
@@ -99,7 +100,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice','wabot'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -112,7 +113,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice','wabot'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -1649,6 +1650,13 @@ const App: React.FC = () => {
               receipts={filteredReceipts}
               settings={currentSettings}
               planHistory={state.planHistory || []}
+            />
+          )}
+          {!tabLoading && activeTab === 'wabot' && userRole === 'manager' && (
+            <WABotInbox
+              managerId={activeManager || 'mahadnet'}
+              customers={filteredUsers}
+              onOpenReceiptGenerator={() => setActiveTab('receipts')}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole === 'manager' && (
