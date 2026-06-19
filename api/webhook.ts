@@ -1103,12 +1103,31 @@ export default async function handler(req: any, res: any) {
     const messages: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.messages || [];
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
 
+    // Phase 3 — Admin Inbox: conversations mahadnet has manually taken over should not
+    // get auto-replies from Ayesha. Single-tenant for now, so always manager_id='mahadnet'.
+    let pausedPhones: string[] = [];
+    try {
+      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      });
+      const cfgRows: any[] = await cfgRes.json();
+      pausedPhones = cfgRows?.[0]?.paused_phones || [];
+    } catch (e: any) { console.error('[pausedPhones fetch]', e?.message); }
+
     for (const msg of messages) {
       const from: string = msg.from;
       let type: string = msg.type;
       let text: string = msg?.text?.body?.trim() || '';
 
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
+
+      if (pausedPhones.includes(normPhone(from))) {
+        // Bot is paused on this thread — just log the message for the inbox, no auto-reply.
+        if (type === 'text' && text) await logMessage(from, 'in', 'text', text);
+        else if (type === 'image') await logMessage(from, 'in', 'image', msg?.image?.caption || '[image]', { flagged: true });
+        else if (type === 'audio' || type === 'voice') await logMessage(from, 'in', 'audio', '[voice note]');
+        continue;
+      }
 
       try {
 
