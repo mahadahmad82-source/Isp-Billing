@@ -897,16 +897,50 @@ function sanitizeHindiWords(text: string): string {
   return out;
 }
 
-async function askGroq(custData: string, userMessage: string): Promise<{ onTopic: boolean; reply: string }> {
+// Detects Urdu/Arabic-script characters. Used to catch the failure mode where the LLM
+// mirrors a voice-transcript's script (Nastaliq) back in its reply, ignoring the
+// "Roman Urdu only" instruction — confirmed happening in production testing.
+function containsUrduScript(text: string): boolean {
+  return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+}
+
+async function callGroqOnce(system: string, userMessage: string): Promise<{ onTopic: boolean; reply: string }> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('No GROQ key');
 
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
+      temperature: 0.8,
+      max_tokens: 350,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Groq ${res.status}`);
+  const data = await res.json();
+  const raw = data?.choices?.[0]?.message?.content?.trim();
+  if (!raw) throw new Error('Groq empty');
+
+  try {
+    const parsed = JSON.parse(raw);
+    return { onTopic: parsed.onTopic !== false, reply: sanitizeHindiWords(parsed.reply || raw) };
+  } catch {
+    return { onTopic: true, reply: sanitizeHindiWords(raw) };
+  }
+}
+
+async function askGroq(custData: string, userMessage: string): Promise<{ onTopic: boolean; reply: string }> {
   const system = `Tu Ayesha hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha Ayesha, MahadNet ki support team ka hissa.
 
 LANGUAGE MATCHING (zaroori):
 - Agar customer pure English mein likhe, tum bhi professional English mein jawab do.
 - Agar customer Urdu/Roman Urdu mein likhe, tum sirf Roman Urdu mein jawab do.
 - Kabhi do zabanon ko mix mat karo ek hi reply mein.
+- SCRIPT — BILKUL ZAROORI: Customer ka message kisi bhi script mein ho (Roman/Latin letters YA Urdu/Nastaliq script — kabhi kabhi voice-note transcript Urdu script mein aata hai), tumhara jawab HAMESHA Roman/Latin alphabet mein hi hona chahiye. Kabhi Urdu/Arabic script (نستعلیق) mein mat likho — chahe customer ne usi script mein likha ho. Ek bhi Urdu/Arabic letter reply mein nahi hona chahiye.
 
 FEMALE TONE — ZAROORI (Urdu replies mein, kabhi male/larko wale verb forms mat use karo):
 GHALAT (male) → SAHI (female):
@@ -941,34 +975,31 @@ dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | s
 SAHI WORDS: shukriya, haan ji, acha, theek hai, bilkul, zaroor, foran, masla, hal, batao, dekhti hoon, chalo
 
 OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence nahi:
-{"onTopic": true ya false, "reply": "tumhari reply yahan, max 4-5 lines, 1-2 emoji max"}
+{"onTopic": true ya false, "reply": "tumhari reply yahan — Roman/Latin letters mein, max 4-5 lines, 1-2 emoji max"}
 
 CUSTOMER INFO: ${custData}
 COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
-      messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
-      temperature: 0.8,
-      max_tokens: 350,
-      response_format: { type: 'json_object' },
-    }),
-  });
+  let result = await callGroqOnce(system, userMessage);
 
-  if (!res.ok) throw new Error(`Groq ${res.status}`);
-  const data = await res.json();
-  const raw = data?.choices?.[0]?.message?.content?.trim();
-  if (!raw) throw new Error('Groq empty');
-
-  try {
-    const parsed = JSON.parse(raw);
-    return { onTopic: parsed.onTopic !== false, reply: sanitizeHindiWords(parsed.reply || raw) };
-  } catch {
-    return { onTopic: true, reply: sanitizeHindiWords(raw) };
+  // Guardrail: if the model still leaked Urdu/Nastaliq script, retry once with a
+  // pointed correction. If it leaks again, never forward broken script to the
+  // customer — fall back to a safe, guaranteed-clean Roman Urdu reply instead.
+  if (containsUrduScript(result.reply)) {
+    console.error('[askGroq] Urdu-script leak detected, retrying with stricter instruction');
+    const strictSystem = `${system}\n\nCRITICAL CORRECTION: Pichli baar tumne Urdu/Nastaliq (Arabic) script mein jawab diya tha — yeh GHALAT hai. Is dafa jawab SIRF Roman/Latin letters mein likho (jese "Shukriya", "theek hai", "foran"). Ek bhi Urdu/Arabic character (نستعلیق) use mat karna, chahe customer ka message kisi bhi script mein ho.`;
+    result = await callGroqOnce(strictSystem, userMessage);
   }
+
+  if (containsUrduScript(result.reply)) {
+    console.error('[askGroq] Urdu-script leak persisted after retry — using safe fallback reply');
+    return {
+      onTopic: true,
+      reply: `Ji, aap ki baat samajh gayi! Thodi detail se dekh kar foran reply karti hoon.\n\nKoi urgent masla ho to call karein: *${CONFIG.supportNumber}* 📞`,
+    };
+  }
+
+  return result;
 }
 
 // ══════════════════════════════════════════════════════
