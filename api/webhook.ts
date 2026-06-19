@@ -261,6 +261,56 @@ function getActiveOutage(rowData: any): any | null {
   return logs.find((o: any) => !o.endTime || new Date(o.endTime).getTime() > now) || null;
 }
 
+// ── Message logging (Phase 1 — whatsapp_messages table, Admin Inbox foundation) ─
+// Single-tenant for now: manager_id hardcoded to 'mahadnet'. Revisit when Phase 5
+// multi-tenant routing (whatsapp_configs.phone_number_id → manager_id) is built.
+async function logMessage(
+  customerPhone: string,
+  direction: 'in' | 'out',
+  type: 'text' | 'image' | 'audio' | 'voice' | 'document',
+  content: string,
+  opts: { flagged?: boolean; managerId?: string } = {}
+) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        manager_id: opts.managerId || 'mahadnet',
+        customer_phone: normPhone(customerPhone),
+        direction, type, content,
+        flagged_payment_proof: !!opts.flagged,
+      }),
+    });
+  } catch (e: any) { console.error('[logMessage]', e?.message); }
+}
+
+// Downloads WhatsApp media (e.g. payment screenshot) via Meta Graph API and
+// re-uploads it to the public `whatsapp-media` Supabase Storage bucket.
+async function downloadAndStoreMedia(mediaId: string): Promise<string | null> {
+  const token = process.env.WHATSAPP_TOKEN;
+  if (!token) return null;
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!metaRes.ok) { console.error('[media meta]', metaRes.status); return null; }
+    const meta: any = await metaRes.json();
+    const mediaRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!mediaRes.ok) { console.error('[media download]', mediaRes.status); return null; }
+    const buf = Buffer.from(await mediaRes.arrayBuffer());
+    const ext = (meta.mime_type || 'image/jpeg').split('/')[1]?.split(';')[0] || 'jpg';
+    const path = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
+    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': meta.mime_type || 'image/jpeg' },
+      body: buf,
+    });
+    if (!upRes.ok) { console.error('[media upload]', upRes.status, await upRes.text()); return null; }
+    return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
+  } catch (e: any) { console.error('[downloadAndStoreMedia]', e?.message); return null; }
+}
+
 // ── Lightweight session state (for slot-filling flows) ──────────────────────────
 async function getSession(phone: string): Promise<{ state: string; data?: any } | null> {
   try {
@@ -844,6 +894,7 @@ async function sendText(to: string, body: string) {
     const d = await r.json();
     if (!r.ok) console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200));
   } catch (e: any) { console.error('❌ sendText:', e?.message); }
+  await logMessage(to, 'out', 'text', body);
 }
 
 async function sendImage(to: string, imageUrl: string, caption: string) {
@@ -862,6 +913,7 @@ async function sendImage(to: string, imageUrl: string, caption: string) {
     const d = await r.json();
     if (!r.ok) console.error('❌ Meta image:', JSON.stringify(d).slice(0, 200));
   } catch (e: any) { console.error('❌ sendImage:', e?.message); }
+  await logMessage(to, 'out', 'image', imageUrl);
 }
 
 async function sendRouterCatalog(to: string, band: '2.4g' | '5g') {
@@ -896,11 +948,36 @@ export default async function handler(req: any, res: any) {
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
 
       if (type === 'audio' || type === 'voice') {
+        await logMessage(from, 'in', 'audio', '[voice note]');
         await sendText(from, `Assalam o Alaikum! 😊 Voice note mili — lekin main abhi audio process nahi kar sakti.\n\nApna masla text mein likhein ya call karein: *${CONFIG.supportNumber}* 📞`);
         continue;
       }
 
+      // ── Image (typically a payment screenshot) — previously silently dropped ──
+      if (type === 'image') {
+        const mediaId: string | undefined = msg?.image?.id;
+        const caption: string = msg?.image?.caption?.trim() || '';
+        const found = await findCustomer(from);
+        const managerId = found?.managerId || 'mahadnet';
+        const mediaUrl = mediaId ? await downloadAndStoreMedia(mediaId) : null;
+        await logMessage(from, 'in', 'image', mediaUrl || caption || '[image]', { flagged: true, managerId });
+
+        const rowData = found?.rowData || (await getManagerRow(managerId)) || {};
+        await notifyManager(managerId, rowData, {
+          title: '🧾 Payment Screenshot Mila (WhatsApp)',
+          message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\n${mediaUrl}` : ''}`,
+          priority: 'MEDIUM',
+        });
+
+        await sendText(from, found?.user
+          ? `Shukriya ${found.user.name}! 😊 Aap ka payment screenshot mil gaya hai — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`
+          : `Shukriya! 😊 Screenshot mil gaya hai. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`);
+        continue;
+      }
+
       if (type !== 'text' || !text) continue;
+
+      await logMessage(from, 'in', 'text', text);
 
       const intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
