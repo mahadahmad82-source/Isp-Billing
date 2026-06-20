@@ -354,6 +354,39 @@ async function transcribeAudio(mediaId: string): Promise<string | null> {
   } catch (e: any) { console.error('[transcribeAudio]', e?.message); return null; }
 }
 
+// Romanized Urdu fed straight to Azure's ur-PK voice gets mispronounced badly —
+// the neural model expects actual Urdu/Nastaliq script for correct pronunciation,
+// stress, and tone. So before synthesizing, transliterate the Roman Urdu reply into
+// Urdu script via Groq — same exact words/grammar/tone, script only. The WhatsApp
+// TEXT reply the customer sees stays Roman Urdu as always; only this audio-bound
+// copy gets converted.
+async function transliterateToUrduScript(text: string): Promise<string | null> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key || !text) return null;
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          {
+            role: 'system',
+            content: 'Tum sirf ek transliteration tool ho. Diya gaya Roman Urdu (Latin letters) text ko EXACT wahi alfaz, EXACT wahi tone, EXACT wahi grammar rakh kar sirf Urdu/Nastaliq script mein convert karo. Koi lafz mat badlo, formal mat banao, translate mat karo — sirf script tabdeel karo. Sirf converted Urdu script wapas bhejo, koi izafi text ya quotes nahi.',
+          },
+          { role: 'user', content: text },
+        ],
+        temperature: 0.2,
+        max_tokens: 400,
+      }),
+    });
+    if (!res.ok) { console.error('[transliterateToUrduScript]', res.status, await res.text()); return null; }
+    const data: any = await res.json();
+    const out = data?.choices?.[0]?.message?.content?.trim();
+    return out && containsUrduScript(out) ? out : null;
+  } catch (e: any) { console.error('[transliterateToUrduScript]', e?.message); return null; }
+}
+
 // Converts text to a female-voice MP3 via Azure Speech (Cognitive Services TTS),
 // stores it in the public whatsapp-media bucket, and returns its public URL.
 // Returns null on any failure so the caller can gracefully fall back to a text reply.
@@ -364,7 +397,9 @@ async function textToSpeech(text: string): Promise<string | null> {
   // Pakistani Urdu female neural voice — natural fit for Ayesha's persona. Override
   // via AZURE_SPEECH_VOICE if a different voice is picked later.
   const voiceName = process.env.AZURE_SPEECH_VOICE || 'ur-PK-UzmaNeural';
-  const escaped = text
+  const urduScriptText = await transliterateToUrduScript(text);
+  if (!urduScriptText) { console.error('[textToSpeech] transliteration failed, skipping TTS'); return null; }
+  const escaped = urduScriptText
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
