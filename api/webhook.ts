@@ -200,22 +200,26 @@ async function getManagerRow(managerId: string): Promise<any | null> {
 }
 
 async function notifyManager(managerId: string, rowData: any, notif: { title: string; message: string; priority?: 'HIGH' | 'MEDIUM' | 'LOW' }) {
+  const newNotif = {
+    id: `wa-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    type: 'SYSTEM',
+    priority: notif.priority || 'MEDIUM',
+    title: notif.title,
+    message: notif.message,
+    timestamp: new Date().toISOString(),
+  };
   try {
-    const newNotif = {
-      id: `wa-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      type: 'SYSTEM',
-      priority: notif.priority || 'MEDIUM',
-      title: notif.title,
-      message: notif.message,
-      timestamp: new Date().toISOString(),
-    };
-    const pending = [...(rowData.pendingManagerNotifications || []), newNotif];
-    await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
-      method: 'PATCH',
+    // Atomic DB-level append — fixes the bug where a stale rowData snapshot would
+    // overwrite the entire pendingManagerNotifications array and resurrect already-
+    // dismissed notifications (classic read-modify-write race against the app's own
+    // dismiss/clear actions).
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/append_manager_notification`, {
+      method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ data: { ...rowData, pendingManagerNotifications: pending } }),
+      body: JSON.stringify({ p_manager_id: managerId, p_notif: newNotif }),
     });
   } catch (e: any) { console.error('[notifyManager]', e?.message); }
+  return newNotif;
 }
 
 async function saveLead(managerId: string, rowData: any, lead: { name: string; phone: string; address: string; area?: string; interestedPlan?: string; note?: string; source: string }) {
@@ -269,7 +273,7 @@ async function logMessage(
   direction: 'in' | 'out',
   type: 'text' | 'image' | 'audio' | 'voice' | 'document',
   content: string,
-  opts: { flagged?: boolean; managerId?: string } = {}
+  opts: { flagged?: boolean; managerId?: string; waMessageId?: string } = {}
 ) {
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
@@ -280,6 +284,7 @@ async function logMessage(
         customer_phone: normPhone(customerPhone),
         direction, type, content,
         flagged_payment_proof: !!opts.flagged,
+        wa_message_id: opts.waMessageId || null,
       }),
     });
   } catch (e: any) { console.error('[logMessage]', e?.message); }
@@ -378,6 +383,19 @@ async function textToSpeech(text: string): Promise<string | null> {
     if (!upRes.ok) { console.error('[textToSpeech upload]', upRes.status, await upRes.text()); return null; }
     return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
   } catch (e: any) { console.error('[textToSpeech]', e?.message); return null; }
+}
+
+// True live push notification (Web Push, works even with the app closed) — reuses
+// the existing send-push-notification Edge Function + push_subscriptions infra
+// already built for the main MYISP app.
+async function pushNotify(managerId: string, title: string, body: string, tag?: string) {
+  try {
+    await fetch('https://mzmajmjzopmkzboizrbm.supabase.co/functions/v1/send-push-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manager_id: managerId, title, body, tag: tag || 'wabot' }),
+    });
+  } catch (e: any) { console.error('[pushNotify]', e?.message); }
 }
 
 // Phase 4 — conversation memory: pulls the last few logged messages for this
@@ -1031,6 +1049,7 @@ async function sendText(to: string, body: string) {
   const token = process.env.WHATSAPP_TOKEN;
   const pid   = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) { console.error('❌ WA env missing'); return; }
+  let wamid: string | undefined;
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
@@ -1039,14 +1058,16 @@ async function sendText(to: string, body: string) {
     });
     const d = await r.json();
     if (!r.ok) console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200));
+    else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendText:', e?.message); }
-  await logMessage(to, 'out', 'text', body);
+  await logMessage(to, 'out', 'text', body, { waMessageId: wamid });
 }
 
 async function sendAudio(to: string, audioUrl: string) {
   const token = process.env.WHATSAPP_TOKEN;
   const pid   = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) return;
+  let wamid: string | undefined;
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
@@ -1055,14 +1076,16 @@ async function sendAudio(to: string, audioUrl: string) {
     });
     const d = await r.json();
     if (!r.ok) console.error('❌ Meta audio:', JSON.stringify(d).slice(0, 200));
+    else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendAudio:', e?.message); }
-  await logMessage(to, 'out', 'audio', audioUrl);
+  await logMessage(to, 'out', 'audio', audioUrl, { waMessageId: wamid });
 }
 
 async function sendImage(to: string, imageUrl: string, caption: string) {
   const token = process.env.WHATSAPP_TOKEN;
   const pid   = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) return;
+  let wamid: string | undefined;
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
@@ -1074,8 +1097,9 @@ async function sendImage(to: string, imageUrl: string, caption: string) {
     });
     const d = await r.json();
     if (!r.ok) console.error('❌ Meta image:', JSON.stringify(d).slice(0, 200));
+    else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendImage:', e?.message); }
-  await logMessage(to, 'out', 'image', imageUrl);
+  await logMessage(to, 'out', 'image', imageUrl, { waMessageId: wamid });
 }
 
 async function sendRouterCatalog(to: string, band: '2.4g' | '5g') {
@@ -1101,7 +1125,23 @@ export default async function handler(req: any, res: any) {
 
   try {
     const messages: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.messages || [];
+    const statuses: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.statuses || [];
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
+
+    // Delivery ticks: Meta calls this webhook again with a `statuses` array whenever a
+    // message we sent changes state (sent → delivered → read). Match by WAMID and update.
+    for (const st of statuses) {
+      const wamid = st?.id;
+      const newStatus = st?.status; // 'sent' | 'delivered' | 'read' | 'failed'
+      if (!wamid || !newStatus) continue;
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages?wa_message_id=eq.${wamid}`, {
+          method: 'PATCH',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ status: newStatus }),
+        });
+      } catch (e: any) { console.error('[status update]', e?.message); }
+    }
 
     // Phase 3 — Admin Inbox: conversations mahadnet has manually taken over should not
     // get auto-replies from Ayesha. Single-tenant for now, so always manager_id='mahadnet'.
@@ -1120,6 +1160,14 @@ export default async function handler(req: any, res: any) {
       let text: string = msg?.text?.body?.trim() || '';
 
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
+
+      // Live push notification — fires for every inbound message, exactly like WhatsApp
+      // itself, so mahadnet gets an instant phone alert even with the app closed.
+      try {
+        const pushLabel = (await findCustomer(from))?.user?.name || `+92${normPhone(from)}`;
+        const preview = type === 'text' ? text.slice(0, 100) : type === 'image' ? '📷 Photo' : type === 'audio' || type === 'voice' ? '🎤 Voice note' : 'New message';
+        await pushNotify('mahadnet', `💬 ${pushLabel}`, preview, `wabot-${normPhone(from)}`);
+      } catch (e: any) { console.error('[wabot push]', e?.message); }
 
       if (pausedPhones.includes(normPhone(from))) {
         // Bot is paused on this thread — just log the message for the inbox, no auto-reply.
