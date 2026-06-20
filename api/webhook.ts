@@ -1,6 +1,9 @@
 // api/webhook.ts — Ayesha Bot v6 | MahadNet WhatsApp Support
 // Dynamic packages from Supabase + Router catalog with images + session state
 
+import { GoogleGenAI } from '@google/genai';
+import * as lamejs from '@breezystack/lamejs';
+
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_ayesha_bot';
@@ -354,76 +357,53 @@ async function transcribeAudio(mediaId: string): Promise<string | null> {
   } catch (e: any) { console.error('[transcribeAudio]', e?.message); return null; }
 }
 
-// Romanized Urdu fed straight to Azure's ur-PK voice gets mispronounced badly —
-// the neural model expects actual Urdu/Nastaliq script for correct pronunciation,
-// stress, and tone. So before synthesizing, transliterate the Roman Urdu reply into
-// Urdu script via Groq — same exact words/grammar/tone, script only. The WhatsApp
-// TEXT reply the customer sees stays Roman Urdu as always; only this audio-bound
-// copy gets converted.
-async function transliterateToUrduScript(text: string): Promise<string | null> {
-  const key = process.env.GROQ_API_KEY;
-  if (!key || !text) return null;
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          {
-            role: 'system',
-            content: 'Tum sirf ek transliteration tool ho. Diya gaya Roman Urdu (Latin letters) text ko EXACT wahi alfaz, EXACT wahi tone, EXACT wahi grammar rakh kar sirf Urdu/Nastaliq script mein convert karo. Koi lafz mat badlo, formal mat banao, translate mat karo — sirf script tabdeel karo. Sirf converted Urdu script wapas bhejo, koi izafi text ya quotes nahi.',
-          },
-          { role: 'user', content: text },
-        ],
-        temperature: 0.2,
-        max_tokens: 400,
-      }),
-    });
-    if (!res.ok) { console.error('[transliterateToUrduScript]', res.status, await res.text()); return null; }
-    const data: any = await res.json();
-    const out = data?.choices?.[0]?.message?.content?.trim();
-    return out && containsUrduScript(out) ? out : null;
-  } catch (e: any) { console.error('[transliterateToUrduScript]', e?.message); return null; }
-}
-
-// Converts text to a female-voice MP3 via Azure Speech (Cognitive Services TTS),
+// Converts text to a female-voice MP3 via Gemini 2.5 Flash TTS (Google GenAI),
 // stores it in the public whatsapp-media bucket, and returns its public URL.
-// Returns null on any failure so the caller can gracefully fall back to a text reply.
+// Gemini's TTS is LLM-based — it understands Roman Urdu directly (no script
+// conversion step needed, unlike Azure's locale-bound voices) and follows a
+// plain-language style instruction prefixed to the text. Returns null on any
+// failure so the caller can gracefully fall back to a text reply.
 async function textToSpeech(text: string): Promise<string | null> {
-  const key = process.env.AZURE_API_KEY;
-  const region = process.env.AZURE_SPEECH_REGION;
-  if (!key || !region || !text) return null;
-  // Pakistani Urdu female neural voice — natural fit for Ayesha's persona. Override
-  // via AZURE_SPEECH_VOICE if a different voice is picked later.
-  const voiceName = process.env.AZURE_SPEECH_VOICE || 'ur-PK-UzmaNeural';
-  const urduScriptText = await transliterateToUrduScript(text);
-  if (!urduScriptText) { console.error('[textToSpeech] transliteration failed, skipping TTS'); return null; }
-  const escaped = urduScriptText
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-  const ssml = `<speak version="1.0" xml:lang="ur-PK"><voice name="${voiceName}">${escaped}</voice></speak>`;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || !text) return null;
+  // Override via GEMINI_TTS_VOICE if a different prebuilt voice is picked later.
+  const voiceName = process.env.GEMINI_TTS_VOICE || 'Kore';
   try {
-    const r = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': key,
-        'Content-Type': 'application/ssml+xml',
-        'X-Microsoft-OutputFormat': 'audio-16khz-64kbitrate-mono-mp3',
-        'User-Agent': 'AyeshaWABot',
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-preview-tts',
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
       },
-      body: ssml,
-    });
-    if (!r.ok) { console.error('[textToSpeech]', r.status, await r.text()); return null; }
-    const buf = Buffer.from(await r.arrayBuffer());
+    } as any);
+    const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    const b64 = inline?.data;
+    if (!b64) { console.error('[textToSpeech] no audio data in Gemini response'); return null; }
+    const pcm = Buffer.from(b64, 'base64'); // raw 16-bit PCM, mono, 24kHz
+
+    // Encode PCM -> MP3 in pure JS (no ffmpeg binary available/needed here) —
+    // WhatsApp Cloud API does not accept raw WAV/PCM for audio messages.
+    const samples = new Int16Array(pcm.buffer, pcm.byteOffset, pcm.length / 2);
+    const encoder = new (lamejs as any).Mp3Encoder(1, 24000, 128);
+    const blockSize = 1152;
+    const mp3Chunks: Uint8Array[] = [];
+    for (let i = 0; i < samples.length; i += blockSize) {
+      const chunk = samples.subarray(i, i + blockSize);
+      const buf = encoder.encodeBuffer(chunk);
+      if (buf.length > 0) mp3Chunks.push(buf);
+    }
+    const tail = encoder.flush();
+    if (tail.length > 0) mp3Chunks.push(tail);
+    const mp3Buf = Buffer.concat(mp3Chunks.map((c) => Buffer.from(c)));
+
     const path = `tts-replies/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg' },
-      body: buf,
+      body: mp3Buf,
     });
     if (!upRes.ok) { console.error('[textToSpeech upload]', upRes.status, await upRes.text()); return null; }
     return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
