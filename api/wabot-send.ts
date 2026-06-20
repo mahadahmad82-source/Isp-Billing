@@ -18,6 +18,7 @@ export default async function handler(req: any, res: any) {
   const pid = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) return res.status(500).json({ error: 'WhatsApp env vars missing' });
 
+  let wamid: string | undefined;
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
@@ -29,6 +30,7 @@ export default async function handler(req: any, res: any) {
       console.error('❌ wabot-send Meta:', JSON.stringify(d).slice(0, 300));
       return res.status(502).json({ error: 'WhatsApp send failed', detail: d });
     }
+    wamid = d?.messages?.[0]?.id;
   } catch (e: any) {
     console.error('❌ wabot-send fetch:', e?.message);
     return res.status(500).json({ error: e?.message });
@@ -42,7 +44,7 @@ export default async function handler(req: any, res: any) {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ manager_id: mgr, customer_phone: phone, direction: 'out', type: 'text', content: body }),
+      body: JSON.stringify({ manager_id: mgr, customer_phone: phone, direction: 'out', type: 'text', content: body, wa_message_id: wamid || null }),
     });
   } catch (e: any) { console.error('[wabot-send log]', e?.message); }
 
