@@ -864,6 +864,34 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
         </div>
 
+        {/* Ayesha WhatsApp Bot Settings */}
+        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.97-4.03 9-9 9a8.96 8.96 0 01-4.535-1.224L3 21l1.255-3.762A8.96 8.96 0 013 12c0-4.97 4.03-9 9-9s9 4.03 9 9z"/></svg>
+            </div>
+            <div>
+              <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Ayesha WhatsApp Bot</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">WhatsApp support bot ka naam customize karo</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Bot Name</label>
+            <input
+              type="text"
+              maxLength={20}
+              placeholder="Ayesha"
+              value={localSettings.ayeshaBotName || ''}
+              onChange={e => setLocalSettings({ ...localSettings, ayeshaBotName: e.target.value })}
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <p className="text-[10px] text-slate-400 mt-1.5 font-medium">
+              Bot khud ko introduce karega: <span className="font-black text-emerald-500">"Main {localSettings.ayeshaBotName || 'Ayesha'} hoon..."</span>
+            </p>
+          </div>
+        </div>
+
         {/* Receipt Design Selector */}
         <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
            <div className="flex items-center gap-3">
