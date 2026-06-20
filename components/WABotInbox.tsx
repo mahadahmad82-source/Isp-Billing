@@ -11,6 +11,7 @@ interface WAMessage {
   content: string | null;
   flagged_payment_proof: boolean;
   is_read: boolean;
+  status: 'sent' | 'delivered' | 'read' | 'failed';
   created_at: string;
 }
 
@@ -42,6 +43,26 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h`;
   return `${Math.floor(hrs / 24)}d`;
+}
+
+function DeliveryTicks({ status }: { status: string }) {
+  if (status === 'read') {
+    return (
+      <svg className="w-4 h-3 inline-block text-sky-300" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5.5L8.5 9L15 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+  }
+  if (status === 'delivered') {
+    return (
+      <svg className="w-4 h-3 inline-block text-indigo-200" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5.5L8.5 9L15 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+  }
+  if (status === 'failed') {
+    return <span className="text-rose-300">⚠</span>;
+  }
+  // sent (single tick)
+  return (
+    <svg className="w-4 h-3 inline-block text-indigo-200" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  );
 }
 
 const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator }) => {
@@ -174,6 +195,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       content: body,
       flagged_payment_proof: false,
       is_read: true,
+      status: 'sent',
       created_at: new Date().toISOString(),
     };
     setThread(prev => [...prev, optimistic]);
@@ -221,8 +243,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   return (
     <div className="flex h-[calc(100vh-180px)] min-h-[500px] gap-4">
-      {/* ── Chat list ── */}
-      <div className="w-full sm:w-[340px] flex-shrink-0 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex flex-col overflow-hidden">
+      {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
+      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[340px] flex-shrink-0 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex-col overflow-hidden`}>
         <div className="p-5 border-b border-slate-100 dark:border-white/5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">MYISP WABot</h3>
@@ -268,8 +290,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         </div>
       </div>
 
-      {/* ── Thread ── */}
-      <div className="hidden sm:flex flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex-col overflow-hidden">
+      {/* ── Thread — takes over full screen on mobile when a chat is open ── */}
+      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex-col overflow-hidden`}>
         {!selectedConv ? (
           <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold">
             Koi conversation select karein
@@ -277,11 +299,20 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         ) : (
           <>
             <div className="p-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-black text-slate-900 dark:text-white">{selectedConv.name}</p>
-                <p className="text-xs text-slate-400 font-bold">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={() => setSelectedPhone(null)}
+                  className="sm:hidden p-2 -ml-2 text-slate-500 dark:text-slate-300 flex-shrink-0"
+                  aria-label="Back to chat list"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div className="min-w-0">
+                  <p className="font-black text-slate-900 dark:text-white truncate">{selectedConv.name}</p>
+                  <p className="text-xs text-slate-400 font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => onOpenReceiptGenerator?.(selectedConv.userId)}
                   className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
@@ -292,7 +323,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   onClick={togglePause}
                   className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}
                 >
-                  {selectedConv.paused ? '▶ Resume Bot' : '⏸ Pause Bot'}
+                  {selectedConv.paused ? '▶ Resume' : '⏸ Pause'}
                 </button>
               </div>
             </div>
@@ -310,9 +341,10 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                     ) : (
                       <p className="whitespace-pre-wrap break-words">{m.content}</p>
                     )}
-                    <p className={`text-[10px] mt-1 font-bold ${m.direction === 'out' ? 'text-indigo-200' : 'text-slate-400'}`}>
+                    <p className={`text-[10px] mt-1 font-bold flex items-center gap-1 ${m.direction === 'out' ? 'text-indigo-200 justify-end' : 'text-slate-400'}`}>
                       {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       {m.flagged_payment_proof ? ' • 🧾 Payment proof' : ''}
+                      {m.direction === 'out' && <DeliveryTicks status={m.status} />}
                     </p>
                   </div>
                 </div>
