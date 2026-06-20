@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.5",
     "@google/genai": "1.34.0",
     "@supabase/supabase-js": "^2.105.1",
     "@types/express": "^5.0.6",
