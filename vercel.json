@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/webhook.ts": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",
