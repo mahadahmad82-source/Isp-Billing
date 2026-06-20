@@ -399,6 +399,32 @@ async function pushNotify(managerId: string, title: string, body: string, tag?: 
   } catch (e: any) { console.error('[pushNotify]', e?.message); }
 }
 
+// Training loop: every Groq-handled (non-deterministic) reply gets logged here as an
+// "unreviewed" candidate. mahadnet reviews these in the Admin Inbox training tab and
+// approves the good ones, which then feed back into future replies via getApprovedKnowledge.
+async function logKnowledgeCandidate(question: string, answer: string, managerId: string = 'mahadnet') {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/ayesha_knowledge`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ manager_id: managerId, question: question.slice(0, 500), answer: answer.slice(0, 1000), tags: ['unreviewed'] }),
+    });
+  } catch (e: any) { console.error('[logKnowledgeCandidate]', e?.message); }
+}
+
+// Pulls mahadnet-approved Q&A pairs so Groq can align its answers with house-approved
+// wording instead of re-improvising every time for recurring questions.
+async function getApprovedKnowledge(managerId: string = 'mahadnet', limit = 12): Promise<string> {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/ayesha_knowledge?manager_id=eq.${managerId}&tags=cs.{approved}&order=updated_at.desc&limit=${limit}&select=question,answer`;
+    const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+    if (!r.ok) return '';
+    const rows: any[] = await r.json();
+    if (!rows.length) return '';
+    return rows.map(k => `Q: ${k.question}\nA: ${k.answer}`).join('\n\n');
+  } catch (e: any) { console.error('[getApprovedKnowledge]', e?.message); return ''; }
+}
+
 // Phase 4 — conversation memory: pulls the last few logged messages for this
 // customer so Ayesha doesn't lose track mid-conversation across separate webhook
 // invocations (each WhatsApp message is its own serverless call with no in-memory state).
@@ -966,7 +992,7 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
   }
 }
 
-async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha'): Promise<{ onTopic: boolean; reply: string }> {
+async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = ''): Promise<{ onTopic: boolean; reply: string }> {
   const system = `Tu ${botName} hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha ${botName}, MahadNet ki support team ka hissa.
 
 LANGUAGE MATCHING (zaroori):
@@ -1011,7 +1037,7 @@ OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence n
 {"onTopic": true ya false, "reply": "tumhari reply yahan — Roman/Latin letters mein, max 4-5 lines, 1-2 emoji max"}
 
 CUSTOMER INFO: ${custData}
-COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat):\n${recentHistory}` : ''}`;
+COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat):\n${recentHistory}` : ''}${knowledgeContext ? `\n\nAPPROVED REFERENCE ANSWERS (Mahad bhai ne yeh wording manually approve ki hai — agar customer ka sawal in se milta hai, isi tarah ka wording/lehja use karo):\n${knowledgeContext}` : ''}`;
 
   let result = await callGroqOnce(system, userMessage);
 
@@ -1505,8 +1531,14 @@ export default async function handler(req: any, res: any) {
       const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}`;
       try {
         const recentHistory = await getRecentHistory(from, managerId);
-        const result = await askGroq(custData, text, recentHistory, rowData?.settings?.ayeshaBotName);
+        const knowledgeContext = await getApprovedKnowledge(managerId);
+        const result = await askGroq(custData, text, recentHistory, rowData?.settings?.ayeshaBotName, knowledgeContext);
         await sendText(from, result.reply);
+
+        // Knowledge-base training loop: log every AI-handled (non-deterministic) reply
+        // so mahadnet can review in the Admin Inbox and "approve" good ones, which then
+        // get fed back into future askGroq calls as reference answers.
+        logKnowledgeCandidate(text, result.reply).catch(() => {});
 
         // Even though Groq's reply already addresses these conversationally, also flag them
         // to Mahad bhai so a human can act (arrange a recovery visit, follow up on a delay, etc.)
