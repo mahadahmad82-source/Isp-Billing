@@ -540,8 +540,7 @@ const App: React.FC = () => {
           // Show browser notification for each
           newNotifs.forEach(n => {
             showLocalNotification(n.title, n.message, n.type.toLowerCase());
-          });
-          
+          });          
           // Mark as shown + keep in pending for display in NotificationCenter
           setState(prev => {
             const merged = [
@@ -835,6 +834,7 @@ const App: React.FC = () => {
           };
           newPendingNotifs = [...newPendingNotifs, payNotif];
           showLocalNotification('💰 Large Payment Collected', `Rs. ${(receipt.paidAmount || 0).toLocaleString()} — ${receipt.username}`, 'payment');
+          sendPushNotification(activeManager || 'mahadnet', '💰 Large Payment Collected', `Rs. ${(receipt.paidAmount || 0).toLocaleString()} — ${receipt.username}`, 'myisp-payment');
         }
         return { 
           ...prev, 
@@ -919,6 +919,7 @@ const App: React.FC = () => {
 
       // Show browser notification immediately if manager is on same device
       showLocalNotification(notifTitle, notifMsg, 'attendance');
+      sendPushNotification(prev.currentManager || activeManager || 'mahadnet', notifTitle, notifMsg, 'myisp-attendance');
 
       const newState = {
         ...prev,
@@ -1295,6 +1296,7 @@ const App: React.FC = () => {
                   actionTab: 'complaints'
                 } : null;
                 showLocalNotification('✅ Complaint Resolved', ticket ? `"${ticket.title}" resolved by agent` : 'Complaint resolved', 'complaint');
+                sendPushNotification(prev.currentManager || activeManager || 'mahadnet', '✅ Complaint Resolved', ticket ? `"${ticket.title}" — ${ticket.customerName}` : 'Complaint resolved', 'myisp-complaint');
                 const newState = { 
                   ...prev, 
                   complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t),
@@ -1459,6 +1461,7 @@ const App: React.FC = () => {
                     };
                     newPending = [...newPending, resolveNotif];
                     showLocalNotification('✅ Complaint Resolved', `"${ticket.title}" — ${ticket.customerName}`, 'complaint');
+                    sendPushNotification(prev.currentManager || activeManager || 'mahadnet', '✅ Complaint Resolved', `"${ticket.title}" — ${ticket.customerName}`, 'myisp-complaint');
                   }
 
                   // Complaint assigned to agent
