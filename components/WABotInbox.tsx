@@ -27,6 +27,17 @@ interface Conversation {
   paused: boolean;
 }
 
+interface KnowledgeItem {
+  id: string;
+  manager_id: string;
+  topic: string | null;
+  question: string;
+  answer: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 interface WABotInboxProps {
   managerId: string;
   customers: UserRecord[];
@@ -75,6 +86,67 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
+
+  // ── Training (Confused Replies) tab state ──
+  const [view, setView] = useState<'inbox' | 'training'>('inbox');
+  const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+
+  const loadKnowledge = useCallback(async () => {
+    setKnowledgeLoading(true);
+    try {
+      const { data } = await supabase
+        .from('ayesha_knowledge')
+        .select('*')
+        .eq('manager_id', managerId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      setKnowledge(data || []);
+    } catch (e) {
+      console.error('[WABotInbox] loadKnowledge', e);
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, [managerId]);
+
+  useEffect(() => {
+    if (view === 'training') loadKnowledge();
+  }, [view, loadKnowledge]);
+
+  const unreviewedCount = useMemo(() => knowledge.filter(k => k.tags?.includes('unreviewed')).length, [knowledge]);
+
+  const approveKnowledge = async (item: KnowledgeItem, finalAnswer: string) => {
+    try {
+      await supabase
+        .from('ayesha_knowledge')
+        .update({ answer: finalAnswer, tags: ['approved'], updated_at: new Date().toISOString() })
+        .eq('id', item.id);
+      setKnowledge(prev => prev.map(k => (k.id === item.id ? { ...k, answer: finalAnswer, tags: ['approved'] } : k)));
+      setEditingId(null);
+    } catch (e) {
+      console.error('[WABotInbox] approveKnowledge', e);
+    }
+  };
+
+  const deleteKnowledge = async (id: string) => {
+    try {
+      await supabase.from('ayesha_knowledge').delete().eq('id', id);
+      setKnowledge(prev => prev.filter(k => k.id !== id));
+    } catch (e) {
+      console.error('[WABotInbox] deleteKnowledge', e);
+    }
+  };
+
+  const revertKnowledge = async (id: string) => {
+    try {
+      await supabase.from('ayesha_knowledge').update({ tags: ['unreviewed'] }).eq('id', id);
+      setKnowledge(prev => prev.map(k => (k.id === id ? { ...k, tags: ['unreviewed'] } : k)));
+    } catch (e) {
+      console.error('[WABotInbox] revertKnowledge', e);
+    }
+  };
 
   const customerByPhone = useMemo(() => {
     const map = new Map<string, UserRecord>();
@@ -242,7 +314,89 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   }
 
   return (
-    <div className="flex h-[calc(100vh-180px)] min-h-[500px] gap-4">
+    <div className="flex flex-col h-[calc(100vh-160px)] min-h-[540px] gap-3">
+      {/* ── Tab toggle ── */}
+      <div className="flex gap-2 flex-shrink-0">
+        <button
+          onClick={() => setView('inbox')}
+          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'inbox' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#0f172a] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
+        >
+          💬 Inbox
+        </button>
+        <button
+          onClick={() => setView('training')}
+          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all relative ${view === 'training' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#0f172a] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
+        >
+          🎓 Training
+          {unreviewedCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>
+          )}
+        </button>
+      </div>
+
+      {view === 'training' ? (
+        <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-y-auto p-6">
+          <div className="mb-5">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Confused Replies / Training</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1">Jab Ayesha ko deterministic jawab nahi milta, woh AI se reply karti hai aur yahan log hota hai. Acha jawab "Approve" kar do — wahi wording aage bhi use hogi.</p>
+          </div>
+
+          {knowledgeLoading ? (
+            <p className="text-sm text-slate-400 font-bold text-center py-10">Loading...</p>
+          ) : knowledge.length === 0 ? (
+            <p className="text-sm text-slate-400 font-bold text-center py-10">Abhi koi training entries nahi hain.</p>
+          ) : (
+            <div className="space-y-4">
+              {knowledge.map(k => {
+                const isUnreviewed = k.tags?.includes('unreviewed');
+                const isEditing = editingId === k.id;
+                return (
+                  <div key={k.id} className={`p-5 rounded-2xl border ${isUnreviewed ? 'border-amber-200 dark:border-amber-500/20 bg-amber-50/40 dark:bg-amber-500/5' : 'border-emerald-200 dark:border-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-500/5'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${isUnreviewed ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                        {isUnreviewed ? 'Unreviewed' : 'Approved'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-bold">{timeAgo(k.created_at)}</span>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 dark:text-white mb-1">Q: {k.question}</p>
+                    {isEditing ? (
+                      <textarea
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        rows={3}
+                        className="w-full mt-2 p-3 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap">A: {k.answer}</p>
+                    )}
+                    <div className="flex gap-2 mt-3">
+                      {isEditing ? (
+                        <>
+                          <button onClick={() => approveKnowledge(k, editText)} className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Save & Approve</button>
+                          <button onClick={() => setEditingId(null)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          {isUnreviewed ? (
+                            <>
+                              <button onClick={() => approveKnowledge(k, k.answer)} className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">✓ Approve As-Is</button>
+                              <button onClick={() => { setEditingId(k.id); setEditText(k.answer); }} className="px-4 py-2 bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">✏ Edit & Approve</button>
+                            </>
+                          ) : (
+                            <button onClick={() => revertKnowledge(k.id)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">↺ Unapprove</button>
+                          )}
+                          <button onClick={() => deleteKnowledge(k.id)} className="px-4 py-2 bg-rose-500/10 text-rose-500 rounded-xl font-black text-[10px] uppercase tracking-widest">🗑 Delete</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+    <div className="flex flex-1 gap-4 min-h-0">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
       <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[340px] flex-shrink-0 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex-col overflow-hidden`}>
         <div className="p-5 border-b border-slate-100 dark:border-white/5">
@@ -371,6 +525,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </>
         )}
       </div>
+    </div>
+      )}
     </div>
   );
 };
