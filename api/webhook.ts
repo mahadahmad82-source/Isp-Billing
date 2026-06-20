@@ -995,9 +995,9 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
-      temperature: 0.8,
+      temperature: 0.6,
       max_tokens: 350,
       response_format: { type: 'json_object' },
     }),
@@ -1018,6 +1018,10 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
 
 async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = ''): Promise<{ onTopic: boolean; reply: string }> {
   const system = `Tu ${botName} hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha ${botName}, MahadNet ki support team ka hissa.
+
+URDU QUALITY BAR — ZAROORI: Tumhari Roman Urdu ek senior, tajurbakar Pakistani call-center agent jesi honi chahiye — rawan, mukammal sahih grammar, natural sentence flow. Halki si bhi awkward ya tooti-phooti construction bardasht nahi (jese galat verb tense, gender mismatch, ya word-by-word translation jesi banawat). Chhoti, seedhi, baat-cheet wali sentences likho — lambi formal ya kitabi Urdu mat likho.
+Misaal SAHI: "Theek hai, main abhi check karti hoon aap ka balance." / "Fiber wala masla aksar router restart se hal ho jata hai."
+Misaal GHALAT (mat likhna): "Main aap ki sahayata ke liye uplabdh hoon" (formal/Hindi-jesi), "Aap ka masla hum dekh rahe hain process" (awkward word order).
 
 LANGUAGE MATCHING (zaroori):
 - Agar customer pure English mein likhe, tum bhi professional English mein jawab do.
