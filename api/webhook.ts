@@ -354,24 +354,33 @@ async function transcribeAudio(mediaId: string): Promise<string | null> {
   } catch (e: any) { console.error('[transcribeAudio]', e?.message); return null; }
 }
 
-// Converts text to a female-voice MP3 via ElevenLabs, stores it in the public
-// whatsapp-media bucket, and returns its public URL. Returns null on any failure
-// so the caller can gracefully fall back to a text reply.
+// Converts text to a female-voice MP3 via Azure Speech (Cognitive Services TTS),
+// stores it in the public whatsapp-media bucket, and returns its public URL.
+// Returns null on any failure so the caller can gracefully fall back to a text reply.
 async function textToSpeech(text: string): Promise<string | null> {
-  const key = process.env.ELEVENLABS_API_KEY;
-  if (!key || !text) return null;
-  // "Rachel" — ElevenLabs' long-stable default female voice ID. Override via
-  // ELEVENLABS_VOICE_ID if a different (e.g. more Urdu-natural) voice is picked later.
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+  const key = process.env.AZURE_API_KEY;
+  const region = process.env.AZURE_SPEECH_REGION;
+  if (!key || !region || !text) return null;
+  // Pakistani Urdu female neural voice — natural fit for Ayesha's persona. Override
+  // via AZURE_SPEECH_VOICE if a different voice is picked later.
+  const voiceName = process.env.AZURE_SPEECH_VOICE || 'ur-PK-UzmaNeural';
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+  const ssml = `<speak version="1.0" xml:lang="ur-PK"><voice name="${voiceName}">${escaped}</voice></speak>`;
   try {
-    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+    const r = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: 'POST',
-      headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({
-        text,
-        model_id: 'eleven_flash_v2_5', // low-latency multilingual model, supports Urdu
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-      }),
+      headers: {
+        'Ocp-Apim-Subscription-Key': key,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-16khz-64kbitrate-mono-mp3',
+        'User-Agent': 'AyeshaWABot',
+      },
+      body: ssml,
     });
     if (!r.ok) { console.error('[textToSpeech]', r.status, await r.text()); return null; }
     const buf = Buffer.from(await r.arrayBuffer());
