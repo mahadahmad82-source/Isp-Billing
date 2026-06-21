@@ -398,18 +398,37 @@ async function transliterateToRoman(text: string): Promise<string> {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        // The smaller 8b-instant model was inconsistent at this — sometimes echoing the
+        // original script back unchanged, sometimes appending the Roman version after it
+        // instead of replacing it. The bigger model follows the "ONLY" instruction reliably.
+        model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'system',
-          content: `Tum sirf ek script-transliteration tool ho — TRANSLATION nahi karte, sirf script (likhne ka tareeqa) badalte ho. Diya gaya text (Devanagari/Hindi script ya Urdu/Nastaliq script) ko phonetically Roman/Latin letters mein likho — alfaz, maani aur tarteeb EXACTLY wese hi rakho jese bole gaye hain. Agar text already Roman/English mein hai to bilkul wese hi wapis bhej do, kuch mat badlo. Sirf transliterated text return karo — koi quote marks, koi explanation, kuch extra nahi.`,
+          content: `Tum sirf ek script-transliteration tool ho — TRANSLATION nahi karte, sirf script (likhne ka tareeqa) badalte ho. Diya gaya text (Devanagari/Hindi script ya Urdu/Nastaliq script) ko phonetically Roman/Latin letters mein likho — alfaz, maani aur tarteeb EXACTLY wese hi rakho jese bole gaye hain. Agar text already Roman/English mein hai to bilkul wese hi wapis bhej do.
+
+SIRF transliterated Roman text return karo. NA original script wapis likho, NA dono versions ek sath do, NA koi quote marks/explanation. Sirf ek line ka plain Roman Urdu text — bas.
+
+Example:
+Input: बड़ी महरबानी
+Output: Badi meherbani
+
+Input: السلام علیکم، انٹرنیٹ کام نہیں کر رہا
+Output: Assalam o alaikum, internet kaam nahi kar raha`,
         }, { role: 'user', content: text }],
         temperature: 0.1,
         max_tokens: 300,
       }),
     });
-    if (!res.ok) return text;
+    if (!res.ok) { console.error('[transliterateToRoman] groq', res.status, await res.text()); return text; }
     const data: any = await res.json();
-    return data?.choices?.[0]?.message?.content?.trim() || text;
+    let out: string = data?.choices?.[0]?.message?.content?.trim() || text;
+    // Safety net: if the model still echoed the original script anywhere in its
+    // reply, keep only the line(s) that are purely Latin script.
+    if (containsDevanagari(out) || containsUrduScript(out)) {
+      const latinOnly = out.split('\n').filter(line => line.trim() && !containsDevanagari(line) && !containsUrduScript(line)).join(' ').trim();
+      if (latinOnly) out = latinOnly;
+    }
+    return out || text;
   } catch (e: any) { console.error('[transliterateToRoman]', e?.message); return text; }
 }
 
@@ -872,7 +891,7 @@ ${bal > 0 ? `\n🔴 Pending balance: *Rs. ${bal}*` : ''}${expired ? `\n📅 Pack
 Payment clear hote hi service automatically restore ho jati hai ✅
 Bank details chahiye? *"3"* likh kar bhejein 😊
 
-Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main turant complaint register kar dungi.`;
+Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main foran complaint register kar dungi.`;
 }
 
 function troubleshootingReply(issue: string): string {
@@ -883,7 +902,7 @@ function troubleshootingReply(issue: string): string {
     ? `1️⃣ Mobile/laptop ka WiFi off karke wapis on karein\n2️⃣ Sahi WiFi password dobara check karein (case-sensitive hota hai)\n3️⃣ Router se 5-6 feet door na hon, deewaron ke peeche signal weak ho jata hai`
     : `1️⃣ Router/ONU ki light check karein — green/blue blink honi chahiye\n2️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n3️⃣ 1-2 minute device ko boot hone ka time dein\n4️⃣ Phir dobara internet try karein`;
 
-  return `Aap ka masla note ho gaya hai 🛠️\n\nPehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:\n\n${tips}\n\nAgar phir bhi masla rahe to bas yahan likh dein — main turant complaint register kar ke technical team ko bhej dungi! 👍`;
+  return `Aap ka masla note ho gaya hai 🛠️\n\nPehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:\n\n${tips}\n\nAgar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍`;
 }
 
 function outageReply(outage: any): string {
@@ -1026,7 +1045,7 @@ ${CONFIG.bankAccounts}${planLine}
 2️⃣ Apna *username*
 3️⃣ Apna *address*
 
-Yeh milte hi turant activate/renew kar diya jayega! 🙏`;
+Yeh milte hi foran activate/renew kar diya jayega! 🙏`;
 }
 
 // ══════════════════════════════════════════════════════
@@ -1280,6 +1299,9 @@ export default async function handler(req: any, res: any) {
       const wamid = st?.id;
       const newStatus = st?.status; // 'sent' | 'delivered' | 'read' | 'failed'
       if (!wamid || !newStatus) continue;
+      if (newStatus === 'failed' && st?.errors) {
+        console.error('[delivery failed]', wamid, JSON.stringify(st.errors));
+      }
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages?wa_message_id=eq.${wamid}`, {
           method: 'PATCH',
