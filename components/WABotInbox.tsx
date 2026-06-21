@@ -260,14 +260,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
     try {
+      // BUG FIX: ascending order + limit(150) was keeping the OLDEST 150 messages
+      // and silently dropping everything after — so any conversation with more than
+      // 150 messages total looked like it was "missing" everything except whatever
+      // arrived live via realtime after the screen was opened. Fetch the most RECENT
+      // window (descending + limit) instead, then reverse for correct display order.
       const { data } = await supabase
         .from('whatsapp_messages')
         .select('*')
         .eq('manager_id', managerId)
         .eq('customer_phone', phone)
-        .order('created_at', { ascending: true })
-        .limit(150);
-      setThread(data || []);
+        .order('created_at', { ascending: false })
+        .limit(300);
+      setThread((data || []).slice().reverse());
 
       // Mark unread inbound messages as read
       await supabase
