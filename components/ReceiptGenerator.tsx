@@ -5,6 +5,7 @@ import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, Receipt
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
 import { shareToWhatsApp } from '../utils/whatsapp';
+import { supabase } from '../lib/supabase';
 
 interface ReceiptGeneratorProps {
   users: UserRecord[];
@@ -20,6 +21,7 @@ interface ReceiptGeneratorProps {
   onPreSelectConsumed?: () => void;
   hideHistory?: boolean;
   defaultCollectedBy?: string;
+  managerId?: string;
 }
 
 type ViewMode = 'list' | 'create' | 'view';
@@ -40,6 +42,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   onPreSelectConsumed,
   hideHistory = false,
   defaultCollectedBy,
+  managerId = 'mahadnet',
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>(hideHistory ? 'create' : 'list');
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -350,6 +353,55 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     }
   };
 
+  const normalizePhoneForWa = (phone: string): string => {
+    const digits = (phone || '').replace(/\D/g, '');
+    return `92${digits.slice(-10)}`;
+  };
+
+  // Sends the receipt image to the customer automatically right after a payment is
+  // recorded — through Ayesha's WhatsApp number (Meta Cloud API), the same channel
+  // the bot itself uses, instead of requiring a manual "Share" tap every time.
+  const autoSendReceiptViaWhatsApp = async (receipt: Receipt) => {
+    if (!receipt.userPhone) return;
+    try {
+      await new Promise(r => setTimeout(r, 1200)); // let the receipt preview render first
+      const element = document.getElementById('receipt-download-area');
+      if (!element) return;
+      const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: isThermal ? window.innerWidth : 800,
+        onclone: (clonedDoc) => {
+          const area = clonedDoc.getElementById('receipt-download-area');
+          if (area) {
+            area.style.boxShadow = 'none';
+            if (!isThermal) area.style.minWidth = '800px';
+          }
+        },
+      });
+      canvas.toBlob(async (blob: Blob | null) => {
+        if (!blob) return;
+        try {
+          const path = `receipts/${Date.now()}-${(receipt.transactionRef || receipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
+          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png' });
+          if (upErr) throw upErr;
+          const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+          const balance = receipt.balanceAmount || 0;
+          const caption = `*${settings.businessName} RECEIPT*\nRef: ${receipt.transactionRef}\nAmount Paid: Rs. ${(receipt.paidAmount || 0).toLocaleString()}\nRemaining Balance: Rs. ${balance.toLocaleString()}\n\nShukriya! ✅`;
+          await fetch('/api/wabot-send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: normalizePhoneForWa(receipt.userPhone), managerId, type: 'image', mediaUrl: pub.publicUrl, caption }),
+          });
+        } catch (e) { console.error('[ReceiptGenerator] auto WhatsApp send failed', e); }
+      }, 'image/png', 1.0);
+    } catch (e) { console.error('[ReceiptGenerator] auto WhatsApp capture failed', e); }
+  };
+
   const generateReceipt = async () => {
     const user = users.find(u => u.id === selectedUserId);
     if (!user) return;
@@ -415,6 +467,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       setEditingReceiptId(null);
       
       captureAndDownload(newReceipt);
+      autoSendReceiptViaWhatsApp(newReceipt);
 
     } catch (error) {
       console.error("Critical System Failure:", error);
