@@ -277,7 +277,7 @@ async function logMessage(
   direction: 'in' | 'out',
   type: 'text' | 'image' | 'audio' | 'voice' | 'document',
   content: string,
-  opts: { flagged?: boolean; managerId?: string; waMessageId?: string } = {}
+  opts: { flagged?: boolean; managerId?: string; waMessageId?: string; mediaUrl?: string | null; translatedContent?: string | null } = {}
 ) {
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
@@ -287,6 +287,8 @@ async function logMessage(
         manager_id: opts.managerId || 'mahadnet',
         customer_phone: normPhone(customerPhone),
         direction, type, content,
+        media_url: opts.mediaUrl || null,
+        translated_content: opts.translatedContent || null,
         flagged_payment_proof: !!opts.flagged,
         wa_message_id: opts.waMessageId || null,
       }),
@@ -325,24 +327,40 @@ async function downloadAndStoreMedia(mediaId: string): Promise<string | null> {
 // in the main handler — see voiceReplyTargets.delete(from) below.
 const voiceReplyTargets = new Set<string>();
 
-// Downloads a WhatsApp voice note and transcribes it via Groq's hosted Whisper
-// (same GROQ_API_KEY already used for the chat fallback). Auto-detects language,
-// so Urdu-script transcripts naturally fall through detectIntent() to the Groq
-// chat fallback (askGroq), which already replies in Roman Urdu either way.
-async function transcribeAudio(mediaId: string): Promise<string | null> {
+// Downloads a WhatsApp voice note, stores the original audio in Supabase Storage
+// (so mahadnet can actually listen to it in the Admin Inbox — previously only the
+// transcript was kept), and transcribes it via Groq's hosted Whisper. Whisper
+// auto-detects language, so Urdu/Hindi speech sometimes comes back in Devanagari
+// or Urdu/Nastaliq script — that's handled by transliterateToRoman() in the caller,
+// not here, so the raw transcript stays intact for display/translation purposes.
+async function transcribeAudio(mediaId: string): Promise<{ transcript: string | null; mediaUrl: string | null }> {
   const waToken = process.env.WHATSAPP_TOKEN;
   const groqKey = process.env.GROQ_API_KEY;
-  if (!waToken || !groqKey || !mediaId) return null;
+  if (!waToken || !groqKey || !mediaId) return { transcript: null, mediaUrl: null };
   try {
     const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, { headers: { Authorization: `Bearer ${waToken}` } });
-    if (!metaRes.ok) { console.error('[transcribeAudio meta]', metaRes.status); return null; }
+    if (!metaRes.ok) { console.error('[transcribeAudio meta]', metaRes.status); return { transcript: null, mediaUrl: null }; }
     const meta: any = await metaRes.json();
     const audioRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${waToken}` } });
-    if (!audioRes.ok) { console.error('[transcribeAudio download]', audioRes.status); return null; }
+    if (!audioRes.ok) { console.error('[transcribeAudio download]', audioRes.status); return { transcript: null, mediaUrl: null }; }
     const buf = Buffer.from(await audioRes.arrayBuffer());
+    const mimeType = meta.mime_type || 'audio/ogg';
+
+    let mediaUrl: string | null = null;
+    try {
+      const ext = mimeType.split('/')[1]?.split(';')[0] || 'ogg';
+      const path = `voice-notes/${Date.now()}-${mediaId}.${ext}`;
+      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType },
+        body: buf,
+      });
+      if (upRes.ok) mediaUrl = `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
+      else console.error('[transcribeAudio upload]', upRes.status, await upRes.text());
+    } catch (e: any) { console.error('[transcribeAudio store]', e?.message); }
 
     const form = new FormData();
-    form.append('file', new Blob([buf], { type: meta.mime_type || 'audio/ogg' }), 'voice.ogg');
+    form.append('file', new Blob([buf], { type: mimeType }), 'voice.ogg');
     form.append('model', 'whisper-large-v3-turbo');
     form.append('response_format', 'json');
 
@@ -351,10 +369,48 @@ async function transcribeAudio(mediaId: string): Promise<string | null> {
       headers: { Authorization: `Bearer ${groqKey}` },
       body: form as any,
     });
-    if (!groqRes.ok) { console.error('[transcribeAudio groq]', groqRes.status, await groqRes.text()); return null; }
+    if (!groqRes.ok) { console.error('[transcribeAudio groq]', groqRes.status, await groqRes.text()); return { transcript: null, mediaUrl }; }
     const data: any = await groqRes.json();
-    return (data.text || '').trim() || null;
-  } catch (e: any) { console.error('[transcribeAudio]', e?.message); return null; }
+    return { transcript: (data.text || '').trim() || null, mediaUrl };
+  } catch (e: any) { console.error('[transcribeAudio]', e?.message); return { transcript: null, mediaUrl: null }; }
+}
+
+// Devanagari Unicode block — Whisper sometimes transcribes Urdu/Hindi speech using
+// Hindi script instead of Roman letters. When that happens none of the Roman-Urdu
+// regex intents below can match it, so the message silently fell through to the
+// Groq fallback (no grounded facts → hallucinated account numbers, package lists,
+// wrong greetings, etc.). containsUrduScript() (further below) catches the Nastaliq
+// case the same way.
+function containsDevanagari(text: string): boolean {
+  return /[\u0900-\u097F]/.test(text);
+}
+
+// Phonetic script-conversion ONLY (never translation) — turns a Devanagari/Nastaliq
+// voice transcript into Roman Urdu so it can flow through the exact same
+// deterministic intent detection, sessions, and fact-grounded replies that text
+// messages already use. The original-script transcript is kept separately (passed
+// into logMessage by the caller) for display + the Admin Inbox "Translate" toggle.
+async function transliterateToRoman(text: string): Promise<string> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key || !text) return text;
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [{
+          role: 'system',
+          content: `Tum sirf ek script-transliteration tool ho — TRANSLATION nahi karte, sirf script (likhne ka tareeqa) badalte ho. Diya gaya text (Devanagari/Hindi script ya Urdu/Nastaliq script) ko phonetically Roman/Latin letters mein likho — alfaz, maani aur tarteeb EXACTLY wese hi rakho jese bole gaye hain. Agar text already Roman/English mein hai to bilkul wese hi wapis bhej do, kuch mat badlo. Sirf transliterated text return karo — koi quote marks, koi explanation, kuch extra nahi.`,
+        }, { role: 'user', content: text }],
+        temperature: 0.1,
+        max_tokens: 300,
+      }),
+    });
+    if (!res.ok) return text;
+    const data: any = await res.json();
+    return data?.choices?.[0]?.message?.content?.trim() || text;
+  } catch (e: any) { console.error('[transliterateToRoman]', e?.message); return text; }
 }
 
 // Converts text to a female-voice MP3 via Gemini 2.5 Flash TTS (Google GenAI),
@@ -799,6 +855,26 @@ function fiberUpsellPitch(): string {
 Kya aap *Fiber Connection* lena pasand karenge? Reply karein *"Haan"* ya *"Nahi"* 🙏`;
 }
 
+// Checked before troubleshooting tips / complaint-ticket creation — a suspended
+// account (unpaid balance or expired package) is the real cause of "no internet"
+// far more often than a router fault, so billing is confirmed clear first.
+function accountBillingBlockedReply(user: any): string | null {
+  const bal = user.balance ?? 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const expired = user.expiryDate ? new Date(user.expiryDate) < today : false;
+  if (bal <= 0 && !expired) return null;
+  const expDateStr = user.expiryDate
+    ? new Date(user.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '';
+  return `Ji ${user.name}! Maine check kiya — internet band hone ki wajah lagta hai *billing* hai, router ka masla nahi 🔍
+${bal > 0 ? `\n🔴 Pending balance: *Rs. ${bal}*` : ''}${expired ? `\n📅 Package expire ho gaya: *${expDateStr}*` : ''}
+
+Payment clear hote hi service automatically restore ho jati hai ✅
+Bank details chahiye? *"3"* likh kar bhejein 😊
+
+Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main turant complaint register kar dungi.`;
+}
+
 function troubleshootingReply(issue: string): string {
   const t = issue.toLowerCase();
   const isWifiAuth = /password|connect\s*nahi|wifi\s*(nahi|disconnect)/.test(t);
@@ -1118,6 +1194,21 @@ async function sendText(to: string, body: string) {
   await logMessage(to, 'out', 'text', body, { waMessageId: wamid });
 }
 
+// Complaint-ticket confirmations must always carry the ticket ID as text (so it's
+// on record/searchable), even mid voice-conversation — a voice-only reply isn't
+// enough for something the customer may need to reference later. Sends text always,
+// and additionally a voice note when this turn started as a voice message.
+async function sendTextAndVoice(to: string, body: string) {
+  const wasVoiceTurn = voiceReplyTargets.has(to);
+  voiceReplyTargets.delete(to); // prevent sendText() below from converting this into a voice-only reply
+  await sendText(to, body);
+  if (wasVoiceTurn) {
+    const audioUrl = await textToSpeech(body);
+    if (audioUrl) await sendAudio(to, audioUrl);
+    voiceReplyTargets.add(to); // restore in case more replies follow later this turn
+  }
+}
+
 async function sendAudio(to: string, audioUrl: string) {
   const token = process.env.WHATSAPP_TOKEN;
   const pid   = process.env.PHONE_NUMBER_ID;
@@ -1238,16 +1329,24 @@ export default async function handler(req: any, res: any) {
 
       if (type === 'audio' || type === 'voice') {
         const mediaId: string | undefined = msg?.audio?.id || msg?.voice?.id;
-        const transcript = mediaId ? await transcribeAudio(mediaId) : null;
+        const { transcript, mediaUrl } = mediaId ? await transcribeAudio(mediaId) : { transcript: null, mediaUrl: null };
         if (transcript) {
-          await logMessage(from, 'in', 'audio', transcript);
+          // Whisper sometimes hands back Urdu/Hindi speech in Devanagari or Nastaliq
+          // script — none of the Roman-Urdu regex intents below can read that, so it
+          // used to fall straight to the Groq fallback (no grounded facts → wrong
+          // account numbers, package lists, missed greetings, etc.). Transliterate to
+          // Roman first so voice gets the exact same deterministic routing as text;
+          // keep the original-script transcript for the Admin Inbox display/translate.
+          const needsRoman = containsUrduScript(transcript) || containsDevanagari(transcript);
+          const romanText = needsRoman ? await transliterateToRoman(transcript) : transcript;
+          await logMessage(from, 'in', 'audio', transcript, { mediaUrl, translatedContent: needsRoman ? romanText : null });
           alreadyLoggedThisTurn = true;
           voiceReplyTargets.add(from); // every sendText() below now auto-becomes a voice reply
-          text = transcript;
+          text = romanText;
           type = 'text';
           // falls through into the normal text pipeline below — same intents, same logic
         } else {
-          await logMessage(from, 'in', 'audio', '[voice note — transcription unavailable]');
+          await logMessage(from, 'in', 'audio', '[voice note — transcription unavailable]', { mediaUrl });
           await sendText(from, `Assalam o Alaikum! 😊 Voice note mili lekin abhi samajh nahi paayi.\n\nApna masla text mein likhein ya call karein: *${CONFIG.supportNumber}* 📞`);
           continue;
         }
@@ -1391,6 +1490,8 @@ export default async function handler(req: any, res: any) {
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const outage = getActiveOutage(found.rowData);
           if (outage) { await sendText(from, outageReply(outage)); continue; }
+          const billingBlock = accountBillingBlockedReply(found.user);
+          if (billingBlock) { await sendText(from, billingBlock); continue; }
           await setSession(from, 'awaiting_complaint_confirm', { issue: text });
           await sendText(from, troubleshootingReply(text));
           continue;
@@ -1409,7 +1510,7 @@ export default async function handler(req: any, res: any) {
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const combinedIssue = sessionData?.issue ? `${sessionData.issue} | Follow-up: ${text}` : text;
           const tid = await saveComplaint(found.managerId, found.rowData, found.user, combinedIssue);
-          await sendText(from, complaintAckReply(found.user, tid, combinedIssue));
+          await sendTextAndVoice(from, complaintAckReply(found.user, tid, combinedIssue));
           continue;
         }
       }
@@ -1517,6 +1618,8 @@ export default async function handler(req: any, res: any) {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
         const outage = getActiveOutage(found.rowData);
         if (outage) { await sendText(from, outageReply(outage)); continue; }
+        const billingBlock = accountBillingBlockedReply(found.user);
+        if (billingBlock) { await sendText(from, billingBlock); continue; }
         await setSession(from, 'awaiting_complaint_text');
         await sendText(from, `Ji ${found.user.name}! Kya ho raha hai internet mein? Thori detail bata dein. 🛠️`);
         continue;
@@ -1548,6 +1651,8 @@ export default async function handler(req: any, res: any) {
       if (intent === 'complaint') {
         const outage = getActiveOutage(rowData);
         if (outage) { await sendText(from, outageReply(outage)); continue; }
+        const billingBlock = accountBillingBlockedReply(user);
+        if (billingBlock) { await sendText(from, billingBlock); continue; }
         await setSession(from, 'awaiting_complaint_confirm', { issue: text });
         await sendText(from, troubleshootingReply(text));
         continue;
@@ -1556,7 +1661,17 @@ export default async function handler(req: any, res: any) {
       // ── Fallback: Groq for everything else (personal chat, open-ended, off-topic) ──
       // 'personal' is the catch-all intent — route it to Groq instead of a canned reply,
       // so the bot actually thinks instead of just refusing with "Mahad bhai available nahi".
-      const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}`;
+      const planPricesForGroq = rowData?.settings?.planPrices || {};
+      const packagesListForGroq = Object.entries(planPricesForGroq).map(([n, p]) => `${n} — Rs.${p}`).join(', ') || 'Mahad bhai se confirm karein';
+      const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}
+
+REAL BANK ACCOUNTS — agar account number/bank details maange to YEHI EXACT digits do, kabhi khud se number mat banao:
+${CONFIG.bankAccounts}
+
+REAL AVAILABLE PACKAGES — agar package list/pricing maange to YEHI EXACT list do, kabhi khud se package/price mat banao:
+${packagesListForGroq}
+
+Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberPricePerMeter}/meter hai (2-core, length site visit pe measure hoti hai) — yeh charge installation se alag hai.`;
       try {
         const recentHistory = await getRecentHistory(from, managerId);
         const knowledgeContext = await getApprovedKnowledge(managerId);
