@@ -3,7 +3,7 @@ import QuickActivate from './QuickActivate';
 import React, { useState, useRef, useMemo } from 'react';
 import { UserRecord, AppSettings, Receipt, PaymentStatus } from '../types';
 import { generateId } from '../utils/storage';
-import { shareToWhatsApp } from '../utils/whatsapp';
+import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import * as XLSX from 'xlsx';
 
 interface UserManagementProps {
@@ -421,7 +421,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     onUpdateUser({ ...user, balance: 0 });
   };
 
-  const handleSendReminder = (user: UserRecord, type: 'sms' | 'whatsapp') => {
+  const handleSendReminder = async (user: UserRecord, type: 'sms' | 'whatsapp') => {
     const monthlyNet = user.monthlyFee - (user.persistentDiscount || 0);
     const totalDue = monthlyNet + (user.balance || 0);
     const expiryStr = new Date(user.expiryDate).toLocaleDateString();
@@ -441,7 +441,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (type === 'sms') {
       window.location.href = `sms:${user.phone}?body=${encodeURIComponent(msg.replace(/\*/g, ''))}`;
     } else {
-      shareToWhatsApp(user.phone, msg);
+      // Sends directly through Ayesha's WhatsApp number — works even after the
+      // number is fully migrated to Meta Cloud API (wa.me deep links need a regular
+      // WhatsApp app logged into that number on this device, which won't be true
+      // post-migration). Falls back to the old deep link only if the API send fails.
+      const result = await sendWhatsAppDirect(user.phone, msg);
+      if (!result.success) {
+        console.error('[UserManagement] direct send failed, falling back to wa.me', result.error);
+        shareToWhatsApp(user.phone, msg);
+      }
     }
   };
 
