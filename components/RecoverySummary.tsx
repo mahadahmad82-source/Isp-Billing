@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign } from '../types';
-import { shareToWhatsApp } from '../utils/whatsapp';
+import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 
@@ -240,12 +240,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     }), { paid: 0, advance: 0, balance: 0, count: 0 });
   }, [detailedList]);
 
-  const handleSendReminder = (item: any, type: 'sms' | 'wa') => {
+  const handleSendReminder = async (item: any, type: 'sms' | 'wa') => {
     const msg = `${settings.businessName} Recovery: Dear ${item.name}, your payment for ${selectedMonth} (Dues: Rs. ${(item.balance || 0).toLocaleString()}) is pending. Please clear it today. Thank you!`;
     if (type === 'sms') {
       window.location.href = `sms:${item.phone}?body=${encodeURIComponent(msg)}`;
     } else {
-      shareToWhatsApp(item.phone, msg);
+      const result = await sendWhatsAppDirect(item.phone, msg);
+      if (!result.success) {
+        console.error('[RecoverySummary] direct send failed, falling back to wa.me', result.error);
+        shareToWhatsApp(item.phone, msg);
+      }
     }
   };
 
@@ -1214,10 +1218,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                  {isDownloading ? 'Capturing...' : 'Download PNG'}
                </button>
                <button 
-                 onClick={() => {
+                 onClick={async () => {
                    const nextDue = (viewingReceipt.balanceAmount || 0) + (viewingReceipt.monthlyFee - (viewingReceipt.discount || 0));
                    const msg = `*${settings.businessName} RECEIPT*\n--------------------------\n*Ref:* ${viewingReceipt.transactionRef}\n*Date:* ${new Date(viewingReceipt.date).toLocaleDateString()}\n*Customer:* ${viewingReceipt.userName}\n*Period:* ${viewingReceipt.period}\n*Amount Paid:* Rs. ${(viewingReceipt.paidAmount || 0).toLocaleString()}\n*Next Due:* Rs. ${nextDue.toLocaleString()}\n--------------------------\nThank you!`;
-                   shareToWhatsApp(viewingReceipt.userPhone, msg);
+                   const result = await sendWhatsAppDirect(viewingReceipt.userPhone, msg);
+                   if (!result.success) shareToWhatsApp(viewingReceipt.userPhone, msg);
                  }}
                  className="flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-2"
                >
