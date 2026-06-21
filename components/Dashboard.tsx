@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserRecord, Receipt, PaymentStatus, AppSettings } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
-import { shareToWhatsApp } from '../utils/whatsapp';
+import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface DashboardProps {
@@ -194,7 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     },
   ];
 
-  const handleSendReminder = (u: UserRecord, channel: 'sms' | 'whatsapp') => {
+  const handleSendReminder = async (u: UserRecord, channel: 'sms' | 'whatsapp') => {
     const currentPrice = settings.planPrices[u.plan] || u.monthlyFee || 0;
     const totalDue = currentPrice + (u.balance || 0);
     const bizName = settings.businessName || 'ISP';
@@ -202,7 +202,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     if (channel === 'sms') {
       window.location.href = `sms:${u.phone}?body=${encodeURIComponent(message)}`;
     } else {
-      shareToWhatsApp(u.phone, message);
+      const r = await sendWhatsAppDirect(u.phone, message);
+      if (!r.success) shareToWhatsApp(u.phone, message);
     }
   };
 
