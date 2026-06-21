@@ -37,3 +37,31 @@ export const shareToWhatsApp = (phone: string, message: string) => {
     window.location.href = waUrl;
   }
 };
+/**
+ * Sends a WhatsApp message directly through Ayesha's Meta Cloud API number,
+ * server-side — no deep link, no dependency on a regular WhatsApp app being logged
+ * into this device. This is what keeps "reminder" buttons working once the business
+ * number is fully migrated to Cloud API (at which point wa.me/shareToWhatsApp can no
+ * longer assume a consumer WhatsApp app is logged in on that number). The message is
+ * also auto-logged into the WABot Inbox and Ayesha auto-pauses on that thread.
+ */
+export const sendWhatsAppDirect = async (
+  phone: string,
+  message: string,
+  managerId: string = 'mahadnet'
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const res = await fetch('/api/wabot-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: formatWhatsAppPhone(phone), managerId, type: 'text', body: message }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err?.error || `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Network error' };
+  }
+};
