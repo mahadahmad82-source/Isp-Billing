@@ -1660,6 +1660,8 @@ const App: React.FC = () => {
               managerId={activeManager || 'mahadnet'}
               customers={filteredUsers}
               onOpenReceiptGenerator={() => setActiveTab('receipts')}
+              botName={currentSettings.ayeshaBotName}
+              onUpdateBotName={(name) => handleUpdateSettings({ ...currentSettings, ayeshaBotName: name })}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole === 'manager' && (
