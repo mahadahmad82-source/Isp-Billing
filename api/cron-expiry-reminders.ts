@@ -20,6 +20,18 @@ async function sendText(to: string, body: string) {
     });
     const d = await r.json();
     if (!r.ok) { console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200)); return false; }
+    // Log into whatsapp_messages so this shows up in the WABot Inbox like every
+    // other customer message, instead of being invisible/untracked there.
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          manager_id: 'mahadnet', customer_phone: to.replace(/\D/g, '').slice(-10),
+          direction: 'out', type: 'text', content: body, wa_message_id: d?.messages?.[0]?.id || null,
+        }),
+      });
+    } catch (e: any) { console.error('[cron log]', e?.message); }
     return true;
   } catch (e: any) { console.error('❌ sendText:', e?.message); return false; }
 }
