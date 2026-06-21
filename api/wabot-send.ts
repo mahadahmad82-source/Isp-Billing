@@ -1,6 +1,7 @@
 // api/wabot-send.ts — Phase 3 Admin Inbox: sends a manual WhatsApp reply on
-// mahadnet's behalf, logs it, and auto-pauses Ayesha on that thread (so the bot
-// doesn't collide with a human reply mid-conversation).
+// mahadnet's behalf (text, image, voice note, video, or document), logs it, and
+// auto-pauses Ayesha on that thread (so the bot doesn't collide with a human
+// reply mid-conversation).
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
 
@@ -8,22 +9,40 @@ function normPhone(p: string): string {
   return (p || '').replace(/\D/g, '').slice(-10);
 }
 
+type SendType = 'text' | 'image' | 'audio' | 'video' | 'document';
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { to, body, managerId } = req.body || {};
-  if (!to || !body) return res.status(400).json({ error: 'to and body are required' });
+  const { to, body, managerId, type, mediaUrl, caption, filename } = req.body || {};
+  const sendType: SendType = (type as SendType) || 'text';
+  if (!to) return res.status(400).json({ error: 'to is required' });
+  if (sendType === 'text' && !body) return res.status(400).json({ error: 'body is required for text' });
+  if (sendType !== 'text' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl is required for media messages' });
 
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) return res.status(500).json({ error: 'WhatsApp env vars missing' });
+
+  let payload: any;
+  if (sendType === 'text') {
+    payload = { messaging_product: 'whatsapp', to, type: 'text', text: { body } };
+  } else if (sendType === 'image') {
+    payload = { messaging_product: 'whatsapp', to, type: 'image', image: { link: mediaUrl, ...(caption ? { caption } : {}) } };
+  } else if (sendType === 'audio') {
+    payload = { messaging_product: 'whatsapp', to, type: 'audio', audio: { link: mediaUrl } };
+  } else if (sendType === 'video') {
+    payload = { messaging_product: 'whatsapp', to, type: 'video', video: { link: mediaUrl, ...(caption ? { caption } : {}) } };
+  } else {
+    payload = { messaging_product: 'whatsapp', to, type: 'document', document: { link: mediaUrl, ...(filename ? { filename } : {}), ...(caption ? { caption } : {}) } };
+  }
 
   let wamid: string | undefined;
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body } }),
+      body: JSON.stringify(payload),
     });
     const d = await r.json();
     if (!r.ok) {
@@ -38,13 +57,19 @@ export default async function handler(req: any, res: any) {
 
   const mgr = managerId || 'mahadnet';
   const phone = normPhone(to);
+  const logType = sendType === 'document' ? 'document' : sendType;
+  const logContent = sendType === 'text' ? body : (caption || mediaUrl);
 
   // Log the outbound message for the inbox thread.
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ manager_id: mgr, customer_phone: phone, direction: 'out', type: 'text', content: body, wa_message_id: wamid || null }),
+      body: JSON.stringify({
+        manager_id: mgr, customer_phone: phone, direction: 'out', type: logType,
+        content: logContent, media_url: sendType === 'text' ? null : mediaUrl,
+        wa_message_id: wamid || null,
+      }),
     });
   } catch (e: any) { console.error('[wabot-send log]', e?.message); }
 
@@ -64,5 +89,5 @@ export default async function handler(req: any, res: any) {
     }
   } catch (e: any) { console.error('[wabot-send autopause]', e?.message); }
 
-  return res.status(200).json({ success: true });
+  return res.status(200).json({ success: true, wamid });
 }
