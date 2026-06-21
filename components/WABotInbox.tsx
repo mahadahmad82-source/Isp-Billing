@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { UserRecord } from '../types';
 import { supabase } from '../lib/supabase';
+import * as lamejs from '@breezystack/lamejs';
 
 interface WAMessage {
   id: string;
@@ -224,48 +225,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     return () => clearInterval(interval);
   }, [loadOverview]);
 
-  // Live updates — new messages (and ticks/status changes) appear instantly in
-  // both the chat list and an open thread, the same way WhatsApp itself behaves,
-  // instead of only refreshing when a conversation is re-opened.
-  useEffect(() => {
-    const channel = supabase
-      .channel(`wabot-inbox-${managerId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `manager_id=eq.${managerId}` },
-        (payload: any) => {
-          const m = payload.new as WAMessage;
-          setAllMessages(prev => (prev.some(x => x.id === m.id) ? prev : [m, ...prev]));
-          if (selectedPhoneRef.current === m.customer_phone) {
-            setThread(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m]));
-            if (m.direction === 'in' && !m.is_read) {
-              supabase.from('whatsapp_messages').update({ is_read: true }).eq('id', m.id).then(() => {});
-            }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'whatsapp_messages', filter: `manager_id=eq.${managerId}` },
-        (payload: any) => {
-          const m = payload.new as WAMessage;
-          setAllMessages(prev => prev.map(x => (x.id === m.id ? m : x)));
-          if (selectedPhoneRef.current === m.customer_phone) {
-            setThread(prev => prev.map(x => (x.id === m.id ? m : x)));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'whatsapp_configs', filter: `manager_id=eq.${managerId}` },
-        (payload: any) => {
-          setPausedPhones(payload.new?.paused_phones || []);
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [managerId]);
-
   const conversations: Conversation[] = useMemo(() => {
     const byPhone = new Map<string, WAMessage[]>();
     for (const m of allMessages) {
@@ -323,6 +282,56 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       console.error('[WABotInbox] openConversation', e);
     }
   }, [managerId]);
+
+  // Live updates — new messages (and ticks/status changes) appear instantly in
+  // both the chat list and an open thread, the same way WhatsApp itself behaves,
+  // instead of only refreshing when a conversation is re-opened.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`wabot-inbox-${managerId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `manager_id=eq.${managerId}` },
+        (payload: any) => {
+          const m = payload.new as WAMessage;
+          setAllMessages(prev => (prev.some(x => x.id === m.id) ? prev : [m, ...prev]));
+          if (selectedPhoneRef.current === m.customer_phone) {
+            setThread(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m]));
+            if (m.direction === 'in' && !m.is_read) {
+              supabase.from('whatsapp_messages').update({ is_read: true }).eq('id', m.id).then(() => {});
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'whatsapp_messages', filter: `manager_id=eq.${managerId}` },
+        (payload: any) => {
+          const m = payload.new as WAMessage;
+          setAllMessages(prev => prev.map(x => (x.id === m.id ? m : x)));
+          if (selectedPhoneRef.current === m.customer_phone) {
+            setThread(prev => prev.map(x => (x.id === m.id ? m : x)));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'whatsapp_configs', filter: `manager_id=eq.${managerId}` },
+        (payload: any) => {
+          setPausedPhones(payload.new?.paused_phones || []);
+        }
+      )
+      .subscribe((status: string, err?: Error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.error('[WABotInbox] realtime channel', status, err?.message);
+          // Websocket dropped — pull a fresh copy immediately instead of waiting for
+          // the next poll tick, so a flaky connection never looks like "messages gone".
+          loadOverview();
+          if (selectedPhoneRef.current) openConversation(selectedPhoneRef.current);
+        }
+      });
+    return () => { supabase.removeChannel(channel); };
+  }, [managerId, loadOverview, openConversation]);
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -432,13 +441,56 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     setRecording(false);
   };
 
+  // WhatsApp Cloud API only reliably delivers audio messages in mp3/mpeg, aac, mp4,
+  // amr, or ogg(opus) — NOT the webm/opus container most desktop browsers' MediaRecorder
+  // actually produces. Sending webm silently gets accepted by the API call but then
+  // fails delivery to the customer. Fix: decode whatever the browser recorded (Web Audio
+  // API decoding is universally supported regardless of recording format) and re-encode
+  // to MP3 with the lamejs encoder already used server-side for the TTS pipeline.
+  const blobToMp3 = async (blob: Blob): Promise<Blob> => {
+    const arrayBuffer = await blob.arrayBuffer();
+    const AudioCtx: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioCtx();
+    try {
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+      const samples = audioBuffer.getChannelData(0);
+      const pcm = new Int16Array(samples.length);
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      const encoder = new (lamejs as any).Mp3Encoder(1, audioBuffer.sampleRate, 96);
+      const blockSize = 1152;
+      const chunks: Uint8Array[] = [];
+      for (let i = 0; i < pcm.length; i += blockSize) {
+        const buf = encoder.encodeBuffer(pcm.subarray(i, i + blockSize));
+        if (buf.length > 0) chunks.push(buf);
+      }
+      const finalBuf = encoder.flush();
+      if (finalBuf.length > 0) chunks.push(finalBuf);
+      return new Blob(chunks, { type: 'audio/mpeg' });
+    } finally {
+      audioCtx.close();
+    }
+  };
+
   const sendRecordedAudio = async (blob: Blob, mimeType: string) => {
     if (!selectedPhone) return;
     setUploading(true);
     try {
-      const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm';
+      let outBlob = blob;
+      let ext = 'mp3';
+      let outMime = 'audio/mpeg';
+      try {
+        outBlob = await blobToMp3(blob);
+      } catch (e: any) {
+        console.error('[WABotInbox] mp3 transcode failed, sending original recording', e?.message);
+        ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm';
+        outMime = mimeType;
+        outBlob = blob;
+      }
       const path = `admin-voice/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: mimeType });
+      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, outBlob, { contentType: outMime });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
       const mediaUrl = pub.publicUrl;
