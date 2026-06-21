@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { showLocalNotification } from '../lib/pushNotifications';
 import { UserRecord, AppSettings } from '../types';
 import { generateProfessionalMessage } from '../services/geminiService';
-import { shareToWhatsApp } from '../utils/whatsapp';
+import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 
 interface ExpiriesProps {
   users: UserRecord[];
@@ -84,7 +84,8 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
     if (channel === 'sms') {
       window.location.href = `sms:${user.phone}?body=${encodeURIComponent(message)}`;
     } else {
-      await shareToWhatsApp(user.phone, message);
+      const r = await sendWhatsAppDirect(user.phone, message);
+      if (!r.success) await shareToWhatsApp(user.phone, message);
     }
 
     if (user.phone2 && user.phone2.trim()) {
@@ -92,7 +93,8 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
         if (channel === 'sms') {
           window.open(`sms:${user.phone2}?body=${encodeURIComponent(message)}`, '_blank');
         } else {
-          await shareToWhatsApp(user.phone2!, message);
+          const r2 = await sendWhatsAppDirect(user.phone2!, message);
+          if (!r2.success) await shareToWhatsApp(user.phone2!, message);
         }
       }, 1500);
     }
@@ -118,7 +120,7 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
     
     setAlertConfig({
       title: 'Automation Sequence',
-      message: `Initiating ${pendingUsers.length} reminders via ${channel.toUpperCase()}. Your messaging app will open for each customer. Simply tap send and return to the app.`,
+      message: `Initiating ${pendingUsers.length} reminders via ${channel.toUpperCase()} — sent automatically through Ayesha's WhatsApp number, no manual tap needed.`,
       type: 'info'
     });
 
@@ -143,7 +145,8 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
       if (channel === 'sms') {
         window.open(`sms:${user.phone}?body=${encodeURIComponent(message)}`, '_blank');
       } else {
-        await shareToWhatsApp(user.phone, message);
+        const r = await sendWhatsAppDirect(user.phone, message);
+        if (!r.success) await shareToWhatsApp(user.phone, message);
       }
       
       if (user.phone2 && user.phone2.trim()) {
@@ -151,11 +154,12 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
         if (channel === 'sms') {
           window.open(`sms:${user.phone2}?body=${encodeURIComponent(message)}`, '_blank');
         } else {
-          await shareToWhatsApp(user.phone2, message);
+          const r2 = await sendWhatsAppDirect(user.phone2, message);
+          if (!r2.success) await shareToWhatsApp(user.phone2, message);
         }
       }
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 800));
     }
     
     if (type === 'priority') setIsProcessingPriority(false);
