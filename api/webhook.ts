@@ -894,15 +894,37 @@ Bank details chahiye? *"3"* likh kar bhejein 😊
 Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main foran complaint register kar dungi.`;
 }
 
-function troubleshootingReply(issue: string): string {
+function connectionTypeQuestion(): string {
+  return `Theek hai, pehle yeh batayein — aap ka connection kis tarah ka hai? 🔌\n\n1️⃣ *Fiber Optic*\n2️⃣ *Local Area (UTP/Ethernet wire)*\n\nNumber ya naam likh kar bhej dein!`;
+}
+
+function detectConnectionType(text: string): 'fiber' | 'local' | null {
+  const t = text.toLowerCase().trim();
+  if (/^1$|fiber|fibre|optic/.test(t)) return 'fiber';
+  if (/^2$|local|utp|\blan\b|ethernet|taar\s*wala|wire\s*wala/.test(t)) return 'local';
+  return null;
+}
+
+function troubleshootingReply(issue: string, connectionType?: 'fiber' | 'local'): string {
   const t = issue.toLowerCase();
   const isWifiAuth = /password|connect\s*nahi|wifi\s*(nahi|disconnect)/.test(t);
 
-  const tips = isWifiAuth
-    ? `1️⃣ Mobile/laptop ka WiFi off karke wapis on karein\n2️⃣ Sahi WiFi password dobara check karein (case-sensitive hota hai)\n3️⃣ Router se 5-6 feet door na hon, deewaron ke peeche signal weak ho jata hai`
-    : `1️⃣ Router/ONU ki light check karein — green/blue blink honi chahiye\n2️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n3️⃣ 1-2 minute device ko boot hone ka time dein\n4️⃣ Phir dobara internet try karein`;
+  let tips: string;
+  if (isWifiAuth) {
+    tips = `1️⃣ Mobile/laptop ka WiFi off karke wapis on karein\n2️⃣ Sahi WiFi password dobara check karein (case-sensitive hota hai)\n3️⃣ Router se 5-6 feet door na hon, deewaron ke peeche signal weak ho jata hai`;
+  } else if (connectionType === 'local') {
+    // Local Area (UTP/Ethernet) connections fail differently from fiber — the cable
+    // crimp/connection itself or an intermediate switch is the usual culprit, not the ONU.
+    tips = `1️⃣ UTP/LAN cable router aur device — dono taraf se sahi tarah lagi honi chahiye, ek baar nikal kar dobara lagayein\n2️⃣ Beech mein switch/hub hai to uski lights check karein — sab ports blink honi chahiye\n3️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n4️⃣ 1-2 minute device ko boot hone ka time dein\n5️⃣ Phir dobara internet try karein`;
+  } else {
+    tips = `1️⃣ Router/ONU ki light check karein — green/blue blink honi chahiye\n2️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n3️⃣ 1-2 minute device ko boot hone ka time dein\n4️⃣ Phir dobara internet try karein`;
+  }
 
-  return `Aap ka masla note ho gaya hai 🛠️\n\nPehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:\n\n${tips}\n\nAgar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍`;
+  const fiberPitch = connectionType === 'local'
+    ? `\n\n💡 *Suggestion:* Local (UTP) wire connection ka signal weather aur distance se zyada affect hota hai. *Fiber Optic* zyada stable, fast aur kam masla wala hota hai — shift karna chahein to bata dein, free survey kar dete hain! 🌐`
+    : '';
+
+  return `Aap ka masla note ho gaya hai 🛠️\n\nPehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:\n\n${tips}\n\nAgar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍${fiberPitch}`;
 }
 
 function outageReply(outage: any): string {
@@ -924,7 +946,12 @@ function routerChoicePrompt(): string {
 Likhein *"2.4G"* ya *"5G"* — main detail bhej deti hoon! 😊`;
 }
 
-function newConnReply(): string {
+function newConnReply(planPrices?: Record<string, number>): string {
+  const entries = Object.entries(planPrices || {});
+  const pkgList = entries.length
+    ? entries.sort((a, b) => extractMbps(a[0]) - extractMbps(b[0])).map(([name, price]) => `📦 *${name}* — Rs. ${price.toLocaleString()}/month`).join('\n')
+    : null;
+
   return `MahadNet mein khushamdeed! 🎉
 
 Naya connection ke liye bas yeh batain:
@@ -933,12 +960,11 @@ Naya connection ke liye bas yeh batain:
 2️⃣ *Area / Mohalla / Gali*
 3️⃣ *Package preference*
 4️⃣ *Router/ONU aur fiber cable already available hai ya nahi?*
+${pkgList ? `\n📡 *Available Packages:*\n${pkgList}\n\nPata nahi konsa lena hai? Bas bata dein kitne log/devices use karenge ya kis kaam ke liye chahiye (streaming, gaming, work-from-home) — best package suggest kar dungi! Aakhir mein faisla aap ka hi hoga. 😊` : ''}
 
-Agar available nahi hai, koi masla nahi — hum se purchase kar sakte hain (fiber Rs. 30/meter, 2-core, length site visit pe measure hogi).
+Agar router/fiber available nahi hai, koi masla nahi — hum se purchase kar sakte hain (fiber Rs. ${CONFIG.fiberPricePerMeter}/meter, 2-core, length site visit pe measure hogi) — ya aap khud bhi kahin se la sakte hain.
 
 ✅ *Installation hamesha FREE hai* — sirf package ki monthly payment honi hoti hai!
-
-Packages dekhne hain? *"6"* likh kar bhejein 📦
 
 Yeh details milte hi team 1-2 ghante mein coverage check kar ke rabta karegi! 📡`;
 }
@@ -1454,9 +1480,21 @@ export default async function handler(req: any, res: any) {
             });
           }
           let offer = '';
-          if (missingRouter) offer += `\n📡 Router chahiye? *"router"* likh kar bhejein, catalog bhej deti hoon!`;
-          if (missingFiber) offer += `\n🌐 Fiber cable Rs. 30/meter (2-core) milta hai — installation ke waqt length measure ho jayegi.`;
-          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.${offer}`);
+          if (missingRouter) offer += `\n📡 Router chahiye? *"router"* likh kar bhejein, catalog bhej deti hoon — ya aap khud bhi kahin se le sakte hain, koi pabandi nahi! 😊`;
+          if (missingFiber) offer += `\n🌐 Fiber cable Rs. ${CONFIG.fiberPricePerMeter}/meter (2-core) milta hai — installation ke waqt length measure ho jayegi. Yeh aap khud bhi kahin se kharid kar la sakte hain.`;
+
+          // Recommend a package based on whatever the customer described — grounded
+          // with the REAL packages list (same fact-grounding pattern used elsewhere)
+          // instead of a generic "team will contact you" reply every time.
+          const packagesListForLead = Object.entries(planPrices).map(([n, p]) => `${n} — Rs.${p}/month`).join(', ') || 'Mahad bhai se confirm karein';
+          const leadCustData = `Yeh ek NAYA connection lead hai (abhi MahadNet ka customer nahi hai). Customer ne yeh detail/requirement batayi hai: "${text}"\n\nREAL AVAILABLE PACKAGES — requirement ke mutabiq suggest karna ho to YEHI exact list se karo, khud se package/price mat banao:\n${packagesListForLead}\n\nNaya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberPricePerMeter}/meter hai. Aap ke pas router/fiber na ho to woh humse bhi le sakte hain ya khud kahin se bhi la sakte hain — dono options hain.\n\nAakhir mein: package final customer ki apni marzi se hoga, bas requirement ke mutabiq sahi suggestion dein.`;
+          let leadReply = `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.${offer}`;
+          try {
+            const aiResult = await askGroq(leadCustData, text, '', row?.settings?.ayeshaBotName || 'Ayesha', '');
+            if (aiResult?.onTopic && aiResult.reply) leadReply = `${aiResult.reply}${offer}`;
+          } catch (e: any) { console.error('[lead askGroq]', e?.message); }
+
+          await sendText(from, leadReply);
           continue;
         }
 
@@ -1505,7 +1543,7 @@ export default async function handler(req: any, res: any) {
           continue;
         }
 
-        // Complaint described via menu option 1 → check outage, else give troubleshooting tips first
+        // Complaint described via menu option 1 → check outage/billing, then ask connection type
         if (session === 'awaiting_complaint_text') {
           await setSession(from, null);
           const found = await findCustomer(from);
@@ -1514,8 +1552,21 @@ export default async function handler(req: any, res: any) {
           if (outage) { await sendText(from, outageReply(outage)); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
-          await setSession(from, 'awaiting_complaint_confirm', { issue: text });
-          await sendText(from, troubleshootingReply(text));
+          await setSession(from, 'awaiting_connection_type', { issue: text });
+          await sendText(from, connectionTypeQuestion());
+          continue;
+        }
+
+        // Fiber vs Local(UTP) — branches which troubleshooting tips apply
+        if (session === 'awaiting_connection_type') {
+          const connType = detectConnectionType(text);
+          if (!connType) {
+            await sendText(from, `Maazrat, samajh nahi payi 🙏 Sirf *"Fiber"* ya *"Local"* likh dein.`);
+            continue;
+          }
+          const issue = sessionData?.issue || text;
+          await setSession(from, 'awaiting_complaint_confirm', { issue, connectionType: connType });
+          await sendText(from, troubleshootingReply(issue, connType));
           continue;
         }
 
@@ -1530,7 +1581,8 @@ export default async function handler(req: any, res: any) {
           }
           const found = await findCustomer(from);
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-          const combinedIssue = sessionData?.issue ? `${sessionData.issue} | Follow-up: ${text}` : text;
+          const connTag = sessionData?.connectionType === 'local' ? '[Local/UTP] ' : sessionData?.connectionType === 'fiber' ? '[Fiber] ' : '';
+          const combinedIssue = sessionData?.issue ? `${connTag}${sessionData.issue} | Follow-up: ${text}` : `${connTag}${text}`;
           const tid = await saveComplaint(found.managerId, found.rowData, found.user, combinedIssue);
           await sendTextAndVoice(from, complaintAckReply(found.user, tid, combinedIssue));
           continue;
@@ -1603,7 +1655,8 @@ export default async function handler(req: any, res: any) {
       // ── Menu shortcuts (no DB needed) ──
       if (intent === 'menu_payment')  { await sendText(from, CONFIG.bankAccounts); continue; }
       if (intent === 'menu_new_conn' || intent === 'new_conn') {
-        await sendText(from, newConnReply());
+        const planPricesForNewConn = await getAnyPlanPrices();
+        await sendText(from, newConnReply(planPricesForNewConn));
         await setSession(from, 'lead_awaiting_details');
         continue;
       }
@@ -1675,8 +1728,8 @@ export default async function handler(req: any, res: any) {
         if (outage) { await sendText(from, outageReply(outage)); continue; }
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
-        await setSession(from, 'awaiting_complaint_confirm', { issue: text });
-        await sendText(from, troubleshootingReply(text));
+        await setSession(from, 'awaiting_connection_type', { issue: text });
+        await sendText(from, connectionTypeQuestion());
         continue;
       }
 
