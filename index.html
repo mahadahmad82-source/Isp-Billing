@@ -33,6 +33,33 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <link rel="stylesheet" href="/index.css">
+
+    <script>
+      // Runs synchronously during HTML parse, before React mounts, so the
+      // browser's PWA-installability check sees the /wabot identity (manifest,
+      // icons, title) immediately — not after a delayed React useEffect. This
+      // is what lets /wabot install as its own distinct home-screen app
+      // instead of being merged into the already-installed MYISP app.
+      (function () {
+        if (location.pathname.replace(/\/+$/, '') !== '/wabot') return;
+        document.title = 'Ayesha — WABot';
+        var swap = function (selector, href) {
+          var el = document.querySelector(selector);
+          if (el) el.setAttribute('href', href);
+        };
+        swap('link[rel="manifest"]', '/wabot-manifest.json');
+        swap('link[rel="apple-touch-icon"]', '/wabot-icon-512.png');
+        swap('link[rel="shortcut icon"]', '/wabot-icon-192.png');
+        swap('link[rel="icon"][sizes="32x32"]', '/wabot-icon-192.png');
+        swap('link[rel="icon"][sizes="16x16"]', '/wabot-icon-192.png');
+        var themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) themeMeta.setAttribute('content', '#4f46e5');
+        var appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+        if (appTitle) appTitle.setAttribute('content', 'Ayesha');
+        var appName = document.querySelector('meta[name="application-name"]');
+        if (appName) appName.setAttribute('content', 'Ayesha');
+      })();
+    </script>
 </head>
 <body>
     <div id="root"></div>
