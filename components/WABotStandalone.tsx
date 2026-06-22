@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppState } from '../types';
 import { getAccounts, getActiveSession, loadState, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
@@ -27,35 +27,38 @@ const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
   </div>
 );
 
-type ChatLine = { from: 'bot' | 'user'; text: string };
-type Phase = 'splash' | 'login' | 'loading' | 'ready' | 'error';
+const BG = 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)';
+
+type Phase = 'login' | 'loading' | 'ready' | 'error';
 
 export default function WABotStandalone() {
-  const [phase, setPhase] = useState<Phase>('splash');
+  const [phase, setPhase] = useState<Phase>('login');
   const [username, setUsername] = useState<string | null>(null);
   const [state, setState] = useState<AppState | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const [chatLog, setChatLog] = useState<ChatLine[]>([
-    { from: 'bot', text: 'Hey there! 👋' },
-    { from: 'bot', text: "I'm Ayesha." },
-    { from: 'bot', text: "What's your username?" },
-  ]);
-  const [step, setStep] = useState<'username' | 'password'>('username');
-  const [input, setInput] = useState('');
-  const pendingUserRef = useRef('');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
 
-  // Swap manifest + title while this screen is mounted, restore on unmount
+  // Swap manifest + title while this screen is mounted, restore on unmount.
+  // Also force LIGHT theme regardless of the main dashboard's saved theme —
+  // /wabot always uses its own light brand look, independent of the manager's
+  // dashboard dark/light preference.
   useEffect(() => {
     const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
     const prevHref = link?.getAttribute('href') || 'manifest.json';
     const prevTitle = document.title;
+    const hadDarkClass = document.documentElement.classList.contains('dark');
+
     if (link) link.setAttribute('href', '/wabot-manifest.json');
     document.title = 'Ayesha — WABot';
+    document.documentElement.classList.remove('dark');
+
     return () => {
       if (link) link.setAttribute('href', prevHref);
       document.title = prevTitle;
+      if (hadDarkClass) document.documentElement.classList.add('dark');
     };
   }, []);
 
@@ -84,122 +87,60 @@ export default function WABotStandalone() {
     })();
   }, [phase, username]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [chatLog]);
-
-  const handleSend = () => {
-    const value = input.trim();
-    if (!value) return;
-    setInput('');
-
-    if (step === 'username') {
-      pendingUserRef.current = value;
-      setChatLog(prev => [...prev, { from: 'user', text: value }, { from: 'bot', text: 'And your password?' }]);
-      setStep('password');
-      return;
-    }
-
-    // password step
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     const accounts = getAccounts();
     const acc = accounts.find(
-      a => a.username.toLowerCase() === pendingUserRef.current.toLowerCase() && a.password === value
+      a => a.username.toLowerCase() === loginUser.trim().toLowerCase() && a.password === loginPass
     );
     if (!acc) {
-      setChatLog(prev => [
-        ...prev,
-        { from: 'user', text: '••••••' },
-        { from: 'bot', text: "That doesn't match. What's your username?" },
-      ]);
-      setStep('username');
+      setLoginError('Username ya password ghalat hai.');
       return;
     }
-    setChatLog(prev => [...prev, { from: 'user', text: '••••••' }, { from: 'bot', text: `Welcome back, ${acc.businessName || acc.username}! 🎉` }]);
-    setTimeout(() => {
-      setActiveSession(acc.username);
-      setUsername(acc.username);
-      setPhase('loading');
-    }, 500);
+    setLoginError('');
+    setActiveSession(acc.username);
+    setUsername(acc.username);
+    setPhase('loading');
   };
 
-  // ── SPLASH ────────────────────────────────────────────────────────────────
-  if (phase === 'splash') {
-    return (
-      <div
-        style={{ background: 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)', height: '100dvh' }}
-        className="flex flex-col items-center justify-between px-8 py-12 overflow-hidden"
-      >
-        <div />
-        <div className="flex flex-col items-center gap-5 text-center">
-          <Avatar size={128} />
-          <div>
-            <h1 className="text-2xl font-black text-slate-900">Ayesha</h1>
-            <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
-          </div>
-        </div>
-        <div className="w-full max-w-xs flex flex-col items-center gap-4">
-          <button
-            onClick={() => setPhase('login')}
-            className="w-full bg-white border-2 border-indigo-500 text-indigo-600 py-3 rounded-full font-semibold shadow-sm active:scale-95 transition-all"
-          >
-            Get Started
-          </button>
-          <button onClick={() => setPhase('login')} className="text-sm text-slate-500">
-            Already have an account?{' '}
-            <span className="text-indigo-600 font-semibold">Log In</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── LOGIN (conversational) ───────────────────────────────────────────────
+  // ── LOGIN (simple card) ───────────────────────────────────────────────────
   if (phase === 'login') {
     return (
       <div
-        style={{ background: 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)', height: '100dvh' }}
-        className="flex flex-col overflow-hidden"
+        style={{ background: BG, height: '100dvh' }}
+        className="flex flex-col items-center justify-center px-6 overflow-hidden"
       >
-        <div className="flex items-center gap-3 px-6 pt-8 pb-4">
-          <Avatar size={44} />
-          <div>
-            <p className="font-bold text-slate-900 text-sm">Ayesha</p>
-            <p className="text-[11px] text-slate-400">MahadNet WABot</p>
+        <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-7 flex flex-col items-center gap-5">
+          <Avatar size={88} />
+          <div className="text-center">
+            <h1 className="text-xl font-black text-slate-900">Ayesha</h1>
+            <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
           </div>
-        </div>
 
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-2 flex flex-col gap-2">
-          {chatLog.map((line, i) =>
-            line.from === 'bot' ? (
-              <div key={i} className="bg-white rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-slate-700 shadow-sm self-start max-w-[80%]">
-                {line.text}
-              </div>
-            ) : (
-              <div key={i} className="bg-indigo-600 text-white rounded-2xl rounded-br-sm px-4 py-2.5 text-sm shadow-sm self-end max-w-[80%]">
-                {line.text}
-              </div>
-            )
-          )}
-        </div>
-
-        <div className="px-5 pb-6 pt-3 flex items-center gap-2 shrink-0">
-          <input
-            autoFocus
-            type={step === 'password' ? 'password' : 'text'}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder={step === 'username' ? 'Username' : 'Password'}
-            className="flex-1 bg-white rounded-full px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400 shadow-sm"
-          />
-          <button
-            onClick={handleSend}
-            className="w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center text-white shadow-sm active:scale-95 transition-all shrink-0"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </button>
+          <form onSubmit={handleLoginSubmit} className="w-full flex flex-col gap-3 mt-1">
+            <input
+              autoFocus
+              type="text"
+              value={loginUser}
+              onChange={e => setLoginUser(e.target.value)}
+              placeholder="Username"
+              className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
+            />
+            <input
+              type="password"
+              value={loginPass}
+              onChange={e => setLoginPass(e.target.value)}
+              placeholder="Password"
+              className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
+            />
+            {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
+            >
+              Log In
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -208,7 +149,7 @@ export default function WABotStandalone() {
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (phase === 'loading' || (phase === 'ready' && !state)) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4" style={{ background: '#0b1120', height: '100dvh' }}>
+      <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 overflow-hidden">
         <Avatar size={64} />
         <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading Ayesha…</p>
       </div>
@@ -218,9 +159,9 @@ export default function WABotStandalone() {
   // ── ERROR ─────────────────────────────────────────────────────────────────
   if (phase === 'error') {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 px-8 text-center" style={{ background: '#0b1120', height: '100dvh' }}>
+      <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden">
         <Avatar size={64} />
-        <p className="text-slate-300 text-sm">{errorMsg}</p>
+        <p className="text-slate-500 text-sm">{errorMsg}</p>
         <button
           onClick={() => setPhase('loading')}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold"
@@ -261,7 +202,7 @@ export default function WABotStandalone() {
           <p className="text-[10px] text-slate-400 uppercase tracking-wide">MahadNet WABot</p>
         </div>
       </div>
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <WABotInbox
           managerId={username || 'mahadnet'}
           customers={filteredUsers}
