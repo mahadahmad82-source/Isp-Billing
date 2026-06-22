@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "MYISP - Subscription & Receipt Manager",
   "short_name": "MYISP",
   "description": "ISP billing, receipts, and customer management",
