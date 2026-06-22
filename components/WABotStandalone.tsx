@@ -253,7 +253,7 @@ export default function WABotStandalone() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="h-screen w-full flex flex-col bg-slate-50 overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white shrink-0">
         <Avatar size={36} />
         <div>
@@ -261,7 +261,7 @@ export default function WABotStandalone() {
           <p className="text-[10px] text-slate-400 uppercase tracking-wide">MahadNet WABot</p>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden">
         <WABotInbox
           managerId={username || 'mahadnet'}
           customers={filteredUsers}
