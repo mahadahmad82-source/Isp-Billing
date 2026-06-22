@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AppState } from '../types';
 import { getAccounts, getActiveSession, loadState, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
+import { subscribeToPush } from '../lib/pushNotifications';
 import WABotInbox from './WABotInbox';
 
 // ── Shared gradient-ring avatar (Ayesha brand mark) ─────────────────────────
@@ -27,7 +28,7 @@ const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
   </div>
 );
 
-const BG = 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)';
+const BG = 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)';
 
 type Phase = 'login' | 'loading' | 'ready' | 'error';
 
@@ -79,6 +80,7 @@ export default function WABotStandalone() {
         const merged = await smartLoadAndSync(username, local);
         setState(merged);
         setPhase('ready');
+        subscribeToPush(username).catch(() => {});
       } catch (e: any) {
         console.error('[WABotStandalone load]', e?.message);
         setErrorMsg('Data load nahi ho saka. Dobara try karein.');
