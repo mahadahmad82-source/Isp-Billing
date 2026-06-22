@@ -33,6 +33,7 @@ import DayEndSummary from './components/DayEndSummary';
 import RouteSheet from './components/RouteSheet';
 import MonthlyInvoice from './components/MonthlyInvoice';
 import WABotInbox from './components/WABotInbox';
+import WABotStandalone from './components/WABotStandalone';
 import CustomerPortal from './components/CustomerPortal';
 import LandingPage from './components/LandingPage';
 import TermsAndPolicy from './components/TermsAndPolicy';
@@ -1151,6 +1152,18 @@ const App: React.FC = () => {
     });
   };
 
+
+  // Standalone installable PWA — independent of the main dashboard's login gate.
+  // Handles its own session check internally so the installed /wabot icon opens
+  // straight into the chat (or a quick conversational login) without the full
+  // dashboard chrome.
+  if (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/wabot') {
+    return (
+      <ErrorBoundary>
+        <WABotStandalone />
+      </ErrorBoundary>
+    );
+  }
 
   if (!activeManager) {
     return (
