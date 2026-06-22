@@ -126,8 +126,8 @@ export default function WABotStandalone() {
   if (phase === 'splash') {
     return (
       <div
-        style={{ background: 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)' }}
-        className="min-h-screen flex flex-col items-center justify-between px-8 py-12"
+        style={{ background: 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)', height: '100dvh' }}
+        className="flex flex-col items-center justify-between px-8 py-12 overflow-hidden"
       >
         <div />
         <div className="flex flex-col items-center gap-5 text-center">
@@ -157,8 +157,8 @@ export default function WABotStandalone() {
   if (phase === 'login') {
     return (
       <div
-        style={{ background: 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)' }}
-        className="min-h-screen flex flex-col"
+        style={{ background: 'linear-gradient(180deg, #eef2f9 0%, #d7e0ee 100%)', height: '100dvh' }}
+        className="flex flex-col overflow-hidden"
       >
         <div className="flex items-center gap-3 px-6 pt-8 pb-4">
           <Avatar size={44} />
@@ -168,7 +168,7 @@ export default function WABotStandalone() {
           </div>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-2 flex flex-col gap-2">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-2 flex flex-col gap-2">
           {chatLog.map((line, i) =>
             line.from === 'bot' ? (
               <div key={i} className="bg-white rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-slate-700 shadow-sm self-start max-w-[80%]">
@@ -182,7 +182,7 @@ export default function WABotStandalone() {
           )}
         </div>
 
-        <div className="px-5 pb-8 pt-3 flex items-center gap-2">
+        <div className="px-5 pb-6 pt-3 flex items-center gap-2 shrink-0">
           <input
             autoFocus
             type={step === 'password' ? 'password' : 'text'}
@@ -208,7 +208,7 @@ export default function WABotStandalone() {
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (phase === 'loading' || (phase === 'ready' && !state)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#0b1120' }}>
+      <div className="flex flex-col items-center justify-center gap-4" style={{ background: '#0b1120', height: '100dvh' }}>
         <Avatar size={64} />
         <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading Ayesha…</p>
       </div>
@@ -218,7 +218,7 @@ export default function WABotStandalone() {
   // ── ERROR ─────────────────────────────────────────────────────────────────
   if (phase === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-8 text-center" style={{ background: '#0b1120' }}>
+      <div className="flex flex-col items-center justify-center gap-4 px-8 text-center" style={{ background: '#0b1120', height: '100dvh' }}>
         <Avatar size={64} />
         <p className="text-slate-300 text-sm">{errorMsg}</p>
         <button
@@ -253,7 +253,7 @@ export default function WABotStandalone() {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col bg-slate-50 overflow-hidden">
+    <div style={{ height: '100dvh' }} className="w-full flex flex-col bg-slate-50 overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white shrink-0">
         <Avatar size={36} />
         <div>
