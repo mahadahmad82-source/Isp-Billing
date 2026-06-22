@@ -1355,6 +1355,24 @@ export default async function handler(req: any, res: any) {
 
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
 
+      // Meta's webhook delivery is at-least-once — it can resend the same event on
+      // retry/timeout. Without this check, a resend reprocesses the message, fires
+      // pushNotify again, and even sends a duplicate bot reply. Skip if we've
+      // already logged this exact wa_message_id.
+      const msgId: string | undefined = msg.id;
+      if (msgId) {
+        try {
+          const dupRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages?wa_message_id=eq.${msgId}&select=id&limit=1`, {
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+          });
+          const dupRows: any[] = await dupRes.json();
+          if (Array.isArray(dupRows) && dupRows.length > 0) {
+            console.log(`⏭️ duplicate webhook delivery for msg.id=${msgId}, skipping`);
+            continue;
+          }
+        } catch (e: any) { console.error('[dedup check]', e?.message); }
+      }
+
       // Live push notification — fires for every inbound message, exactly like WhatsApp
       // itself, so mahadnet gets an instant phone alert even with the app closed.
       try {
