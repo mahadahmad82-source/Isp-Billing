@@ -15,24 +15,42 @@ self.addEventListener('activate', (event) => {
 
 // Real, live push notification — fires even if the app/tab is closed.
 self.addEventListener('push', (event) => {
-  let data = {};
-  try {
-    data = event.data ? event.data.json() : {};
-  } catch (e) {
-    data = { title: 'MYISP', body: event.data ? event.data.text() : 'New notification' };
-  }
+  event.waitUntil((async () => {
+    let data = {};
+    try {
+      data = event.data ? event.data.json() : {};
+    } catch (e) {
+      data = { title: 'MYISP', body: event.data ? event.data.text() : 'New notification' };
+    }
 
-  const title = data.title || 'MYISP';
-  const options = {
-    body: data.body || '',
-    icon: data.icon || '/icon-192x192.png',
-    badge: data.badge || '/icon-192x192.png',
-    tag: data.tag || 'myisp-default',
-    data: data.data || { url: '/' },
-    vibrate: [200, 100, 200],
-  };
+    const title = data.title || 'MYISP';
+    const tag = data.tag || 'myisp-default';
+    let body = data.body || '';
 
-  event.waitUntil(self.registration.showNotification(title, options));
+    // WhatsApp-style stacking: if there's already a notification for this same
+    // conversation (same tag) still sitting unseen, append the new message as a
+    // new line instead of silently replacing it — so multiple unread messages
+    // show line-by-line in one notification.
+    try {
+      const existing = await self.registration.getNotifications({ tag });
+      if (existing.length > 0 && existing[0].body) {
+        const prevLines = existing[0].body.split('\n').filter(Boolean);
+        body = [...prevLines, body].slice(-5).join('\n');
+      }
+    } catch (e) {}
+
+    const options = {
+      body,
+      icon: data.icon || '/icon-192x192.png',
+      badge: data.badge || '/icon-192x192.png',
+      tag,
+      data: data.data || { url: '/' },
+      vibrate: [200, 100, 200],
+      renotify: true,
+    };
+
+    return self.registration.showNotification(title, options);
+  })());
 });
 
 // Tapping the notification focuses an existing tab if one is open, else opens a new one.
