@@ -153,6 +153,39 @@ async function findCustomer(from: string) {
   return null;
 }
 
+// When someone messages from a number we don't recognize, try to match them against an
+// EXISTING customer by username/name (e.g. they switched SIMs/phones) before treating
+// them as a brand-new lead. Best-effort fuzzy match — Mahad still verifies manually.
+async function findCustomerByUsernameOrName(query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q || q.length < 3) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows: any[] = await res.json();
+    for (const row of rows) {
+      if (row.manager_id === '_bot_sessions') continue;
+      const users: any[] = row.data?.users || [];
+      const user = users.find((u: any) => {
+        if (!u || u.status === 'deleted') return false;
+        const uname = (u.username || '').toLowerCase();
+        const name = (u.name || '').toLowerCase();
+        return (uname && (uname === q || q.includes(uname))) || (name && name.length > 3 && q.includes(name));
+      });
+      if (user) {
+        const receipts: any[] = (row.data?.receipts || [])
+          .filter((r: any) => r.userId === user.id && r.status === 'Success')
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 5);
+        return { managerId: row.manager_id, rowData: row.data, user, receipts, planPrices: row.data?.settings?.planPrices || {} };
+      }
+    }
+  } catch (e: any) { console.error('[findCustomerByUsernameOrName]', e?.message); }
+  return null;
+}
+
+
 // Get planPrices from ANY manager (used when sender isn't a known customer yet)
 async function getAnyPlanPrices(): Promise<Record<string, number>> {
   try {
@@ -624,7 +657,7 @@ type Intent =
   | 'expiry' | 'new_conn' | 'packages' | 'router_info' | 'fiber_info'
   | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
   | 'password_change' | 'coverage' | 'thanks' | 'bot_identity'
-  | 'panel_issue' | 'router_recommend';
+  | 'panel_issue' | 'router_recommend' | 'employment_question' | 'bill_dispute';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
@@ -639,6 +672,12 @@ function detectIntent(text: string): Intent {
   if (/(aap|ap|tum|tu)\s*(ka|ki)?\s*na+m\s*(kya|kiya)\s*hai|tumhara\s*na+m|aap\s*kaun\s*hai|tum\s*kaun\s*ho|who\s*are\s*you|what'?s?\s*(is\s*)?your\s*name|(ap|aap|tum)\s*kya\s*kar(ti|te)?\s*ho?n?|(ap|aap|tum)\s*kya\s*kar(ti)?\s*hai/.test(t))
     return 'bot_identity';
 
+  // User is surprised/questioning that they're talking to a bot/hired person, e.g.
+  // "mahad ne aapko rakh liya hai?", "tumhe job pe rakha hai kya", "ye bot hai kya".
+  // Answered with a warm, transparent self-intro instead of dodging or going to Groq.
+  if (/mahad\s*(bhai)?\s*(ne|ney|nay|nye)\s*(ap|aap|tum|tumhe|tumhein|tumko|isay|ise)?\s*(ko\s*)?(rakh|hire|naukri|job|kaam)\w*|(ap|aap|tum)\s*(bot|ai|robot)\s*(ho|hai|hain)\s*kya|kya\s*(ap|aap|tum)\s*(ek\s*)?(bot|ai|robot)\s*ho/.test(t))
+    return 'employment_question';
+
   // Router band selection (checked first — works regardless of session)
   if (/2\.?4\s*g(hz)?|single\s*band/.test(t)) return 'router_24g';
   if (/\b5\s*g(hz)?\b|dual\s*band/.test(t)) return 'router_5g';
@@ -650,7 +689,8 @@ function detectIntent(text: string): Intent {
   if (/^4$/.test(t)) return 'menu_expiry';
   if (/^5$/.test(t)) return 'menu_new_conn';
   if (/^6$/.test(t)) return 'menu_packages';
-  if (/^7$/.test(t)) return 'menu_talk_owner';
+  if (/^7$/.test(t)) return 'fiber_info';
+  if (/^8$/.test(t)) return 'menu_talk_owner';
 
   // Greeting
   if (/^(as+ala+m+[\w\s]*|aoa|a\.?o\.?a\.?|salam+|hi+|hey+|hello+|good\s*(morning|evening|night|afternoon)|kya\s*hal|assalamu)/.test(t) && t.length < 60)
@@ -685,6 +725,9 @@ function detectIntent(text: string): Intent {
   // wrong first, same as the numbered-menu flow, instead of registering a blank ticket.
   if (/\bcomplain(t)?\b|\bshikayat\b|\bmasla\b|\bissue\b/.test(t)) return 'menu_complaint';
 
+  // Dispute / confusion over balance — checked before generic 'bill' so the customer
+  // gets their full payment ledger automatically instead of just the current balance.
+  if (/balance\s*ghalat|bill\s*ghalat|amount\s*ghalat|ye\s*kaisa\s*balance|yeh\s*kaisa\s*balance|maine\s*(to\s*)?pay\s*(kar|ki)\s*(diya|di)\s*tha|maine\s*(to\s*)?payment\s*(kar|ki)\s*(diya|di)\s*thi|maine\s*de\s*diya\s*tha|maine\s*paisay?\s*de\s*diye\s*the|dispute|inkar\s*karta|inkar\s*karti|nahi\s*dene\s*wala|ye\s*dues\s*nahi|yeh\s*dues\s*nahi|galat\s*balance|wrong\s*balance|wrong\s*amount/.test(t)) return 'bill_dispute';
   if (/bill|balance|dues|arrear|baqi|kitna\s*banta|kitna\s*hai|monthly|fees?/.test(t)) return 'bill';
   // "lagwana" now matches even when typed with a stray space ("lag wana"), plus a few more phrasings.
   if (/nay[ai]\s*conn|new\s*conn|install|lag\s*wa|lagwa|lagana|connection\s*(chahiye|laga|lagana)|naya\s*lena|naya\s*connection/.test(t)) return 'new_conn';
@@ -719,6 +762,15 @@ function botIdentityReply(text: string, botName: string = 'Ayesha'): string {
   return isEnglishText(text)
     ? `I'm ${botName}, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`
     : `Main ${botName} hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`;
+}
+
+// For when a customer is surprised/curious to realize they're talking to a bot and
+// asks something like "Mahad ne aapko rakh liya hai?" — a warm, honest self-intro
+// instead of dodging the question, so trust isn't broken.
+function employmentQuestionReply(text: string, botName: string = 'Ayesha'): string {
+  return isEnglishText(text)
+    ? `Ji yes! 😊 I'm ${botName} — ${CONFIG.ownerName} bhai has brought me on to handle MahadNet's customer support, so you can get quick help anytime, day or night. Now tell me, how can I help you today?`
+    : `Ji bilkul! 😊 Main ${botName} hoon — ${CONFIG.ownerName} bhai ne mujhe khaas customer support ke liye rakha hai, taake aap ko har waqt jaldi aur achi tarah madad mil sake. Ab batayen, kis cheez mein aap ki madad kar sakti hoon? 🙏`;
 }
 
 function panelIssueReply(): string {
@@ -785,7 +837,8 @@ Aap kis cheez mein madad chahte hain? Neeche se option chunein:
 4️⃣  Package Expiry Date
 5️⃣  Naya Connection
 6️⃣  Packages, Pricing & Routers
-7️⃣  Mahad Bhai se Baat Karein
+7️⃣  Fiber to Home Service Activation
+8️⃣  Mahad Bhai se Baat Karein
 
 Bas number likh kar bhej dein ya seedha apna masla bataein! 🙏`;
 }
@@ -1138,6 +1191,17 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
 }
 
 async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = ''): Promise<{ onTopic: boolean; reply: string }> {
+  // Customer wrote in Urdu/Nastaliq script → reply in that same script (previously this was
+  // always force-converted to Roman Urdu, even when the customer clearly preferred Urdu script).
+  const replyInUrduScript = containsUrduScript(userMessage);
+  // Customer wrote a full English message (not just one stray English word mixed into
+  // Roman Urdu) → reply fully in English, text and voice both.
+  const isFullEnglish = !replyInUrduScript && isEnglishText(userMessage) && userMessage.trim().split(/\s+/).length >= 3;
+
+  const scriptRule = replyInUrduScript
+    ? `SCRIPT — ZAROORI: Customer ne apna message Urdu/Nastaliq script (اردو) mein likha hai — is liye tumhara jawab BHI sirf Urdu/Nastaliq script (اردو) mein hona chahiye, Roman/Latin letters mat likho.`
+    : `SCRIPT — BILKUL ZAROORI: Customer ka message kisi bhi script mein ho (Roman/Latin letters YA Urdu/Nastaliq script — kabhi kabhi voice-note transcript Urdu script mein aata hai), tumhara jawab HAMESHA Roman/Latin alphabet mein hi hona chahiye. Kabhi Urdu/Arabic script (نستعلیق) mein mat likho — chahe customer ne usi script mein likha ho. Ek bhi Urdu/Arabic letter reply mein nahi hona chahiye.`;
+
   const system = `Tu ${botName} hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha ${botName}, MahadNet ki support team ka hissa.
 
 URDU QUALITY BAR — ZAROORI: Tumhari Roman Urdu ek senior, tajurbakar Pakistani call-center agent jesi honi chahiye — rawan, mukammal sahih grammar, natural sentence flow. Halki si bhi awkward ya tooti-phooti construction bardasht nahi (jese galat verb tense, gender mismatch, ya word-by-word translation jesi banawat). Chhoti, seedhi, baat-cheet wali sentences likho — lambi formal ya kitabi Urdu mat likho.
@@ -1148,7 +1212,7 @@ LANGUAGE MATCHING (zaroori):
 - Agar customer pure English mein likhe, tum bhi professional English mein jawab do.
 - Agar customer Urdu/Roman Urdu mein likhe, tum sirf Roman Urdu mein jawab do.
 - Kabhi do zabanon ko mix mat karo ek hi reply mein.
-- SCRIPT — BILKUL ZAROORI: Customer ka message kisi bhi script mein ho (Roman/Latin letters YA Urdu/Nastaliq script — kabhi kabhi voice-note transcript Urdu script mein aata hai), tumhara jawab HAMESHA Roman/Latin alphabet mein hi hona chahiye. Kabhi Urdu/Arabic script (نستعلیق) mein mat likho — chahe customer ne usi script mein likha ho. Ek bhi Urdu/Arabic letter reply mein nahi hona chahiye.
+- ${scriptRule}${isFullEnglish ? `\n- Customer ne is dafa MUKAMMAL English mein likha hai — is liye jawab bhi PURI tarah professional English mein do, Roman Urdu bilkul mix mat karo.` : ''}
 
 FEMALE TONE — ZAROORI (Urdu replies mein, kabhi male/larko wale verb forms mat use karo):
 GHALAT (male) → SAHI (female):
@@ -1175,31 +1239,34 @@ TONE RULES (zaroori):
 - Har reply mein wording badlo, ek hi stock jumla baar baar mat daalo
 - "afsos hua", "bura laga", "main madad ke liye haazir hoon" jese generic fillers repeat mat karo
 - Seedhi, samajhdaar, professional lekin insaan jesi baat karo — jese kisi achi call-center agent se baat ho rahi ho
+- Customer ko hamesha izzat aur respect se deal karo, jese ek qeemti customer ke saath behave kiya jata hai
 
-LANGUAGE — SIRF PAKISTANI ROMAN URDU (jab Urdu mein jawab do):
+LANGUAGE — SIRF PAKISTANI ROMAN URDU (jab Roman Urdu mein jawab do):
 Hindi ke ye words BILKUL FORBIDDEN hain:
 dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | seva→khidmat | uplabdh→available | sunishchit→pakka | jankaari→baat | turant→foran | vyavastha→intezam | prayas→koshish | uttar→jawab | pradan→dena | sahayata/sahyta→madad | vyakti→shaks | samay→waqt | yogdaan→hissa | nirdesh→hidayat | anurodh→darkhwast
 
 SAHI WORDS: shukriya, haan ji, acha, theek hai, bilkul, zaroor, foran, masla, hal, batao, dekhti hoon, chalo
 
 OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence nahi:
-{"onTopic": true ya false, "reply": "tumhari reply yahan — Roman/Latin letters mein, max 4-5 lines, 1-2 emoji max"}
+{"onTopic": true ya false, "reply": "tumhari reply yahan — max 4-5 lines, 1-2 emoji max"}
 
 CUSTOMER INFO: ${custData}
-COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat):\n${recentHistory}` : ''}${knowledgeContext ? `\n\nAPPROVED REFERENCE ANSWERS (Mahad bhai ne yeh wording manually approve ki hai — agar customer ka sawal in se milta hai, isi tarah ka wording/lehja use karo):\n${knowledgeContext}` : ''}`;
+COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat — sirf CURRENT message ka jawab do, kisi purane/unrelated topic par wapis mat jao):\n${recentHistory}` : ''}${knowledgeContext ? `\n\nAPPROVED REFERENCE ANSWERS (Mahad bhai ne yeh wording manually approve ki hai — agar customer ka sawal in se milta hai, isi tarah ka wording/lehja use karo):\n${knowledgeContext}` : ''}`;
 
   let result = await callGroqOnce(system, userMessage);
 
-  // Guardrail: if the model still leaked Urdu/Nastaliq script, retry once with a
-  // pointed correction. If it leaks again, never forward broken script to the
-  // customer — fall back to a safe, guaranteed-clean Roman Urdu reply instead.
-  if (containsUrduScript(result.reply)) {
+  // Guardrail: if the model leaked Urdu/Nastaliq script when it WASN'T supposed to
+  // (i.e. we asked for Roman Urdu/English), retry once with a pointed correction. If it
+  // leaks again, never forward broken script to the customer — fall back to a safe,
+  // guaranteed-clean reply instead. (Skipped when replyInUrduScript is true, since an
+  // Urdu-script reply is then the CORRECT, intended behaviour, not a leak.)
+  if (!replyInUrduScript && containsUrduScript(result.reply)) {
     console.error('[askGroq] Urdu-script leak detected, retrying with stricter instruction');
     const strictSystem = `${system}\n\nCRITICAL CORRECTION: Pichli baar tumne Urdu/Nastaliq (Arabic) script mein jawab diya tha — yeh GHALAT hai. Is dafa jawab SIRF Roman/Latin letters mein likho (jese "Shukriya", "theek hai", "foran"). Ek bhi Urdu/Arabic character (نستعلیق) use mat karna, chahe customer ka message kisi bhi script mein ho.`;
     result = await callGroqOnce(strictSystem, userMessage);
   }
 
-  if (containsUrduScript(result.reply)) {
+  if (!replyInUrduScript && containsUrduScript(result.reply)) {
     console.error('[askGroq] Urdu-script leak persisted after retry — using safe fallback reply');
     return {
       onTopic: true,
@@ -1451,9 +1518,62 @@ export default async function handler(req: any, res: any) {
       const sessionObj = await getSession(from);
       const session = sessionObj?.state || null;
       const sessionData = sessionObj?.data || {};
-      const isOverrideCommand = intent === 'greeting' || intent === 'thanks' || intent === 'bot_identity' || /^[1-7]$/.test(text.trim());
+      // BUG FIX: digits 1-8 used to ALWAYS jump to the main menu, even when a session had
+      // just asked its OWN numbered question (e.g. "1=Fiber, 2=Local"). That hijacked the
+      // reply to an unrelated menu item instead of answering what was actually asked.
+      // Now a bare digit only counts as a main-menu override when there's no active session.
+      const isOverrideCommand = intent === 'greeting' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || (!session && /^[1-8]$/.test(text.trim()));
 
       if (session && !isOverrideCommand) {
+        // ── Customer is choosing a specific router model from the catalog just shown ──
+        // (Previously there was no session here at all, so the AI improvised an entire
+        // "order placed, send address" conversation on its own — sometimes drifting to an
+        // unrelated topic from older history. Now it's a real, deterministic flow.)
+        if (session === 'router_catalog_shown') {
+          const band: '2.4g' | '5g' = sessionData?.band === '5g' ? '5g' : '2.4g';
+          const list = CONFIG.routers[band];
+          const t = text.toLowerCase();
+          let chosen: (typeof list)[number] | null = null;
+
+          if (list.length === 1) {
+            if (/^(haan|han|ji\s*haan|yes|ok(ay)?|theek|bilkul|chahiye|le\s*lunga|le\s*loon|pasand|sure|isi|yehi|yahi|1|2)\b/.test(t)) chosen = list[0];
+          } else {
+            const ordinalMap: RegExp[] = [
+              /^1$|1st|pehl[ai]|first|number\s*1/,
+              /^2$|2nd|dusr[ai]|second|number\s*2/,
+              /^3$|3rd|teesr[ai]|third|number\s*3/,
+            ];
+            for (let i = 0; i < list.length; i++) {
+              if (ordinalMap[i]?.test(t)) { chosen = list[i]; break; }
+            }
+            if (!chosen) chosen = list.find(r => t.includes(r.model.toLowerCase())) || null;
+          }
+
+          if (chosen) {
+            await setSession(from, 'awaiting_order_address', { model: chosen.model, price: chosen.price, band });
+            await sendText(from, `Theek hai! *${chosen.model}* (Rs. ${chosen.price.toLocaleString()}) ka order note kar liya hai 😊\n\nDelivery ke liye apna *pura address* bhej dein, taake hamari team rabta kar sake.`);
+          } else {
+            await sendText(from, `Maazrat, samajh nahi payi konsa router pasand aaya 🙏 Model ka naam likh dein (jaise *"${list[0].model}"*) ya *"1st"/"2nd"* likh kar bata dein.`);
+          }
+          continue;
+        }
+
+        // ── Customer is sending their delivery address after picking a router ──
+        if (session === 'awaiting_order_address') {
+          await setSession(from, null);
+          const found = await findCustomer(from);
+          const row = found?.rowData || await getManagerRow('mahadnet');
+          if (row) {
+            await notifyManager(found?.managerId || 'mahadnet', row, {
+              title: '📦 Router Order (WhatsApp)',
+              message: `${found?.user?.name || from} (${from}) ne *${sessionData?.model || 'router'}* (Rs. ${sessionData?.price || ''}) order kiya hai.\nAddress: ${text.slice(0, 200)}`,
+              priority: 'MEDIUM',
+            });
+          }
+          await sendText(from, `Shukriya! 😊 Aap ka address note ho gaya hai:\n📍 ${text}\n\nHamari team aapke area mein coverage/delivery check kar ke 1-2 ghante mein rabta karegi. 🙏`);
+          continue;
+        }
+
         if (session === 'lead_awaiting_details') {
           const t = text.toLowerCase();
 
@@ -1524,6 +1644,17 @@ export default async function handler(req: any, res: any) {
 
         if (session === 'awaiting_unknown_details') {
           await setSession(from, null);
+          // First check: is this actually an existing customer messaging from a new number?
+          const matched = await findCustomerByUsernameOrName(text);
+          if (matched) {
+            await notifyManager(matched.managerId, matched.rowData, {
+              title: '📱 Customer Naye Number Se Message Aaya',
+              message: `${matched.user.name} (username: ${matched.user.username || 'N/A'}) ne naye number ${from} se contact kiya hai. Record mein purana number: ${matched.user.phone}. Agar sahi hai to number update kar dein.`,
+              priority: 'MEDIUM',
+            });
+            await sendText(from, `Ji ${matched.user.name}! Mil gaya aap ka account 😊 Lagta hai aap ne naya number use kiya hai — Mahad bhai ko record update karne ke liye inform kar diya hai.\n\nAb batayen, kis cheez mein madad chahiye? Bill, complaint ya kuch aur? 🙏`);
+            continue;
+          }
           const row = await getManagerRow('mahadnet');
           if (row) {
             await notifyManager('mahadnet', row, {
@@ -1625,22 +1756,29 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
+      // ── Customer surprised/asking if Mahad "hired"/"kept" this bot — honest, warm intro ──
+      if (intent === 'employment_question') {
+        const cfgRow = await getManagerRow('mahadnet');
+        await sendText(from, employmentQuestionReply(text, cfgRow?.settings?.ayeshaBotName));
+        continue;
+      }
+
       // ── Router/device control-panel or login trouble — troubleshooting, not a sales pitch ──
       if (intent === 'panel_issue') { await setSession(from, null); await sendText(from, panelIssueReply()); continue; }
 
       // ── Router recommendation based on package speed mentioned in the message ──
       if (intent === 'router_recommend') {
-        await setSession(from, null);
         const mbps = extractRouterRecommendMbps(text);
         const band: '2.4g' | '5g' = mbps > 20 ? '5g' : '2.4g';
         await sendText(from, routerRecommendReply(mbps, isEnglishText(text)));
         await sendRouterCatalog(from, band);
+        await setSession(from, 'router_catalog_shown', { band });
         continue;
       }
 
       // ── Router band selection ──
-      if (intent === 'router_24g') { await setSession(from, null); await sendRouterCatalog(from, '2.4g'); continue; }
-      if (intent === 'router_5g')  { await setSession(from, null); await sendRouterCatalog(from, '5g');   continue; }
+      if (intent === 'router_24g') { await sendRouterCatalog(from, '2.4g'); await setSession(from, 'router_catalog_shown', { band: '2.4g' }); continue; }
+      if (intent === 'router_5g')  { await sendRouterCatalog(from, '5g');   await setSession(from, 'router_catalog_shown', { band: '5g' });   continue; }
 
       // ── Router info request → show choice prompt ──
       if (intent === 'router_info') {
@@ -1738,6 +1876,15 @@ export default async function handler(req: any, res: any) {
       const { managerId, rowData, user, receipts } = found;
 
       if (intent === 'bill')            { await sendText(from, billReply(user, receipts)); continue; }
+      // Customer is disputing/confused about their balance — proactively send the full
+      // payment ledger too, so they can see exactly which month's payment is missing
+      // instead of going back and forth over a number.
+      if (intent === 'bill_dispute') {
+        await sendText(from, billReply(user, receipts));
+        await sendText(from, `Confusion na ho is liye aap ki pichli payments ki detail bhi bhej rahi hoon, taake confirm ho jaye kis month ki payment baqi hai 👇`);
+        await sendText(from, paymentHistoryReply(user, receipts));
+        continue;
+      }
       if (intent === 'payment_history') { await sendText(from, paymentHistoryReply(user, receipts)); continue; }
       if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
