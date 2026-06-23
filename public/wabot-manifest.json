@@ -1,7 +1,7 @@
 {
   "id": "/wabot",
-  "name": "Ayesha — MahadNet WABot",
-  "short_name": "Ayesha",
+  "name": "MYISP-BOT \u2014 MahadNet WABot",
+  "short_name": "MYISP-BOT",
   "description": "WhatsApp customer support assistant for MahadNet",
   "start_url": "/wabot",
   "scope": "/wabot",
