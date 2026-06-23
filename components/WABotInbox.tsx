@@ -127,8 +127,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   // ── Bot Name setting ──
   const [editingBotName, setEditingBotName] = useState(false);
-  const [botNameInput, setBotNameInput] = useState(botName || 'Ayesha');
-  useEffect(() => { setBotNameInput(botName || 'Ayesha'); }, [botName]);
+  const [botNameInput, setBotNameInput] = useState(botName || 'MYISP-BOT');
+  useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
   // ── Training (Confused Replies) tab state ──
   const [view, setView] = useState<'inbox' | 'training'>('inbox');
@@ -572,7 +572,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   const saveBotName = () => {
-    const name = botNameInput.trim() || 'Ayesha';
+    const name = botNameInput.trim() || 'MYISP-BOT';
     setBotNameInput(name);
     setEditingBotName(false);
     onUpdateBotName?.(name);
@@ -662,7 +662,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-y-auto p-6">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Confused Replies / Training</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Jab Ayesha ko deterministic jawab nahi milta, woh AI se reply karti hai aur yahan log hota hai. Acha jawab "Approve" kar do — wahi wording aage bhi use hogi.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1">Jab bot ko deterministic jawab nahi milta, woh AI se reply karti hai aur yahan log hota hai. Acha jawab "Approve" kar do — wahi wording aage bhi use hogi.</p>
           </div>
 
           {knowledgeLoading ? (
