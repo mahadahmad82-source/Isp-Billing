@@ -90,14 +90,28 @@ function DeliveryTicks({ status }: { status: string }) {
 }
 
 const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName }) => {
-  // Ayesha/WABot always renders in its own light theme — independent of the
-  // manager dashboard's dark/light toggle. Strip the global .dark class while
-  // mounted, restore it on unmount so the rest of the dashboard is unaffected.
+  // WABot has its own theme, independent of the manager dashboard's dark/light
+  // toggle, saved separately so it's remembered across visits. Defaults to
+  // light (matching the brand look), but the eye-comfort toggle below lets it
+  // go dark. We strip/restore the dashboard's own .dark class on mount/unmount
+  // so leaving WABot doesn't leave the rest of the dashboard in the wrong mode.
+  const [wabotDark, setWabotDark] = useState<boolean>(() => {
+    try { return localStorage.getItem('wabot_theme') === 'dark'; } catch { return false; }
+  });
+
   useEffect(() => {
     const hadDark = document.documentElement.classList.contains('dark');
-    document.documentElement.classList.remove('dark');
-    return () => { if (hadDark) document.documentElement.classList.add('dark'); };
-  }, []);
+    document.documentElement.classList.toggle('dark', wabotDark);
+    return () => { document.documentElement.classList.toggle('dark', hadDark); };
+  }, [wabotDark]);
+
+  const toggleWabotTheme = () => {
+    setWabotDark(prev => {
+      const next = !prev;
+      try { localStorage.setItem('wabot_theme', next ? 'dark' : 'light'); } catch {}
+      return next;
+    });
+  };
 
   const [allMessages, setAllMessages] = useState<WAMessage[]>([]);
   const [pausedPhones, setPausedPhones] = useState<string[]>([]);
@@ -589,7 +603,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   return (
     <div
       className="flex flex-col h-full min-h-0 gap-3 p-3 rounded-[2rem]"
-      style={{ background: 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)' }}
+      style={{ background: wabotDark ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' : 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)' }}
     >
       {/* ── Tab toggle + Receipt/Pause + Bot Name setting ── */}
       <div className="flex gap-2 flex-shrink-0 items-center flex-wrap">
@@ -608,6 +622,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           Training
           {unreviewedCount > 0 && (
             <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>
+          )}
+        </button>
+
+        <button
+          onClick={toggleWabotTheme}
+          title={wabotDark ? 'Light mode' : 'Dark mode (eye comfort)'}
+          className="ml-auto w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#0f172a] text-slate-500 dark:text-amber-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
+        >
+          {wabotDark ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 1020.354 15.354z" /></svg>
           )}
         </button>
 
