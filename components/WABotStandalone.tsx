@@ -3,6 +3,7 @@ import { AppState } from '../types';
 import { getAccounts, getActiveSession, loadState, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
 import { subscribeToPush } from '../lib/pushNotifications';
+import { supabase } from '../lib/supabase';
 import WABotInbox from './WABotInbox';
 
 // ── Shared gradient-ring avatar (Ayesha brand mark) ─────────────────────────
@@ -53,7 +54,7 @@ export default function WABotStandalone() {
     const hadDarkClass = document.documentElement.classList.contains('dark');
 
     if (link) link.setAttribute('href', '/wabot-manifest.json');
-    document.title = 'Ayesha — WABot';
+    document.title = 'MYISP-BOT — WABot';
     document.documentElement.classList.remove('dark');
 
     return () => {
@@ -89,20 +90,43 @@ export default function WABotStandalone() {
     })();
   }, [phase, username]);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const accounts = getAccounts();
-    const acc = accounts.find(
-      a => a.username.toLowerCase() === loginUser.trim().toLowerCase() && a.password === loginPass
-    );
-    if (!acc) {
-      setLoginError('Username ya password ghalat hai.');
-      return;
-    }
+    if (loggingIn) return;
+    setLoggingIn(true);
     setLoginError('');
-    setActiveSession(acc.username);
-    setUsername(acc.username);
-    setPhase('loading');
+    try {
+      const typed = loginUser.trim();
+      // Fast path: local cache on this device (e.g. admin role, or already logged in here before)
+      const accounts = getAccounts();
+      const localFound = accounts.find(
+        a => a.username.toLowerCase() === typed.toLowerCase() && a.password === loginPass
+      );
+      if (localFound) {
+        setActiveSession(localFound.username);
+        setUsername(localFound.username);
+        setPhase('loading');
+        return;
+      }
+      // Real check — Supabase Auth, same as the main dashboard login. Works on
+      // any device/origin since it isn't tied to this browser's localStorage.
+      const authEmail = typed.includes('@') ? typed : `${typed}@myisp.local`;
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password: loginPass });
+      if (authError || !data?.user) {
+        setLoginError('Username ya password ghalat hai.');
+        return;
+      }
+      const loginUsername = typed.includes('@') ? typed.split('@')[0] : typed;
+      setActiveSession(loginUsername);
+      setUsername(loginUsername);
+      setPhase('loading');
+    } catch (err: any) {
+      setLoginError('Login mein masla aaya. Dobara try karein.');
+    } finally {
+      setLoggingIn(false);
+    }
   };
 
   // ── LOGIN (simple card) ───────────────────────────────────────────────────
@@ -115,7 +139,7 @@ export default function WABotStandalone() {
         <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-7 flex flex-col items-center gap-5">
           <Avatar size={88} />
           <div className="text-center">
-            <h1 className="text-xl font-black text-slate-900">Ayesha</h1>
+            <h1 className="text-xl font-black text-slate-900">MYISP-BOT</h1>
             <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
           </div>
 
@@ -138,9 +162,10 @@ export default function WABotStandalone() {
             {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
+              disabled={loggingIn}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
             >
-              Log In
+              {loggingIn ? 'Logging in…' : 'Log In'}
             </button>
           </form>
         </div>
@@ -153,7 +178,7 @@ export default function WABotStandalone() {
     return (
       <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 overflow-hidden">
         <Avatar size={64} />
-        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading Ayesha…</p>
+        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading MYISP-BOT…</p>
       </div>
     );
   }
@@ -178,7 +203,7 @@ export default function WABotStandalone() {
   if (!state) return null;
 
   const activeCompany = (state.companies || []).find(c => c.id === state.activeCompanyId) || state.companies?.[0];
-  const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'Ayesha';
+  const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'MYISP-BOT';
   const filteredUsers = (state.users || []).filter(u => !u.companyId || u.companyId === activeCompany?.id);
 
   const handleUpdateBotName = (name: string) => {
