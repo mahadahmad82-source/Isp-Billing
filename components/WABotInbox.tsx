@@ -588,7 +588,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   return (
     <div
-      className="flex flex-col h-[calc(100vh-160px)] min-h-[540px] gap-3 p-3 rounded-[2rem]"
+      className="flex flex-col h-full min-h-0 gap-3 p-3 rounded-[2rem]"
       style={{ background: 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)' }}
     >
       {/* ── Tab toggle + Receipt/Pause + Bot Name setting ── */}
@@ -634,26 +634,28 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </>
         )}
 
-        <div className="ml-auto flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/5">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bot Name</span>
-          {editingBotName ? (
-            <>
-              <input
-                autoFocus
-                value={botNameInput}
-                onChange={e => setBotNameInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveBotName()}
-                className="w-28 px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
-              />
-              <button onClick={saveBotName} className="px-3 py-1 bg-emerald-500 text-white rounded-lg font-black text-[10px] uppercase tracking-widest">Save</button>
-            </>
-          ) : (
-            <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-slate-900 dark:text-white">
-              {botNameInput}
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-            </button>
-          )}
-        </div>
+        {!selectedConv && (
+          <div className="ml-auto flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bot Name</span>
+            {editingBotName ? (
+              <>
+                <input
+                  autoFocus
+                  value={botNameInput}
+                  onChange={e => setBotNameInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveBotName()}
+                  className="w-28 px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                />
+                <button onClick={saveBotName} className="px-3 py-1 bg-emerald-500 text-white rounded-lg font-black text-[10px] uppercase tracking-widest">Save</button>
+              </>
+            ) : (
+              <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-slate-900 dark:text-white">
+                {botNameInput}
+                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {view === 'training' ? (
@@ -854,13 +856,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || recording}
                 title="Photo, video ya document bhejein"
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 disabled:opacity-40 active:scale-95 transition-all text-lg"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 disabled:opacity-40 active:scale-95 transition-all"
               >
-                📎
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
               </button>
 
               {recording ? (
-                <div className="flex-1 flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
+                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
                   <span className="text-sm font-bold text-rose-600 dark:text-rose-300 flex-1">
                     Recording... {String(Math.floor(recSeconds / 60)).padStart(2, '0')}:{String(recSeconds % 60).padStart(2, '0')}
@@ -874,7 +876,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
                   placeholder="Type a message..."
                   disabled={uploading}
-                  className="flex-1 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 text-sm font-semibold outline-none text-slate-900 dark:text-white disabled:opacity-50"
+                  className="flex-1 min-w-0 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 text-sm font-semibold outline-none text-slate-900 dark:text-white disabled:opacity-50"
                 />
               )}
 
