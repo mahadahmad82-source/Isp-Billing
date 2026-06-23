@@ -42,7 +42,7 @@
       // instead of being merged into the already-installed MYISP app.
       (function () {
         if (location.pathname.replace(/\/+$/, '') !== '/wabot') return;
-        document.title = 'Ayesha — WABot';
+        document.title = 'MYISP-BOT — WABot';
         var swap = function (selector, href) {
           var el = document.querySelector(selector);
           if (el) el.setAttribute('href', href);
@@ -55,9 +55,9 @@
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) themeMeta.setAttribute('content', '#4f46e5');
         var appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-        if (appTitle) appTitle.setAttribute('content', 'Ayesha');
+        if (appTitle) appTitle.setAttribute('content', 'MYISP-BOT');
         var appName = document.querySelector('meta[name="application-name"]');
-        if (appName) appName.setAttribute('content', 'Ayesha');
+        if (appName) appName.setAttribute('content', 'MYISP-BOT');
       })();
     </script>
 </head>
