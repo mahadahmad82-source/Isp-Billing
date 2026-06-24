@@ -40,7 +40,7 @@ async function sendText(to: string, body: string) {
 }
 
 function reactivationMessage(name: string, plan: string): string {
-  return `Assalam o Alaikum *${name}*! 😊\n\nHum aap ko miss kar rahe hain! Apna *${plan || 'internet'}* connection dobara activate karwayein aur agle bill par *10% discount* hasil karein. 🎉\n\nDobara connect hone ke liye reply karein ya call karein: *${SUPPORT_NUMBER}* 📞`;
+  return `Assalam o Alaikum *${name}*! 😊\n\nHum aap ko miss kar rahe hain! Apna *${plan || 'internet'}* connection dobara activate karwayein aur agle bill par *10% discount* hasil karein. 🎉\n\nDobara connect hone ke liye reply karein ya call karein: *${SUPPORT_NUMBER}* 📞\n\n_Yeh messages nahi chahiye? Reply karein "STOP"._`;
 }
 
 export default async function handler(req: any, res: any) {
@@ -68,7 +68,7 @@ export default async function handler(req: any, res: any) {
       let changed = false;
 
       for (const u of users) {
-        if (!u || u.status === 'deleted' || u.movedOut || !u.expiryDate) continue;
+        if (!u || u.status === 'deleted' || u.movedOut || u.optedOutOfMarketing || !u.expiryDate) continue;
 
         const exp = new Date(u.expiryDate);
         if (isNaN(exp.getTime())) continue;
