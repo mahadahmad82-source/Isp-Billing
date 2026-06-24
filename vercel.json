@@ -68,6 +68,14 @@
     {
       "path": "/api/cron-credit-recovery",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron-overdue-reminders",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron-reactivation",
+      "schedule": "0 9 * * *"
     }
   ]
 }
