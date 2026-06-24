@@ -19,14 +19,13 @@ const CONFIG = {
 
   fiberPricePerMeter: 30,
 
-  fiberInfo: `🌐 *Naya Fiber Connection*
+  fiberInfo: `🌐 *New Fiber Connection*
 
 💵 Fiber cable (2-core): *Rs. 30/meter*
 📏 Final fiber charges ghar tak ki length pe depend karenge — hamara technician site visit pe exact reading le kar confirm karega.
 
 Sirf yeh chahiye aap ke paas:
-• Fiber Optic ONU/Router (GPON device)
-• Fiber patch cord
+• Fiber Optic ONU/Router (EPON device).
 
 Agar yeh nahi hai aap ke paas, koi masla nahi — hum se naya router ya fiber purchase kar sakte hain! Router dekhne ke liye *"router"* likh kar bhejein. 📡
 
@@ -657,7 +656,8 @@ type Intent =
   | 'expiry' | 'new_conn' | 'packages' | 'router_info' | 'fiber_info'
   | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
   | 'password_change' | 'coverage' | 'thanks' | 'bot_identity'
-  | 'panel_issue' | 'router_recommend' | 'employment_question' | 'bill_dispute';
+  | 'panel_issue' | 'router_recommend' | 'employment_question' | 'bill_dispute'
+  | 'closing_ack' | 'greeting_personal_chat' | 'router_pon_compat';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
@@ -666,6 +666,13 @@ function detectIntent(text: string): Intent {
   // falls through to the Groq off-topic fallback and gets stuck repeating "note ho gaya hai".
   if (/^(thanks?|thank\s*you|thank\s*u|thnx|ty|tysm|shukriya|shukran|shukar(i+ya?)?a?|mehrbani|meherbani|bohot\s*shukriya|ji\s*shukriya|ok\s*thanks|okay\s*thanks|great\s*thanks)\b/.test(t) && t.length < 40)
     return 'thanks';
+
+  // Plain closing acknowledgment ("ok", "theek hai", "acha") with NOTHING else — the
+  // conversation is over, customer is just confirming they read the last reply. This
+  // must NOT re-open the main menu/"how can I help" prompt (that was the bug — every
+  // "ok" was looping back into "aap kis cheez mein madad chahte hain?").
+  if (/^(ok+|okay|okk+|k|kk+|acha|achaa|theek\s*hai|thik\s*hai|sahi\s*hai|done|alright|got\s*it|noted|fine)\.?$/.test(t))
+    return 'closing_ack';
 
   // "What's your name / who are you" — answered with a fixed, correctly-gendered reply
   // instead of leaving it to the LLM (which sometimes slipped into Hindi/male grammar).
@@ -677,6 +684,13 @@ function detectIntent(text: string): Intent {
   // Answered with a warm, transparent self-intro instead of dodging or going to Groq.
   if (/mahad\s*(bhai)?\s*(ne|ney|nay|nye)\s*(ap|aap|tum|tumhe|tumhein|tumko|isay|ise)?\s*(ko\s*)?(rakh|hire|naukri|job|kaam)\w*|(ap|aap|tum)\s*(bot|ai|robot)\s*(ho|hai|hain)\s*kya|kya\s*(ap|aap|tum)\s*(ek\s*)?(bot|ai|robot)\s*ho/.test(t))
     return 'employment_question';
+
+  // Greeting combined with casual personal chit-chat (e.g. "Assalam o Alaikum, kaise ho
+  // Mahad bhai, khairiyat hai?") — common in voice notes. This is NOT an off-topic
+  // question to redirect; reply warmly, then clarify Mahad bhai isn't personally
+  // available and the message can be left with the bot instead.
+  if (/(as+ala+m|aoa|salam|\bhi\b|hey|hello)/.test(t) && /kaise?\s*ho|kaisa?y?\s*ho|kaisi\s*ho|kh?aire?yat|tabiyat|kya\s*haal\s*chaal|how\s*('?r|are)\s*you|hope\s*you\s*('re|are)?\s*(doing\s*)?well|sab\s*(theek|thik)\b/.test(t))
+    return 'greeting_personal_chat';
 
   // Router band selection (checked first — works regardless of session)
   if (/2\.?4\s*g(hz)?|single\s*band/.test(t)) return 'router_24g';
@@ -714,6 +728,11 @@ function detectIntent(text: string): Intent {
   // Router recommendation by package speed — e.g. "15 to 20mb ke liye konsa router acha hai"
   if (/router|device|modem/.test(t) && /\d+\s*-?\s*\d*\s*mb(ps)?\b/.test(t)) return 'router_recommend';
 
+  // EPON/XPON/GPON compatibility question — answered with a fixed, factually correct
+  // reply (our network is EPON-only) instead of the AI hallucinating an unrelated
+  // "which package speed do you want" response. Checked before the generic router_info
+  // catch-all since "onu" would otherwise match that first.
+  if (/\b(epon|xpon|gpon)\b/.test(t) && /chal|support|compatible|kya|hai\s*kya|hoga|works?|work/.test(t)) return 'router_pon_compat';
   if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
   if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
@@ -758,10 +777,44 @@ function thanksReply(text: string): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Customer just said "ok"/"theek hai"/"acha" — conversation is wrapping up, NOT a
+// request to re-open the main menu. A short, warm close instead of re-asking
+// "kis cheez mein madad chahte hain" all over again.
+function closingAckReply(text: string): string {
+  return isEnglishText(text)
+    ? `Alright! 😊 Feel free to message anytime you need help.`
+    : `Theek hai! 😊 Koi bhi madad chahiye ho to bata dein, hum hamesha yahan hain.`;
+}
+
 function botIdentityReply(text: string, botName: string = 'Ayesha'): string {
   return isEnglishText(text)
     ? `I'm ${botName}, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`
     : `Main ${botName} hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`;
+}
+
+// Customer (often in a voice note) greets AND asks general wellbeing — usually
+// addressed to Mahad personally ("kaise ho Mahad bhai"). Reply warmly, then clarify
+// Mahad isn't personally available right now so the redirect doesn't feel cold.
+function greetingPersonalChatReply(text: string): string {
+  return isEnglishText(text)
+    ? `Hello! I'm doing well, thank you for asking 😊 Just to let you know, Mahad bhai isn't personally available right now — but you can share your message with me and I'll make sure he gets it. How can I help you today?`
+    : `Walaikum Assalam! Main theek hoon, shukriya 😊 Mahad bhai is waqt personally available nahi hain — aap apna paigham mujhe bata dein, main unhe zaroor pohncha dungi. Aap kis cheez mein madad chahte hain?`;
+}
+
+// EPON/XPON/GPON compatibility — our network only runs EPON, so this needs a fixed,
+// factually correct answer instead of letting the AI improvise an unrelated reply.
+function ponCompatibilityReply(text: string): string {
+  const t = text.toLowerCase();
+  const mentionsGpon = /\bgpon\b/.test(t);
+  const mentionsEponOrXpon = /\b(epon|xpon)\b/.test(t);
+  if (mentionsGpon && !mentionsEponOrXpon) {
+    return isEnglishText(text)
+      ? `Not directly, unfortunately — our network only runs on *EPON*, not GPON. If your device is EPON or XPON (auto-detect) compatible, it'll work perfectly on our network 😊`
+      : `Nahi, maazrat — hamara network sirf *EPON* support karta hai, GPON nahi. Agar aap ka device EPON ya XPON (auto-detect) hai to woh hamare network par bilkul chal jayega 😊`;
+  }
+  return isEnglishText(text)
+    ? `Yes! Your EPON/XPON router will work perfectly on our network 😊 We run purely on EPON, so that's exactly what's supported.`
+    : `Haan ji! Aap ka EPON/XPON router hamare network par bilkul chal jayega 😊 Hamara network sirf EPON pe hai, isliye yeh fully support karta hai.`;
 }
 
 // For when a customer is surprised/curious to realize they're talking to a bot and
@@ -835,7 +888,7 @@ Aap kis cheez mein madad chahte hain? Neeche se option chunein:
 2️⃣  Bill aur Balance Check
 3️⃣  Payment Methods & Details
 4️⃣  Package Expiry Date
-5️⃣  Naya Connection
+5️⃣  New Connection
 6️⃣  Packages, Pricing & Routers
 7️⃣  Fiber to Home Service Activation
 8️⃣  Mahad Bhai se Baat Karein
@@ -1522,7 +1575,7 @@ export default async function handler(req: any, res: any) {
       // just asked its OWN numbered question (e.g. "1=Fiber, 2=Local"). That hijacked the
       // reply to an unrelated menu item instead of answering what was actually asked.
       // Now a bare digit only counts as a main-menu override when there's no active session.
-      const isOverrideCommand = intent === 'greeting' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || (!session && /^[1-8]$/.test(text.trim()));
+      const isOverrideCommand = intent === 'greeting' || intent === 'greeting_personal_chat' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || (!session && /^[1-8]$/.test(text.trim()));
 
       if (session && !isOverrideCommand) {
         // ── Customer is choosing a specific router model from the catalog just shown ──
@@ -1739,12 +1792,27 @@ export default async function handler(req: any, res: any) {
       }
 
       // ── Greeting → menu (clear any pending session) ──
+      // Uses sendTextAndVoice (not sendText) so a voice-note greeting gets the menu as
+      // BOTH text and voice — for a first-contact intro, the visible numbered menu
+      // matters even on a voice turn, unlike most other replies which go voice-only.
       if (intent === 'greeting') {
         await setSession(from, null);
         const found = await findCustomer(from);
-        await sendText(from, welcomeMenu(greetingSalutation(text), found?.user?.name, found?.rowData?.settings?.ayeshaBotName));
+        await sendTextAndVoice(from, welcomeMenu(greetingSalutation(text), found?.user?.name, found?.rowData?.settings?.ayeshaBotName));
         continue;
       }
+
+      // ── Greeting + "kaise ho/khairiyat" personal chit-chat (common in voice notes) —
+      // warm reply + clarify Mahad isn't personally available, instead of the generic
+      // off-topic redirect ──
+      if (intent === 'greeting_personal_chat') {
+        await setSession(from, null);
+        await sendTextAndVoice(from, greetingPersonalChatReply(text));
+        continue;
+      }
+
+      // ── Plain "ok"/"theek hai" closing the conversation — do NOT re-open the menu ──
+      if (intent === 'closing_ack') { await sendText(from, closingAckReply(text)); continue; }
 
       // ── Gratitude / closing remark — quick natural reply, no Groq call, no notification spam ──
       if (intent === 'thanks') { await sendText(from, thanksReply(text)); continue; }
@@ -1762,6 +1830,9 @@ export default async function handler(req: any, res: any) {
         await sendText(from, employmentQuestionReply(text, cfgRow?.settings?.ayeshaBotName));
         continue;
       }
+
+      // ── EPON/XPON/GPON network-compatibility question — fixed factual answer ──
+      if (intent === 'router_pon_compat') { await sendText(from, ponCompatibilityReply(text)); continue; }
 
       // ── Router/device control-panel or login trouble — troubleshooting, not a sales pitch ──
       if (intent === 'panel_issue') { await setSession(from, null); await sendText(from, panelIssueReply()); continue; }
