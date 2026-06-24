@@ -657,7 +657,7 @@ type Intent =
   | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
   | 'password_change' | 'coverage' | 'thanks' | 'bot_identity'
   | 'panel_issue' | 'router_recommend' | 'employment_question' | 'bill_dispute'
-  | 'closing_ack' | 'greeting_personal_chat' | 'router_pon_compat';
+  | 'closing_ack' | 'greeting_personal_chat' | 'router_pon_compat' | 'marketing_optout';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
@@ -666,6 +666,9 @@ function detectIntent(text: string): Intent {
   // falls through to the Groq off-topic fallback and gets stuck repeating "note ho gaya hai".
   if (/^(thanks?|thank\s*you|thank\s*u|thnx|ty|tysm|shukriya|shukran|shukar(i+ya?)?a?|mehrbani|meherbani|bohot\s*shukriya|ji\s*shukriya|ok\s*thanks|okay\s*thanks|great\s*thanks)\b/.test(t) && t.length < 40)
     return 'thanks';
+
+  if (/^(stop|unsubscribe|band\s*karo|messages?\s*band|opt\s*out|no\s*more\s*messages?)\.?$/.test(t))
+    return 'marketing_optout';
 
   // Plain closing acknowledgment ("ok", "theek hai", "acha") with NOTHING else — the
   // conversation is over, customer is just confirming they read the last reply. This
@@ -777,13 +780,23 @@ function thanksReply(text: string): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+const CLOSING_ACK_REPLIES_UR = [
+  'Theek hai! 😊 Koi bhi madad chahiye ho to bata dein, hum hamesha yahan hain.',
+  'Acha ji! 🙏 Aur kuch puchna ho to bila jhijhak batayen.',
+  'Bilkul! 😊 Jab bhi zarurat ho, yahan message kar dein.',
+  'Theek hai! Koi aur sawal ho to zaroor poochein. 🙏',
+];
+const CLOSING_ACK_REPLIES_EN = [
+  'Alright! 😊 Feel free to message anytime you need help.',
+  "Sounds good! 🙏 Reach out whenever you need anything.",
+  'Got it! Let me know if there\'s anything else. 😊',
+];
 // Customer just said "ok"/"theek hai"/"acha" — conversation is wrapping up, NOT a
 // request to re-open the main menu. A short, warm close instead of re-asking
 // "kis cheez mein madad chahte hain" all over again.
 function closingAckReply(text: string): string {
-  return isEnglishText(text)
-    ? `Alright! 😊 Feel free to message anytime you need help.`
-    : `Theek hai! 😊 Koi bhi madad chahiye ho to bata dein, hum hamesha yahan hain.`;
+  const pool = isEnglishText(text) ? CLOSING_ACK_REPLIES_EN : CLOSING_ACK_REPLIES_UR;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function botIdentityReply(text: string, botName: string = 'Ayesha'): string {
@@ -1575,7 +1588,7 @@ export default async function handler(req: any, res: any) {
       // just asked its OWN numbered question (e.g. "1=Fiber, 2=Local"). That hijacked the
       // reply to an unrelated menu item instead of answering what was actually asked.
       // Now a bare digit only counts as a main-menu override when there's no active session.
-      const isOverrideCommand = intent === 'greeting' || intent === 'greeting_personal_chat' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || (!session && /^[1-8]$/.test(text.trim()));
+      const isOverrideCommand = intent === 'greeting' || intent === 'greeting_personal_chat' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || intent === 'marketing_optout' || (!session && /^[1-8]$/.test(text.trim()));
 
       if (session && !isOverrideCommand) {
         // ── Customer is choosing a specific router model from the catalog just shown ──
@@ -1812,6 +1825,26 @@ export default async function handler(req: any, res: any) {
       }
 
       // ── Plain "ok"/"theek hai" closing the conversation — do NOT re-open the menu ──
+      if (intent === 'marketing_optout') {
+        const found = await findCustomer(from);
+        if (found) {
+          try {
+            const users = found.rowData.users || [];
+            const u = users.find((x: any) => x.id === found.user.id);
+            if (u) u.optedOutOfMarketing = true;
+            await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${found.managerId}`, {
+              method: 'PATCH',
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ data: { ...found.rowData, users } }),
+            });
+          } catch (e: any) { console.error('[marketing_optout]', e?.message); }
+        }
+        await sendText(from, isEnglishText(text)
+          ? `Done — you won't receive promotional messages from us anymore. You can still message us anytime for support. 🙏`
+          : `Theek hai — ab aap ko promotional messages nahi aayenge. Support ke liye aap kabhi bhi message kar sakte hain. 🙏`);
+        continue;
+      }
+
       if (intent === 'closing_ack') { await sendText(from, closingAckReply(text)); continue; }
 
       // ── Gratitude / closing remark — quick natural reply, no Groq call, no notification spam ──
