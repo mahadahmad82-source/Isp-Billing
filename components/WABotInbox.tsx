@@ -115,6 +115,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const [allMessages, setAllMessages] = useState<WAMessage[]>([]);
   const [pausedPhones, setPausedPhones] = useState<string[]>([]);
+  const [contactNames, setContactNames] = useState<Record<string, string>>({});
+  const [editingContactName, setEditingContactName] = useState(false);
+  const [contactNameInput, setContactNameInput] = useState('');
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [thread, setThread] = useState<WAMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -229,10 +232,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
       const { data: cfg } = await supabase
         .from('whatsapp_configs')
-        .select('paused_phones')
+        .select('paused_phones, contact_names')
         .eq('manager_id', managerId)
         .maybeSingle();
       setPausedPhones(cfg?.paused_phones || []);
+      setContactNames(cfg?.contact_names || {});
     } catch (e) {
       console.error('[WABotInbox] loadOverview', e);
     } finally {
@@ -263,7 +267,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       const cust = customerByPhone.get(phone);
       list.push({
         phone,
-        name: cust?.name || `+92${phone}`,
+        name: contactNames[phone] || cust?.name || `+92${phone}`,
         username: cust?.username,
         userId: cust?.id,
         lastMessage: last?.content || '',
@@ -276,12 +280,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     return list
       .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
       .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
-  }, [allMessages, customerByPhone, pausedPhones, search]);
+  }, [allMessages, customerByPhone, pausedPhones, contactNames, search]);
 
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
 
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
+    setEditingContactName(false);
     try {
       // BUG FIX: ascending order + limit(150) was keeping the OLDEST 150 messages
       // and silently dropping everything after — so any conversation with more than
@@ -347,6 +352,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         { event: 'UPDATE', schema: 'public', table: 'whatsapp_configs', filter: `manager_id=eq.${managerId}` },
         (payload: any) => {
           setPausedPhones(payload.new?.paused_phones || []);
+          setContactNames(payload.new?.contact_names || {});
         }
       )
       .subscribe((status: string, err?: Error) => {
@@ -592,6 +598,26 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     onUpdateBotName?.(name);
   };
 
+  // Lets the manager give a contact a friendlier label in the thread list — purely a
+  // local display override (stored in whatsapp_configs.contact_names), it never touches
+  // the actual customer record's name.
+  const saveContactName = async () => {
+    if (!selectedPhone) return;
+    const trimmed = contactNameInput.trim();
+    const next = { ...contactNames };
+    if (trimmed) next[selectedPhone] = trimmed; else delete next[selectedPhone];
+    setContactNames(next);
+    setEditingContactName(false);
+    try {
+      await supabase
+        .from('whatsapp_configs')
+        .update({ contact_names: next })
+        .eq('manager_id', managerId);
+    } catch (e) {
+      console.error('[WABotInbox] saveContactName', e);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[70vh] text-slate-400 dark:text-slate-500 font-bold">
@@ -812,7 +838,29 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <div className="min-w-0">
-                  <p className="font-black text-slate-900 dark:text-white truncate">{selectedConv.name}</p>
+                  {editingContactName ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        autoFocus
+                        value={contactNameInput}
+                        onChange={e => setContactNameInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveContactName(); if (e.key === 'Escape') setEditingContactName(false); }}
+                        placeholder={selectedConv.name}
+                        className="text-sm font-black bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1 outline-none text-slate-900 dark:text-white w-36"
+                      />
+                      <button onClick={saveContactName} className="text-emerald-500 font-black text-xs">✓</button>
+                      <button onClick={() => setEditingContactName(false)} className="text-slate-400 font-black text-xs">✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setContactNameInput(contactNames[selectedConv.phone] || ''); setEditingContactName(true); }}
+                      className="flex items-center gap-1.5 group"
+                      title="Contact ka naam edit karein"
+                    >
+                      <p className="font-black text-slate-900 dark:text-white truncate">{selectedConv.name}</p>
+                      <svg className="w-3.5 h-3.5 text-slate-300 dark:text-slate-500 group-hover:text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                  )}
                   <p className="text-xs text-slate-400 font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
                 </div>
               </div>
