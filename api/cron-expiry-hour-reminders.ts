@@ -53,6 +53,10 @@ function justExpiredMessage(name: string, plan: string): string {
 }
 
 export default async function handler(req: any, res: any) {
+  const auth = req.headers?.authorization;
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
   try {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
