@@ -107,6 +107,18 @@ export interface UserRecord {
   creditDate?: string;
   creditLastReminderSent?: string;
   creditReminderCount?: number; // capped at 5-6, then surfaced for manual follow-up
+  // Ayesha bot — overdue payment reminders (package already expired AND balance > 0).
+  overdueLastReminderSent?: string;
+  overdueReminderCount?: number; // capped, then surfaced for manual follow-up
+  // Ayesha bot — reactivation campaign (disconnected 90+ days, see movedOut above).
+  reactivationLastSent?: string;
+  reactivationReminderCount?: number;
+  // Ayesha bot — 6-hour/1-hour-before-midnight-expiry + just-expired pings.
+  // Stores the expiryDate value the reminder was already sent for for, so a renewal
+  // (which changes expiryDate) naturally re-arms the reminder for the new date.
+  expiry6hNotifiedFor?: string;
+  expiry1hNotifiedFor?: string;
+  expiryJustNotifiedFor?: string;
 }
 
 export interface Receipt {
