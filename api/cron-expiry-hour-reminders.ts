@@ -14,6 +14,7 @@
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
 const SUPPORT_NUMBER = '0304-2773453';
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000; // Pakistan Standard Time = UTC+5, no DST
 
 async function sendText(to: string, body: string) {
   const token = process.env.WHATSAPP_TOKEN;
@@ -70,12 +71,16 @@ export default async function handler(req: any, res: any) {
       for (const u of users) {
         if (!u || u.status === 'deleted' || !u.expiryDate) continue;
 
-        // Expiry moment = midnight (00:00) of expiryDate's calendar date.
-        const expDay = new Date(u.expiryDate);
-        if (isNaN(expDay.getTime())) continue;
-        expDay.setHours(0, 0, 0, 0);
+        // Expiry moment = midnight (00:00) Pakistan Time on expiryDate's calendar date.
+        // BUG FIX: previously this used new Date(u.expiryDate).setHours(0,0,0,0), which
+        // sets midnight in the SERVER's timezone (UTC on Vercel) — i.e. 5am Pakistan
+        // Time, not real PKT midnight. That threw every reminder ~5 hours off schedule.
+        const dm = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(u.expiryDate));
+        if (!dm) continue;
+        const [, y, mo, d] = dm;
+        const expiryMomentMs = Date.UTC(+y, +mo - 1, +d, 0, 0, 0) - PKT_OFFSET_MS;
 
-        const hoursUntilExpiry = (expDay.getTime() - now.getTime()) / 3600000;
+        const hoursUntilExpiry = (expiryMomentMs - now.getTime()) / 3600000;
         const digits = (u.phone || u.phone2 || '').replace(/\D/g, '');
         const last10 = digits.slice(-10);
         if (last10.length < 10) continue;
