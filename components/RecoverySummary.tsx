@@ -896,6 +896,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                       <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Payments</span>
                       <span className="text-lg font-black text-slate-600 dark:text-slate-200">{summary.paidCount} Collected</span>
                    </div>
+                   <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recovery %</span>
+                      <span className="text-lg font-black text-[#38dc8f]">{(() => { const expected = (summary.totalPaid || 0) + (summary.totalBalance || 0); return expected > 0 ? Math.round(((summary.totalPaid || 0) / expected) * 100) : 0; })()}%</span>
+                   </div>
                 </div>
               </div>
               <div className="hidden sm:flex flex-col items-end gap-4 mt-12">
@@ -931,7 +935,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               <button onClick={exportToExcel} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 whitespace-nowrap active:scale-95 transition-all">Export To Excel</button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Received</p>
                 <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">Rs. {(stats.paid || 0).toLocaleString()}</p>
@@ -946,7 +950,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               </div>
               <div className="bg-slate-800 dark:bg-indigo-600 p-5 rounded-[1.5rem] text-white shadow-xl">
                 <p className="text-[9px] font-black text-white dark:text-white uppercase tracking-widest mb-1">TOTAL EXPECTED COLLECTION</p>
-                <p className="text-xl font-black">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
+                <p className="text-xl font-black text-white dark:text-white">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Recovery %</p>
+                <p className="text-xl font-black text-[#38dc8f]">{(() => { const expected = (stats.paid || 0) + (stats.balance || 0); return expected > 0 ? Math.round(((stats.paid || 0) / expected) * 100) : 0; })()}%</p>
               </div>
             </div>
           </div>
