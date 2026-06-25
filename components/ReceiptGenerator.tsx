@@ -1410,7 +1410,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="space-y-1"><label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest ml-1">Amount to be Paid</label><input type="number" className="w-full p-5 rounded-2xl border-2 border-indigo-500-op10 bg-indigo-500-op5 dark:bg-indigo-950-op20 outline-none font-black text-slate-900 dark:text-white text-2xl shadow-xl" value={amountPaid || ''} onChange={e => setAmountPaid(parseInt(e.target.value) || 0)} /></div>
                 
                 <div className="bg-slate-900 dark:bg-[#030712] p-8 rounded-[2rem] text-white border border-slate-700 dark:border-white-op5 shadow-2xl relative overflow-hidden">
-                  <div className="relative z-10 flex justify-between items-center"><span className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Payable</span><span className="text-2xl font-black">Rs. {totalPayable.toLocaleString()}</span></div>
+                  <div className="relative z-10 flex justify-between items-center"><span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-white">Total Payable</span><span className="text-2xl font-black text-white">Rs. {totalPayable.toLocaleString()}</span></div>
                   
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600-op10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                 </div>
