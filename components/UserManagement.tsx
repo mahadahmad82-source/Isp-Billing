@@ -638,41 +638,33 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
 
           {!readOnly && isCurrentMonth && (
-            <div className="rounded-3xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-3 shadow-xl">
-              <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            <div className="rounded-2xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-2 shadow-xl overflow-x-auto custom-scrollbar">
+              <div className="flex gap-2 min-w-max">
                 {/* New Customer */}
                 <button
                   onClick={() => { resetForm(); setShowForm(true); }}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#1e3a5f] hover:bg-[#1e4a7a] border border-[#2a5080] active:scale-95 transition-all group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#1e3a5f] hover:bg-[#1e4a7a] border border-[#2a5080] active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#1a3355] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#5b9bd5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#5b9bd5] uppercase tracking-wide leading-tight text-center">New</span>
+                  <svg className="w-4 h-4 text-[#5b9bd5] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                  <span className="text-[10px] font-black text-[#5b9bd5] uppercase tracking-wide">New</span>
                 </button>
 
                 {/* Quick Activate */}
                 <button
                   onClick={() => setShowQuickActivate(true)}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#1a3d2e] hover:bg-[#1f4d38] border border-[#255c3e] active:scale-95 transition-all group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#1a3d2e] hover:bg-[#1f4d38] border border-[#255c3e] active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#163326] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#4caf82]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#4caf82] uppercase tracking-wide leading-tight text-center">Activate</span>
+                  <svg className="w-4 h-4 text-[#4caf82] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  <span className="text-[10px] font-black text-[#4caf82] uppercase tracking-wide">Activate</span>
                 </button>
-
-
 
                 {/* Change Plan */}
                 <button
                   onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Pehle users select karein.',type:'info'});return;} setBulkNewPlan(availablePlans[0]||'');setShowBulkChangePlan(true); }}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#3d2f10] hover:bg-[#4d3b14] border border-[#5c4418] active:scale-95 transition-all group relative"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#3d2f10] hover:bg-[#4d3b14] border border-[#5c4418] active:scale-95 transition-all whitespace-nowrap relative"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#32260d] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#c9922a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#c9922a] uppercase tracking-wide leading-tight text-center">
+                  <svg className="w-4 h-4 text-[#c9922a] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  <span className="text-[10px] font-black text-[#c9922a] uppercase tracking-wide">
                     Plan {selectedIds.length > 0 && <span className="ml-0.5 bg-amber-400/30 px-1 py-0.5 rounded-full text-[8px]">{selectedIds.length}</span>}
                   </span>
                 </button>
@@ -681,56 +673,46 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <button
                   onClick={() => onBulkDeleteUsers(selectedIds)}
                   disabled={selectedIds.length === 0}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#3d1a1a] hover:bg-[#4d2020] border border-[#5c2424] active:scale-95 transition-all disabled:opacity-25 group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#3d1a1a] hover:bg-[#4d2020] border border-[#5c2424] active:scale-95 transition-all disabled:opacity-25 whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#321515] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#c94a4a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#c94a4a] uppercase tracking-wide leading-tight text-center">Delete</span>
+                  <svg className="w-4 h-4 text-[#c94a4a] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  <span className="text-[10px] font-black text-[#c94a4a] uppercase tracking-wide">Delete</span>
                 </button>
 
                 {/* Template */}
                 <button
                   onClick={downloadCustomerTemplate}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#1e2530] hover:bg-[#262f3d] border border-[#2e3a4a] active:scale-95 transition-all group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#1e2530] hover:bg-[#262f3d] border border-[#2e3a4a] active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#181f2a] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#7a8fa6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#7a8fa6] uppercase tracking-wide leading-tight text-center">Template</span>
+                  <svg className="w-4 h-4 text-[#7a8fa6] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                  <span className="text-[10px] font-black text-[#7a8fa6] uppercase tracking-wide">Template</span>
                 </button>
 
                 {/* Import Excel */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#0f2e38] hover:bg-[#143847] border border-[#1a4a5c] active:scale-95 transition-all group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#0f2e38] hover:bg-[#143847] border border-[#1a4a5c] active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#0c2530] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#3aaccc]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#3aaccc] uppercase tracking-wide leading-tight text-center">Import</span>
+                  <svg className="w-4 h-4 text-[#3aaccc] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                  <span className="text-[10px] font-black text-[#3aaccc] uppercase tracking-wide">Import</span>
                 </button>
 
                 {/* Export Excel */}
                 <button
                   onClick={handleExportExcel}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#0f2e2a] hover:bg-[#143830] border border-[#1a4a42] active:scale-95 transition-all group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#0f2e2a] hover:bg-[#143830] border border-[#1a4a42] active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#0c2522] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#3aaa96]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#3aaa96] uppercase tracking-wide leading-tight text-center">Export</span>
+                  <svg className="w-4 h-4 text-[#3aaa96] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  <span className="text-[10px] font-black text-[#3aaa96] uppercase tracking-wide">Export</span>
                 </button>
 
                 {/* Bulk Expiry */}
                 <button
                   onClick={() => { setBulkExpiryText(''); setBulkExpiryResult(null); setShowBulkExpiry(true); }}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl bg-[#1e1a3d] hover:bg-[#2a2550] border border-[#302880] active:scale-95 transition-all group"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#1e1a3d] hover:bg-[#2a2550] border border-[#302880] active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#19163a] flex items-center justify-center group-active:scale-90 transition-transform">
-                    <svg className="w-4.5 h-4.5 text-[#8b7fde]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  </div>
-                  <span className="text-[9px] font-black text-[#8b7fde] uppercase tracking-wide leading-tight text-center">Expiry</span>
+                  <svg className="w-4 h-4 text-[#8b7fde] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  <span className="text-[10px] font-black text-[#8b7fde] uppercase tracking-wide">Expiry</span>
                 </button>
 
                 <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} />
@@ -974,6 +956,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 <button onClick={() => setViewingLedgerUser(user)} title="View Ledger" className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-white transition-all">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                                 </button>
+
+                                {customerStatusFilter === 'active' && (
+                                  /* Remove from Active List — undo an accidental activation, user stays in directory */
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm(`${user.name} ko active list se hatayen? Directory mein rahega, sirf is mahine ki activation hatengi.`)) {
+                                        onUpdateUser({ ...user, activatedMonths: (user.activatedMonths || []).filter(m => m !== currentMonth) });
+                                      }
+                                    }}
+                                    title="Remove from Active List (Directory mein rahega)"
+                                    className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-all"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                  </button>
+                                )}
 
                                 {isCurrentMonth && (
                                   <>
