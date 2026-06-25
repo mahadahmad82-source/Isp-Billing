@@ -198,8 +198,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const user = users.find(u => u.id === selectedUserId);
       const alreadyBilled = receipts.some(r => r.userId === selectedUserId && r.period === `${billingMonth} ${billingYear}`);
       
-      // If user is already billed for this period, or is no longer active, or is "deleted"
-      if (alreadyBilled || !user || user.status === 'deleted' || user.status !== 'active') {
+      // If user is already billed for this period, no longer exists, or was deleted
+      if (alreadyBilled || !user || user.status === 'deleted') {
         setSelectedUserId('');
         setCustomerSearchQuery('');
       } else if (viewMode === 'create' && !editingReceiptId) {
