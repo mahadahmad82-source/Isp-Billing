@@ -134,7 +134,8 @@ const App: React.FC = () => {
   const [tourMode, setTourMode] = useState<string>('welcome');
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string} | null>(null);
+  const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string; ts: number} | null>(null);
+  const [receiptMountKey, setReceiptMountKey] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
 
   const handleUpdateProfile = (updates: { businessPhone?: string; businessAddress?: string; businessEmail?: string }) => {
@@ -183,9 +184,10 @@ const App: React.FC = () => {
   // Listen for custom event from RecoverySummary
   useEffect(() => {
     const handler = (e: Event) => {
-      const { userId, month } = (e as CustomEvent).detail;
+      const { userId, month, ts } = (e as CustomEvent).detail;
       if (userId) {
-        setPreSelectReceiptUser({ userId, month: month || '' } as any);
+        setPreSelectReceiptUser({ userId, month: month || '', ts: ts || Date.now() });
+        setReceiptMountKey(k => k + 1); // guarantees a clean ReceiptGenerator mount every click, no stale state
       }
       setActiveTab('receipts');
     };
@@ -1419,7 +1421,7 @@ const App: React.FC = () => {
             />
           )}
           {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} />}
-          {!tabLoading && activeTab === 'receipts' && <ReceiptGenerator users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} managerId={activeManager || 'mahadnet'} />}
+          {!tabLoading && activeTab === 'receipts' && <ReceiptGenerator key={`receipts-${receiptMountKey}`} users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} managerId={activeManager || 'mahadnet'} />}
           {!tabLoading && activeTab === 'recoveries' && (
             <RecoverySummary 
               users={filteredUsers} 
