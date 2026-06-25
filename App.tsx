@@ -601,6 +601,9 @@ const App: React.FC = () => {
   const handleLogin = (username: string) => {
     setActiveManager(username);
     lastActivityRef.current = Date.now();
+    supabase.rpc('track_manager_login', { p_username: username }).then(({ error }) => {
+      if (error) console.error('[Login] track_manager_login failed:', error);
+    });
     
     // Explicitly check for tour on login
     if (username !== 'admin') {
@@ -645,6 +648,9 @@ const App: React.FC = () => {
           setActiveSession(existing?.username || derivedUsername);
           setActiveManager(existing?.username || derivedUsername);
           lastActivityRef.current = Date.now();
+          supabase.rpc('track_manager_login', { p_username: existing?.username || derivedUsername }).then(({ error }) => {
+            if (error) console.error('[Login] track_manager_login failed:', error);
+          });
         }
       }
     });
