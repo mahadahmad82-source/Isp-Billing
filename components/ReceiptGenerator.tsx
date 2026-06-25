@@ -17,7 +17,7 @@ interface ReceiptGeneratorProps {
   onUpdateUser: (userId: string, update: Partial<UserRecord>) => void;
   onDeleteReceipt: (id: string) => void;
   setLoadingMessage: (msg: string | null) => void;
-  preSelectUser?: { userId: string; month: string } | null;
+  preSelectUser?: { userId: string; month: string; ts?: number } | null;
   onPreSelectConsumed?: () => void;
   hideHistory?: boolean;
   defaultCollectedBy?: string;
@@ -106,6 +106,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   
   const [filterMonth, setFilterMonth] = useState<string>(new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()));
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
+  const justPreselectedRef = useRef(false);
   
   const [billingMonth, setBillingMonth] = useState<string>(filterMonth);
   const [billingYear, setBillingYear] = useState<string>(filterYear);
@@ -195,6 +196,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // Validation: Ensure selected user is still valid for the new month/year
   useEffect(() => {
     if (selectedUserId) {
+      if (justPreselectedRef.current) {
+        justPreselectedRef.current = false;
+        return; // skip — this run is the direct result of a fresh Recovery Ledger preselect, don't re-validate yet
+      }
       const user = users.find(u => u.id === selectedUserId);
       const alreadyBilled = receipts.some(r => r.userId === selectedUserId && r.period === `${billingMonth} ${billingYear}`);
       
@@ -264,6 +269,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
         setViewMode('create');
         syncUserAmounts(user.id);
+        justPreselectedRef.current = true;
         onPreSelectConsumed?.();
       }
     }
@@ -518,6 +524,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         if (user) {
           setSelectedUserId(user.id);
           setCustomerSearchQuery(user.name);
+          justPreselectedRef.current = true;
         }
         return true;
       } catch { return false; }
