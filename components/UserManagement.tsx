@@ -962,7 +962,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   <button
                                     onClick={() => {
                                       if (window.confirm(`${user.name} ko active list se hatayen? Directory mein rahega, sirf is mahine ki activation hatengi.`)) {
-                                        onUpdateUser({ ...user, activatedMonths: (user.activatedMonths || []).filter(m => m !== currentMonth) });
+                                        onUpdateUser({ ...user, activatedMonths: (user.activatedMonths || []).filter(m => m !== currentMonth), expiryDate: '' });
                                       }
                                     }}
                                     title="Remove from Active List (Directory mein rahega)"
