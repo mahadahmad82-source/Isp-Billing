@@ -184,12 +184,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const handler = (e: Event) => {
       const { userId, month } = (e as CustomEvent).detail;
-      // localStorage already written by button, just switch tab
+      if (userId) {
+        setPreSelectReceiptUser({ userId, month: month || '' } as any);
+      }
       setActiveTab('receipts');
     };
     window.addEventListener('myisp-goto-receipts', handler);
     return () => window.removeEventListener('myisp-goto-receipts', handler);
-  }, [setActiveTab]);
+  }, [setActiveTab, setPreSelectReceiptUser]);
 
   // Listen for generic tab navigation (e.g. back from invoice to recovery ledger)
   useEffect(() => {
