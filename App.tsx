@@ -1437,6 +1437,13 @@ const App: React.FC = () => {
                 setActiveTab('receipts');
               }}
               onUpdateUser={handleFullUpdateUser}
+              onAddReceipt={handleAddReceipt}
+              onUpdateReceipt={handleUpdateReceipt}
+              onDeleteReceipt={handleDeleteReceipt}
+              setLoadingMessage={setLoadingMessage}
+              subManagers={state.subManagers || []}
+              managerId={activeManager || 'mahadnet'}
+              defaultCollectedBy={activeManager || 'admin'}
             />
           )}
           {!tabLoading && activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
