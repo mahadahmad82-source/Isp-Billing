@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign } from '../types';
+import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign, SubManagerAccount } from '../types';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
+import ReceiptGenerator from './ReceiptGenerator';
 
 interface RecoverySummaryProps {
   users: UserRecord[];
@@ -16,6 +17,13 @@ interface RecoverySummaryProps {
   onRenamePeriod: (oldPeriod: string, newPeriod: string) => void;
   onNavigateToReceipts?: (userId: string, month: string) => void;
   onUpdateUser?: (user: UserRecord) => void;
+  onAddReceipt?: (receipt: Receipt) => void;
+  onUpdateReceipt?: (receipt: Receipt) => void;
+  onDeleteReceipt?: (id: string) => void;
+  setLoadingMessage?: (msg: string | null) => void;
+  subManagers?: SubManagerAccount[];
+  managerId?: string;
+  defaultCollectedBy?: string;
 }
 
 interface SummaryItem {
@@ -38,7 +46,14 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   onBulkUpdateUsers, 
   onDeletePeriod, 
   onRenamePeriod,
-  onUpdateUser
+  onUpdateUser,
+  onAddReceipt,
+  onUpdateReceipt,
+  onDeleteReceipt,
+  setLoadingMessage,
+  subManagers = [],
+  managerId,
+  defaultCollectedBy
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [detailSearchTerm, setDetailSearchTerm] = useState('');
@@ -49,6 +64,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [legacyMonth, setLegacyMonth] = useState(new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()));
   const [legacyYear, setLegacyYear] = useState(new Date().getFullYear().toString());
   const [viewingReceipt, setViewingReceipt] = useState<Receipt | null>(null);
+  const [quickReceiptUser, setQuickReceiptUser] = useState<{ userId: string; month: string; ts: number } | null>(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [addUserSearch, setAddUserSearch] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
@@ -1039,6 +1055,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                </svg>
                              </button>
                              {/* Receipt button removed - was jumping to wrong place, will be re-added differently later */}
+                             <button onClick={() => setQuickReceiptUser({ userId: item.id, month: selectedMonth || '', ts: Date.now() })} title="Generate Receipt" className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                             </button>
                           </>
                         ) : (
                           <div className="flex items-center gap-3">
@@ -1054,6 +1073,13 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
                              >
                                View Receipt
+                             </button>
+                             <button
+                               onClick={() => setQuickReceiptUser({ userId: item.id, month: selectedMonth || '', ts: Date.now() })}
+                               title="Generate Additional Receipt"
+                               className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
+                             >
+                               + Receipt
                              </button>
                           </div>
                         )}
@@ -1398,6 +1424,38 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               <button type="button" onClick={() => setShowRecoveryModal(false)} className="px-8 bg-slate-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all">
                 CANCEL
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {quickReceiptUser && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={() => setQuickReceiptUser(null)}></div>
+          <div className="relative z-10 w-full max-w-4xl my-4 sm:my-8 animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <h3 className="text-white font-black uppercase tracking-widest text-xs">Generate Receipt</h3>
+              <button onClick={() => setQuickReceiptUser(null)} className="w-10 h-10 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors">✕</button>
+            </div>
+            <div className="bg-slate-50 dark:bg-[#0a1120] rounded-[1.5rem] shadow-2xl overflow-y-auto max-h-[85vh] p-4 sm:p-6 custom-scrollbar">
+              <ReceiptGenerator
+                users={users}
+                receipts={receipts}
+                settings={settings}
+                subManagers={subManagers}
+                onAddReceipt={(r) => onAddReceipt?.(r)}
+                onUpdateReceipt={(r) => onUpdateReceipt?.(r)}
+                onUpdateUser={(userId, update) => {
+                  const fullUser = users.find(u => u.id === userId);
+                  if (fullUser) onUpdateUser?.({ ...fullUser, ...update });
+                }}
+                onDeleteReceipt={(id) => onDeleteReceipt?.(id)}
+                setLoadingMessage={(msg) => setLoadingMessage?.(msg)}
+                preSelectUser={quickReceiptUser}
+                onPreSelectConsumed={() => {}}
+                hideHistory={true}
+                defaultCollectedBy={defaultCollectedBy}
+                managerId={managerId}
+              />
             </div>
           </div>
         </div>
