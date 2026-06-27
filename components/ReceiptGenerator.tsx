@@ -311,6 +311,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         useCORS: true,
         allowTaint: true,
         logging: false,
+        imageTimeout: 8000,
         windowWidth: isThermal ? window.innerWidth : 800,
         onclone: (clonedDoc) => {
           // Additional safety for Android Gallery Export errors (oklch)
@@ -380,6 +381,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         useCORS: true,
         allowTaint: true,
         logging: false,
+        imageTimeout: 8000,
         windowWidth: isThermal ? window.innerWidth : 800,
         onclone: (clonedDoc) => {
           const area = clonedDoc.getElementById('receipt-download-area');
@@ -472,8 +474,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       setViewMode('view');
       setEditingReceiptId(null);
       
-      captureAndDownload(newReceipt);
-      autoSendReceiptViaWhatsApp(newReceipt);
+      // Run the user-visible download first, then the background WhatsApp auto-send capture.
+      // Running both html2canvas captures at once was overloading the main thread on
+      // slower/weaker-network devices, leaving the "Downloading..." button stuck until
+      // the app was backgrounded and resumed (which forces a fresh paint).
+      captureAndDownload(newReceipt).then(() => autoSendReceiptViaWhatsApp(newReceipt));
 
     } catch (error) {
       console.error("Critical System Failure:", error);
@@ -549,6 +554,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const canvas = await html2canvas(element, { 
         scale: 2, 
         backgroundColor: '#ffffff',
+        imageTimeout: 8000,
         windowWidth: isThermal ? window.innerWidth : 800,
         onclone: (clonedDoc) => {
           const area = clonedDoc.getElementById('receipt-download-area');
