@@ -474,11 +474,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       setViewMode('view');
       setEditingReceiptId(null);
       
-      // Run the user-visible download first, then the background WhatsApp auto-send capture.
-      // Running both html2canvas captures at once was overloading the main thread on
-      // slower/weaker-network devices, leaving the "Downloading..." button stuck until
-      // the app was backgrounded and resumed (which forces a fresh paint).
-      captureAndDownload(newReceipt).then(() => autoSendReceiptViaWhatsApp(newReceipt));
+      // Auto-download removed: it shared the same isDownloading state as the manual
+      // "Download Image" button, so right after generating, that button would
+      // immediately show "Downloading..." (disabled) while competing with the
+      // background WhatsApp auto-send for CPU — looking stuck on slower devices.
+      // Customer still gets the receipt automatically via WhatsApp below; saving to
+      // phone storage is now manual-only (tap "Download Image" whenever you want it).
+      autoSendReceiptViaWhatsApp(newReceipt);
 
     } catch (error) {
       console.error("Critical System Failure:", error);
