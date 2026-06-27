@@ -415,6 +415,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     if (!user) return;
 
     setIsGenerating(true);
+    setLoadingMessage('Generating Receipt...');
 
     try {
       // Split YYYY-MM-DD and create local date to avoid UTC shifts
@@ -487,6 +488,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       alert("Database error. Record not saved.");
     } finally {
       setIsGenerating(false);
+      setLoadingMessage(null);
     }
   };
 
