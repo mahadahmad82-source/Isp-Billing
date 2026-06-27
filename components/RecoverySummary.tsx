@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useDeferredValue } from 'react';
 import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign, SubManagerAccount } from '../types';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import * as XLSX from 'xlsx';
@@ -112,11 +112,20 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     }
   };
 
+  // The big ledger table below is expensive to recompute (sorting/grouping hundreds of
+  // records). When the quick-receipt modal is open and generating/sharing a receipt,
+  // this table is hidden behind it anyway but still recomputes on every users/receipts
+  // change, competing with the modal for CPU and slowing down time-sensitive work like
+  // navigator.share's image attachment. Deferring it lets React deprioritize the table
+  // recompute so the modal stays snappy; the table just catches up a tick later.
+  const deferredUsers = useDeferredValue(users);
+  const deferredReceipts = useDeferredValue(receipts);
+
   // Group receipts by month for the main list and ALWAYS include the current month
   // Ayesha bot — Phase 2: customers currently flagged for credit/advance recovery
   const pendingRecoveries = useMemo(
-    () => users.filter(u => u && u.status !== 'deleted' && u.creditRecharge),
-    [users]
+    () => deferredUsers.filter(u => u && u.status !== 'deleted' && u.creditRecharge),
+    [deferredUsers]
   );
 
   const monthlyData = useMemo(() => {
@@ -128,7 +137,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     summaries[currentPeriod] = { period: currentPeriod, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
 
     // Count activated users for each month
-    (users || []).forEach(u => {
+    (deferredUsers || []).forEach(u => {
       (u.activatedMonths || []).forEach(m => {
         if (!summaries[m]) {
           summaries[m] = { period: m, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
@@ -137,7 +146,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       });
     });
 
-    (receipts || []).forEach(r => {
+    (deferredReceipts || []).forEach(r => {
       const period = r.period;
       if (!summaries[period]) {
         summaries[period] = { period, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
@@ -149,16 +158,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     });
     
     return Object.values(summaries).sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime());
-  }, [receipts, users]);
+  }, [deferredReceipts, deferredUsers]);
 
   const detailedList = useMemo(() => {
     if (!selectedMonth) return [];
     
-    const filteredReceipts = (receipts || []).filter(r => r.period === selectedMonth);
+    const filteredReceipts = (deferredReceipts || []).filter(r => r.period === selectedMonth);
 
     // Only show users who are either activated for this month OR have a receipt for this month
     // NOTE: also match by username to handle re-created users with new IDs
-    let list = (users || []).filter(u => 
+    let list = (deferredUsers || []).filter(u => 
       (u.activatedMonths || []).includes(selectedMonth) || 
       filteredReceipts.some(r => r.userId === u.id || r.username === u.username)
     ).map(u => {
@@ -236,7 +245,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     }
 
     return list;
-  }, [selectedMonth, receipts, users, detailSearchTerm, sortConfig]);
+  }, [selectedMonth, deferredReceipts, deferredUsers, detailSearchTerm, sortConfig]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
