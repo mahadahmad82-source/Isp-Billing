@@ -101,6 +101,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [autoSendStatus, setAutoSendStatus] = useState<'sending' | 'sent' | 'failed' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [shareMessage, setShareMessage] = useState('');
   
@@ -370,13 +371,19 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // the bot itself uses, instead of requiring a manual "Share" tap every time.
   const autoSendReceiptViaWhatsApp = async (receipt: Receipt) => {
     if (!receipt.userPhone) return;
+    setAutoSendStatus('sending');
+    const clearSoon = () => setTimeout(() => setAutoSendStatus(null), 3000);
     try {
       await new Promise(r => setTimeout(r, 1200)); // let the receipt preview render first
+      // Yield to the browser's paint queue right before the heavy (synchronous)
+      // html2canvas capture below, so the receipt VIEW screen actually paints
+      // first instead of looking frozen/stuck while this background job runs.
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const element = document.getElementById('receipt-download-area');
-      if (!element) return;
+      if (!element) { setAutoSendStatus('failed'); clearSoon(); return; }
       const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 1.5,
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
@@ -392,7 +399,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         },
       });
       canvas.toBlob(async (blob: Blob | null) => {
-        if (!blob) return;
+        if (!blob) { setAutoSendStatus('failed'); clearSoon(); return; }
         try {
           const path = `receipts/${Date.now()}-${(receipt.transactionRef || receipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
           const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png' });
@@ -405,9 +412,19 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ to: normalizePhoneForWa(receipt.userPhone), managerId, type: 'image', mediaUrl: pub.publicUrl, caption }),
           });
-        } catch (e) { console.error('[ReceiptGenerator] auto WhatsApp send failed', e); }
+          setAutoSendStatus('sent');
+        } catch (e) {
+          console.error('[ReceiptGenerator] auto WhatsApp send failed', e);
+          setAutoSendStatus('failed');
+        } finally {
+          clearSoon();
+        }
       }, 'image/png', 1.0);
-    } catch (e) { console.error('[ReceiptGenerator] auto WhatsApp capture failed', e); }
+    } catch (e) {
+      console.error('[ReceiptGenerator] auto WhatsApp capture failed', e);
+      setAutoSendStatus('failed');
+      clearSoon();
+    }
   };
 
   const generateReceipt = async () => {
@@ -455,25 +472,34 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         onAddReceipt(newReceipt);
       }
       
+      // Flip the screen to the receipt view IMMEDIATELY, before any secondary
+      // work below. That secondary work (expiry update) or the background
+      // WhatsApp auto-send further down must never be able to leave the
+      // screen stuck on this form if something in them throws or runs slow.
       setActiveReceipt(newReceipt);
-
-      const currentExpiry = new Date(user.expiryDate || new Date());
-      const safeDate = isNaN(currentExpiry.getTime()) ? new Date() : currentExpiry;
-      const newExpiry = new Date(safeDate);
-      
-      if (paymentStatus === PaymentStatus.SUCCESS && ((amountPaid || 0) + (advanceAmount || 0)) >= (monthlyFee - discount)) {
-          newExpiry.setMonth(newExpiry.getMonth() + 1);
-      }
-
-      onUpdateUser(user.id, {
-        lastPaymentDate: receiptDate.toISOString(),
-        expiryDate: isNaN(newExpiry.getTime()) ? new Date().toISOString() : newExpiry.toISOString(),
-        status: 'active',
-        balance: calculatedBalance || 0 
-      });
-
       setViewMode('view');
       setEditingReceiptId(null);
+
+      try {
+        const currentExpiry = new Date(user.expiryDate || new Date());
+        const safeDate = isNaN(currentExpiry.getTime()) ? new Date() : currentExpiry;
+        const newExpiry = new Date(safeDate);
+
+        if (paymentStatus === PaymentStatus.SUCCESS && ((amountPaid || 0) + (advanceAmount || 0)) >= (monthlyFee - discount)) {
+            newExpiry.setMonth(newExpiry.getMonth() + 1);
+        }
+
+        onUpdateUser(user.id, {
+          lastPaymentDate: receiptDate.toISOString(),
+          expiryDate: isNaN(newExpiry.getTime()) ? new Date().toISOString() : newExpiry.toISOString(),
+          status: 'active',
+          balance: calculatedBalance || 0 
+        });
+      } catch (userUpdateError) {
+        // Receipt is already saved and on screen — a failure here must not
+        // undo that or re-trap the user back on the form.
+        console.error("Receipt saved, but customer expiry update failed:", userUpdateError);
+      }
       
       // Auto-download removed: it shared the same isDownloading state as the manual
       // "Download Image" button, so right after generating, that button would
@@ -552,7 +578,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     
     try {
       const element = document.getElementById('receipt-download-area');
-      if (!element) return;
+      if (!element) { setIsSharing(false); setLoadingMessage(null); return; }
       
       const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
       const canvas = await html2canvas(element, { 
@@ -572,23 +598,57 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       });
       
       canvas.toBlob(async (blob: Blob | null) => {
-        if (blob && navigator.share) {
+        if (!blob) {
+          shareToWhatsApp(activeReceipt.userPhone, shareMessage);
+          setIsSharing(false);
+          setLoadingMessage(null);
+          return;
+        }
+
+        // Mobile browsers (Android/iOS Chrome/Safari) support attaching the
+        // image file directly via the native share sheet.
+        const file = new File([blob], `Receipt_${activeReceipt.transactionRef}.png`, { type: 'image/png' });
+        const canNativeShareFiles = typeof navigator.share === 'function' &&
+          (typeof (navigator as any).canShare !== 'function' || (navigator as any).canShare({ files: [file] }));
+
+        if (canNativeShareFiles) {
           try {
-            const file = new File([blob], `Receipt_${activeReceipt.transactionRef}.png`, { type: 'image/png' });
-            await navigator.share({
-              title: 'Receipt',
-              text: shareMessage,
-              files: [file],
-            });
+            await navigator.share({ title: 'Receipt', text: shareMessage, files: [file] });
+            setIsSharing(false);
+            setLoadingMessage(null);
+            return;
           } catch (err: any) {
-            shareToWhatsApp(activeReceipt.userPhone, shareMessage);
+            if (err?.name === 'AbortError') { // user cancelled the share sheet — don't auto-fallback
+              setIsSharing(false);
+              setLoadingMessage(null);
+              return;
+            }
+            // fall through to Cloud API send below
           }
-        } else {
+        }
+
+        // Desktop (and any failed native share): there's no OS-level way to push
+        // an image into WhatsApp Web's compose box from a browser tab, so send
+        // the receipt image + caption directly through Ayesha's Cloud API number
+        // instead — same proven path used for the automatic post-payment send.
+        try {
+          setLoadingMessage('Sending Receipt Image via WhatsApp...');
+          const path = `receipts/${Date.now()}-${(activeReceipt.transactionRef || activeReceipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
+          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png' });
+          if (upErr) throw upErr;
+          const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+          await fetch('/api/wabot-send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: normalizePhoneForWa(activeReceipt.userPhone), managerId, type: 'image', mediaUrl: pub.publicUrl, caption: shareMessage }),
+          });
+        } catch (cloudErr) {
+          console.error('[ReceiptGenerator] Cloud API image send failed, falling back to text-only link', cloudErr);
           shareToWhatsApp(activeReceipt.userPhone, shareMessage);
         }
         setIsSharing(false);
         setLoadingMessage(null);
-      }, 'png');
+      }, 'image/png', 1.0);
     } catch (error) {
       shareToWhatsApp(activeReceipt.userPhone, shareMessage);
       setIsSharing(false);
@@ -1451,6 +1511,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 {isDownloading && (
                   <div className="bg-indigo-600 text-white p-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center shadow-lg animate-pulse">
                     ⚡ Preparing Download...
+                  </div>
+                )}
+                {autoSendStatus && (
+                  <div className={`p-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center shadow-lg ${autoSendStatus === 'sent' ? 'bg-emerald-500 text-white' : autoSendStatus === 'failed' ? 'bg-rose-500 text-white' : 'bg-green-600 text-white animate-pulse'}`}>
+                    {autoSendStatus === 'sending' ? '📤 Sending Receipt to Customer via WhatsApp...' : autoSendStatus === 'sent' ? '✓ Sent to Customer via WhatsApp' : '⚠ Auto-send failed — use the WhatsApp button below'}
                   </div>
                 )}
                 <div id="receipt-download-area" className={`bg-white p-4 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-200 overflow-x-hidden ${settings.receiptDesign === ReceiptDesign.THERMAL ? 'max-w-[350px] mx-auto rounded-none border-0 p-1 sm:p-1' : 'w-full lg:max-w-4xl mx-auto'}`}>
