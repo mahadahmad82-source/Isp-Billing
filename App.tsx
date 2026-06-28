@@ -1692,6 +1692,8 @@ const App: React.FC = () => {
               onOpenReceiptGenerator={() => setActiveTab('receipts')}
               botName={currentSettings.ayeshaBotName}
               onUpdateBotName={(name) => handleUpdateSettings({ ...currentSettings, ayeshaBotName: name })}
+              routerCatalog={currentSettings.routerCatalog}
+              onUpdateRouterCatalog={(catalog) => handleUpdateSettings({ ...currentSettings, routerCatalog: catalog })}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole === 'manager' && (
