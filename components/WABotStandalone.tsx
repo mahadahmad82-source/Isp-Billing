@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState } from '../types';
+import { AppState, RouterCatalog, BotTemplate } from '../types';
 import { getAccounts, getActiveSession, loadState, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
 import { subscribeToPush } from '../lib/pushNotifications';
@@ -204,12 +204,42 @@ export default function WABotStandalone() {
 
   const activeCompany = (state.companies || []).find(c => c.id === state.activeCompanyId) || state.companies?.[0];
   const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'MYISP-BOT';
+  const routerCatalog: RouterCatalog | undefined = activeCompany?.settings?.routerCatalog || state.settings?.routerCatalog;
+  const botTemplates: Record<string, BotTemplate> | undefined = activeCompany?.settings?.botTemplates || state.settings?.botTemplates;
   const filteredUsers = (state.users || []).filter(u => !u.companyId || u.companyId === activeCompany?.id);
 
   const handleUpdateBotName = (name: string) => {
     setState(prev => {
       if (!prev) return prev;
       const newSettings = { ...(activeCompany?.settings || prev.settings), ayeshaBotName: name } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      saveStateToSupabase(username || 'mahadnet', newState);
+      return newState;
+    });
+  };
+
+  const handleUpdateRouterCatalog = (catalog: RouterCatalog) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), routerCatalog: catalog } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      saveStateToSupabase(username || 'mahadnet', newState);
+      return newState;
+    });
+  };
+
+  const handleUpdateBotTemplates = (templates: Record<string, BotTemplate>) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), botTemplates: templates } as any;
       const newCompanies = (prev.companies || []).map(c =>
         c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
       );
@@ -252,6 +282,10 @@ export default function WABotStandalone() {
           onOpenReceiptGenerator={() => {}}
           botName={botName}
           onUpdateBotName={handleUpdateBotName}
+          routerCatalog={routerCatalog}
+          onUpdateRouterCatalog={handleUpdateRouterCatalog}
+          botTemplates={botTemplates}
+          onUpdateBotTemplates={handleUpdateBotTemplates}
         />
       </div>
     </div>
