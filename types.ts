@@ -75,6 +75,22 @@ export interface AppSettings {
   receiptSerialStart?: number; // Starting serial number for receipts (e.g. 1, 900, 5000)
   receiptSerialPrefix?: string; // Prefix for serial like MN, ISP, etc.
   ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
+  routerCatalog?: RouterCatalog; // Admin-editable WhatsApp bot router catalog (models/specs/prices/images)
+}
+
+export interface RouterCatalogItem {
+  id: string;
+  model: string;
+  company: string;
+  band: string; // display label, e.g. "2.4GHz Single Band"
+  price: number;
+  image: string; // image URL shown to the customer
+  specs: string; // full specs text sent by the WhatsApp bot
+}
+
+export interface RouterCatalog {
+  '2.4g': RouterCatalogItem[];
+  '5g': RouterCatalogItem[];
 }
 
 export interface UserRecord {
