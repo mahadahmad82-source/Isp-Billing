@@ -76,6 +76,13 @@ export interface AppSettings {
   receiptSerialPrefix?: string; // Prefix for serial like MN, ISP, etc.
   ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
   routerCatalog?: RouterCatalog; // Admin-editable WhatsApp bot router catalog (models/specs/prices/images)
+  botTemplates?: Record<string, BotTemplate>; // Admin-editable WhatsApp bot reply templates (wording of every canned reply)
+}
+
+export interface BotTemplate {
+  category: string;
+  label: string;
+  text: string; // may contain {placeholder} tokens substituted by the bot at send time
 }
 
 export interface RouterCatalogItem {
