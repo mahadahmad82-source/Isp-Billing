@@ -19,6 +19,12 @@ const CONFIG = {
 
   fiberPricePerMeter: 30,
 
+  // How long (ms) to wait for more rapid-fire fragments from the same customer before
+  // treating the buffered text as one complete message. Customers often split one thought
+  // across several quick messages ("suno" / "mera" / "net" / "nahi chal raha") — this stops
+  // the bot replying to each word separately. Raise/lower if replies feel too slow/fast.
+  messageDebounceMs: 6000,
+
   fiberInfo: `🌐 *New Fiber Connection*
 
 💵 Fiber cable (2-core): *Rs. 30/meter*
@@ -195,6 +201,21 @@ async function getAnyPlanPrices(): Promise<Record<string, number>> {
     if (rows?.[0]?.data?.settings?.planPrices) return rows[0].data.settings.planPrices;
   } catch (e: any) { console.error('[getAnyPlanPrices]', e?.message); }
   return {};
+}
+
+// Get router catalog from Supabase settings (admin-editable via the WABot "Catalog" tab),
+// falling back to the built-in CONFIG.routers defaults if mahadnet hasn't customized it yet.
+// This lets models/specs/prices be updated from the UI without touching code.
+async function getRouterCatalog(): Promise<Record<string, Array<{ model: string; company: string; band: string; price: number; image: string; specs: string }>>> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.mahadnet`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    const catalog = rows?.[0]?.data?.settings?.routerCatalog;
+    if (catalog && ((catalog['2.4g']?.length || 0) + (catalog['5g']?.length || 0) > 0)) return catalog;
+  } catch (e: any) { console.error('[getRouterCatalog]', e?.message); }
+  return CONFIG.routers;
 }
 
 async function saveComplaint(managerId: string, rowData: any, user: any, issue: string) {
@@ -644,6 +665,59 @@ async function markGreetedBefore(phone: string) {
       });
     }
   } catch (e: any) { console.error('[markGreetedBefore]', e?.message); }
+}
+
+// ── Message batching/debounce ────────────────────────────────────────────────────
+// Customers often split one thought across several rapid messages (e.g. "suno" / "mera" /
+// "net" / "nahi chal raha" sent as 4 separate texts within a couple seconds). Replying to
+// each fragment on its own broke the conversation. Fix: buffer every incoming fragment in
+// `whatsapp_message_buffer`, wait CONFIG.messageDebounceMs, then check whether a NEWER
+// fragment arrived for this phone in the meantime. If yes, this invocation stands down (the
+// invocation handling that newer fragment will do the combining). If no — this was the last
+// fragment — gather everything buffered for this phone, combine into one message, clear the
+// buffer, and proceed with that combined text.
+async function debounceAndCombineFragments(phone: string, fragment: string, fragmentId: string): Promise<string | null> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ phone, message: fragment, wa_message_id: fragmentId }),
+    });
+  } catch (e: any) {
+    console.error('[msgBuffer insert]', e?.message);
+    return fragment; // fail-open: buffering broke, just process this one fragment alone
+  }
+
+  await new Promise(resolve => setTimeout(resolve, CONFIG.messageDebounceMs));
+
+  try {
+    const latestRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer?phone=eq.${encodeURIComponent(phone)}&select=wa_message_id&order=created_at.desc&limit=1`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const latestRows: any[] = await latestRes.json();
+    const latestId = latestRows?.[0]?.wa_message_id;
+
+    if (latestId && latestId !== fragmentId) {
+      // A newer fragment arrived while we were waiting — that invocation owns the reply.
+      return null;
+    }
+
+    const allRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer?phone=eq.${encodeURIComponent(phone)}&select=message&order=created_at.asc`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const allRows: any[] = await allRes.json();
+    const combined = (allRows || []).map((r: any) => r.message).join(' ').replace(/\s+/g, ' ').trim();
+
+    await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer?phone=eq.${encodeURIComponent(phone)}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+
+    return combined || fragment;
+  } catch (e: any) {
+    console.error('[msgBuffer combine]', e?.message);
+    return fragment; // fail-open
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1287,6 +1361,11 @@ loon ga / lunga → lungi | bhejoon ga → bhejungi | samajhta hoon → samajhti
 rahunga → rahungi | sakta hoon → sakti hoon | tha → thi | hua tha → hui thi
 madad karta hoon → madad karti hoon | dekhta hoon → dekhti hoon
 
+SOFT, REALISTIC TONE — ZAROORI: Bilkul aisi tarah baat karo jaise koi tajurbakar Pakistani call-center female agent live call par karti hai — narm, sukoon dene wala lehja, lekin natural insaan jesa, robotic ya script-jesa nahi.
+- Jawab seedha ek-line hukam jesa shuru mat karo — pehle thoda acknowledge karo (jese "Acha, samajh gayi", "Ji zaroor", "Theek hai, dekhti hoon abhi") phir baat continue karo.
+- Customer pareshan ya frustrated lage to pehle thoda tasalli do (jese "Pareshan na hon, abhi dekhti hoon") phir solution do — lekin overly dramatic ya emotional mat ho, aur fake/halki tasalli har message mein repeat mat karo.
+- Chhoti, warm, baat-cheet wali sentences rakho — jese koi reliable, mehrban support agent baat kar rahi ho, kitabi ya corporate-jesi zabaan se bacho.
+
 SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage, payment) se related sawalon ka khud jawab do.
 Agar sawal in topics se bilkul mutaliq NAHI hai (jokes, siyasat, mazhab, ${botName} ke baray mein random/frank personal sawal, chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur politely maazrat karte hue redirect karo — har dafa alfaz badal kar, jese: "Maazrat chahti hoon, main sirf MahadNet ki internet services ke mutaliq baat kar sakti hoon 😊 Koi internet, bill ya package se related sawal ho to zaroor batayen." Kabhi yeh mat kaho ke "aap ka message note kar liya gaya hai / Mahad bhai tak pohcha diya jayega" jab tak masla wakai business-related ho — woh jumla sirf genuine business messages ke liye hai, casual chit-chat ke liye nahi.
 
@@ -1427,12 +1506,14 @@ async function sendImage(to: string, imageUrl: string, caption: string) {
 }
 
 async function sendRouterCatalog(to: string, band: '2.4g' | '5g') {
-  const list = CONFIG.routers[band];
+  const catalog = await getRouterCatalog();
+  const list = catalog[band] || [];
   for (const r of list) {
     await sendImage(to, r.image, `${r.model} — ${r.company}`);
     await sendText(to, r.specs);
   }
   await sendText(to, `Koi router pasand aaya? Order ke liye batain ya call karein: *${CONFIG.supportNumber}* 😊`);
+  return list;
 }
 
 // ══════════════════════════════════════════════════════
@@ -1577,6 +1658,14 @@ export default async function handler(req: any, res: any) {
 
       if (!alreadyLoggedThisTurn) await logMessage(from, 'in', 'text', text);
 
+      // ── Batch rapid-fire fragments (see debounceAndCombineFragments above) so the
+      // bot understands the WHOLE thought before replying, instead of reacting to each
+      // word-by-word message on its own.
+      const fragmentId = msgId || `${from}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const combinedText = await debounceAndCombineFragments(from, text, fragmentId);
+      if (combinedText === null) continue; // a newer fragment arrived — that invocation handles the reply
+      text = combinedText;
+
       const intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
 
@@ -1596,8 +1685,21 @@ export default async function handler(req: any, res: any) {
         // "order placed, send address" conversation on its own — sometimes drifting to an
         // unrelated topic from older history. Now it's a real, deterministic flow.)
         if (session === 'router_catalog_shown') {
+          // Customer is asking to see a different BAND (e.g. just saw 2.4G, now says "5G")
+          // rather than naming a model from the list just shown. Previously this fell through
+          // to the model-matching logic below, which tried to match "5g" against 2.4G model
+          // names, always failed, and looped the same "samajh nahi payi" message forever.
+          // Fix: detect the band-switch intent FIRST and show that catalog instead.
+          if (intent === 'router_24g' || intent === 'router_5g') {
+            const newBand: '2.4g' | '5g' = intent === 'router_24g' ? '2.4g' : '5g';
+            await sendRouterCatalog(from, newBand);
+            await setSession(from, 'router_catalog_shown', { band: newBand });
+            continue;
+          }
+
           const band: '2.4g' | '5g' = sessionData?.band === '5g' ? '5g' : '2.4g';
-          const list = CONFIG.routers[band];
+          const catalog = await getRouterCatalog();
+          const list = catalog[band] || [];
           const t = text.toLowerCase();
           let chosen: (typeof list)[number] | null = null;
 
@@ -1618,6 +1720,9 @@ export default async function handler(req: any, res: any) {
           if (chosen) {
             await setSession(from, 'awaiting_order_address', { model: chosen.model, price: chosen.price, band });
             await sendText(from, `Theek hai! *${chosen.model}* (Rs. ${chosen.price.toLocaleString()}) ka order note kar liya hai 😊\n\nDelivery ke liye apna *pura address* bhej dein, taake hamari team rabta kar sake.`);
+          } else if (list.length === 0) {
+            await setSession(from, null);
+            await sendText(from, `Maazrat, abhi is band ke router available nahi hain 🙏 Doosra band dekhne ke liye *"2.4G"* ya *"5G"* likh kar bhejein, ya call karein: *${CONFIG.supportNumber}* 📞`);
           } else {
             await sendText(from, `Maazrat, samajh nahi payi konsa router pasand aaya 🙏 Model ka naam likh dein (jaise *"${list[0].model}"*) ya *"1st"/"2nd"* likh kar bata dein.`);
           }
