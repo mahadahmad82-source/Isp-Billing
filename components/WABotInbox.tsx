@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { UserRecord } from '../types';
+import { UserRecord, RouterCatalog, RouterCatalogItem } from '../types';
 import { supabase } from '../lib/supabase';
 import * as lamejs from '@breezystack/lamejs';
 
@@ -47,9 +47,53 @@ interface WABotInboxProps {
   onOpenReceiptGenerator?: (userId?: string) => void;
   botName?: string;
   onUpdateBotName?: (name: string) => void;
+  routerCatalog?: RouterCatalog;
+  onUpdateRouterCatalog?: (catalog: RouterCatalog) => void;
 }
 
 const POLL_MS = 15000;
+
+// Seed defaults — mirrors the built-in catalog the WhatsApp bot falls back to until
+// these are customized here. Editing/saving below overrides this for the live bot.
+const IMG_BASE = 'https://raw.githubusercontent.com/mahadahmad82-source/Isp-Billing/main/public/whatsapp-images';
+const DEFAULT_ROUTER_CATALOG: RouterCatalog = {
+  '2.4g': [
+    {
+      id: 'default-gs3101',
+      model: 'GS3101',
+      company: 'China Mobile',
+      band: '2.4GHz Single Band',
+      price: 3000,
+      image: `${IMG_BASE}/gs3101.jpg`,
+      specs: `📡 *GS3101 — China Mobile*\n💰 Price: Rs. 3,000\n\n🔧 *Specs:*\n• Chipset: EcoNet EN7526F @ 900MHz\n• Memory: 256MB RAM + 256MB Flash\n• Ports: 1x Gigabit + 3x Fast Ethernet\n• Fiber: GPON/EPON auto-detect\n• WiFi: 2.4GHz (802.11 b/g/n)\n• Extra: 1x VoIP port + 1x USB 2.0\n\n📶 *Range:* 1-2 rooms (30-40 feet), 1 deewar cross karta hai achi tarah\n✅ *Best for:* Budget-friendly, single room/small space use, stable connection`,
+    },
+    {
+      id: 'default-hg8546m',
+      model: 'HG8546M',
+      company: 'Huawei EchoLife',
+      band: '2.4GHz Single Band',
+      price: 3500,
+      image: `${IMG_BASE}/huawei-hg8546m.jpg`,
+      specs: `📡 *Huawei EchoLife HG8546M*\n💰 Price: Rs. 3,500\n\n🔧 *Specs:*\n• PON: XPON (GPON/EPON adaptive)\n• Ports: 1x Gigabit + 3x Fast Ethernet\n• WiFi: 2.4GHz only (802.11 b/g/n, 2x2 MIMO)\n• Antennas: 2x External (5dBi)\n• Extra: 1x Telephone port + 1x USB 2.0\n\n📶 *Range:* Open space mein 60-80 feet, indoor 1 deewar easily, 2+ deewaron ke baad weak\n✅ *Best for:* 10 marla ghar ka 1 floor (center mein lagayein)`,
+    },
+  ],
+  '5g': [
+    {
+      id: 'default-q2',
+      model: 'Q2 Dual Band',
+      company: 'Huawei',
+      band: '5GHz + 2.4GHz Dual Band',
+      price: 6000,
+      image: `${IMG_BASE}/huawei-q2.jpg`,
+      specs: `📡 *Huawei Q2 — Dual Band 5G*\n💰 Price: Rs. 6,000 _(Refurbished)_\n📦 Box mein: Router + Original Power Adapter\n\n🔧 *Specs:*\n• Dedicated Gigabit WAN — full speed, no drop\n• 5GHz Ultra-Speed WiFi — low ping, 4K streaming\n• Heavy bandwidth handling, 24/7 use\n• 64 devices ek sath connect ho sakte hain\n\n📶 *Range:* Moti deewaron ke through bhi 50-80 feet — 2-3 kamron ya pure medium flat ke liye perfect\n✅ *Best for:* Gaming, multiple devices, bara ghar/flat`,
+    },
+  ],
+};
+
+function hasCatalogContent(c?: RouterCatalog | null): boolean {
+  if (!c) return false;
+  return (c['2.4g']?.length || 0) + (c['5g']?.length || 0) > 0;
+}
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -89,7 +133,7 @@ function DeliveryTicks({ status }: { status: string }) {
   );
 }
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog }) => {
   // WABot has its own theme, independent of the manager dashboard's dark/light
   // toggle, saved separately so it's remembered across visits. Defaults to
   // light (matching the brand look), but the eye-comfort toggle below lets it
@@ -148,11 +192,57 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
   // ── Training (Confused Replies) tab state ──
-  const [view, setView] = useState<'inbox' | 'training'>('inbox');
+  const [view, setView] = useState<'inbox' | 'training' | 'catalog'>('inbox');
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+
+  // ── Router Catalog tab state (admin-editable, drives what Ayesha shows on WhatsApp) ──
+  const [catalogState, setCatalogState] = useState<RouterCatalog>(
+    hasCatalogContent(routerCatalog) ? (routerCatalog as RouterCatalog) : DEFAULT_ROUTER_CATALOG
+  );
+  const [catalogModal, setCatalogModal] = useState<{ band: '2.4g' | '5g'; item: RouterCatalogItem | null } | null>(null);
+  const [catalogForm, setCatalogForm] = useState({ model: '', company: '', band: '', price: '', image: '', specs: '' });
+
+  useEffect(() => {
+    if (hasCatalogContent(routerCatalog)) setCatalogState(routerCatalog as RouterCatalog);
+  }, [routerCatalog]);
+
+  const openAddRouter = (band: '2.4g' | '5g') => {
+    setCatalogForm({ model: '', company: '', band: band === '2.4g' ? '2.4GHz Single Band' : '5GHz + 2.4GHz Dual Band', price: '', image: '', specs: '' });
+    setCatalogModal({ band, item: null });
+  };
+
+  const openEditRouter = (band: '2.4g' | '5g', item: RouterCatalogItem) => {
+    setCatalogForm({ model: item.model, company: item.company, band: item.band, price: String(item.price), image: item.image, specs: item.specs });
+    setCatalogModal({ band, item });
+  };
+
+  const saveCatalogModal = () => {
+    if (!catalogModal) return;
+    const { band, item } = catalogModal;
+    const newItem: RouterCatalogItem = {
+      id: item?.id || `r-${Date.now()}`,
+      model: catalogForm.model.trim() || 'Untitled',
+      company: catalogForm.company.trim(),
+      band: catalogForm.band.trim(),
+      price: Number(catalogForm.price) || 0,
+      image: catalogForm.image.trim(),
+      specs: catalogForm.specs,
+    };
+    const next: RouterCatalog = { '2.4g': [...catalogState['2.4g']], '5g': [...catalogState['5g']] };
+    next[band] = item ? next[band].map(r => (r.id === item.id ? newItem : r)) : [...next[band], newItem];
+    setCatalogState(next);
+    onUpdateRouterCatalog?.(next);
+    setCatalogModal(null);
+  };
+
+  const deleteRouter = (band: '2.4g' | '5g', id: string) => {
+    const next: RouterCatalog = { ...catalogState, [band]: catalogState[band].filter(r => r.id !== id) };
+    setCatalogState(next);
+    onUpdateRouterCatalog?.(next);
+  };
 
   const loadKnowledge = useCallback(async () => {
     setKnowledgeLoading(true);
@@ -652,6 +742,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         </button>
 
         <button
+          onClick={() => setView('catalog')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'catalog' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#0f172a] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
+          Catalog
+        </button>
+
+        <button
           onClick={toggleWabotTheme}
           title={wabotDark ? 'Light mode' : 'Dark mode (eye comfort)'}
           className="ml-auto w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#0f172a] text-slate-500 dark:text-amber-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
@@ -768,6 +866,68 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      ) : view === 'catalog' ? (
+        <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-y-auto p-6">
+          <div className="mb-5">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Router Catalog</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1">Yahan se router models, price, specs aur image edit karein — Ayesha WhatsApp par yehi catalog dikhati hai, code edit ki koi zaroorat nahi.</p>
+          </div>
+
+          {(['2.4g', '5g'] as const).map(band => (
+            <div key={band} className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{band === '2.4g' ? '2.4G Routers' : '5G Routers'}</h4>
+                <button
+                  onClick={() => openAddRouter(band)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                  Add
+                </button>
+              </div>
+              <div className="space-y-3">
+                {catalogState[band].length === 0 ? (
+                  <p className="text-xs text-slate-400 font-bold py-4">Koi router nahi hai is band mein.</p>
+                ) : (
+                  catalogState[band].map(r => (
+                    <div key={r.id} className="p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-900 dark:text-white truncate">{r.model} <span className="text-slate-400 font-bold">— {r.company}</span></p>
+                        <p className="text-xs text-slate-400 font-bold mt-0.5">{r.band} · Rs. {r.price.toLocaleString()}</p>
+                      </div>
+                      <button onClick={() => openEditRouter(band, r)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </button>
+                      <button onClick={() => deleteRouter(band, r.id)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-500">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+
+          {catalogModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">{catalogModal.item ? 'Edit Router' : 'Naya Router Add Karein'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
+                <div className="space-y-3">
+                  <input placeholder="Model (jese GS3101)" value={catalogForm.model} onChange={e => setCatalogForm(f => ({ ...f, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                  <input placeholder="Company (jese Huawei)" value={catalogForm.company} onChange={e => setCatalogForm(f => ({ ...f, company: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                  <input placeholder="Band label (jese 2.4GHz Single Band)" value={catalogForm.band} onChange={e => setCatalogForm(f => ({ ...f, band: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                  <input placeholder="Price (Rs.)" type="number" value={catalogForm.price} onChange={e => setCatalogForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                  <input placeholder="Image URL" value={catalogForm.image} onChange={e => setCatalogForm(f => ({ ...f, image: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                  <textarea placeholder="Specs — yeh exact text customer ko WhatsApp par jayega" rows={7} value={catalogForm.specs} onChange={e => setCatalogForm(f => ({ ...f, specs: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                </div>
+                <div className="flex gap-2 mt-5">
+                  <button onClick={saveCatalogModal} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Save</button>
+                  <button onClick={() => setCatalogModal(null)} className="px-4 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
