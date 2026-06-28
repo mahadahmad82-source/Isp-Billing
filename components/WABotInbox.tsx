@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { UserRecord, RouterCatalog, RouterCatalogItem } from '../types';
+import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate } from '../types';
 import { supabase } from '../lib/supabase';
 import * as lamejs from '@breezystack/lamejs';
 
@@ -49,6 +49,8 @@ interface WABotInboxProps {
   onUpdateBotName?: (name: string) => void;
   routerCatalog?: RouterCatalog;
   onUpdateRouterCatalog?: (catalog: RouterCatalog) => void;
+  botTemplates?: Record<string, BotTemplate>;
+  onUpdateBotTemplates?: (templates: Record<string, BotTemplate>) => void;
 }
 
 const POLL_MS = 15000;
@@ -133,7 +135,7 @@ function DeliveryTicks({ status }: { status: string }) {
   );
 }
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates }) => {
   // WABot has its own theme, independent of the manager dashboard's dark/light
   // toggle, saved separately so it's remembered across visits. Defaults to
   // light (matching the brand look), but the eye-comfort toggle below lets it
@@ -192,7 +194,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
   // ── Training (Confused Replies) tab state ──
-  const [view, setView] = useState<'inbox' | 'training' | 'catalog'>('inbox');
+  const [view, setView] = useState<'inbox' | 'training' | 'catalog' | 'templates'>('inbox');
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -242,6 +244,57 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     const next: RouterCatalog = { ...catalogState, [band]: catalogState[band].filter(r => r.id !== id) };
     setCatalogState(next);
     onUpdateRouterCatalog?.(next);
+  };
+
+  // ── Templates tab state (every canned WhatsApp bot reply, grouped by category) ──
+  const [templatesState, setTemplatesState] = useState<Record<string, BotTemplate>>(botTemplates || {});
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [editingTemplateKey, setEditingTemplateKey] = useState<string | null>(null);
+  const [templateDraft, setTemplateDraft] = useState('');
+
+  useEffect(() => {
+    if (botTemplates && Object.keys(botTemplates).length > 0) setTemplatesState(botTemplates);
+  }, [botTemplates]);
+
+  const templatesByCategory = useMemo(() => {
+    const groups: Record<string, Array<[string, BotTemplate]>> = {};
+    for (const [key, item] of Object.entries(templatesState) as [string, BotTemplate][]) {
+      const cat = item.category || 'Other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push([key, item]);
+    }
+    for (const cat of Object.keys(groups)) groups[cat].sort((a, b) => a[1].label.localeCompare(b[1].label));
+    return groups;
+  }, [templatesState]);
+
+  const templateCategoryOrder = [
+    'Greetings & Identity', 'Thanks & Closing', 'Billing & Payments',
+    'New Connection & Coverage', 'Router & Fiber', 'Troubleshooting & Complaints',
+  ];
+  const orderedCategories = Object.keys(templatesByCategory).sort((a, b) => {
+    const ia = templateCategoryOrder.indexOf(a), ib = templateCategoryOrder.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
+
+  const openTemplateEdit = (key: string) => {
+    if (editingTemplateKey === key) { setEditingTemplateKey(null); return; }
+    setEditingTemplateKey(key);
+    setTemplateDraft(templatesState[key]?.text || '');
+  };
+
+  const saveTemplateEdit = (key: string) => {
+    const next = { ...templatesState, [key]: { ...templatesState[key], text: templateDraft } };
+    setTemplatesState(next);
+    onUpdateBotTemplates?.(next);
+    setEditingTemplateKey(null);
   };
 
   const loadKnowledge = useCallback(async () => {
@@ -750,6 +803,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         </button>
 
         <button
+          onClick={() => setView('templates')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'templates' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#0f172a] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          Templates
+        </button>
+
+        <button
           onClick={toggleWabotTheme}
           title={wabotDark ? 'Light mode' : 'Dark mode (eye comfort)'}
           className="ml-auto w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#0f172a] text-slate-500 dark:text-amber-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
@@ -929,6 +990,52 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      ) : view === 'templates' ? (
+        <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-y-auto p-6">
+          <div className="mb-5">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1">Ayesha ke har reply ki wording yahan se edit karein — koi code deploy ki zaroorat nahi. {'{curly_braces}'} wale tokens na hatayen, woh customer ka naam/amount/etc. se fill hote hain.</p>
+          </div>
+
+          {orderedCategories.length === 0 ? (
+            <p className="text-xs text-slate-400 font-bold py-6">Templates load ho rahe hain — agar yeh message rehta hai, app ek baar refresh kar lein.</p>
+          ) : (
+            orderedCategories.map(category => (
+              <div key={category} className="mb-4">
+                <button onClick={() => toggleCategory(category)} className="w-full flex items-center justify-between mb-2 py-1">
+                  <h4 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{category}</h4>
+                  <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategories.has(category) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {expandedCategories.has(category) && (
+                  <div className="space-y-2">
+                    {templatesByCategory[category].map(([key, item]) => (
+                      <div key={key} className="rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-3">
+                        <button onClick={() => openTemplateEdit(key)} className="w-full flex items-center justify-between gap-2 text-left">
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{item.label}</span>
+                          <svg className="w-4 h-4 flex-shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        {editingTemplateKey === key && (
+                          <div className="mt-3">
+                            <textarea
+                              rows={Math.min(12, Math.max(3, templateDraft.split('\n').length + 1))}
+                              value={templateDraft}
+                              onChange={e => setTemplateDraft(e.target.value)}
+                              className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white"
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <button onClick={() => saveTemplateEdit(key)} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
+                              <button onClick={() => setEditingTemplateKey(null)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
           )}
         </div>
       ) : (
