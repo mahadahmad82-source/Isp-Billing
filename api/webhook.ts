@@ -25,18 +25,6 @@ const CONFIG = {
   // the bot replying to each word separately. Raise/lower if replies feel too slow/fast.
   messageDebounceMs: 6000,
 
-  fiberInfo: `🌐 *New Fiber Connection*
-
-💵 Fiber cable (2-core): *Rs. 30/meter*
-📏 Final fiber charges ghar tak ki length pe depend karenge — hamara technician site visit pe exact reading le kar confirm karega.
-
-Sirf yeh chahiye aap ke paas:
-• Fiber Optic ONU/Router (EPON device).
-
-Agar yeh nahi hai aap ke paas, koi masla nahi — hum se naya router ya fiber purchase kar sakte hain! Router dekhne ke liye *"router"* likh kar bhejein. 📡
-
-📍 Apna area batain, coverage check karke confirm karti hoon!`,
-
   routers: {
     '2.4g': [
       {
@@ -101,8 +89,80 @@ Agar yeh nahi hai aap ke paas, koi masla nahi — hum se naya router ya fiber pu
       },
     ],
   } as Record<string, Array<{ model: string; company: string; band: string; price: number; image: string; specs: string }>>,
+};
 
-  bankAccounts: `💳 *Payment Options:*
+const DEFAULT_TEMPLATES: Record<string, string> = {
+  greeting_welcome_menu: `{greeting}
+
+Main *{bot_name}* hoon, aap ki dedicated support executive.
+
+Aap kis cheez mein madad chahte hain? Neeche se option chunein:
+
+1️⃣  Internet Complaint / Masla
+2️⃣  Bill aur Balance Check
+3️⃣  Payment Methods & Details
+4️⃣  Package Expiry Date
+5️⃣  New Connection
+6️⃣  Packages, Pricing & Routers
+7️⃣  Fiber to Home Service Activation
+8️⃣  Mahad Bhai se Baat Karein
+
+Bas number likh kar bhej dein ya seedha apna masla bataein! 🙏`,
+  greeting_named: `{salutation}, *{name}*! 😊`,
+  greeting_unnamed: `{salutation}! 😊 {business_name} Support mein khushamdeed!`,
+  bot_identity_reply_en: `I'm {bot_name}, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`,
+  bot_identity_reply_ur: `Main {bot_name} hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`,
+  employment_question_reply_en: `Ji yes! 😊 I'm {bot_name} — {owner_name} bhai has brought me on to handle MahadNet's customer support, so you can get quick help anytime, day or night. Now tell me, how can I help you today?`,
+  employment_question_reply_ur: `Ji bilkul! 😊 Main {bot_name} hoon — {owner_name} bhai ne mujhe khaas customer support ke liye rakha hai, taake aap ko har waqt jaldi aur achi tarah madad mil sake. Ab batayen, kis cheez mein aap ki madad kar sakti hoon? 🙏`,
+  greeting_personal_chat_reply_en: `Hello! I'm doing well, thank you for asking 😊 Just to let you know, {owner_name} bhai isn't personally available right now — but you can share your message with me and I'll make sure he gets it. How can I help you today?`,
+  greeting_personal_chat_reply_ur: `Walaikum Assalam! Main theek hoon, shukriya 😊 {owner_name} bhai is waqt personally available nahi hain — aap apna paigham mujhe bata dein, main unhe zaroor pohncha dungi. Aap kis cheez mein madad chahte hain?`,
+  personal_reply_named: `Assalam o Alaikum {name}! 😊
+
+Yeh number MahadNet ka official customer support hai.
+{owner_name} bhai is waqt available nahi hain — aap ka message unhe pahuncha diya jayega.
+
+Internet ya kisi service ke masle mein madad chahiye to zaroor batain! 🙏`,
+  personal_reply_unnamed: `Assalam o Alaikum! 😊
+
+Yeh MahadNet Support ka WhatsApp hai.
+{owner_name} bhai abhi available nahi hain.
+
+Agar internet, bill ya kisi service ka masla ho to batain — main haazir hoon!
+Ya call karein: *{support_number}* 📞`,
+  unknown_customer_reply: `Assalam o Alaikum! 😊
+
+Aap ka number hamare system mein registered nahi mila.
+
+Thori detail bhej dein taake continue kar sakein:
+👉 *Naam*
+👉 *Address / Area*
+👉 *Username ya Customer ID* (agar pehle se customer hain)
+
+Naya connection chahiye? *"5"* likh kar bhejein!
+Koi sawaal? Call karein: *{support_number}* 🙏`,
+  account_matched_new_number: `Ji {name}! Mil gaya aap ka account 😊 Lagta hai aap ne naya number use kiya hai — Mahad bhai ko record update karne ke liye inform kar diya hai.
+
+Ab batayen, kis cheez mein madad chahiye? Bill, complaint ya kuch aur? 🙏`,
+  talk_to_owner_prompt: `Zaroor! 😊 Apna message likh dein — main {owner_name} bhai tak foran pohcha dungi.`,
+  message_forwarded_to_owner: `Aap ka message note ho gaya hai ✅ {owner_name} bhai available hote hi aap ko reply karenge. Shukriya! 🙏`,
+  thanks_replies_en: `You're welcome! 😊 Let me know if you need anything else.
+Glad to help! Feel free to reach out anytime. 🙏
+No problem at all! Happy to assist further if needed. 😊`,
+  thanks_replies_ur: `Aap ka shukriya! 😊 Koi aur madad chahiye to zaroor batayen.
+Khush rahein! 😊 Kabhi bhi zarurat ho to message kar dein.
+Welcome! 🙏 Aur kisi masle mein madad chahiye to batayen.
+Bilkul! Hum hamesha hazir hain madad ke liye. 😊`,
+  closing_ack_replies_en: `Alright! 😊 Feel free to message anytime you need help.
+Sounds good! 🙏 Reach out whenever you need anything.
+Got it! Let me know if there's anything else. 😊`,
+  closing_ack_replies_ur: `Theek hai! 😊 Koi bhi madad chahiye ho to bata dein, hum hamesha yahan hain.
+Acha ji! 🙏 Aur kuch puchna ho to bila jhijhak batayen.
+Bilkul! 😊 Jab bhi zarurat ho, yahan message kar dein.
+Theek hai! Koi aur sawal ho to zaroor poochein. 🙏`,
+  complaint_resolved_ack: `Bohot khushi hui ke masla hal ho gaya! 😊 Koi aur madad chahiye to zaroor batayen.`,
+  marketing_optout_confirm_en: `Done — you won't receive promotional messages from us anymore. You can still message us anytime for support. 🙏`,
+  marketing_optout_confirm_ur: `Theek hai — ab aap ko promotional messages nahi aayenge. Support ke liye aap kabhi bhi message kar sakte hain. 🙏`,
+  bank_accounts: `💳 *Payment Options:*
 
 🏦 *Askari Bank*
    Title: MAHAD AHMAD KHAN LODHI
@@ -120,7 +180,277 @@ Agar yeh nahi hai aap ke paas, koi masla nahi — hum se naya router ya fiber pu
 📱 *EasyPaisa / JazzCash:* 03042773453
 
 ✅ Payment ke baad screenshot is number pe zaroor bhejein!`,
+  bill_reply: `Ji {name}! Main ne abhi check kiya 😊
+
+📋 *Aap ka Account:*
+━━━━━━━━━━━━━━━
+👤 Username: {username}
+📦 Package: *{plan}*
+💰 Monthly: Rs. {monthly_fee}
+{balance_line}
+📅 Expiry: {expiry_date}
+{last_payment_line}
+━━━━━━━━━━━━━━━
+Koi sawaal ho to zaroor poochein! 🙏`,
+  bill_balance_pending: `🔴 *Pending: Rs. {amount}*
+   ⚠️ Jaldi payment karein taake service active rahe!`,
+  bill_balance_advance: `🟢 *Advance: Rs. {amount}*
+   ✨ Aap credit mein hain — koi fikar nahi!`,
+  bill_balance_clear: `✅ *Balance Clear* — kuch nahi baqa!`,
+  bill_last_payment_line: `
+🧾 Akhri payment: Rs. {amount} — {period}`,
+  payment_history_empty: `{name}, hamare records mein abhi koi payment nahi dikh rahi.
+
+Agar payment ki hai to {owner_name} bhai se confirm karein: *{support_number}* 🙏`,
+  payment_history_item: `{index}. *{period}* — Rs. {amount}
+   📆 {date}`,
+  payment_history_reply: `Ji {name}! Yeh rahi aap ki payment history 📋
+
+{list}
+
+_Total {count} payment(s) record mein hain._
+Koi aur cheez? 😊`,
+  payment_history_context_note: `Confusion na ho is liye aap ki pichli payments ki detail bhi bhej rahi hoon, taake confirm ho jaye kis month ki payment baqi hai 👇`,
+  expiry_no_date: `{name}, expiry date abhi system mein update nahi hai.
+
+Brahay mehr {support_number} pe call karein — {owner_name} bhai directly help karenge! 🙏`,
+  expiry_days_safe: `✅ Abhi *{days} din* baqi hain — no worries!`,
+  expiry_days_warning: `⚠️ Sirf *{days} din* baqi — jaldi renew karein!`,
+  expiry_days_expired: `🔴 Package *expire ho gaya* — foran renew karein!`,
+  expiry_reply: `Ji {name}! Package ki details yeh rahi:
+
+📦 *{plan}* Package
+📅 Expiry: *{expiry_date}*
+{days_line}
+
+Renewal ke liye payment karein aur screenshot bhejein!
+Bank details chahiye? *"3"* likh kar bhejein 😊`,
+  account_billing_blocked_reply: `Ji {name}! Maine check kiya — internet band hone ki wajah lagta hai *billing* hai, router ka masla nahi 🔍
+{pending_line}{expired_line}
+
+Payment clear hote hi service automatically restore ho jati hai ✅
+Bank details chahiye? *"3"* likh kar bhejein 😊
+
+Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main foran complaint register kar dungi.`,
+  billing_blocked_pending_line: `
+🔴 Pending balance: *Rs. {amount}*`,
+  billing_blocked_expired_line: `
+📅 Package expire ho gaya: *{expiry_date}*`,
+  recharge_reply: `Ji zaroor! 😊 Package activate/renew karne ke liye yeh steps follow karein:
+
+{bank_accounts}{plan_line}
+
+✅ Payment karne ke baad yeh *teen* cheezein zaroor bhejein:
+1️⃣ Payment ka *screenshot*
+2️⃣ Apna *username*
+3️⃣ Apna *address*
+
+Yeh milte hi foran activate/renew kar diya jayega! 🙏`,
+  recharge_reply_plan_line: `
+📦 Aap ka package: *{plan}* — Rs. {amount}/month`,
+  payment_screenshot_received_named: `Shukriya {name}! 😊 Aap ka payment screenshot mil gaya hai — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`,
+  payment_screenshot_received_unnamed: `Shukriya! 😊 Screenshot mil gaya hai. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`,
+  new_conn_reply: `MahadNet mein khushamdeed! 🎉
+
+Naya connection ke liye bas yeh batain:
+
+1️⃣ *Aap ka naam*
+2️⃣ *Area / Mohalla / Gali*
+3️⃣ *Package preference*
+4️⃣ *Router/ONU aur fiber cable already available hai ya nahi?*
+{package_block}
+
+Agar router/fiber available nahi hai, koi masla nahi — hum se purchase kar sakte hain (fiber Rs. {fiber_price_per_meter}/meter, 2-core, length site visit pe measure hogi) — ya aap khud bhi kahin se la sakte hain.
+
+✅ *Installation hamesha FREE hai* — sirf package ki monthly payment honi hoti hai!
+
+Yeh details milte hi team 1-2 ghante mein coverage check kar ke rabta karegi! 📡`,
+  new_conn_package_block: `
+📡 *Available Packages:*
+{package_list}
+
+Pata nahi konsa lena hai? Bas bata dein kitne log/devices use karenge ya kis kaam ke liye chahiye (streaming, gaming, work-from-home) — best package suggest kar dungi! Aakhir mein faisla aap ka hi hoga. 😊`,
+  coverage_reply: `Zaroor pata karti hoon! 😊 Bas yeh batain:
+
+1️⃣ *Aap ka naam*
+2️⃣ *Pura address / area*
+3️⃣ *Konsa package chahiye*
+
+Yeh milte hi coverage check kar ke 1-2 ghante mein confirm kar dengi! 📍`,
+  connection_type_question: `Theek hai, pehle yeh batayein — aap ka connection kis tarah ka hai? 🔌
+
+1️⃣ *Fiber Optic*
+2️⃣ *Local Area (UTP/Ethernet wire)*
+
+Number ya naam likh kar bhej dein!`,
+  connection_type_not_understood: `Maazrat, samajh nahi payi 🙏 Sirf *"Fiber"* ya *"Local"* likh dein.`,
+  address_noted_coverage: `Shukriya! 😊 Aap ka address note ho gaya hai:
+📍 {address}
+
+Hamari team aapke area mein coverage/delivery check kar ke 1-2 ghante mein rabta karegi. 🙏`,
+  packages_empty: `📦 Hamare packages ki updated list {owner_name} bhai se confirm karein: *{support_number}*`,
+  packages_item: `📦 *{name}* — Rs. {price}/month`,
+  packages_reply: `MahadNet ke *Internet Packages* 🌐
+
+{package_list}
+
+Router ya Fiber installation ki pricing janni hai? Likhein *"router"* ya *"fiber"* — detail bhej deti hoon! 📡`,
+  router_choice_prompt: `Router ke 2 types available hain MahadNet pe 📡
+
+1️⃣  *2.4G* — Single band, budget-friendly, chhoti space ke liye
+2️⃣  *5G* — Dual band, fast speed, bara coverage
+
+Likhein *"2.4G"* ya *"5G"* — main detail bhej deti hoon! 😊`,
+  router_recommend_24g_en: `For a {mbps_label} package, our *2.4G single-band router* is the perfect fit — budget-friendly and great for smaller spaces. Sending you the specs now! 📡`,
+  router_recommend_24g_ur: `{mbps_label} package ke liye hamara *2.4G single band router* perfect rahega — budget-friendly aur chhoti space ke liye behtareen. Specs bhej rahi hoon! 📡`,
+  router_recommend_5g_en: `For a {mbps_label} package, I'd recommend our *5G Dual Band Huawei Q2* router — it handles higher speed smoothly with wider coverage. Sending specs now! 📡`,
+  router_recommend_5g_ur: `{mbps_label} package ke liye main *5G Dual Band Huawei Q2* router recommend karungi — high speed achi tarah handle karta hai aur coverage bhi behtar deta hai. Specs bhej rahi hoon! 📡`,
+  panel_issue_reply: `Samajh gayi! 😊 Aksar yeh issue tab hota hai jab device WiFi se connect na ho ya browser purana page yaad rakh leta hai.
+
+1️⃣ Mobile/laptop ka mobile data band kar dein, sirf router ke WiFi se connect rahein
+2️⃣ Browser band karke dobara kholein aur *192.168.1.1* try karein
+3️⃣ Kabhi kabhi address *192.168.100.1* hota hai — yeh bhi try kar lein
+4️⃣ Router ko 30 second ke liye power se nikal kar dobara laga dein, phir try karein
+
+Phir bhi panel na khule to call karein: *{support_number}* — main guide karti hoon! 📞`,
+  router_password_guide: `Theek hai! *{model}* ka WiFi password change karna bohot asaan hai, yeh steps follow karein 🔧
+
+1️⃣ Apna mobile ya laptop *router ke WiFi* se connect karein (jo bhi naam abhi WiFi list mein dikh raha ho)
+2️⃣ Phone/laptop ka *browser* (Chrome ya koi bhi) khol kar address bar mein yeh likhein: *{ip}*
+   _(yeh kisi website ka link nahi — yeh router ka khud ka control panel hai)_
+3️⃣ Login screen aayegi — {note}
+   _(agar yeh login chal na ho to device ke sticker pe likha username/password try karein)_
+4️⃣ Andar *Wireless* ya *WLAN Settings* (kabhi *WiFi Settings* bhi likha hota hai) wala option dhoondein
+5️⃣ Wahan *Password / WiFi Key* ka box milega — naya password likhein (kam az kam 8 letters, mix of numbers achi rahegi)
+6️⃣ Sab se neeche *Save* ya *Apply* button dabayen
+7️⃣ Router ko ek baar *power se nikal kar 10 second baad dobara laga dein* — naya password apply ho jayega
+
+📱 Phir apne sabhi devices mein WiFi se dobara connect hote waqt *naya password* dalna hoga.
+
+Koi step samajh na aaye ya page open na ho to call karein: *{support_number}* — main guide kar dungi! 📞`,
+  pon_compat_gpon_only_en: `Not directly, unfortunately — our network only runs on *EPON*, not GPON. If your device is EPON or XPON (auto-detect) compatible, it'll work perfectly on our network 😊`,
+  pon_compat_gpon_only_ur: `Nahi, maazrat — hamara network sirf *EPON* support karta hai, GPON nahi. Agar aap ka device EPON ya XPON (auto-detect) hai to woh hamare network par bilkul chal jayega 😊`,
+  pon_compat_epon_yes_en: `Yes! Your EPON/XPON router will work perfectly on our network 😊 We run purely on EPON, so that's exactly what's supported.`,
+  pon_compat_epon_yes_ur: `Haan ji! Aap ka EPON/XPON router hamare network par bilkul chal jayega 😊 Hamara network sirf EPON pe hai, isliye yeh fully support karta hai.`,
+  fiber_info: `🌐 *New Fiber Connection*
+
+💵 Fiber cable (2-core): *Rs. {fiber_price_per_meter}/meter*
+📏 Final fiber charges ghar tak ki length pe depend karenge — hamara technician site visit pe exact reading le kar confirm karega.
+
+Sirf yeh chahiye aap ke paas:
+• Fiber Optic ONU/Router (EPON device).
+
+Agar yeh nahi hai aap ke paas, koi masla nahi — hum se naya router ya fiber purchase kar sakte hain! Router dekhne ke liye *"router"* likh kar bhejein. 📡
+
+📍 Apna area batain, coverage check karke confirm karti hoon!`,
+  fiber_info_lead_followup: `
+
+Aap ki interest note kar li hai, hamari team 1-2 ghante mein rabta karegi! 🙏`,
+  fiber_declined_ack: `Theek hai! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.`,
+  fiber_upsell_pitch: `Samajh gayi! 😊 Normal WiFi router (jese TP-Link) seedha fiber line se nahi chalta — fiber ke liye ek alag *ONU/GPON device* chahiye hota hai jo fiber signal ko WiFi mein convert karta hai.
+
+🌟 *Fiber to Home* lene ke fawaide:
+• Bohot zyada stable aur fast speed
+• Buffering/disconnect ki tension khatam
+• Gaming, streaming, multiple devices ke liye behtareen
+
+Kya aap *Fiber Connection* lena pasand karenge? Reply karein *"Haan"* ya *"Nahi"* 🙏`,
+  password_change_ask_model: `Zaroor madad karti hoon! 😊
+
+Aap ka router/ONU konsa model hai? (jaise GS3101, HG8546M, Huawei Q2 — ya jo bhi likha ho device pe)`,
+  router_order_confirmed: `Theek hai! *{model}* (Rs. {price}) ka order note kar liya hai 😊
+
+Delivery ke liye apna *pura address* bhej dein, taake hamari team rabta kar sake.`,
+  router_band_empty: `Maazrat, abhi is band ke router available nahi hain 🙏 Doosra band dekhne ke liye *"2.4G"* ya *"5G"* likh kar bhejein, ya call karein: *{support_number}* 📞`,
+  router_choice_not_understood: `Maazrat, samajh nahi payi konsa router pasand aaya 🙏 Model ka naam likh dein (jaise *"{example_model}"*) ya *"1st"/"2nd"* likh kar bata dein.`,
+  troubleshoot_tips_wifi_auth: `1️⃣ Mobile/laptop ka WiFi off karke wapis on karein
+2️⃣ Sahi WiFi password dobara check karein (case-sensitive hota hai)
+3️⃣ Router se 5-6 feet door na hon, deewaron ke peeche signal weak ho jata hai`,
+  troubleshoot_tips_local: `1️⃣ UTP/LAN cable router aur device — dono taraf se sahi tarah lagi honi chahiye, ek baar nikal kar dobara lagayein
+2️⃣ Beech mein switch/hub hai to uski lights check karein — sab ports blink honi chahiye
+3️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein
+4️⃣ 1-2 minute device ko boot hone ka time dein
+5️⃣ Phir dobara internet try karein`,
+  troubleshoot_tips_generic: `1️⃣ Router/ONU ki light check karein — green/blue blink honi chahiye
+2️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein
+3️⃣ 1-2 minute device ko boot hone ka time dein
+4️⃣ Phir dobara internet try karein`,
+  troubleshoot_fiber_pitch: `
+
+💡 *Suggestion:* Local (UTP) wire connection ka signal weather aur distance se zyada affect hota hai. *Fiber Optic* zyada stable, fast aur kam masla wala hota hai — shift karna chahein to bata dein, free survey kar dete hain! 🌐`,
+  troubleshoot_wrapper: `Aap ka masla note ho gaya hai 🛠️
+
+Pehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:
+
+{tips}
+
+Agar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍{fiber_pitch}`,
+  outage_reply: `{owner_name} bhai ki team ko *{areas}* mein network outage ka pehle se pata hai aur kaam jaari hai! 🛠️
+{cause_line}
+
+Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi.
+
+Update ke liye thori dair sabar karein, shukriya! 🙏`,
+  outage_cause_line: `
+Wajah: {cause}`,
+  complaint_tip_router: `
+💡 *Quick tip:* Router ek baar off karke 30 sec baad on karein — aksar theek ho jata hai!`,
+  complaint_urgent_line: `
+🚨 Urgent case hai — direct call karein: *{support_number}*`,
+  complaint_normal_line: `
+Aam tor pe 2-4 ghante mein hal ho jata hai.`,
+  complaint_ack_reply: `{name}, complaint note kar li gai hai! 🛠️
+{tip}
+
+🎫 *Ticket:* {ticket_id}
+⚡ *Priority:* {priority}
+📋 *Issue:* {issue}
+
+Technical team ko foran inform kar diya gaya hai.
+{urgent_or_normal_line}
+
+Shukriya aap ki patience ke liye! 🙏`,
+  ask_complaint_detail: `Ji {name}! Kya ho raha hai internet mein? Thori detail bata dein. 🛠️`,
+  voice_note_not_understood: `Assalam o Alaikum! 😊 Voice note mili lekin abhi samajh nahi paayi.
+
+Apna masla text mein likhein ya call karein: *{support_number}* 📞`,
+  urdu_script_leak_fallback: `Ji, aap ki baat samajh gayi! Thodi detail se dekh kar foran reply karti hoon.
+
+Koi urgent masla ho to call karein: *{support_number}* 📞`,
+  temporary_delay_apology: `Ji {name}! Is waqt thodi delay aa rahi hai.
+Call karein: *{support_number}* — main foran help karungi! 😊`,
+  lead_details_received: `Shukriya! 😊 Details mil gai hain, team verify kar ke aap se rabta karegi. Koi urgent masla ho to call karein: *{support_number}* 📞`,
+  lead_details_received_router_hint: `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.
+
+Router dekhna ho to *"2.4G"* ya *"5G"* likh kar bhejein. 📡`,
 };
+// Per-invocation effective templates (DEFAULT_TEMPLATES merged with mahadnet's
+// customizations from the WABot "Templates" tab) — set once near the top of handler()
+// via getTemplates(). Module-level like voiceReplyTargets above; reset every invocation.
+let TEMPLATES: Record<string, string> = DEFAULT_TEMPLATES;
+
+// Resolve a template by key, substituting {placeholder} tokens from vars. This is the
+// single point every canned reply goes through, so editing a template in the WABot UI
+// changes live bot wording with no code deploy. Falls back to DEFAULT_TEMPLATES if the
+// Supabase fetch failed or the key was never customized.
+function tmpl(key: string, vars: Record<string, string | number> = {}): string {
+  const raw = TEMPLATES[key] ?? DEFAULT_TEMPLATES[key] ?? '';
+  return raw.replace(/\{(\w+)\}/g, (_m: string, k: string) => (k in vars ? String(vars[k]) : ''));
+}
+
+// For randomized reply pools stored as one variant per line (e.g. thanks/closing replies)
+// so adding/removing a variant in the UI is just adding/removing a line.
+function pickFromList(key: string): string {
+  const raw = TEMPLATES[key] ?? DEFAULT_TEMPLATES[key] ?? '';
+  const lines = raw.split('\n').map((s: string) => s.trim()).filter(Boolean);
+  return lines.length ? lines[Math.floor(Math.random() * lines.length)] : '';
+}
+
+function renderPackageList(planPrices: Record<string, number>): string {
+  const entries = Object.entries(planPrices || {}).sort((a, b) => extractMbps(a[0]) - extractMbps(b[0]));
+  return entries.map(([name, price]) => tmpl('packages_item', { name, price: price.toLocaleString() })).join('\n');
+}
+
 
 // ══════════════════════════════════════════════════════
 // 🔧 SUPABASE HELPERS
@@ -216,6 +546,28 @@ async function getRouterCatalog(): Promise<Record<string, Array<{ model: string;
     if (catalog && ((catalog['2.4g']?.length || 0) + (catalog['5g']?.length || 0) > 0)) return catalog;
   } catch (e: any) { console.error('[getRouterCatalog]', e?.message); }
   return CONFIG.routers;
+}
+
+// Get the bot's reply templates from Supabase settings (admin-editable via the WABot
+// "Templates" tab), merged over DEFAULT_TEMPLATES so any key mahadnet hasn't customized
+// yet — or any NEW key added in a future code update — still has a working default.
+async function getTemplates(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.mahadnet`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    const stored = rows?.[0]?.data?.settings?.botTemplates || {};
+    const merged: Record<string, string> = { ...DEFAULT_TEMPLATES };
+    for (const key of Object.keys(stored)) {
+      const text = stored[key]?.text;
+      if (typeof text === 'string' && text.trim()) merged[key] = text;
+    }
+    return merged;
+  } catch (e: any) {
+    console.error('[getTemplates]', e?.message);
+    return DEFAULT_TEMPLATES;
+  }
 }
 
 async function saveComplaint(managerId: string, rowData: any, user: any, issue: string) {
@@ -838,54 +1190,26 @@ function isEnglishText(text: string): boolean {
   return !urduMarkers.test(t);
 }
 
-const THANKS_REPLIES_UR = [
-  'Aap ka shukriya! 😊 Koi aur madad chahiye to zaroor batayen.',
-  'Khush rahein! 😊 Kabhi bhi zarurat ho to message kar dein.',
-  'Welcome! 🙏 Aur kisi masle mein madad chahiye to batayen.',
-  'Bilkul! Hum hamesha hazir hain madad ke liye. 😊',
-];
-const THANKS_REPLIES_EN = [
-  "You're welcome! 😊 Let me know if you need anything else.",
-  'Glad to help! Feel free to reach out anytime. 🙏',
-  'No problem at all! Happy to assist further if needed. 😊',
-];
 function thanksReply(text: string): string {
-  const pool = isEnglishText(text) ? THANKS_REPLIES_EN : THANKS_REPLIES_UR;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pickFromList(isEnglishText(text) ? 'thanks_replies_en' : 'thanks_replies_ur');
 }
 
-const CLOSING_ACK_REPLIES_UR = [
-  'Theek hai! 😊 Koi bhi madad chahiye ho to bata dein, hum hamesha yahan hain.',
-  'Acha ji! 🙏 Aur kuch puchna ho to bila jhijhak batayen.',
-  'Bilkul! 😊 Jab bhi zarurat ho, yahan message kar dein.',
-  'Theek hai! Koi aur sawal ho to zaroor poochein. 🙏',
-];
-const CLOSING_ACK_REPLIES_EN = [
-  'Alright! 😊 Feel free to message anytime you need help.',
-  "Sounds good! 🙏 Reach out whenever you need anything.",
-  'Got it! Let me know if there\'s anything else. 😊',
-];
 // Customer just said "ok"/"theek hai"/"acha" — conversation is wrapping up, NOT a
 // request to re-open the main menu. A short, warm close instead of re-asking
 // "kis cheez mein madad chahte hain" all over again.
 function closingAckReply(text: string): string {
-  const pool = isEnglishText(text) ? CLOSING_ACK_REPLIES_EN : CLOSING_ACK_REPLIES_UR;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pickFromList(isEnglishText(text) ? 'closing_ack_replies_en' : 'closing_ack_replies_ur');
 }
 
 function botIdentityReply(text: string, botName: string = 'Ayesha'): string {
-  return isEnglishText(text)
-    ? `I'm ${botName}, your dedicated support executive here at MahadNet! 😊 I help with billing, complaints, packages, and connections. How can I assist you?`
-    : `Main ${botName} hoon, MahadNet ki dedicated support executive! 😊 Billing, complaint, packages aur connection mein madad ke liye hamesha hazir hoon. Bataiye, kis cheez mein madad karoon?`;
+  return tmpl(isEnglishText(text) ? 'bot_identity_reply_en' : 'bot_identity_reply_ur', { bot_name: botName });
 }
 
 // Customer (often in a voice note) greets AND asks general wellbeing — usually
 // addressed to Mahad personally ("kaise ho Mahad bhai"). Reply warmly, then clarify
 // Mahad isn't personally available right now so the redirect doesn't feel cold.
 function greetingPersonalChatReply(text: string): string {
-  return isEnglishText(text)
-    ? `Hello! I'm doing well, thank you for asking 😊 Just to let you know, Mahad bhai isn't personally available right now — but you can share your message with me and I'll make sure he gets it. How can I help you today?`
-    : `Walaikum Assalam! Main theek hoon, shukriya 😊 Mahad bhai is waqt personally available nahi hain — aap apna paigham mujhe bata dein, main unhe zaroor pohncha dungi. Aap kis cheez mein madad chahte hain?`;
+  return tmpl(isEnglishText(text) ? 'greeting_personal_chat_reply_en' : 'greeting_personal_chat_reply_ur', { owner_name: CONFIG.ownerName });
 }
 
 // EPON/XPON/GPON compatibility — our network only runs EPON, so this needs a fixed,
@@ -894,34 +1218,22 @@ function ponCompatibilityReply(text: string): string {
   const t = text.toLowerCase();
   const mentionsGpon = /\bgpon\b/.test(t);
   const mentionsEponOrXpon = /\b(epon|xpon)\b/.test(t);
+  const english = isEnglishText(text);
   if (mentionsGpon && !mentionsEponOrXpon) {
-    return isEnglishText(text)
-      ? `Not directly, unfortunately — our network only runs on *EPON*, not GPON. If your device is EPON or XPON (auto-detect) compatible, it'll work perfectly on our network 😊`
-      : `Nahi, maazrat — hamara network sirf *EPON* support karta hai, GPON nahi. Agar aap ka device EPON ya XPON (auto-detect) hai to woh hamare network par bilkul chal jayega 😊`;
+    return tmpl(english ? 'pon_compat_gpon_only_en' : 'pon_compat_gpon_only_ur');
   }
-  return isEnglishText(text)
-    ? `Yes! Your EPON/XPON router will work perfectly on our network 😊 We run purely on EPON, so that's exactly what's supported.`
-    : `Haan ji! Aap ka EPON/XPON router hamare network par bilkul chal jayega 😊 Hamara network sirf EPON pe hai, isliye yeh fully support karta hai.`;
+  return tmpl(english ? 'pon_compat_epon_yes_en' : 'pon_compat_epon_yes_ur');
 }
 
 // For when a customer is surprised/curious to realize they're talking to a bot and
 // asks something like "Mahad ne aapko rakh liya hai?" — a warm, honest self-intro
 // instead of dodging the question, so trust isn't broken.
 function employmentQuestionReply(text: string, botName: string = 'Ayesha'): string {
-  return isEnglishText(text)
-    ? `Ji yes! 😊 I'm ${botName} — ${CONFIG.ownerName} bhai has brought me on to handle MahadNet's customer support, so you can get quick help anytime, day or night. Now tell me, how can I help you today?`
-    : `Ji bilkul! 😊 Main ${botName} hoon — ${CONFIG.ownerName} bhai ne mujhe khaas customer support ke liye rakha hai, taake aap ko har waqt jaldi aur achi tarah madad mil sake. Ab batayen, kis cheez mein aap ki madad kar sakti hoon? 🙏`;
+  return tmpl(isEnglishText(text) ? 'employment_question_reply_en' : 'employment_question_reply_ur', { bot_name: botName, owner_name: CONFIG.ownerName });
 }
 
 function panelIssueReply(): string {
-  return `Samajh gayi! 😊 Aksar yeh issue tab hota hai jab device WiFi se connect na ho ya browser purana page yaad rakh leta hai.
-
-1️⃣ Mobile/laptop ka mobile data band kar dein, sirf router ke WiFi se connect rahein
-2️⃣ Browser band karke dobara kholein aur *192.168.1.1* try karein
-3️⃣ Kabhi kabhi address *192.168.100.1* hota hai — yeh bhi try kar lein
-4️⃣ Router ko 30 second ke liye power se nikal kar dobara laga dein, phir try karein
-
-Phir bhi panel na khule to call karein: *${CONFIG.supportNumber}* — main guide karti hoon! 📞`;
+  return tmpl('panel_issue_reply', { support_number: CONFIG.supportNumber });
 }
 
 function extractRouterRecommendMbps(text: string): number {
@@ -933,14 +1245,10 @@ function extractRouterRecommendMbps(text: string): number {
 function routerRecommendReply(mbps: number, english: boolean): string {
   const band = mbps > 20 ? '5g' : '2.4g';
   const mbpsLabel = mbps > 0 ? `${mbps}Mbps` : 'aap ke';
-  if (band === '2.4g') {
-    return english
-      ? `For a ${mbpsLabel} package, our *2.4G single-band router* is the perfect fit — budget-friendly and great for smaller spaces. Sending you the specs now! 📡`
-      : `${mbpsLabel} package ke liye hamara *2.4G single band router* perfect rahega — budget-friendly aur chhoti space ke liye behtareen. Specs bhej rahi hoon! 📡`;
-  }
-  return english
-    ? `For a ${mbpsLabel} package, I'd recommend our *5G Dual Band Huawei Q2* router — it handles higher speed smoothly with wider coverage. Sending specs now! 📡`
-    : `${mbpsLabel} package ke liye main *5G Dual Band Huawei Q2* router recommend karungi — high speed achi tarah handle karta hai aur coverage bhi behtar deta hai. Specs bhej rahi hoon! 📡`;
+  const key = band === '2.4g'
+    ? (english ? 'router_recommend_24g_en' : 'router_recommend_24g_ur')
+    : (english ? 'router_recommend_5g_en' : 'router_recommend_5g_ur');
+  return tmpl(key, { mbps_label: mbpsLabel });
 }
 
 // ══════════════════════════════════════════════════════
@@ -963,24 +1271,10 @@ function extractMbps(planName: string): number {
 }
 
 function welcomeMenu(salutation: string, name?: string, botName: string = 'Ayesha'): string {
-  const greet = name
-    ? `${salutation}, *${name}*! 😊`
-    : `${salutation}! 😊 MahadNet Support mein khushamdeed!`;
-  const intro = `\n\nMain *${botName}* hoon, aap ki dedicated support executive.`;
-  return `${greet}${intro}
-
-Aap kis cheez mein madad chahte hain? Neeche se option chunein:
-
-1️⃣  Internet Complaint / Masla
-2️⃣  Bill aur Balance Check
-3️⃣  Payment Methods & Details
-4️⃣  Package Expiry Date
-5️⃣  New Connection
-6️⃣  Packages, Pricing & Routers
-7️⃣  Fiber to Home Service Activation
-8️⃣  Mahad Bhai se Baat Karein
-
-Bas number likh kar bhej dein ya seedha apna masla bataein! 🙏`;
+  const greeting = name
+    ? tmpl('greeting_named', { salutation, name })
+    : tmpl('greeting_unnamed', { salutation, business_name: CONFIG.businessName });
+  return tmpl('greeting_welcome_menu', { greeting, bot_name: botName });
 }
 
 function billReply(user: any, receipts: any[]): string {
@@ -990,81 +1284,62 @@ function billReply(user: any, receipts: any[]): string {
     : 'N/A';
   const last = receipts[0];
 
-  const balMsg = bal > 0
-    ? `🔴 *Pending: Rs. ${bal}*\n   ⚠️ Jaldi payment karein taake service active rahe!`
+  const balanceLine = bal > 0
+    ? tmpl('bill_balance_pending', { amount: bal })
     : bal < 0
-    ? `🟢 *Advance: Rs. ${Math.abs(bal)}*\n   ✨ Aap credit mein hain — koi fikar nahi!`
-    : `✅ *Balance Clear* — kuch nahi baqa!`;
+    ? tmpl('bill_balance_advance', { amount: Math.abs(bal) })
+    : tmpl('bill_balance_clear');
+  const lastPaymentLine = last ? tmpl('bill_last_payment_line', { amount: last.paidAmount, period: last.period }) : '';
 
-  return `Ji ${user.name}! Main ne abhi check kiya 😊
-
-📋 *Aap ka Account:*
-━━━━━━━━━━━━━━━
-👤 Username: ${user.username || user.name}
-📦 Package: *${user.plan || 'Standard'}*
-💰 Monthly: Rs. ${user.monthlyFee || 0}
-${balMsg}
-📅 Expiry: ${expDate}
-${last ? `\n🧾 Akhri payment: Rs. ${last.paidAmount} — ${last.period}` : ''}
-━━━━━━━━━━━━━━━
-Koi sawaal ho to zaroor poochein! 🙏`;
+  return tmpl('bill_reply', {
+    name: user.name,
+    username: user.username || user.name,
+    plan: user.plan || 'Standard',
+    monthly_fee: user.monthlyFee || 0,
+    balance_line: balanceLine,
+    expiry_date: expDate,
+    last_payment_line: lastPaymentLine,
+  });
 }
 
 function paymentHistoryReply(user: any, receipts: any[]): string {
   if (!receipts.length)
-    return `${user.name}, hamare records mein abhi koi payment nahi dikh rahi.\n\nAgar payment ki hai to ${CONFIG.ownerName} bhai se confirm karein: *${CONFIG.supportNumber}* 🙏`;
+    return tmpl('payment_history_empty', { name: user.name, owner_name: CONFIG.ownerName, support_number: CONFIG.supportNumber });
 
   const list = receipts.slice(0, 5).map((r: any, i: number) =>
-    `${i + 1}. *${r.period}* — Rs. ${r.paidAmount}\n   📆 ${new Date(r.date).toLocaleDateString('en-PK')}`
+    tmpl('payment_history_item', { index: i + 1, period: r.period, amount: r.paidAmount, date: new Date(r.date).toLocaleDateString('en-PK') })
   ).join('\n');
 
-  return `Ji ${user.name}! Yeh rahi aap ki payment history 📋\n\n${list}\n\n_Total ${receipts.length} payment(s) record mein hain._\nKoi aur cheez? 😊`;
+  return tmpl('payment_history_reply', { name: user.name, list, count: receipts.length });
 }
 
 function expiryReply(user: any): string {
   if (!user.expiryDate)
-    return `${user.name}, expiry date abhi system mein update nahi hai.\n\nBrahay mehr ${CONFIG.supportNumber} pe call karein — Mahad bhai directly help karenge! 🙏`;
+    return tmpl('expiry_no_date', { name: user.name, support_number: CONFIG.supportNumber, owner_name: CONFIG.ownerName });
 
   const exp = new Date(user.expiryDate);
   const days = Math.ceil((exp.getTime() - Date.now()) / 86400000);
   const dateStr = exp.toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const daysLine = days > 10
-    ? `✅ Abhi *${days} din* baqi hain — no worries!`
+    ? tmpl('expiry_days_safe', { days })
     : days > 0
-    ? `⚠️ Sirf *${days} din* baqi — jaldi renew karein!`
-    : `🔴 Package *expire ho gaya* — foran renew karein!`;
+    ? tmpl('expiry_days_warning', { days })
+    : tmpl('expiry_days_expired');
 
-  return `Ji ${user.name}! Package ki details yeh rahi:
-
-📦 *${user.plan || 'Standard'}* Package
-📅 Expiry: *${dateStr}*
-${daysLine}
-
-Renewal ke liye payment karein aur screenshot bhejein!
-Bank details chahiye? *"3"* likh kar bhejein 😊`;
+  return tmpl('expiry_reply', { name: user.name, plan: user.plan || 'Standard', expiry_date: dateStr, days_line: daysLine });
 }
 
 function packagesReply(planPrices: Record<string, number>): string {
   const entries = Object.entries(planPrices || {});
   if (!entries.length) {
-    return `📦 Hamare packages ki updated list ${CONFIG.ownerName} bhai se confirm karein: *${CONFIG.supportNumber}*`;
+    return tmpl('packages_empty', { owner_name: CONFIG.ownerName, support_number: CONFIG.supportNumber });
   }
-  entries.sort((a, b) => extractMbps(a[0]) - extractMbps(b[0]));
-  const pkgList = entries.map(([name, price]) => `📦 *${name}* — Rs. ${price.toLocaleString()}/month`).join('\n');
-
-  return `MahadNet ke *Internet Packages* 🌐\n\n${pkgList}\n\nRouter ya Fiber installation ki pricing janni hai? Likhein *"router"* ya *"fiber"* — detail bhej deti hoon! 📡`;
+  return tmpl('packages_reply', { package_list: renderPackageList(planPrices) });
 }
 
 function fiberUpsellPitch(): string {
-  return `Samajh gayi! 😊 Normal WiFi router (jese TP-Link) seedha fiber line se nahi chalta — fiber ke liye ek alag *ONU/GPON device* chahiye hota hai jo fiber signal ko WiFi mein convert karta hai.
-
-🌟 *Fiber to Home* lene ke fawaide:
-• Bohot zyada stable aur fast speed
-• Buffering/disconnect ki tension khatam
-• Gaming, streaming, multiple devices ke liye behtareen
-
-Kya aap *Fiber Connection* lena pasand karenge? Reply karein *"Haan"* ya *"Nahi"* 🙏`;
+  return tmpl('fiber_upsell_pitch');
 }
 
 // Checked before troubleshooting tips / complaint-ticket creation — a suspended
@@ -1078,17 +1353,13 @@ function accountBillingBlockedReply(user: any): string | null {
   const expDateStr = user.expiryDate
     ? new Date(user.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })
     : '';
-  return `Ji ${user.name}! Maine check kiya — internet band hone ki wajah lagta hai *billing* hai, router ka masla nahi 🔍
-${bal > 0 ? `\n🔴 Pending balance: *Rs. ${bal}*` : ''}${expired ? `\n📅 Package expire ho gaya: *${expDateStr}*` : ''}
-
-Payment clear hote hi service automatically restore ho jati hai ✅
-Bank details chahiye? *"3"* likh kar bhejein 😊
-
-Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main foran complaint register kar dungi.`;
+  const pendingLine = bal > 0 ? tmpl('billing_blocked_pending_line', { amount: bal }) : '';
+  const expiredLine = expired ? tmpl('billing_blocked_expired_line', { expiry_date: expDateStr }) : '';
+  return tmpl('account_billing_blocked_reply', { name: user.name, pending_line: pendingLine, expired_line: expiredLine });
 }
 
 function connectionTypeQuestion(): string {
-  return `Theek hai, pehle yeh batayein — aap ka connection kis tarah ka hai? 🔌\n\n1️⃣ *Fiber Optic*\n2️⃣ *Local Area (UTP/Ethernet wire)*\n\nNumber ya naam likh kar bhej dein!`;
+  return tmpl('connection_type_question');
 }
 
 function detectConnectionType(text: string): 'fiber' | 'local' | null {
@@ -1104,72 +1375,38 @@ function troubleshootingReply(issue: string, connectionType?: 'fiber' | 'local')
 
   let tips: string;
   if (isWifiAuth) {
-    tips = `1️⃣ Mobile/laptop ka WiFi off karke wapis on karein\n2️⃣ Sahi WiFi password dobara check karein (case-sensitive hota hai)\n3️⃣ Router se 5-6 feet door na hon, deewaron ke peeche signal weak ho jata hai`;
+    tips = tmpl('troubleshoot_tips_wifi_auth');
   } else if (connectionType === 'local') {
     // Local Area (UTP/Ethernet) connections fail differently from fiber — the cable
     // crimp/connection itself or an intermediate switch is the usual culprit, not the ONU.
-    tips = `1️⃣ UTP/LAN cable router aur device — dono taraf se sahi tarah lagi honi chahiye, ek baar nikal kar dobara lagayein\n2️⃣ Beech mein switch/hub hai to uski lights check karein — sab ports blink honi chahiye\n3️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n4️⃣ 1-2 minute device ko boot hone ka time dein\n5️⃣ Phir dobara internet try karein`;
+    tips = tmpl('troubleshoot_tips_local');
   } else {
-    tips = `1️⃣ Router/ONU ki light check karein — green/blue blink honi chahiye\n2️⃣ Router ko power se nikal kar *30 second* wait karein, phir dobara laga dein\n3️⃣ 1-2 minute device ko boot hone ka time dein\n4️⃣ Phir dobara internet try karein`;
+    tips = tmpl('troubleshoot_tips_generic');
   }
 
-  const fiberPitch = connectionType === 'local'
-    ? `\n\n💡 *Suggestion:* Local (UTP) wire connection ka signal weather aur distance se zyada affect hota hai. *Fiber Optic* zyada stable, fast aur kam masla wala hota hai — shift karna chahein to bata dein, free survey kar dete hain! 🌐`
-    : '';
+  const fiberPitch = connectionType === 'local' ? tmpl('troubleshoot_fiber_pitch') : '';
 
-  return `Aap ka masla note ho gaya hai 🛠️\n\nPehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:\n\n${tips}\n\nAgar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍${fiberPitch}`;
+  return tmpl('troubleshoot_wrapper', { tips, fiber_pitch: fiberPitch });
 }
 
 function outageReply(outage: any): string {
   const areas = (outage.areasAffected || []).join(', ') || 'aap ke area';
-  return `${CONFIG.ownerName} bhai ki team ko *${areas}* mein network outage ka pehle se pata hai aur kaam jaari hai! 🛠️
-${outage.cause ? `\nWajah: ${outage.cause}` : ''}
-
-Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi.
-
-Update ke liye thori dair sabar karein, shukriya! 🙏`;
+  const causeLine = outage.cause ? tmpl('outage_cause_line', { cause: outage.cause }) : '';
+  return tmpl('outage_reply', { owner_name: CONFIG.ownerName, areas, cause_line: causeLine });
 }
 
 function routerChoicePrompt(): string {
-  return `Router ke 2 types available hain MahadNet pe 📡
-
-1️⃣  *2.4G* — Single band, budget-friendly, chhoti space ke liye
-2️⃣  *5G* — Dual band, fast speed, bara coverage
-
-Likhein *"2.4G"* ya *"5G"* — main detail bhej deti hoon! 😊`;
+  return tmpl('router_choice_prompt');
 }
 
 function newConnReply(planPrices?: Record<string, number>): string {
   const entries = Object.entries(planPrices || {});
-  const pkgList = entries.length
-    ? entries.sort((a, b) => extractMbps(a[0]) - extractMbps(b[0])).map(([name, price]) => `📦 *${name}* — Rs. ${price.toLocaleString()}/month`).join('\n')
-    : null;
-
-  return `MahadNet mein khushamdeed! 🎉
-
-Naya connection ke liye bas yeh batain:
-
-1️⃣ *Aap ka naam*
-2️⃣ *Area / Mohalla / Gali*
-3️⃣ *Package preference*
-4️⃣ *Router/ONU aur fiber cable already available hai ya nahi?*
-${pkgList ? `\n📡 *Available Packages:*\n${pkgList}\n\nPata nahi konsa lena hai? Bas bata dein kitne log/devices use karenge ya kis kaam ke liye chahiye (streaming, gaming, work-from-home) — best package suggest kar dungi! Aakhir mein faisla aap ka hi hoga. 😊` : ''}
-
-Agar router/fiber available nahi hai, koi masla nahi — hum se purchase kar sakte hain (fiber Rs. ${CONFIG.fiberPricePerMeter}/meter, 2-core, length site visit pe measure hogi) — ya aap khud bhi kahin se la sakte hain.
-
-✅ *Installation hamesha FREE hai* — sirf package ki monthly payment honi hoti hai!
-
-Yeh details milte hi team 1-2 ghante mein coverage check kar ke rabta karegi! 📡`;
+  const packageBlock = entries.length ? tmpl('new_conn_package_block', { package_list: renderPackageList(planPrices!) }) : '';
+  return tmpl('new_conn_reply', { package_block: packageBlock, fiber_price_per_meter: CONFIG.fiberPricePerMeter });
 }
 
 function coverageReply(): string {
-  return `Zaroor pata karti hoon! 😊 Bas yeh batain:
-
-1️⃣ *Aap ka naam*
-2️⃣ *Pura address / area*
-3️⃣ *Konsa package chahiye*
-
-Yeh milte hi coverage check kar ke 1-2 ghante mein confirm kar dengi! 📍`;
+  return tmpl('coverage_reply');
 }
 
 function routerPasswordGuide(modelInput: string): string {
@@ -1180,21 +1417,7 @@ function routerPasswordGuide(modelInput: string): string {
   else if (/hg8546|echolife/.test(m)) { ip = '192.168.100.1'; note = 'default login *telecomadmin / admintelecom* ya *admin / admin* try karein'; }
   else if (/\bq2\b/.test(m)) { ip = '192.168.100.1'; note = 'login device ke sticker pe check karein'; }
 
-  return `Theek hai! *${modelInput}* ka WiFi password change karna bohot asaan hai, yeh steps follow karein 🔧
-
-1️⃣ Apna mobile ya laptop *router ke WiFi* se connect karein (jo bhi naam abhi WiFi list mein dikh raha ho)
-2️⃣ Phone/laptop ka *browser* (Chrome ya koi bhi) khol kar address bar mein yeh likhein: *${ip}*
-   _(yeh kisi website ka link nahi — yeh router ka khud ka control panel hai)_
-3️⃣ Login screen aayegi — ${note}
-   _(agar yeh login chal na ho to device ke sticker pe likha username/password try karein)_
-4️⃣ Andar *Wireless* ya *WLAN Settings* (kabhi *WiFi Settings* bhi likha hota hai) wala option dhoondein
-5️⃣ Wahan *Password / WiFi Key* ka box milega — naya password likhein (kam az kam 8 letters, mix of numbers achi rahegi)
-6️⃣ Sab se neeche *Save* ya *Apply* button dabayen
-7️⃣ Router ko ek baar *power se nikal kar 10 second baad dobara laga dein* — naya password apply ho jayega
-
-📱 Phir apne sabhi devices mein WiFi se dobara connect hote waqt *naya password* dalna hoga.
-
-Koi step samajh na aaye ya page open na ho to call karein: *${CONFIG.supportNumber}* — main guide kar dungi! 📞`;
+  return tmpl('router_password_guide', { model: modelInput, ip, note, support_number: CONFIG.supportNumber });
 }
 
 function complaintAckReply(user: any, ticketId: string, issue: string): string {
@@ -1203,68 +1426,29 @@ function complaintAckReply(user: any, ticketId: string, issue: string): string {
   const isSlow = /slow|thoda/.test(t);
   const priority = isUrgent ? '🔴 High' : isSlow ? '🟡 Low' : '🟠 Medium';
 
-  const tip = /router|wifi|net/.test(t)
-    ? '\n💡 *Quick tip:* Router ek baar off karke 30 sec baad on karein — aksar theek ho jata hai!'
-    : '';
+  const tip = /router|wifi|net/.test(t) ? tmpl('complaint_tip_router') : '';
+  const urgentOrNormalLine = isUrgent ? tmpl('complaint_urgent_line', { support_number: CONFIG.supportNumber }) : tmpl('complaint_normal_line');
 
-  return `${user.name}, complaint note kar li gai hai! 🛠️
-${tip}
-
-🎫 *Ticket:* ${ticketId}
-⚡ *Priority:* ${priority}
-📋 *Issue:* ${issue.slice(0, 70)}
-
-Technical team ko foran inform kar diya gaya hai.
-${isUrgent ? `\n🚨 Urgent case hai — direct call karein: *${CONFIG.supportNumber}*` : `\nAam tor pe 2-4 ghante mein hal ho jata hai.`}
-
-Shukriya aap ki patience ke liye! 🙏`;
+  return tmpl('complaint_ack_reply', {
+    name: user.name, tip, ticket_id: ticketId, priority, issue: issue.slice(0, 70), urgent_or_normal_line: urgentOrNormalLine,
+  });
 }
 
 function personalReply(name?: string): string {
   return name
-    ? `Assalam o Alaikum ${name}! 😊
-
-Yeh number MahadNet ka official customer support hai.
-${CONFIG.ownerName} bhai is waqt available nahi hain — aap ka message unhe pahuncha diya jayega.
-
-Internet ya kisi service ke masle mein madad chahiye to zaroor batain! 🙏`
-    : `Assalam o Alaikum! 😊
-
-Yeh MahadNet Support ka WhatsApp hai.
-${CONFIG.ownerName} bhai abhi available nahi hain.
-
-Agar internet, bill ya kisi service ka masla ho to batain — main haazir hoon!
-Ya call karein: *${CONFIG.supportNumber}* 📞`;
+    ? tmpl('personal_reply_named', { name, owner_name: CONFIG.ownerName })
+    : tmpl('personal_reply_unnamed', { owner_name: CONFIG.ownerName, support_number: CONFIG.supportNumber });
 }
 
 function unknownCustomerReply(): string {
-  return `Assalam o Alaikum! 😊
-
-Aap ka number hamare system mein registered nahi mila.
-
-Thori detail bhej dein taake continue kar sakein:
-👉 *Naam*
-👉 *Address / Area*
-👉 *Username ya Customer ID* (agar pehle se customer hain)
-
-Naya connection chahiye? *"5"* likh kar bhejein!
-Koi sawaal? Call karein: *${CONFIG.supportNumber}* 🙏`;
+  return tmpl('unknown_customer_reply', { support_number: CONFIG.supportNumber });
 }
 
 function rechargeReply(user?: any, planPrices?: Record<string, number>): string {
   const planLine = user?.plan
-    ? `\n📦 Aap ka package: *${user.plan}* — Rs. ${(user.monthlyFee || planPrices?.[user.plan] || 0).toLocaleString()}/month`
+    ? tmpl('recharge_reply_plan_line', { plan: user.plan, amount: (user.monthlyFee || planPrices?.[user.plan] || 0).toLocaleString() })
     : '';
-  return `Ji zaroor! 😊 Package activate/renew karne ke liye yeh steps follow karein:
-
-${CONFIG.bankAccounts}${planLine}
-
-✅ Payment karne ke baad yeh *teen* cheezein zaroor bhejein:
-1️⃣ Payment ka *screenshot*
-2️⃣ Apna *username*
-3️⃣ Apna *address*
-
-Yeh milte hi foran activate/renew kar diya jayega! 🙏`;
+  return tmpl('recharge_reply', { bank_accounts: tmpl('bank_accounts'), plan_line: planLine });
 }
 
 // ══════════════════════════════════════════════════════
@@ -1415,7 +1599,7 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECEN
     console.error('[askGroq] Urdu-script leak persisted after retry — using safe fallback reply');
     return {
       onTopic: true,
-      reply: `Ji, aap ki baat samajh gayi! Thodi detail se dekh kar foran reply karti hoon.\n\nKoi urgent masla ho to call karein: *${CONFIG.supportNumber}* 📞`,
+      reply: tmpl('urdu_script_leak_fallback', { support_number: CONFIG.supportNumber }),
     };
   }
 
@@ -1562,6 +1746,10 @@ export default async function handler(req: any, res: any) {
       pausedPhones = cfgRows?.[0]?.paused_phones || [];
     } catch (e: any) { console.error('[pausedPhones fetch]', e?.message); }
 
+    // Load admin-editable reply templates (WABot "Templates" tab) — every canned reply
+    // below resolves through tmpl(key, vars), so wording changes don't need a code deploy.
+    if (messages.length > 0) TEMPLATES = await getTemplates();
+
     for (const msg of messages) {
       const from: string = msg.from;
       let type: string = msg.type;
@@ -1627,7 +1815,7 @@ export default async function handler(req: any, res: any) {
           // falls through into the normal text pipeline below — same intents, same logic
         } else {
           await logMessage(from, 'in', 'audio', '[voice note — transcription unavailable]', { mediaUrl });
-          await sendText(from, `Assalam o Alaikum! 😊 Voice note mili lekin abhi samajh nahi paayi.\n\nApna masla text mein likhein ya call karein: *${CONFIG.supportNumber}* 📞`);
+          await sendText(from, tmpl('voice_note_not_understood', { support_number: CONFIG.supportNumber }));
           continue;
         }
       }
@@ -1649,8 +1837,8 @@ export default async function handler(req: any, res: any) {
         });
 
         await sendText(from, found?.user
-          ? `Shukriya ${found.user.name}! 😊 Aap ka payment screenshot mil gaya hai — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`
-          : `Shukriya! 😊 Screenshot mil gaya hai. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`);
+          ? tmpl('payment_screenshot_received_named', { name: found.user.name })
+          : tmpl('payment_screenshot_received_unnamed'));
         continue;
       }
 
@@ -1719,12 +1907,12 @@ export default async function handler(req: any, res: any) {
 
           if (chosen) {
             await setSession(from, 'awaiting_order_address', { model: chosen.model, price: chosen.price, band });
-            await sendText(from, `Theek hai! *${chosen.model}* (Rs. ${chosen.price.toLocaleString()}) ka order note kar liya hai 😊\n\nDelivery ke liye apna *pura address* bhej dein, taake hamari team rabta kar sake.`);
+            await sendText(from, tmpl('router_order_confirmed', { model: chosen.model, price: chosen.price.toLocaleString() }));
           } else if (list.length === 0) {
             await setSession(from, null);
-            await sendText(from, `Maazrat, abhi is band ke router available nahi hain 🙏 Doosra band dekhne ke liye *"2.4G"* ya *"5G"* likh kar bhejein, ya call karein: *${CONFIG.supportNumber}* 📞`);
+            await sendText(from, tmpl('router_band_empty', { support_number: CONFIG.supportNumber }));
           } else {
-            await sendText(from, `Maazrat, samajh nahi payi konsa router pasand aaya 🙏 Model ka naam likh dein (jaise *"${list[0].model}"*) ya *"1st"/"2nd"* likh kar bata dein.`);
+            await sendText(from, tmpl('router_choice_not_understood', { example_model: list[0].model }));
           }
           continue;
         }
@@ -1741,7 +1929,7 @@ export default async function handler(req: any, res: any) {
               priority: 'MEDIUM',
             });
           }
-          await sendText(from, `Shukriya! 😊 Aap ka address note ho gaya hai:\n📍 ${text}\n\nHamari team aapke area mein coverage/delivery check kar ke 1-2 ghante mein rabta karegi. 🙏`);
+          await sendText(from, tmpl('address_noted_coverage', { address: text }));
           continue;
         }
 
@@ -1754,10 +1942,10 @@ export default async function handler(req: any, res: any) {
             const wantsFiber = /^(haan|han|ji\s*haan|yes|bilkul|theek|chahiye|sure|ok)/.test(t);
             if (wantsFiber) {
               await saveStrayLead(from, sessionData.priorNote || text, 'Fiber upgrade — interested');
-              await sendText(from, `${CONFIG.fiberInfo}\n\nAap ki interest note kar li hai, hamari team 1-2 ghante mein rabta karegi! 🙏`);
+              await sendText(from, `${tmpl('fiber_info', { fiber_price_per_meter: CONFIG.fiberPricePerMeter })}${tmpl('fiber_info_lead_followup')}`);
             } else {
               await saveStrayLead(from, sessionData.priorNote || text, 'Apna existing router rakhna chahte hain — fiber upgrade se inkar');
-              await sendText(from, `Theek hai! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.`);
+              await sendText(from, tmpl('fiber_declined_ack'));
             }
             continue;
           }
@@ -1823,7 +2011,7 @@ export default async function handler(req: any, res: any) {
               message: `${matched.user.name} (username: ${matched.user.username || 'N/A'}) ne naye number ${from} se contact kiya hai. Record mein purana number: ${matched.user.phone}. Agar sahi hai to number update kar dein.`,
               priority: 'MEDIUM',
             });
-            await sendText(from, `Ji ${matched.user.name}! Mil gaya aap ka account 😊 Lagta hai aap ne naya number use kiya hai — Mahad bhai ko record update karne ke liye inform kar diya hai.\n\nAb batayen, kis cheez mein madad chahiye? Bill, complaint ya kuch aur? 🙏`);
+            await sendText(from, tmpl('account_matched_new_number', { name: matched.user.name }));
             continue;
           }
           const row = await getManagerRow('mahadnet');
@@ -1834,7 +2022,7 @@ export default async function handler(req: any, res: any) {
               priority: 'LOW',
             });
           }
-          await sendText(from, `Shukriya! 😊 Details mil gai hain, team verify kar ke aap se rabta karegi. Koi urgent masla ho to call karein: *${CONFIG.supportNumber}* 📞`);
+          await sendText(from, tmpl('lead_details_received', { support_number: CONFIG.supportNumber }));
           continue;
         }
 
@@ -1842,7 +2030,7 @@ export default async function handler(req: any, res: any) {
         if (session === 'router_choice' && intent !== 'router_24g' && intent !== 'router_5g') {
           await setSession(from, null);
           await saveStrayLead(from, text, 'Router selection ke dauran area/masla bataya');
-          await sendText(from, `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.\n\nRouter dekhna ho to *"2.4G"* ya *"5G"* likh kar bhejein. 📡`);
+          await sendText(from, tmpl('lead_details_received_router_hint'));
           continue;
         }
 
@@ -1859,7 +2047,7 @@ export default async function handler(req: any, res: any) {
               priority: 'MEDIUM',
             });
           }
-          await sendText(from, `Aap ka message note ho gaya hai ✅ ${CONFIG.ownerName} bhai available hote hi aap ko reply karenge. Shukriya! 🙏`);
+          await sendText(from, tmpl('message_forwarded_to_owner', { owner_name: CONFIG.ownerName }));
           continue;
         }
 
@@ -1881,7 +2069,7 @@ export default async function handler(req: any, res: any) {
         if (session === 'awaiting_connection_type') {
           const connType = detectConnectionType(text);
           if (!connType) {
-            await sendText(from, `Maazrat, samajh nahi payi 🙏 Sirf *"Fiber"* ya *"Local"* likh dein.`);
+            await sendText(from, tmpl('connection_type_not_understood'));
             continue;
           }
           const issue = sessionData?.issue || text;
@@ -1896,7 +2084,7 @@ export default async function handler(req: any, res: any) {
           const t = text.toLowerCase();
           const resolved = /^(shukriya|thanks|theek\s*ho\s*gaya|fix\s*ho\s*gaya|ho\s*gaya|chal\s*gaya|sahi\s*ho\s*gaya|thank\s*you)/.test(t);
           if (resolved) {
-            await sendText(from, `Bohot khushi hui ke masla hal ho gaya! 😊 Koi aur madad chahiye to zaroor batayen.`);
+            await sendText(from, tmpl('complaint_resolved_ack'));
             continue;
           }
           const found = await findCustomer(from);
@@ -1944,9 +2132,7 @@ export default async function handler(req: any, res: any) {
             });
           } catch (e: any) { console.error('[marketing_optout]', e?.message); }
         }
-        await sendText(from, isEnglishText(text)
-          ? `Done — you won't receive promotional messages from us anymore. You can still message us anytime for support. 🙏`
-          : `Theek hai — ab aap ko promotional messages nahi aayenge. Support ke liye aap kabhi bhi message kar sakte hain. 🙏`);
+        await sendText(from, tmpl(isEnglishText(text) ? 'marketing_optout_confirm_en' : 'marketing_optout_confirm_ur'));
         continue;
       }
 
@@ -1998,7 +2184,7 @@ export default async function handler(req: any, res: any) {
 
       // ── Fiber info → share details, then capture the area reply as a lead ──
       if (intent === 'fiber_info') {
-        await sendText(from, CONFIG.fiberInfo);
+        await sendText(from, tmpl('fiber_info', { fiber_price_per_meter: CONFIG.fiberPricePerMeter }));
         await setSession(from, 'lead_awaiting_details');
         continue;
       }
@@ -2006,19 +2192,19 @@ export default async function handler(req: any, res: any) {
       // ── Password change → ask router model first ──
       if (intent === 'password_change') {
         await setSession(from, 'awaiting_router_model');
-        await sendText(from, `Zaroor madad karti hoon! 😊\n\nAap ka router/ONU konsa model hai? (jaise GS3101, HG8546M, Huawei Q2 — ya jo bhi likha ho device pe)`);
+        await sendText(from, tmpl('password_change_ask_model'));
         continue;
       }
 
       // ── Talk to Mahad bhai directly ──
       if (intent === 'menu_talk_owner') {
         await setSession(from, 'awaiting_owner_message');
-        await sendText(from, `Zaroor! 😊 Apna message likh dein — main ${CONFIG.ownerName} bhai tak foran pohcha dungi.`);
+        await sendText(from, tmpl('talk_to_owner_prompt', { owner_name: CONFIG.ownerName }));
         continue;
       }
 
       // ── Menu shortcuts (no DB needed) ──
-      if (intent === 'menu_payment')  { await sendText(from, CONFIG.bankAccounts); continue; }
+      if (intent === 'menu_payment')  { await sendText(from, tmpl('bank_accounts')); continue; }
       if (intent === 'menu_new_conn' || intent === 'new_conn') {
         const planPricesForNewConn = await getAnyPlanPrices();
         await sendText(from, newConnReply(planPricesForNewConn));
@@ -2030,7 +2216,7 @@ export default async function handler(req: any, res: any) {
         await setSession(from, 'lead_awaiting_details');
         continue;
       }
-      if (intent === 'payment_how')   { await sendText(from, CONFIG.bankAccounts); continue; }
+      if (intent === 'payment_how')   { await sendText(from, tmpl('bank_accounts')); continue; }
 
       if (intent === 'menu_packages' || intent === 'packages') {
         const found = await findCustomer(from);
@@ -2061,7 +2247,7 @@ export default async function handler(req: any, res: any) {
         const billingBlock = accountBillingBlockedReply(found.user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         await setSession(from, 'awaiting_complaint_text');
-        await sendText(from, `Ji ${found.user.name}! Kya ho raha hai internet mein? Thori detail bata dein. 🛠️`);
+        await sendText(from, tmpl('ask_complaint_detail', { name: found.user.name }));
         continue;
       }
       if (intent === 'menu_bill') {
@@ -2090,7 +2276,7 @@ export default async function handler(req: any, res: any) {
       // instead of going back and forth over a number.
       if (intent === 'bill_dispute') {
         await sendText(from, billReply(user, receipts));
-        await sendText(from, `Confusion na ho is liye aap ki pichli payments ki detail bhi bhej rahi hoon, taake confirm ho jaye kis month ki payment baqi hai 👇`);
+        await sendText(from, tmpl('payment_history_context_note'));
         await sendText(from, paymentHistoryReply(user, receipts));
         continue;
       }
@@ -2115,7 +2301,7 @@ export default async function handler(req: any, res: any) {
       const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}
 
 REAL BANK ACCOUNTS — agar account number/bank details maange to YEHI EXACT digits do, kabhi khud se number mat banao:
-${CONFIG.bankAccounts}
+${tmpl('bank_accounts')}
 
 REAL AVAILABLE PACKAGES — agar package list/pricing maange to YEHI EXACT list do, kabhi khud se package/price mat banao:
 ${packagesListForGroq}
@@ -2157,7 +2343,7 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
           });
         }
       } catch (e: any) {
-        await sendText(from, `Ji ${user.name}! Is waqt thodi delay aa rahi hai.\nCall karein: *${CONFIG.supportNumber}* — main foran help karungi! 😊`);
+        await sendText(from, tmpl('temporary_delay_apology', { name: user.name, support_number: CONFIG.supportNumber }));
       }
 
       } finally {
