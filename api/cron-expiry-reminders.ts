@@ -1,50 +1,66 @@
-// api/cron-expiry-reminders.ts — Daily WhatsApp expiry reminders (3-day, 1-day, today)
-// Triggered by Vercel Cron (see vercel.json). Reads every manager's users, and for anyone
-// expiring in 3 days / 1 day / today, sends a WhatsApp reminder via Ayesha's number.
-// A send-log is kept in the bot-private `_bot_sessions` row so reminders are never duplicated
-// and the customer-facing AppState (manager_data.<id>.data) is never touched/risked.
+// api/cron-expiry-reminders.ts — Nightly WhatsApp expiry reminder (1-day-before only)
+// Triggered by Vercel Cron (see vercel.json), runs at night PKT.
+// Sends via the Meta-approved Utility template "expiry_reminder_1day" so it works
+// outside the 24h customer-service window (unlike free-form text, which Meta
+// silently drops if the customer hasn't messaged in the last 24h).
+// A send-log is kept in the bot-private `_bot_sessions` row so reminders are
+// never duplicated and the customer-facing AppState (manager_data.<id>.data)
+// is never touched/risked.
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
-const SUPPORT_NUMBER = '0304-2773453';
+const TEMPLATE_NAME = 'expiry_reminder_1day';
+const TEMPLATE_LANG = 'en';
 
-async function sendText(to: string, body: string) {
+async function sendTemplate(to: string, name: string, plan: string, dateStr: string): Promise<{ ok: boolean; wamid?: string }> {
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
-  if (!token || !pid) { console.error('❌ WA env missing'); return false; }
+  if (!token || !pid) { console.error('❌ WA env missing'); return { ok: false }; }
   try {
     const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body } }),
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'template',
+        template: {
+          name: TEMPLATE_NAME,
+          language: { code: TEMPLATE_LANG },
+          components: [{
+            type: 'body',
+            parameters: [
+              { type: 'text', text: name },
+              { type: 'text', text: plan || 'internet' },
+              { type: 'text', text: dateStr },
+            ],
+          }],
+        },
+      }),
     });
     const d = await r.json();
-    if (!r.ok) { console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200)); return false; }
-    // Log into whatsapp_messages so this shows up in the WABot Inbox like every
-    // other customer message, instead of being invisible/untracked there.
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          manager_id: 'mahadnet', customer_phone: to.replace(/\D/g, '').slice(-10),
-          direction: 'out', type: 'text', content: body, wa_message_id: d?.messages?.[0]?.id || null,
-        }),
-      });
-    } catch (e: any) { console.error('[cron log]', e?.message); }
-    return true;
-  } catch (e: any) { console.error('❌ sendText:', e?.message); return false; }
+    if (!r.ok) { console.error('❌ Meta template:', JSON.stringify(d).slice(0, 300)); return { ok: false }; }
+    return { ok: true, wamid: d?.messages?.[0]?.id };
+  } catch (e: any) { console.error('❌ sendTemplate:', e?.message); return { ok: false }; }
 }
 
-function reminderMessage(name: string, plan: string, days: number, expDate: string): string {
-  const dateStr = new Date(expDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-  if (days === 3) {
-    return `Assalam o Alaikum *${name}*! 😊\n\nAap ka *${plan || 'internet'}* package *3 din* mein expire hone wala hai (${dateStr}).\n\nTime se renew kar lein taake service bila wuqfa continue rahe! 🙏\n\nBank details chahiye? *"3"* likh kar bhejein.`;
-  }
-  if (days === 1) {
-    return `Assalam o Alaikum *${name}*! ⚠️\n\nAap ka *${plan || 'internet'}* package *kal* (${dateStr}) expire ho raha hai.\n\nAbhi renew kar lein taake internet band na ho! Payment ke baad screenshot zaroor bhejein. 🙏`;
-  }
-  return `Assalam o Alaikum *${name}*! 🔴\n\nAap ka *${plan || 'internet'}* package *aaj* expire ho raha hai.\n\nInternet continue rakhne ke liye foran renew karein! Koi madad chahiye to call karein: *${SUPPORT_NUMBER}* 📞`;
+// Logs into whatsapp_messages (rendered preview text) so this shows up in the
+// WABot Inbox like every other customer message, instead of being invisible there.
+async function logOutbound(to: string, previewText: string, wamid?: string) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        manager_id: 'mahadnet', customer_phone: to.replace(/\D/g, '').slice(-10),
+        direction: 'out', type: 'text', content: previewText, wa_message_id: wamid || null,
+      }),
+    });
+  } catch (e: any) { console.error('[cron log]', e?.message); }
+}
+
+function previewMessage(name: string, plan: string, dateStr: string): string {
+  return `Assalam o Alaikum *${name}*! ⚠️\n\nAap ka *${plan || 'internet'}* package *kal* (${dateStr}) expire ho raha hai.\n\nAbhi renew kar lein taake internet band na ho! Payment ke baad screenshot zaroor bhejein. 🙏`;
 }
 
 export default async function handler(req: any, res: any) {
@@ -88,19 +104,20 @@ export default async function handler(req: any, res: any) {
         if (isNaN(exp.getTime())) continue;
         exp.setHours(0, 0, 0, 0);
         const days = Math.round((exp.getTime() - today.getTime()) / 86400000);
-        if (days !== 3 && days !== 1 && days !== 0) continue;
+        if (days !== 1) continue; // single reminder: 1 day before expiry, sent at night
 
         const digits = (u.phone || u.phone2 || '').replace(/\D/g, '');
         const last10 = digits.slice(-10);
         if (last10.length < 10) continue;
         const phone = `92${last10}`;
 
-        const key = `${row.manager_id}:${u.id}:${u.expiryDate}:${days}`;
+        const key = `${row.manager_id}:${u.id}:${u.expiryDate}`;
         if (sentLog[key]) { skipped++; continue; }
 
-        const msg = reminderMessage(u.name || 'Customer', u.plan, days, u.expiryDate);
-        const ok = await sendText(phone, msg);
+        const dateStr = new Date(u.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
+        const { ok, wamid } = await sendTemplate(phone, u.name || 'Customer', u.plan, dateStr);
         if (ok) {
+          await logOutbound(phone, previewMessage(u.name || 'Customer', u.plan, dateStr), wamid);
           sentLog[key] = new Date().toISOString();
           sentCount++;
         }
