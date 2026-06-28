@@ -1694,6 +1694,8 @@ const App: React.FC = () => {
               onUpdateBotName={(name) => handleUpdateSettings({ ...currentSettings, ayeshaBotName: name })}
               routerCatalog={currentSettings.routerCatalog}
               onUpdateRouterCatalog={(catalog) => handleUpdateSettings({ ...currentSettings, routerCatalog: catalog })}
+              botTemplates={currentSettings.botTemplates}
+              onUpdateBotTemplates={(templates) => handleUpdateSettings({ ...currentSettings, botTemplates: templates })}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole === 'manager' && (
