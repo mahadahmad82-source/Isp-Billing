@@ -15,8 +15,8 @@ const SECTIONS: Section[] = [
     title: 'Terms of Service',
     content: [
       { heading: 'Agreement', text: 'By registering and using myISP, you ("Manager/Operator") agree to these Terms. If you do not agree, do not use the platform.' },
-      { heading: 'Service Description', text: 'myISP is a cloud-based ISP billing and management SaaS platform designed for Pakistani Internet Service Providers. It provides customer management, receipt generation, recovery ledger, agent management, and billing analytics tools.' },
-      { heading: 'Account Registration', text: 'You must provide accurate information during signup. Each account represents one ISP operator/company. You are responsible for maintaining the confidentiality of your credentials.' },
+      { heading: 'Service Description', text: 'myISP is a cloud-based ISP billing and management SaaS platform designed for Pakistani Internet Service Providers. It provides customer management, receipts, and billing automation.' },
+      { heading: 'Account Registration', text: 'You must provide accurate information during signup. Each account represents one ISP operator/company. You are responsible for maintaining the confidentiality of your account credentials.' },
       { heading: 'Permitted Use', text: 'You may use myISP solely for your own ISP business operations. Reselling, sublicensing, or providing the platform as a service to others without written permission is prohibited.' },
       { heading: 'Modifications', text: 'myISP reserves the right to modify these Terms at any time. Continued use after changes constitutes acceptance of the updated Terms.' },
     ],
@@ -27,10 +27,10 @@ const SECTIONS: Section[] = [
     title: 'Subscription & Payments',
     content: [
       { heading: 'Free Trial', text: 'New accounts receive a 30-day free trial with access to all Pro features. No credit card is required during the trial period. Trial may be extended or reset at admin discretion.' },
-      { heading: 'Plan Tiers', text: 'Starter (up to 150 customers, 1 agent), Business (up to 500 customers, 3 agents), Pro (unlimited customers and agents). Feature access varies by plan as described in the app.' },
-      { heading: 'Billing', text: 'Subscription fees are billed in Pakistani Rupees (PKR). Payment is currently processed manually via bank transfer or JazzCash/EasyPaisa as agreed with your account manager. Automated billing may be introduced in future updates.' },
+      { heading: 'Plan Tiers', text: 'Starter (up to 150 customers, 1 agent), Business (up to 500 customers, 3 agents), Pro (unlimited customers and agents). Feature access varies by plan as described on our pricing page.' },
+      { heading: 'Billing', text: 'Subscription fees are billed in Pakistani Rupees (PKR). Payment is currently processed manually via bank transfer or JazzCash/EasyPaisa as agreed with your account manager.' },
       { heading: 'Refunds', text: 'Subscription payments are non-refundable. In case of service outage exceeding 48 hours caused by myISP infrastructure, a proportional credit may be applied to the next billing cycle.' },
-      { heading: 'Suspension', text: 'Accounts with overdue payments may be locked. Locked accounts retain all data but lose access to the platform until payment is cleared. Data is retained for 90 days after account expiry before permanent deletion.' },
+      { heading: 'Suspension', text: 'Accounts with overdue payments may be locked. Locked accounts retain all data but lose access to the platform until payment is cleared. Data is retained for 90 days after suspension.' },
     ],
   },
   {
@@ -39,11 +39,11 @@ const SECTIONS: Section[] = [
     title: 'Data & Privacy',
     content: [
       { heading: 'Your Data', text: 'All customer data you enter into myISP remains your property. myISP does not sell, rent, or share your business data with third parties.' },
-      { heading: 'Data Storage', text: 'Data is stored in Supabase PostgreSQL databases hosted on AWS infrastructure (ap-south-1 region). All data is encrypted at rest and in transit using industry-standard TLS/SSL.' },
-      { heading: 'Local Storage', text: 'myISP uses browser localStorage as a local cache for faster performance. This data stays on your device. Clearing browser data may remove local cache, but cloud data remains intact.' },
-      { heading: 'Customer Data Responsibility', text: 'You are responsible for obtaining appropriate consent from your customers before entering their personal information (name, CNIC, address, phone number) into myISP. You must comply with applicable Pakistani data protection laws and PECA regulations.' },
-      { heading: 'Data Backup', text: 'myISP performs regular automated backups. However, you are advised to maintain your own backup copies of critical data. myISP is not liable for data loss resulting from user error.' },
-      { heading: 'Analytics', text: 'myISP may collect anonymized usage analytics (feature usage, page views, performance metrics) to improve the platform. No personally identifiable customer data is used for analytics.' },
+      { heading: 'Data Storage', text: 'Data is stored in Supabase PostgreSQL databases hosted on AWS infrastructure (ap-south-1 region). All data is encrypted at rest and in transit using industry-standard protocols.' },
+      { heading: 'Local Storage', text: 'myISP uses browser localStorage as a local cache for faster performance. This data stays on your device. Clearing browser data may remove local cache, but cloud data remains safe.' },
+      { heading: 'Customer Data Responsibility', text: 'You are responsible for obtaining appropriate consent from your customers before entering their personal information (name, CNIC, address, phone) into myISP.' },
+      { heading: 'Data Backup', text: 'myISP performs regular automated backups. However, you are advised to maintain your own backup copies of critical data. myISP is not liable for data loss resulting from insufficient backups.' },
+      { heading: 'Analytics', text: 'myISP may collect anonymized usage analytics (feature usage, page views, performance metrics) to improve the platform. No personally identifiable customer data is included in analytics.' },
     ],
   },
   {
@@ -51,10 +51,10 @@ const SECTIONS: Section[] = [
     icon: <Users className="w-4 h-4" />,
     title: 'Agents & Sub-Managers',
     content: [
-      { heading: 'Agent Accounts', text: 'You may create sub-manager (agent) accounts on your myISP account up to your plan limit. Each agent gets restricted access to selected features as configured by you.' },
+      { heading: 'Agent Accounts', text: 'You may create sub-manager (agent) accounts on your myISP account up to your plan limit. Each agent gets restricted access to selected features as configured by the primary account holder.' },
       { heading: 'Responsibility', text: 'You are fully responsible for all actions taken by your agents within your myISP account. Ensure your agents are aware of and comply with these Terms.' },
       { heading: 'Agent Data', text: 'Agent attendance logs, activity records, and check-in/check-out data are stored under your account. You may delete agent accounts at any time.' },
-      { heading: 'WhatsApp Integration', text: 'If you enable the WhatsApp bot (Ayesha) integration, you acknowledge that WhatsApp messages are subject to Meta\'s terms of service. myISP is not responsible for WhatsApp service availability or policy changes.' },
+      { heading: 'WhatsApp Integration', text: 'If you enable the WhatsApp bot (Ayesha) integration, you acknowledge that WhatsApp messages are subject to Meta\'s terms of service. myISP is not responsible for WhatsApp service interruptions.' },
     ],
   },
   {
@@ -87,7 +87,7 @@ const SECTIONS: Section[] = [
     title: 'Liability & Disclaimers',
     content: [
       { heading: 'Service Availability', text: 'myISP targets 99.5% uptime but does not guarantee uninterrupted service. Planned maintenance windows will be announced in advance.' },
-      { heading: 'Limitation of Liability', text: 'myISP\'s total liability for any claim shall not exceed the amount paid by you for the service in the past 3 months. myISP is not liable for indirect, incidental, or consequential damages including lost profits or data loss.' },
+      { heading: 'Limitation of Liability', text: 'myISP\'s total liability for any claim shall not exceed the amount paid by you for the service in the past 3 months. myISP is not liable for indirect damages.' },
       { heading: 'Third-Party Services', text: 'myISP integrates with Supabase, Vercel, and Meta WhatsApp Business API. myISP is not responsible for downtime or changes in these third-party services.' },
       { heading: 'Governing Law', text: 'These Terms are governed by the laws of Pakistan. Any disputes shall be subject to the exclusive jurisdiction of courts in Karachi, Pakistan.' },
     ],
@@ -195,12 +195,18 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
               return (
                 <>
                   {prev ? (
-                    <button onClick={() => setActiveSection(prev.id)} className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors">
+                    <button 
+                      onClick={() => setActiveSection(prev.id)} 
+                      className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors"
+                    >
                       <ArrowLeft className="w-3.5 h-3.5" /> {prev.title}
                     </button>
                   ) : <div />}
                   {next && (
-                    <button onClick={() => setActiveSection(next.id)} className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors">
+                    <button 
+                      onClick={() => setActiveSection(next.id)} 
+                      className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors"
+                    >
                       {next.title} <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
                     </button>
                   )}
