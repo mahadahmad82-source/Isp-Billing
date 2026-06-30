@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, SuspensionLog, PlanChange } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
@@ -22,15 +22,14 @@ import SubManagerManagement from './components/SubManager/SubManagerManagement';
 import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
 import BusinessAnalytics from './components/BusinessAnalytics';
-import AgingReport from './components/AgingReport';
+
 import OutageTracker from './components/OutageTracker';
 import AreaDashboard from './components/AreaDashboard';
 import EquipmentTracker from './components/EquipmentTracker';
 import LeadsPipeline from './components/LeadsPipeline';
-import SuspensionManager from './components/SuspensionManager';
+
 import BulkReminder from './components/BulkReminder';
-import DayEndSummary from './components/DayEndSummary';
-import RouteSheet from './components/RouteSheet';
+
 import MonthlyInvoice from './components/MonthlyInvoice';
 import WABotInbox from './components/WABotInbox';
 import WABotStandalone from './components/WABotStandalone';
@@ -101,7 +100,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice','wabot'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -114,7 +113,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','aging','suspension','outage','area','reminders','dayend','route','invoice','wabot'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -1552,9 +1551,7 @@ const App: React.FC = () => {
               <UpgradeGate sub={subscription} feature="analytics" featureName="Business Analytics" />
             )
           )}
-          {!tabLoading && activeTab === 'aging' && userRole === 'manager' && (
-            <AgingReport users={filteredUsers} settings={currentSettings} />
-          )}
+
           {!tabLoading && activeTab === 'equipment' && userRole === 'manager' && (
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
@@ -1613,21 +1610,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {!tabLoading && activeTab === 'suspension' && userRole === 'manager' && (
-            <SuspensionManager
-              suspensionLogs={state.suspensionLogs || []}
-              users={filteredUsers}
-              currentUser={activeManager || ''}
-              onAdd={(log) => setState(prev => {
-                const ns = { ...prev, suspensionLogs: [...(prev.suspensionLogs || []), log] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onUpdateUserStatus={(userId, status) => setState(prev => {
-                const ns = { ...prev, users: prev.users.map(u => u.id === userId ? { ...u, status } : u) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-            />
-          )}
+
           {!tabLoading && activeTab === 'outage' && userRole === 'manager' && (
             <OutageTracker
               outageLogs={state.outageLogs || []}
@@ -1664,19 +1647,8 @@ const App: React.FC = () => {
               settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
             />
           )}
-          {!tabLoading && activeTab === 'dayend' && userRole === 'manager' && (
-            <DayEndSummary
-              receipts={filteredReceipts}
-              subManagers={(state.subManagers || []).map(sm => ({ id: sm.id, username: sm.username, name: sm.name }))}
-              businessName={currentSettings.businessName}
-            />
-          )}
-          {!tabLoading && activeTab === 'route' && userRole === 'manager' && (
-            <RouteSheet
-              users={filteredUsers}
-              businessName={currentSettings.businessName}
-            />
-          )}
+
+
           {!tabLoading && activeTab === 'invoice' && userRole === 'manager' && (
             <MonthlyInvoice
               users={filteredUsers}
