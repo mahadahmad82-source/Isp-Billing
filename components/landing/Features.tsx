@@ -11,12 +11,12 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const faqs = [
-    { q: "Kya MYISP Pakistan ke ISPs ke liye suitable hai?", a: "Bilkul! MYISP specifically Pakistani local ISPs ke liye banaya gaya hai — PKR billing, WhatsApp reminders, aur Pakistan ke common devices (TP-Link, Huawei ONU) support ke saath." },
-    { q: "Kya main apne Excel records import kar sakta hoon?", a: "Haan! MYISP .xlsx aur .csv files support karta hai — purana data seedha import ho jata hai." },
-    { q: "Ek account mein kitne customers ho sakte hain?", a: "Business plan mein unlimited customers. Starter plan mein 50 customers tak free hain." },
-    { q: "Kya mere agents bhi use kar sakte hain?", a: "Haan! Sub-manager accounts create karo apne field agents ke liye — woh receipts collect kar sakte hain, attendance lagwa sakte hain." },
-    { q: "Data safe hai? Kho toh nahi jayega?", a: "Bilkul safe. Supabase cloud pe real-time sync hoti hai. Phone tod do, data safe rahega — doosre device pe login karo, sab wapas aa jayega." },
-    { q: "Demo ya trial kaise milega?", a: "Abhi free mein start karo — koi credit card nahi chahiye. WhatsApp karein 0304-2773453 pe agar koi help chahiye." }
+    { q: "Is MYISP suitable for Pakistani ISPs?", a: "Absolutely! MYISP is built specifically for local Pakistani ISPs — with PKR billing, WhatsApp reminders, and support for Pakistan's common devices (TP-Link, Huawei ONU)." },
+    { q: "Can I import my Excel records?", a: "Yes! MYISP supports .xlsx and .csv files — your existing data imports directly." },
+    { q: "How many customers can one account have?", a: "Unlimited customers on the Business plan. Up to 50 customers free on the Starter plan." },
+    { q: "Can my agents use it too?", a: "Yes! Create sub-manager accounts for your field agents — they can collect receipts and log attendance." },
+    { q: "Is my data safe? Will it get lost?", a: "Completely safe. Real-time sync happens on Supabase cloud. Break your phone, your data stays safe — log in on another device, everything comes back." },
+    { q: "How do I get a demo or trial?", a: "Start free right now — no credit card needed. WhatsApp us at 0304-2773453 if you need any help." }
   ];
 
   return (
@@ -46,15 +46,15 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-32">
           {[
-            { title: 'Customer Management', desc: 'Customers add/edit karo, plans assign karo, expiry track karo — sab ek jagah.', icon: <Users className="w-8 h-8" /> },
-            { title: 'Digital Receipts', desc: 'Professional invoices generate karo, WhatsApp pe share karo — ek tap mein.', icon: <LayoutIcon className="w-8 h-8" /> },
-            { title: 'Recovery Ledger', desc: 'Monthly collection ka poora record — kaun paid, kaun unpaid, kaun expire — sab clear.', icon: <Activity className="w-8 h-8" /> },
-            { title: 'Equipment Tracker', desc: 'Routers, ONUs, switches — customer ko assign karo, wapas lo, inventory manage karo.', icon: <Database className="w-8 h-8" /> },
-            { title: 'Leads Pipeline', desc: 'New inquiries track karo — contacted se install pending tak, conversion rate dekho.', icon: <Zap className="w-8 h-8" /> },
-            { title: 'Aging Report', desc: 'Kitna paisa kitne dino se pending hai — 0-30, 30-60, 60-90, 90+ days breakdown.', icon: <Smartphone className="w-8 h-8" /> },
-            { title: 'Area Dashboard', desc: 'Har area ka active/expired breakdown, revenue aur pending amounts alag alag.', icon: <ShieldCheck className="w-8 h-8" /> },
-            { title: 'Suspension Log', desc: 'Connection suspend/restore karo with reason aur full history log.', icon: <Lock className="w-8 h-8" /> },
-            { title: 'Outage Tracker', desc: 'Network downtime log karo — affected areas, severity, duration — sab track hoga.', icon: <CheckCircle className="w-8 h-8" /> },
+            { title: 'Customer Management', desc: 'Add and edit customers, assign plans, track expiry — all in one place.', icon: <Users className="w-8 h-8" /> },
+            { title: 'Digital Receipts', desc: 'Generate professional invoices, share on WhatsApp — in one tap.', icon: <LayoutIcon className="w-8 h-8" /> },
+            { title: 'Recovery Ledger', desc: 'A complete record of monthly collections — who paid, who hasn\'t, who expired — all clear.', icon: <Activity className="w-8 h-8" /> },
+            { title: 'Equipment Tracker', desc: 'Routers, ONUs, switches — assign to customers, take back, manage inventory.', icon: <Database className="w-8 h-8" /> },
+            { title: 'Leads Pipeline', desc: 'Track new inquiries — from contacted to install pending, see your conversion rate.', icon: <Zap className="w-8 h-8" /> },
+            { title: 'Aging Report', desc: 'How much money has been pending for how long — 0-30, 30-60, 60-90, 90+ day breakdown.', icon: <Smartphone className="w-8 h-8" /> },
+            { title: 'Area Dashboard', desc: 'Active/expired breakdown for each area, revenue and pending amounts separated.', icon: <ShieldCheck className="w-8 h-8" /> },
+            { title: 'Suspension Log', desc: 'Suspend and restore connections with reason and full history log.', icon: <Lock className="w-8 h-8" /> },
+            { title: 'Outage Tracker', desc: 'Log network downtime — affected areas, severity, duration — all tracked.', icon: <CheckCircle className="w-8 h-8" /> },
           ].map((feature, idx) => (
             <motion.div 
               key={idx} 
