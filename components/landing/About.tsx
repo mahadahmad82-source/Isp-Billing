@@ -138,7 +138,7 @@ const AboutContact = () => (
     <div className="max-w-xl mx-auto text-center">
       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6">Contact Us</p>
       <div className="grid grid-cols-2 gap-4">
-        <a href="https://wa.me/923042773453?text=MYISP%20ke%20baare%20mein%20baat%20karni%20hai"
+        <a href="https://wa.me/923042773453?text=I%20want%20to%20talk%20about%20MYISP"
           target="_blank" rel="noreferrer"
           className="flex items-center gap-3 p-4 bg-green-600/15 border border-green-500/30 rounded-2xl hover:bg-green-600/25 transition-all">
           <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-sm">💬</div>
