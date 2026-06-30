@@ -507,7 +507,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       // background WhatsApp auto-send for CPU — looking stuck on slower devices.
       // Customer still gets the receipt automatically via WhatsApp below; saving to
       // phone storage is now manual-only (tap "Download Image" whenever you want it).
-      autoSendReceiptViaWhatsApp(newReceipt);
+      // TEMP DISABLED: Ayesha/WABA number is paused (Meta Business Verification not
+      // complete), so WHATSAPP_TOKEN/PHONE_NUMBER_ID are stale and every auto-send was
+      // failing — re-enable this line once the bot is reactivated.
+      // autoSendReceiptViaWhatsApp(newReceipt);
 
     } catch (error) {
       console.error("Critical System Failure:", error);
