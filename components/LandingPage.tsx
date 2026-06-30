@@ -53,7 +53,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           {/* Right side */}
           <div className="flex items-center gap-3">
             <a href="/portal"
-              className="bg-gradient-to-r from-cyan-600 to-teal-500 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/40 transition-all active:scale-95 hover:shadow-cyan-500/60 hidden sm:inline-flex items-center gap-1.5">
+              className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/50 transition-all active:scale-95 hover:shadow-indigo-500/70">
               <span>👤</span> User Portal
             </a>
             <button onClick={onGetStarted}
@@ -156,7 +156,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 MYISP. Made for Pakistani ISPs.</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest">Powered by Supabase · React</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest">Powered by myispnetwork@gmail.com</p>
             </div>
           </div>
         </footer>
