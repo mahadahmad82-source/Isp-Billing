@@ -501,12 +501,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         console.error("Receipt saved, but customer expiry update failed:", userUpdateError);
       }
       
-      // Auto-download removed: it shared the same isDownloading state as the manual
-      // "Download Image" button, so right after generating, that button would
-      // immediately show "Downloading..." (disabled) while competing with the
-      // background WhatsApp auto-send for CPU — looking stuck on slower devices.
-      // Customer still gets the receipt automatically via WhatsApp below; saving to
-      // phone storage is now manual-only (tap "Download Image" whenever you want it).
+      // Auto-send via WhatsApp is disabled (Ayesha/WABA number paused — see below),
+      // so auto-download is back on as the fallback: customer's receipt still
+      // lands as a saved image even though it can't be auto-WhatsApp'd right now.
+      captureAndDownload(newReceipt);
       // TEMP DISABLED: Ayesha/WABA number is paused (Meta Business Verification not
       // complete), so WHATSAPP_TOKEN/PHONE_NUMBER_ID are stale and every auto-send was
       // failing — re-enable this line once the bot is reactivated.
@@ -515,6 +513,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     } catch (error) {
       console.error("Critical System Failure:", error);
       alert("Database error. Record not saved.");
+      setIsGenerating(false);
+      setLoadingMessage(null);
     } finally {
       setIsGenerating(false);
       setLoadingMessage(null);
@@ -578,11 +578,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     if (!activeReceipt) return;
     setIsSharing(true);
     setLoadingMessage('Preparing Encrypted Transfer Package...');
-    
+
     try {
       const element = document.getElementById('receipt-download-area');
-      if (!element) { setIsSharing(false); setLoadingMessage(null); return; }
-      
+      if (!element) return;
+
       const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
       const canvas = await html2canvas(element, { 
         scale: 2, 
@@ -599,61 +599,51 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           }
         }
       });
-      
-      canvas.toBlob(async (blob: Blob | null) => {
-        if (!blob) {
-          shareToWhatsApp(activeReceipt.userPhone, shareMessage);
-          setIsSharing(false);
-          setLoadingMessage(null);
-          return;
-        }
 
-        // Mobile browsers (Android/iOS Chrome/Safari) support attaching the
-        // image file directly via the native share sheet.
-        const file = new File([blob], `Receipt_${activeReceipt.transactionRef}.png`, { type: 'image/png' });
-        const canNativeShareFiles = typeof navigator.share === 'function' &&
+      // canvas.toBlob is callback-based, not a Promise — wrap it so the whole
+      // share flow lives inside one awaited chain. Previously the callback ran
+      // outside the outer try/catch, so any throw inside it (or the network
+      // call below hanging) never hit a finally and left the button stuck on
+      // "Sending..." forever.
+      const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+
+      if (!blob) {
+        shareToWhatsApp(activeReceipt.userPhone, shareMessage);
+        return;
+      }
+
+      // Mobile browsers (Android/iOS Chrome/Safari) support attaching the
+      // image file directly via the native share sheet.
+      const file = new File([blob], `Receipt_${activeReceipt.transactionRef}.png`, { type: 'image/png' });
+      let canNativeShareFiles = false;
+      try {
+        canNativeShareFiles = typeof navigator.share === 'function' &&
           (typeof (navigator as any).canShare !== 'function' || (navigator as any).canShare({ files: [file] }));
+      } catch {
+        canNativeShareFiles = false; // some browsers throw instead of returning false here
+      }
 
-        if (canNativeShareFiles) {
-          try {
-            await navigator.share({ title: 'Receipt', text: shareMessage, files: [file] });
-            setIsSharing(false);
-            setLoadingMessage(null);
-            return;
-          } catch (err: any) {
-            if (err?.name === 'AbortError') { // user cancelled the share sheet — don't auto-fallback
-              setIsSharing(false);
-              setLoadingMessage(null);
-              return;
-            }
-            // fall through to Cloud API send below
-          }
-        }
-
-        // Desktop (and any failed native share): there's no OS-level way to push
-        // an image into WhatsApp Web's compose box from a browser tab, so send
-        // the receipt image + caption directly through Ayesha's Cloud API number
-        // instead — same proven path used for the automatic post-payment send.
+      if (canNativeShareFiles) {
         try {
-          setLoadingMessage('Sending Receipt Image via WhatsApp...');
-          const path = `receipts/${Date.now()}-${(activeReceipt.transactionRef || activeReceipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
-          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png' });
-          if (upErr) throw upErr;
-          const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-          await fetch('/api/wabot-send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to: normalizePhoneForWa(activeReceipt.userPhone), managerId, type: 'image', mediaUrl: pub.publicUrl, caption: shareMessage }),
-          });
-        } catch (cloudErr) {
-          console.error('[ReceiptGenerator] Cloud API image send failed, falling back to text-only link', cloudErr);
-          shareToWhatsApp(activeReceipt.userPhone, shareMessage);
+          await navigator.share({ title: 'Receipt', text: shareMessage, files: [file] });
+          return;
+        } catch (err: any) {
+          if (err?.name === 'AbortError') return; // user cancelled the share sheet — don't auto-fallback
+          // fall through to text-link fallback below
         }
-        setIsSharing(false);
-        setLoadingMessage(null);
-      }, 'image/png', 1.0);
-    } catch (error) {
+      }
+
+      // Desktop (and any failed native share): normally this would push the
+      // image through Ayesha's Cloud API number. TEMP DISABLED while the
+      // WABA number is paused (Meta Business Verification incomplete) — that
+      // call had no timeout, so every attempt sat waiting on a dead endpoint
+      // and made this button look stuck. Go straight to the text-only link
+      // instead; re-enable the Cloud API block once the bot is reactivated.
       shareToWhatsApp(activeReceipt.userPhone, shareMessage);
+    } catch (error) {
+      console.error('[ReceiptGenerator] WhatsApp share failed', error);
+      shareToWhatsApp(activeReceipt.userPhone, shareMessage);
+    } finally {
       setIsSharing(false);
       setLoadingMessage(null);
     }
@@ -1533,9 +1523,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                       <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                       {isDownloading ? 'Downloading...' : 'Download Image'}
                     </button>
-                    <button onClick={handleWhatsAppShare} disabled={isSharing} className="bg-green-600 hover:bg-green-700 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
-                      <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
-                      WhatsApp
+                    <button onClick={handleWhatsAppShare} disabled={isSharing} className="bg-green-600 hover:bg-green-700 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5 disabled:opacity-50">
+                      {isSharing ? (
+                        <svg className="w-5 h-5 sm:w-5 sm:h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      ) : (
+                        <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
+                      )}
+                      {isSharing ? 'Sending...' : 'WhatsApp'}
                     </button>
                     <button onClick={() => window.location.href = `sms:${activeReceipt.userPhone}?body=${encodeURIComponent(shareMessage.replace(/\*/g, ''))}`} className="bg-slate-900 hover:bg-slate-800 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
                       <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
