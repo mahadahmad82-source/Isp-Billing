@@ -249,25 +249,25 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4">Simple Pricing</p>
             <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-4">
-              Apna Plan<br />
+              Choose Your<br />
               <span style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Chunein
+                Plan
               </span>
             </h2>
-            <p className="text-slate-400 text-base max-w-xl mx-auto">Har size ke ISP ke liye flexible pricing. Koi hidden charges nahi.</p>
+            <p className="text-slate-400 text-base max-w-xl mx-auto">Flexible pricing for ISPs of every size. No hidden charges.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start pt-5">
             {[
               {
                 name: 'Starter', price: 'Free', period: '3 months', color: '#6366f1',
-                features: ['Tamam core features', 'Unlimited customers', 'Receipts & Recovery', 'Reports & Aging', 'WhatsApp reminders', 'Cloud sync'],
+                features: ['All core features', 'Unlimited customers', 'Receipts & Recovery', 'Reports & Aging', 'WhatsApp reminders', 'Cloud sync'],
                 cta: 'Start Free', highlight: false,
               },
               {
                 name: 'Business', price: 'Contact', period: 'per month', color: '#8b5cf6',
                 features: ['Unlimited customers', 'Equipment Tracker', 'Leads Pipeline', 'Aging Reports', 'Area Dashboard', 'Team Management', 'Suspension & Outage Log', 'Priority Support'],
-                cta: 'WhatsApp Karo', highlight: true,
+                cta: 'WhatsApp Us', highlight: true,
               },
               {
                 name: 'Enterprise', price: 'Custom', period: '', color: '#06b6d4',
@@ -301,7 +301,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                     </li>
                   ))}
                 </ul>
-                <button onClick={plan.name === 'Starter' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=MYISP ' + plan.name + ' plan ke baare mein baat karni hai', '_blank')}
+                <button onClick={plan.name === 'Starter' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the MYISP ' + plan.name + ' plan', '_blank')}
                   className={"w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 " + (plan.highlight ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/10')}>
                   {plan.cta}
                 </button>
@@ -311,7 +311,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
 
           <motion.p className="text-center text-slate-500 text-xs mt-10 font-medium"
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
-            📞 0304-2773453  |  ✉️ myispnetwork@gmail.com  |  🇵🇰 Pakistan ke ISPs ke liye
+            📞 0304-2773453  |  ✉️ myispnetwork@gmail.com  |  🇵🇰 Built for Pakistani ISPs
           </motion.p>
         </div>
       </section>
@@ -323,18 +323,18 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4">Technical Platform</p>
             <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-white">
-              Banaya Gaya Hai<br />
+              Built for Reliability<br />
               <span style={{
                 background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              }}>100% Aapka Data Safe</span>
+              }}>100% Your Data, Safe</span>
             </h2>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { title: 'Supabase Cloud', desc: 'Aapka data Supabase pe safe hai — real-time sync, automatic backup, kabhi lose nahi hoga.', icon: <Cpu className="w-8 h-8" />, color: '#6366f1' },
-              { title: 'Isolated Accounts', desc: 'Har ISP ka data alag — dusre managers aapka data kabhi nahi dekh sakte. 100% private.', icon: <Server className="w-8 h-8" />, color: '#8b5cf6' },
-              { title: 'Multi-Device Sync', desc: 'Mobile, tablet ya laptop — har jagah se login karo, data same rahega real-time mein.', icon: <Globe className="w-8 h-8" />, color: '#06b6d4' },
+              { title: 'Supabase Cloud', desc: 'Your data is safe on Supabase — real-time sync, automatic backups, never lost.', icon: <Cpu className="w-8 h-8" />, color: '#6366f1' },
+              { title: 'Isolated Accounts', desc: 'Each ISP\'s data is separate — other managers can never see your data. 100% private.', icon: <Server className="w-8 h-8" />, color: '#8b5cf6' },
+              { title: 'Multi-Device Sync', desc: 'Mobile, tablet, or laptop — log in from anywhere, your data stays the same in real time.', icon: <Globe className="w-8 h-8" />, color: '#06b6d4' },
             ].map((spec, i) => (
               <motion.div key={i}
                 className="relative p-10 rounded-3xl border overflow-hidden bg-white/10 backdrop-blur-md border-white/10"
@@ -389,7 +389,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
                 </div>
                 <h2 className="text-2xl font-black text-white uppercase tracking-tight">MYISP Platform Features</h2>
-                <p className="text-indigo-300 text-sm mt-1">Sab kuch jo aapke ISP ko chahiye</p>
+                <p className="text-indigo-300 text-sm mt-1">Everything your ISP needs</p>
               </div>
               <button onClick={() => setShowSpecs(false)} className="text-white/60 hover:text-white text-2xl">✕</button>
             </div>
