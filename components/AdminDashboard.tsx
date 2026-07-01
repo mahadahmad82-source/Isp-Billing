@@ -143,6 +143,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [deleteMsg, setDeleteMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [expandedCustomers, setExpandedCustomers] = useState<Record<string, Customer[]>>({});
   const [searchMgr, setSearchMgr] = useState('');
   const [searchCust, setSearchCust] = useState('');
@@ -298,25 +299,23 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   };
 
   const handleDelete = async (username: string) => {
-    setShowDeleteConfirm(null); setDeleteConfirmText('');
+    setDeleteMsg(null);
     try {
-      // RPC handles: manager_data + manager_subscriptions + auth.users cleanup
-      const { data: rpcResult } = await supabase.rpc('admin_delete_manager', { p_username: username });
-      if (rpcResult && !rpcResult.success) {
-        // RPC failed — fallback: direct deletes
-        await supabase.from('manager_data').delete().eq('manager_id', username);
-        await supabase.from('manager_subscriptions').delete().eq('manager_id', username);
+      // RPC handles: manager_data + manager_subscriptions + auth.users cleanup (SECURITY DEFINER — bypasses RLS by design)
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_delete_manager', { p_username: username });
+      if (rpcError || !rpcResult?.success) {
+        setDeleteMsg({ ok: false, text: rpcError?.message || rpcResult?.error || 'Delete failed — manager still exists. Try again.' });
+        return; // modal stays open, nothing removed from UI — matches server state
       }
-    } catch {
-      // Final fallback
-      await supabase.from('manager_data').delete().eq('manager_id', username);
-      await supabase.from('manager_subscriptions').delete().eq('manager_id', username);
+    } catch (e: any) {
+      setDeleteMsg({ ok: false, text: e?.message || 'Delete failed — manager still exists.' });
+      return;
     }
-    // Clean up local state
+    // Only clean up local state after confirmed server-side success
     removeAccount(username);
     localStorage.removeItem(`myisp_data_${username}`);
-    // Remove from UI immediately
     setManagers(prev => prev.filter(m => m.username !== username));
+    setShowDeleteConfirm(null); setDeleteConfirmText(''); setDeleteMsg(null);
   };
 
   const handleReset = async () => {
@@ -539,7 +538,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                       className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-indigo-500/15 hover:text-indigo-400 transition-all">
                       <Key className="w-4 h-4" />
                     </button>
-                    <button onClick={() => { setShowDeleteConfirm(m.username); setDeleteConfirmText(''); }}
+                    <button onClick={() => { setShowDeleteConfirm(m.username); setDeleteConfirmText(''); setDeleteMsg(null); }}
                       className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1001,7 +1000,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {/* ══════════ DELETE MODAL ══════════ */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setShowDeleteConfirm(null)} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>{setShowDeleteConfirm(null);setDeleteMsg(null);}} />
           <div className="relative z-10 w-full max-w-sm bg-slate-900 rounded-3xl shadow-2xl border border-rose-500/20 p-6 text-center">
             <div className="w-14 h-14 bg-rose-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4"><Trash2 className="w-7 h-7 text-rose-400" /></div>
             <h2 className="text-lg font-black text-white mb-1">Manager Delete Karein?</h2>
@@ -1010,8 +1009,9 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
             <p className="text-[10px] text-slate-600 mb-2 uppercase tracking-widest font-bold">"DELETE" likhein:</p>
             <input type="text" placeholder="DELETE" value={deleteConfirmText} onChange={e=>setDeleteConfirmText(e.target.value.toUpperCase())}
               className="w-full px-4 py-3 rounded-2xl border border-white/10 bg-black/30 text-sm text-center font-black text-white outline-none focus:ring-2 focus:ring-rose-500 mb-5 uppercase tracking-widest" />
+            {deleteMsg && <p className="text-[11px] font-bold flex items-center gap-1 mb-3 justify-center text-rose-400"><XCircle className="w-3.5 h-3.5" />{deleteMsg.text}</p>}
             <div className="flex gap-2">
-              <button onClick={()=>{setShowDeleteConfirm(null);setDeleteConfirmText('');}} className="flex-1 py-3 rounded-2xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
+              <button onClick={()=>{setShowDeleteConfirm(null);setDeleteConfirmText('');setDeleteMsg(null);}} className="flex-1 py-3 rounded-2xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
               <button onClick={()=>deleteConfirmText==='DELETE'&&handleDelete(showDeleteConfirm)} disabled={deleteConfirmText!=='DELETE'}
                 className="flex-1 py-3 rounded-2xl bg-rose-500 text-white text-xs font-black hover:bg-rose-600 disabled:opacity-30 active:scale-95 transition-all">Confirm Delete</button>
             </div>
