@@ -7,7 +7,7 @@
 // for them.
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
 const SUPPORT_NUMBER = '0304-2773453';
 const DISCONNECTED_DAYS_THRESHOLD = 90;
 const REMINDER_GAP_DAYS = 30;
