@@ -282,15 +282,9 @@ const App: React.FC = () => {
     if (userRole !== 'sub-manager' || !activeManager) return;
 
     supabase
-      .from('manager_data')
-      .select('data')
-      .then(({ data: managers, error }) => {
-        if (error || !managers) return; // network issue — don't force logout, let them stay
-        const stillExists = managers.some((m: any) =>
-          ((m.data?.subManagers || []) as any[]).some(
-            (sm: any) => sm.username?.toLowerCase() === activeManager.toLowerCase()
-          )
-        );
+      .rpc('check_sub_manager_exists', { p_username: activeManager })
+      .then(({ data: stillExists, error }) => {
+        if (error || stillExists === null) return; // network issue — don't force logout, let them stay
         if (!stillExists) {
           // Agent was deleted by manager — kill session
           setActiveSession(null);
