@@ -81,7 +81,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     try {
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
-      if (localFound && localFound.role === 'admin') { setActiveSession(localFound.username); onLogin(localFound.username); return; }
+      if (localFound && localFound.role === 'admin') {
+        // Admin actions (delete/reset manager) require a live Supabase Auth
+        // session (auth.uid()) server-side — this shortcut used to skip real
+        // auth entirely, silently breaking those RPCs. Re-authenticate in the
+        // background; don't block the (already-trusted) local login on it.
+        try {
+          const authEmail = localFound.username.includes('@') ? localFound.username : `${localFound.username}@myisp.local`;
+          await supabase.auth.signInWithPassword({ email: authEmail, password });
+        } catch { /* fall through — local session still proceeds */ }
+        setActiveSession(localFound.username); onLogin(localFound.username); return;
+      }
       let identifier = username;
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
       let { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
@@ -116,11 +126,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         }
       }
       if (data.user) {
-        const { data: profileData } = await supabase.from('profiles').select('role, manager_id, name').eq('email', data.user.email).maybeSingle();
+        const { data: profileData } = await supabase.from('profiles').select('role, manager_id, full_name').eq('id', data.user.id).maybeSingle();
         const role = profileData?.role || 'manager';
         const loginUser = username.includes('@') ? username.split('@')[0] : username;
         setActiveSession(loginUser);
-        if (rememberPassword) saveAccount({ username: loginUser, password, businessName: profileData?.name || data.user.user_metadata?.full_name || loginUser, email: data.user.email || '', phone: data.user.user_metadata?.phone || '', role: role as 'admin' | 'manager' | 'sub-manager', managerUsername: profileData?.manager_id || '', createdAt: new Date().toISOString(), rememberPassword: true });
+        if (rememberPassword) saveAccount({ username: loginUser, password, businessName: profileData?.full_name || data.user.user_metadata?.full_name || loginUser, email: data.user.email || '', phone: data.user.user_metadata?.phone || '', role: role as 'admin' | 'manager' | 'sub-manager', managerUsername: profileData?.manager_id || '', createdAt: new Date().toISOString(), rememberPassword: true });
         onLogin(loginUser); return;
       }
       throw new Error('Authentication failed.');
