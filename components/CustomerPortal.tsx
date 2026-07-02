@@ -58,32 +58,19 @@ const CustomerPortal: React.FC = () => {
     if (!username.trim()) return;
     setLoading(true); setError(''); setResult(null); setShowAll(false);
     try {
-      const { data, error: err } = await supabase.from('manager_data').select('data');
+      // Server-side scoped lookup (RPC) — no longer pulls every manager's
+      // full users/receipts table down to the browser to search client-side.
+      const { data, error: err } = await supabase.rpc('find_customer_by_username', {
+        p_username: username.trim(),
+      });
       if (err) throw err;
 
-      const q = username.trim().toLowerCase();
-      for (const row of (data || [])) {
-        const users: any[]    = row.data?.users    || [];
-        const receipts: any[] = row.data?.receipts || [];
+      if (data) {
+        const found = data.user;
+        const biz = data.biz;
 
-        const found = users.find((u: any) =>
-          (u.username || '').toLowerCase() === q && u.status !== 'deleted'
-        );
-        if (!found) continue;
-
-        // company / ISP info
-        const companies: any[] = row.data?.companies || [];
-        const biz = companies.find((c: any) => c.id === found.companyId)?.settings
-          || row.data?.settings
-          || companies[0]?.settings;
-
-        // All receipts for this user, newest first
-        // Filter by userId OR username, AND companyId to avoid cross-company leaks
-        const allUserReceipts = receipts
-          .filter((r: any) =>
-            (r.userId === found.id || r.username === found.username) &&
-            (!r.companyId || !found.companyId || r.companyId === found.companyId)
-          )
+        // Receipts already scoped to this user + company by the RPC
+        const allUserReceipts: any[] = (data.receipts || [])
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         /* ── PRIORITY LOGIC (mirrors RecoverySummary) ──
