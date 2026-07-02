@@ -104,8 +104,15 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
   try {
     const { data, error } = await supabase
       .from('manager_data').select('data').eq('manager_id', managerId).maybeSingle();
-    if (error) { console.error('[Supabase] Load error:', error.message); return null; }
-    return (data?.data as AppState) || null;
+    if (!error && data?.data) return data.data as AppState;
+
+    // Fallback for sessions without a Supabase Auth JWT (e.g. sub-managers) —
+    // RLS blocks the row-level select above for them, so use the scoped RPC instead.
+    const { data: snapshot, error: rpcErr } = await supabase.rpc('get_manager_state_snapshot', {
+      p_manager_id: managerId,
+    });
+    if (rpcErr) { console.error('[Supabase] Load error:', rpcErr.message); return null; }
+    return (snapshot as AppState) || null;
   } catch (err) {
     console.error('[Supabase] Load exception:', err);
     return null;
