@@ -640,6 +640,12 @@ const App: React.FC = () => {
               rememberPassword: false,
             });
           }
+          // profiles.username is required for RLS-scoped manager_data access —
+          // OAuth sign-in never set it (only saved locally), so backfill it here.
+          supabase.from('profiles').update({ username: existing?.username || derivedUsername, full_name: displayName })
+            .eq('id', user.id).is('username', null).then(({ error }) => {
+              if (error) console.error('[OAuth] profiles.username backfill failed:', error);
+            });
           setActiveSession(existing?.username || derivedUsername);
           setActiveManager(existing?.username || derivedUsername);
           lastActivityRef.current = Date.now();
