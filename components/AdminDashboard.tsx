@@ -300,6 +300,14 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
 
   const handleDelete = async (username: string) => {
     setDeleteMsg(null);
+    // admin_delete_manager requires a live Supabase Auth session (auth.uid()) —
+    // catch a stale/expired session here with a clear, actionable message instead
+    // of a confusing "Delete failed — try again" that retrying can't fix.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setDeleteMsg({ ok: false, text: 'Admin session expired. Log out and log back in, then try again.' });
+      return;
+    }
     try {
       // RPC handles: manager_data + manager_subscriptions + auth.users cleanup (SECURITY DEFINER — bypasses RLS by design)
       const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_delete_manager', { p_username: username });
@@ -321,6 +329,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const handleReset = async () => {
     if (!showResetModal || !newPassword.trim() || newPassword.length < 6) return;
     setResetMsg(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setResetMsg({ ok: false, text: 'Admin session expired. Log out and log back in, then try again.' });
+      return;
+    }
     try {
       const { data, error } = await supabase.rpc('admin_reset_manager_password', { p_username: showResetModal, p_new_password: newPassword.trim() });
       if (error || (data && !data.success)) { setResetMsg({ ok: false, text: error?.message || data?.error || 'Failed' }); return; }
