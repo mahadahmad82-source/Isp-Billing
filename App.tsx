@@ -1455,7 +1455,7 @@ const App: React.FC = () => {
           {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
           {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
-          {!tabLoading && activeTab === 'complaints' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'complaints' && userRole !== 'sub-manager' && (
             <ComplaintManager
               tickets={state.complaintTickets || []}
               subManagers={state.subManagers || []}
@@ -1521,7 +1521,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {!tabLoading && activeTab === 'expenses' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'expenses' && userRole !== 'sub-manager' && (
             <BusinessExpenses
               expenses={state.businessExpenses || []}
               receipts={filteredReceipts}
@@ -1539,7 +1539,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {!tabLoading && activeTab === 'analytics' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'analytics' && userRole !== 'sub-manager' && (
             canAccess(subscription, 'analytics') ? (
               <BusinessAnalytics
                 users={filteredUsers}
@@ -1552,7 +1552,7 @@ const App: React.FC = () => {
             )
           )}
 
-          {!tabLoading && activeTab === 'equipment' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'equipment' && userRole !== 'sub-manager' && (
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
               users={filteredUsers}
@@ -1570,7 +1570,7 @@ const App: React.FC = () => {
               })}
             />
           )}
-          {!tabLoading && activeTab === 'leads' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'leads' && userRole !== 'sub-manager' && (
             <LeadsPipeline
               leads={state.leads || []}
               users={filteredUsers}
@@ -1611,7 +1611,7 @@ const App: React.FC = () => {
             />
           )}
 
-          {!tabLoading && activeTab === 'outage' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'outage' && userRole !== 'sub-manager' && (
             <OutageTracker
               outageLogs={state.outageLogs || []}
               currentUser={activeManager || 'admin'}
@@ -1630,7 +1630,7 @@ const App: React.FC = () => {
               })}
             />
           )}
-          {!tabLoading && activeTab === 'area' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'area' && userRole !== 'sub-manager' && (
             canAccess(subscription, 'area') ? (
               <AreaDashboard
                 users={filteredUsers}
@@ -1641,7 +1641,7 @@ const App: React.FC = () => {
               <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard" />
             )
           )}
-          {!tabLoading && activeTab === 'reminders' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'reminders' && userRole !== 'sub-manager' && (
             <BulkReminder
               users={filteredUsers}
               settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
@@ -1649,7 +1649,7 @@ const App: React.FC = () => {
           )}
 
 
-          {!tabLoading && activeTab === 'invoice' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'invoice' && userRole !== 'sub-manager' && (
             <MonthlyInvoice
               users={filteredUsers}
               receipts={filteredReceipts}
@@ -1657,7 +1657,7 @@ const App: React.FC = () => {
               planHistory={state.planHistory || []}
             />
           )}
-          {!tabLoading && activeTab === 'wabot' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'wabot' && userRole !== 'sub-manager' && (
             <WABotInbox
               managerId={activeManager || 'mahadnet'}
               customers={filteredUsers}
@@ -1670,7 +1670,7 @@ const App: React.FC = () => {
               onUpdateBotTemplates={(templates) => handleUpdateSettings({ ...currentSettings, botTemplates: templates })}
             />
           )}
-          {!tabLoading && activeTab === 'team' && userRole === 'manager' && (
+          {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (
             <SubManagerManagement 
               subManagers={state.subManagers || []}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
