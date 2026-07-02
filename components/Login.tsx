@@ -126,9 +126,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         }
       }
       if (data.user) {
+        const loginUser = username.includes('@') ? username.split('@')[0] : username;
+        // Backfill profiles.username if missing (covers pre-existing accounts and
+        // the localStorage→Supabase migration path above) — required for
+        // manager_own_data_full_access RLS to recognize this session as the owner.
+        await supabase.from('profiles').update({ username: loginUser }).eq('id', data.user.id).is('username', null);
         const { data: profileData } = await supabase.from('profiles').select('role, manager_id, full_name').eq('id', data.user.id).maybeSingle();
         const role = profileData?.role || 'manager';
-        const loginUser = username.includes('@') ? username.split('@')[0] : username;
         setActiveSession(loginUser);
         if (rememberPassword) saveAccount({ username: loginUser, password, businessName: profileData?.full_name || data.user.user_metadata?.full_name || loginUser, email: data.user.email || '', phone: data.user.user_metadata?.phone || '', role: role as 'admin' | 'manager' | 'sub-manager', managerUsername: profileData?.manager_id || '', createdAt: new Date().toISOString(), rememberPassword: true });
         onLogin(loginUser); return;
@@ -152,6 +156,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       if (!signUpData.user) throw new Error('Signup failed. Try again.');
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
       if (signInErr) throw new Error('Account created! Please login manually.');
+      // profiles.username is required for RLS-scoped manager_data access but is
+      // never set by the signup trigger — set it now so dual-save works immediately.
+      await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', signUpData.user.id);
       const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
       saveAccount(newAccount); setAccounts(getAccounts());
       writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
