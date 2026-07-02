@@ -95,6 +95,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       let identifier = username;
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
       let { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+      if ((authError || !data?.user) && !identifier.includes('@')) {
+        // This username may be registered with a real recovery email instead
+        // of the synthetic one (set at signup for email-OTP password reset).
+        try {
+          const { data: resolvedEmail } = await supabase.rpc('resolve_login_email', { p_identifier: identifier });
+          if (resolvedEmail && resolvedEmail !== authEmail) {
+            const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password });
+            if (!retry.error && retry.data?.user) { data = retry.data; authError = null; }
+          }
+        } catch { /* fall through to existing fallback chain below */ }
+      }
       if (authError || !data?.user) {
         if (localFound) {
           const fallbackEmail = localFound.email && localFound.email.includes('@') ? localFound.email : `${localFound.username}@myisp.local`;
@@ -147,11 +158,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
     if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
     if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) { showError('This Phone Number is already taken.'); return; }
+    const trimmedEmail = email.trim().toLowerCase();
+    if (trimmedEmail && (!trimmedEmail.includes('@') || trimmedEmail.endsWith('@myisp.local'))) { showError('Please enter a valid email address.'); return; }
     setIsLoading(true); setLoadingText('Initialising New Node...'); setError('');
     try {
-      const authEmail = `${phone}@myisp.local`;
+      // Use the real email (if given) as the actual login/auth email — this is
+      // what makes email-OTP "Forgot Password" work later. Without one, we fall
+      // back to the synthetic phone@myisp.local identifier as before (in which
+      // case password recovery isn't possible via email — only admin reset).
+      const hasRealEmail = !!trimmedEmail;
+      const authEmail = hasRealEmail ? trimmedEmail : `${phone}@myisp.local`;
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({ email: authEmail, password, options: { data: { full_name: businessName || phone, phone } } });
-      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) { showError('This Phone Number is already registered.'); return; }
+      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) { showError(hasRealEmail ? 'This email is already registered.' : 'This Phone Number is already registered.'); return; }
       if (signUpErr) throw new Error(signUpErr.message);
       if (!signUpData.user) throw new Error('Signup failed. Try again.');
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
@@ -169,11 +187,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
   const handleForgotSend = async (e: React.FormEvent) => {
     e.preventDefault(); setError('');
-    if (!forgotIdentifier.includes('@') || forgotIdentifier.endsWith('@myisp.local')) { setShowSupportModal(true); return; }
+    let targetEmail = forgotIdentifier;
+    if (!targetEmail.includes('@')) {
+      // Entered a username instead of an email — resolve their registered email.
+      try {
+        const { data: resolved } = await supabase.rpc('resolve_login_email', { p_identifier: targetEmail });
+        targetEmail = resolved || '';
+      } catch { targetEmail = ''; }
+    }
+    if (!targetEmail || targetEmail.endsWith('@myisp.local')) { setShowSupportModal(true); return; }
     setIsLoading(true); setLoadingText('Sending OTP...');
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotIdentifier);
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail);
       if (error) throw new Error(error.message);
+      setForgotIdentifier(targetEmail); // so the OTP-verify step targets the right email
       setView('forgot-otp');
     } catch (err: any) { showError(err.message === 'Failed to fetch' ? 'Network error. Contact support.' : 'OTP send failed: ' + err.message); }
     finally { setIsLoading(false); }
@@ -234,7 +261,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const getHeading = () => {
     if (view === 'signup') return { title: 'Create Account', sub: 'Register your new ISP node' };
     if (view === 'recent') return { title: 'Welcome Back!', sub: 'Select your profile to continue' };
-    if (view === 'forgot') return { title: 'Reset Password', sub: 'Enter your registered identifier' };
+    if (view === 'forgot') return { title: 'Reset Password', sub: 'Enter your username or recovery email' };
     if (view === 'forgot-otp') return { title: 'Verify OTP', sub: 'Enter the code sent to you' };
     if (view === 'forgot-newpass') return { title: 'New Password', sub: 'Set a strong new password' };
     return { title: 'Welcome Back!', sub: 'Login to continue to your account' };
@@ -345,7 +372,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                 </div>
                 <div>
                   <label className={labelCls}>Email / Phone / Username</label>
-                  <InputField icon={<MailIcon />} placeholder="Enter your identifier" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} />
+                  <InputField icon={<MailIcon />} placeholder="Username or email" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.toLowerCase().trim())} />
                 </div>
                 <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
                   style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
@@ -435,6 +462,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   </div>
                 )}
 
+                {/* Recovery Email (signup only, optional) */}
+                {view === 'signup' && (
+                  <div>
+                    <label className={labelCls}>Email (optional)</label>
+                    <InputField icon={<MailIcon />} type="email" placeholder="For password recovery" value={email} onChange={e => setEmail(e.target.value)} />
+                    <p className="text-[9px] text-slate-500 ml-1 mt-1">Add this so you can reset your password via OTP if you forget it.</p>
+                  </div>
+                )}
+
                 {/* Password */}
                 <div>
                   <label className={labelCls}>Master Password</label>
@@ -510,7 +546,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
               <h4 className="text-xl font-black uppercase tracking-tight text-white">Support Needed</h4>
-              <p className="text-xs font-bold text-slate-400">Password recovery via SMS/Phone is currently unavailable. Please contact our support team to manually reset your account.</p>
+              <p className="text-xs font-bold text-slate-400">No recovery email is on file for this account, so we can't send an OTP. Please contact our support team to manually reset your password.</p>
               <div className="pt-2 flex flex-col gap-3">
                 <a href="https://wa.me/923042773453?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." target="_blank" rel="noopener noreferrer"
                   className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
