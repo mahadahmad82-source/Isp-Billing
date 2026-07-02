@@ -98,18 +98,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         } else {
           setLoadingText('Searching Remote Nodes...');
           try {
-            const { data: managers, error: searchErr } = await supabase.from('manager_data').select('manager_id, data');
-            if (!searchErr && managers) {
-              for (const manager of managers) {
-                const agents = (manager.data as any)?.subManagers || [];
-                const agent = agents.find((sm: any) => (sm.username?.toLowerCase() === username.toLowerCase() || sm.email?.toLowerCase() === username.toLowerCase() || sm.phone === username) && sm.password === password);
-                if (agent) {
-                  const agentUsername = agent.username;
-                  setActiveSession(agentUsername);
-                  saveAccount({ username: agentUsername, password, businessName: agent.name, email: agent.email || '', phone: agent.phone || '', role: 'sub-manager', managerUsername: manager.manager_id, createdAt: new Date().toISOString(), rememberPassword: true });
-                  onLogin(agentUsername); return;
-                }
-              }
+            // Server-side scoped lookup (RPC) — no longer pulls every manager's
+            // full data (including every other agent's plaintext password) to the browser.
+            const { data: match, error: searchErr } = await supabase.rpc('find_sub_manager_login', {
+              p_identifier: username,
+              p_password: password,
+            });
+            if (!searchErr && match?.agent) {
+              const agent = match.agent;
+              const agentUsername = agent.username;
+              setActiveSession(agentUsername);
+              saveAccount({ username: agentUsername, password, businessName: agent.name, email: agent.email || '', phone: agent.phone || '', role: 'sub-manager', managerUsername: match.manager_id, createdAt: new Date().toISOString(), rememberPassword: true });
+              onLogin(agentUsername); return;
             }
           } catch (searchEx) { console.error('[Auth] Agent search failed:', searchEx); }
           throw new Error('Invalid username or password.');
