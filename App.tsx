@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, ReminderRecord } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
@@ -28,7 +28,6 @@ import AreaDashboard from './components/AreaDashboard';
 import EquipmentTracker from './components/EquipmentTracker';
 import LeadsPipeline from './components/LeadsPipeline';
 
-import RemindersTab from './components/RemindersTab';
 import BulkReminder from './components/BulkReminder';
 
 import MonthlyInvoice from './components/MonthlyInvoice';
@@ -73,7 +72,6 @@ const App: React.FC = () => {
       suspensionLogs: loaded.suspensionLogs || [],
       outageLogs: loaded.outageLogs || [],
       planHistory: loaded.planHistory || [],
-      reminders: loaded.reminders || [],
     };
 
     // Initialize first company if none exists
@@ -1101,69 +1099,6 @@ const App: React.FC = () => {
     });
   };
 
-  // ===== REMINDER HANDLERS =====
-  const handleAddReminder = (reminder: Omit<ReminderRecord, 'id' | 'createdAt'>) => {
-    setState(prev => {
-      const newReminder: ReminderRecord = {
-        ...reminder,
-        id: generateId(),
-        createdAt: new Date().toISOString(),
-        companyId: prev.activeCompanyId || ''
-      };
-      const newState = {
-        ...prev,
-        reminders: [newReminder, ...(prev.reminders || [])]
-      };
-      saveState(newState);
-      saveStateToSupabase(activeManager || '', newState);
-      return newState;
-    });
-  };
-
-  const handleEditReminder = (id: string, updates: Partial<ReminderRecord>) => {
-    setState(prev => {
-      const newState = {
-        ...prev,
-        reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, ...updates } : r)
-      };
-      saveState(newState);
-      saveStateToSupabase(activeManager || '', newState);
-      return newState;
-    });
-  };
-
-  const handleDeleteReminder = (id: string) => {
-    setState(prev => {
-      const newState = {
-        ...prev,
-        reminders: (prev.reminders || []).filter(r => r.id !== id)
-      };
-      saveState(newState);
-      saveStateToSupabase(activeManager || '', newState);
-      return newState;
-    });
-  };
-
-  const handleToggleReminder = (id: string) => {
-    setState(prev => {
-      const reminder = (prev.reminders || []).find(r => r.id === id);
-      if (!reminder) return prev;
-      const newReminder: ReminderRecord = {
-        ...reminder,
-        completed: !reminder.completed,
-        completedAt: !reminder.completed ? new Date().toISOString() : undefined
-      };
-      const newState = {
-        ...prev,
-        reminders: (prev.reminders || []).map(r => r.id === id ? newReminder : r)
-      };
-      saveState(newState);
-      saveStateToSupabase(activeManager || '', newState);
-      return newState;
-    });
-  };
-
-
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const handleEditReceiptAmount = (id: string, newAmount: number) => {
@@ -1707,13 +1642,9 @@ const App: React.FC = () => {
             )
           )}
           {!tabLoading && activeTab === 'reminders' && userRole !== 'sub-manager' && (
-            <RemindersTab
-              reminders={state.reminders || []}
-              onAddReminder={handleAddReminder}
-              onEditReminder={handleEditReminder}
-              onDeleteReminder={handleDeleteReminder}
-              onToggleReminder={handleToggleReminder}
+            <BulkReminder
               users={filteredUsers}
+              settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
             />
           )}
 
