@@ -1,15 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { AppSettings, Receipt } from "../types";
-
-// parseTemplate helper for local fallback messaging
-const parseTemplate = (template: string, data: { userName: string, amount: number, expiryDate: string, businessName: string }) => {
-  return template
-    .replace(/{userName}/g, data.userName)
-    .replace(/{amount}/g, data.amount.toLocaleString())
-    .replace(/{expiryDate}/g, data.expiryDate)
-    .replace(/{businessName}/g, data.businessName);
-};
+import { getMessageTemplate, renderTemplate } from "../utils/messageTemplates";
 
 export const generateProfessionalMessage = async (
   userName: string,
@@ -19,19 +11,20 @@ export const generateProfessionalMessage = async (
   settings: AppSettings
 ) => {
   const businessName = settings.businessName || "Ledgerzo";
-  
-  let localTemplate = "";
-  if (type === 'RECEIPT') {
-    localTemplate = settings.receiptTemplate || "{businessName}: Payment received from {userName}. Amount: Rs. {amount}. Valid until: {expiryDate}. Thank you!";
-  } else {
-    localTemplate = settings.reminderTemplate || "{businessName} Reminder: Dear {userName}, your subscription (Rs. {amount}) expires on {expiryDate}. Please renew today.";
-  }
 
-  const parsedMessage = parseTemplate(localTemplate, { userName, amount, expiryDate, businessName });
+  // Template priority: messageTemplates registry (Message Templates tab) > legacy
+  // single-field settings.receiptTemplate/reminderTemplate > built-in default.
+  const templateId = type === 'RECEIPT' ? 'receipt_ai' : 'expiry_reminder';
+  const legacyTemplate = type === 'RECEIPT' ? settings.receiptTemplate : settings.reminderTemplate;
+  const hasCustomTemplate = !!(settings.messageTemplates && settings.messageTemplates[templateId]) || !!legacyTemplate;
+  const localTemplate = (settings.messageTemplates && settings.messageTemplates[templateId]?.text)
+    || legacyTemplate
+    || getMessageTemplate(settings, templateId).text;
 
-  // If user has set a custom template, we prioritize that
-  if (type === 'RECEIPT' && settings.receiptTemplate) return parsedMessage;
-  if (type === 'REMINDER' && settings.reminderTemplate) return parsedMessage;
+  const parsedMessage = renderTemplate(localTemplate, { userName, amount, expiryDate, businessName });
+
+  // If user has set a custom template (new registry or legacy field), we prioritize that
+  if (hasCustomTemplate) return parsedMessage;
 
   // Use process.env.API_KEY directly to check if available
   if (!process.env.API_KEY) {
