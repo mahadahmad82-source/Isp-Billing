@@ -1645,7 +1645,7 @@ const App: React.FC = () => {
           {!tabLoading && activeTab === 'reminders' && userRole !== 'sub-manager' && (
             <BulkReminder
               users={filteredUsers}
-              settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
+              settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone, messageTemplates: currentSettings.messageTemplates }}
             />
           )}
           {!tabLoading && activeTab === 'templates' && userRole !== 'sub-manager' && (
