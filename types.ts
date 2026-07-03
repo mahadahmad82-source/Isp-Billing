@@ -365,6 +365,22 @@ export interface PlanChange {
   reason?: string;
 }
 
+export interface ReminderRecord {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate: string; // ISO format YYYY-MM-DD
+  dueTime?: string; // HH:MM format
+  priority: 'low' | 'medium' | 'high';
+  category?: 'billing' | 'customer' | 'equipment' | 'maintenance' | 'followup' | 'other';
+  completed: boolean;
+  completedAt?: string;
+  createdAt: string;
+  linkedUserId?: string; // link to specific customer if needed
+  linkedUserName?: string; // cache the user name for display
+  companyId?: string; // which company this reminder belongs to
+}
+
 export interface AppState {
   users: UserRecord[];
   receipts: Receipt[];
@@ -385,6 +401,7 @@ export interface AppState {
   suspensionLogs?: SuspensionLog[];
   outageLogs?: OutageLog[];
   planHistory?: PlanChange[];
+  reminders?: ReminderRecord[];
   pendingManagerNotifications?: AppNotification[];
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
