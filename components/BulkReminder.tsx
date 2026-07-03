@@ -1,19 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { UserRecord } from '../types';
+import { UserRecord, MessageTemplate } from '../types';
 import { useIsDark } from '../hooks/useIsDark';
+import { DEFAULT_MESSAGE_TEMPLATES } from '../utils/messageTemplates';
 
 interface Props {
   users: UserRecord[];
-  settings: { businessName?: string; businessPhone?: string; reminderTemplate?: string };
+  settings: { businessName?: string; businessPhone?: string; reminderTemplate?: string; messageTemplates?: Record<string, MessageTemplate> };
 }
 
-const DEFAULT_TEMPLATE = `Assalam o Alaikum {name} bhai,\n\nAap ka internet package {status}. Meherbani karke jald payment karwayein.\n\nBalance: Rs. {amount}\nExpiry: {expiry}\n\n{businessName}\n{phone}`;
+const DEFAULT_TEMPLATE = DEFAULT_MESSAGE_TEMPLATES.bulk_reminder.text;
 
 const BulkReminder: React.FC<Props> = ({ users, settings }) => {
   const isDark = useIsDark();
   const [daysFilter, setDaysFilter] = useState<number>(3);
   const [filterType, setFilterType] = useState<'expiring' | 'expired' | 'both'>('both');
-  const [template, setTemplate] = useState(settings.reminderTemplate || DEFAULT_TEMPLATE);
+  const [template, setTemplate] = useState(settings.messageTemplates?.bulk_reminder?.text || settings.reminderTemplate || DEFAULT_TEMPLATE);
   const [editTemplate, setEditTemplate] = useState(false);
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
