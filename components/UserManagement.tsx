@@ -4,6 +4,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { UserRecord, AppSettings, Receipt, PaymentStatus } from '../types';
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
+import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 
 interface UserManagementProps {
@@ -425,18 +426,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const monthlyNet = user.monthlyFee - (user.persistentDiscount || 0);
     const totalDue = monthlyNet + (user.balance || 0);
     const expiryStr = new Date(user.expiryDate).toLocaleDateString();
-    
-    const msg = `*${settings.businessName} BILLING*\n\n` +
-                `Dear *${user.name}* (@${user.username}),\n` +
-                `This is a reminder regarding your *${user.plan}* subscription.\n\n` +
-                `• Monthly Fee: Rs. ${(monthlyNet || 0).toLocaleString()}\n` +
-                `• Prev. Arrears: Rs. ${(user.balance || 0).toLocaleString()}\n` +
-                `--------------------------\n` +
-                `*TOTAL PAYABLE: Rs. ${(totalDue || 0).toLocaleString()}*\n` +
-                `--------------------------\n` +
-                `Valid Until: ${expiryStr}\n\n` +
-                `Please clear your dues today to ensure uninterrupted service. If already paid, kindly ignore.\n\n` +
-                `Thank you for choosing ${settings.businessName}!`;
+
+    const msg = renderMessageTemplate(settings, 'billing_reminder', {
+      businessName: settings.businessName,
+      name: user.name,
+      username: user.username,
+      plan: user.plan,
+      monthlyFee: monthlyNet || 0,
+      balance: user.balance || 0,
+      totalDue: totalDue || 0,
+      expiryDate: expiryStr
+    });
     
     if (type === 'sms') {
       window.location.href = `sms:${user.phone}?body=${encodeURIComponent(msg.replace(/\*/g, ''))}`;
