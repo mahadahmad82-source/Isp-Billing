@@ -29,6 +29,7 @@ import EquipmentTracker from './components/EquipmentTracker';
 import LeadsPipeline from './components/LeadsPipeline';
 
 import BulkReminder from './components/BulkReminder';
+import MessageTemplatesTab from './components/MessageTemplatesTab';
 
 import MonthlyInvoice from './components/MonthlyInvoice';
 import WABotInbox from './components/WABotInbox';
@@ -100,7 +101,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showTour, setShowTour] = useState(false);
@@ -113,7 +114,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -1645,6 +1646,12 @@ const App: React.FC = () => {
             <BulkReminder
               users={filteredUsers}
               settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone }}
+            />
+          )}
+          {!tabLoading && activeTab === 'templates' && userRole !== 'sub-manager' && (
+            <MessageTemplatesTab
+              messageTemplates={currentSettings.messageTemplates}
+              onUpdateMessageTemplates={(templates) => handleUpdateSettings({ ...currentSettings, messageTemplates: templates })}
             />
           )}
 
