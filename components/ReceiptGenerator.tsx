@@ -5,6 +5,7 @@ import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, Receipt
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
 import { shareToWhatsApp } from '../utils/whatsapp';
+import { renderMessageTemplate } from '../utils/messageTemplates';
 import { supabase } from '../lib/supabase';
 
 interface ReceiptGeneratorProps {
@@ -538,7 +539,16 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   useEffect(() => {
     if (activeReceipt) {
       const balance = activeReceipt.balanceAmount || 0;
-      const textMessage = `*${settings.businessName} RECEIPT*\n--------------------------\n*Ref:* ${activeReceipt.transactionRef}\n*Date:* ${new Date(activeReceipt.date).toLocaleDateString()}\n*Customer:* ${activeReceipt.userName}\n*Method:* ${activeReceipt.paymentMethod}\n*Period:* ${activeReceipt.period}\n\n*Amount Paid:* Rs. ${(activeReceipt.paidAmount || 0).toLocaleString()}\n*Remaining Balance Amount:* Rs. ${balance.toLocaleString()}\n--------------------------\nThank you for your payment!`;
+      const textMessage = renderMessageTemplate(settings, 'receipt_share', {
+        businessName: settings.businessName,
+        transactionRef: activeReceipt.transactionRef,
+        date: new Date(activeReceipt.date).toLocaleDateString(),
+        name: activeReceipt.userName,
+        method: activeReceipt.paymentMethod,
+        period: activeReceipt.period,
+        paidAmount: activeReceipt.paidAmount || 0,
+        balance: balance
+      });
       setShareMessage(textMessage);
       setSmsTemplate(textMessage.replace(/\*/g, ''));
     }
