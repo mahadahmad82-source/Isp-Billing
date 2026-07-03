@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useDeferredValue } from 'react';
 import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign, SubManagerAccount } from '../types';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
+import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import ReceiptGenerator from './ReceiptGenerator';
@@ -267,7 +268,12 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   }, [detailedList]);
 
   const handleSendReminder = async (item: any, type: 'sms' | 'wa') => {
-    const msg = `${settings.businessName} Recovery: Dear ${item.name}, your payment for ${selectedMonth} (Dues: Rs. ${(item.balance || 0).toLocaleString()}) is pending. Please clear it today. Thank you!`;
+    const msg = renderMessageTemplate(settings, 'recovery_reminder', {
+      businessName: settings.businessName,
+      name: item.name,
+      period: selectedMonth,
+      balance: item.balance || 0
+    });
     if (type === 'sms') {
       window.location.href = `sms:${item.phone}?body=${encodeURIComponent(msg)}`;
     } else {
@@ -1247,7 +1253,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                <button 
                  onClick={async () => {
                    const nextDue = (viewingReceipt.balanceAmount || 0) + (viewingReceipt.monthlyFee - (viewingReceipt.discount || 0));
-                   const msg = `*${settings.businessName} RECEIPT*\n--------------------------\n*Ref:* ${viewingReceipt.transactionRef}\n*Date:* ${new Date(viewingReceipt.date).toLocaleDateString()}\n*Customer:* ${viewingReceipt.userName}\n*Period:* ${viewingReceipt.period}\n*Amount Paid:* Rs. ${(viewingReceipt.paidAmount || 0).toLocaleString()}\n*Next Due:* Rs. ${nextDue.toLocaleString()}\n--------------------------\nThank you!`;
+                   const msg = renderMessageTemplate(settings, 'receipt_share_recovery', {
+                     businessName: settings.businessName,
+                     transactionRef: viewingReceipt.transactionRef,
+                     date: new Date(viewingReceipt.date).toLocaleDateString(),
+                     name: viewingReceipt.userName,
+                     period: viewingReceipt.period,
+                     paidAmount: viewingReceipt.paidAmount || 0,
+                     nextDue: nextDue
+                   });
                    const result = await sendWhatsAppDirect(viewingReceipt.userPhone, msg);
                    if (!result.success) shareToWhatsApp(viewingReceipt.userPhone, msg);
                  }}
