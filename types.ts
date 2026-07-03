@@ -77,6 +77,13 @@ export interface AppSettings {
   ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
   routerCatalog?: RouterCatalog; // Admin-editable WhatsApp bot router catalog (models/specs/prices/images)
   botTemplates?: Record<string, BotTemplate>; // Admin-editable WhatsApp bot reply templates (wording of every canned reply)
+  messageTemplates?: Record<string, MessageTemplate>; // Admin-editable manual-send templates (Customer Directory, Recovery Ledger, Receipt Share, Expiry Reminder, Bulk Reminder)
+}
+
+export interface MessageTemplate {
+  category: string; // 'reminder' | 'recovery' | 'receipt' | 'expiry' | 'bulk' | 'other'
+  label: string;
+  text: string; // may contain {placeholder} tokens substituted at send time
 }
 
 export interface BotTemplate {
