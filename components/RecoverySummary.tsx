@@ -1,0 +1,1608 @@
+
+import React, { useState, useMemo, useRef, useEffect, useDeferredValue } from 'react';
+import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign, SubManagerAccount } from '../types';
+import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
+import { renderMessageTemplate } from '../utils/messageTemplates';
+import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import ReceiptGenerator from './ReceiptGenerator';
+
+interface RecoverySummaryProps {
+  users: UserRecord[];
+  receipts: Receipt[];
+  settings: AppSettings;
+  onImportReceipts: (receipts: Receipt[]) => void;
+  onBulkAddUsers: (users: UserRecord[]) => void;
+  onBulkUpdateUsers: (users: UserRecord[]) => void;
+  onDeletePeriod: (period: string) => void;
+  onRenamePeriod: (oldPeriod: string, newPeriod: string) => void;
+  onNavigateToReceipts?: (userId: string, month: string) => void;
+  onUpdateUser?: (user: UserRecord) => void;
+  onAddReceipt?: (receipt: Receipt) => void;
+  onUpdateReceipt?: (receipt: Receipt) => void;
+  onDeleteReceipt?: (id: string) => void;
+  setLoadingMessage?: (msg: string | null) => void;
+  subManagers?: SubManagerAccount[];
+  managerId?: string;
+  defaultCollectedBy?: string;
+}
+
+interface SummaryItem {
+  period: string;
+  totalPaid: number;
+  totalAdvance: number;
+  totalBalance: number;
+  paidCount: number;
+  activatedCount: number;
+}
+
+import { logoBase64 } from '../utils/logoBase64';
+
+const RecoverySummary: React.FC<RecoverySummaryProps> = ({ 
+  users, 
+  receipts, 
+  settings, 
+  onImportReceipts, 
+  onBulkAddUsers,
+  onBulkUpdateUsers, 
+  onDeletePeriod, 
+  onRenamePeriod,
+  onUpdateUser,
+  onAddReceipt,
+  onUpdateReceipt,
+  onDeleteReceipt,
+  setLoadingMessage,
+  subManagers = [],
+  managerId,
+  defaultCollectedBy
+}) => {
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [detailSearchTerm, setDetailSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [editingPeriod, setEditingPeriod] = useState<string | null>(null);
+  const [newPeriodName, setNewPeriodName] = useState('');
+  const [isImportingLegacy, setIsImportingLegacy] = useState(false);
+  const [legacyMonth, setLegacyMonth] = useState(new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()));
+  const [legacyYear, setLegacyYear] = useState(new Date().getFullYear().toString());
+  const [viewingReceipt, setViewingReceipt] = useState<Receipt | null>(null);
+  const [quickReceiptUser, setQuickReceiptUser] = useState<{ userId: string; month: string; ts: number } | null>(null);
+  const [quickReceiptPreSelectConsumed, setQuickReceiptPreSelectConsumed] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addUserSearch, setAddUserSearch] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSendingRecoveryWA, setIsSendingRecoveryWA] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+  const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
+  // Ayesha bot — Phase 2: Credit/Advance Recovery tracking
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoverySearch, setRecoverySearch] = useState('');
+  const [recoveryForm, setRecoveryForm] = useState<{ userId: string; amount: number; date: string }>({
+    userId: '', amount: 0, date: new Date().toISOString().slice(0, 10)
+  });
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Recovery Ledger — column visibility (hide/unhide), persisted per device
+  type LedgerColumnKey = 'serialNo' | 'username' | 'name' | 'status' | 'paidAmount' | 'advanceAmount' | 'balance' | 'expiryDate' | 'actions' | 'date' | 'ref';
+  const LEDGER_COLUMN_LABELS: Record<LedgerColumnKey, string> = {
+    serialNo: 'Sr.#', username: 'Sub ID', name: 'Subscriber', status: 'Status',
+    paidAmount: 'Paid Amount', advanceAmount: 'Advance Amount', balance: 'Balance Amount',
+    expiryDate: 'Expiry Date', actions: 'Actions', date: 'Payment Date', ref: 'Reference'
+  };
+  const DEFAULT_LEDGER_COLUMNS: Record<LedgerColumnKey, boolean> = {
+    serialNo: true, username: true, name: true, status: true, paidAmount: true,
+    advanceAmount: true, balance: true, expiryDate: true, actions: true, date: true, ref: true
+  };
+  const [visibleColumns, setVisibleColumns] = useState<Record<LedgerColumnKey, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('recoveryLedgerColumns');
+      if (saved) return { ...DEFAULT_LEDGER_COLUMNS, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_LEDGER_COLUMNS;
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const toggleLedgerColumn = (key: LedgerColumnKey) => {
+    setVisibleColumns(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('recoveryLedgerColumns', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const resetLedgerColumns = () => {
+    setVisibleColumns(DEFAULT_LEDGER_COLUMNS);
+    try { localStorage.setItem('recoveryLedgerColumns', JSON.stringify(DEFAULT_LEDGER_COLUMNS)); } catch {}
+  };
+
+  // Auto-open specific month when returning from invoice view
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { month } = (e as CustomEvent).detail;
+      if (month) setSelectedMonth(month);
+    };
+    window.addEventListener('myisp-open-recovery-month', handler);
+    return () => window.removeEventListener('myisp-open-recovery-month', handler);
+  }, []);
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - 5 + i).toString());
+
+  const handleRenameClick = (e: React.MouseEvent, currentPeriod: string) => {
+    e.stopPropagation();
+    setEditingPeriod(currentPeriod);
+    setNewPeriodName(currentPeriod);
+  };
+
+  const confirmRename = () => {
+    if (editingPeriod && newPeriodName && newPeriodName.trim() !== "" && newPeriodName !== editingPeriod) {
+      onRenamePeriod(editingPeriod, newPeriodName.trim());
+      setEditingPeriod(null);
+      setNewPeriodName('');
+    } else {
+      setEditingPeriod(null);
+    }
+  };
+
+  // The big ledger table below is expensive to recompute (sorting/grouping hundreds of
+  // records). When the quick-receipt modal is open and generating/sharing a receipt,
+  // this table is hidden behind it anyway but still recomputes on every users/receipts
+  // change, competing with the modal for CPU and slowing down time-sensitive work like
+  // navigator.share's image attachment. Deferring it lets React deprioritize the table
+  // recompute so the modal stays snappy; the table just catches up a tick later.
+  const deferredUsers = useDeferredValue(users);
+  const deferredReceipts = useDeferredValue(receipts);
+
+  // Group receipts by month for the main list and ALWAYS include the current month
+  // Ayesha bot — Phase 2: customers currently flagged for credit/advance recovery
+  const pendingRecoveries = useMemo(
+    () => deferredUsers.filter(u => u && u.status !== 'deleted' && u.creditRecharge),
+    [deferredUsers]
+  );
+
+  const monthlyData = useMemo(() => {
+    const summaries: Record<string, SummaryItem> = {};
+    
+    // Auto-generate current month entry so ledger is always "Updated"
+    const now = new Date();
+    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(now);
+    summaries[currentPeriod] = { period: currentPeriod, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
+
+    // Count activated users for each month
+    (deferredUsers || []).forEach(u => {
+      (u.activatedMonths || []).forEach(m => {
+        if (!summaries[m]) {
+          summaries[m] = { period: m, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
+        }
+        summaries[m].activatedCount += 1;
+      });
+    });
+
+    (deferredReceipts || []).forEach(r => {
+      const period = r.period;
+      if (!summaries[period]) {
+        summaries[period] = { period, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
+      }
+      summaries[period].totalPaid += (r.paidAmount || 0);
+      summaries[period].totalAdvance += (r.advanceAmount || 0);
+      summaries[period].totalBalance += (r.balanceAmount || 0);
+      summaries[period].paidCount += 1;
+    });
+    
+    return Object.values(summaries).sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime());
+  }, [deferredReceipts, deferredUsers]);
+
+  const detailedList = useMemo(() => {
+    if (!selectedMonth) return [];
+    
+    const filteredReceipts = (deferredReceipts || []).filter(r => r.period === selectedMonth);
+
+    // Only show users who are either activated for this month OR have a receipt for this month
+    // NOTE: also match by username to handle re-created users with new IDs
+    let list = (deferredUsers || []).filter(u => 
+      (u.activatedMonths || []).includes(selectedMonth) || 
+      filteredReceipts.some(r => r.userId === u.id || r.username === u.username)
+    ).map(u => {
+      const userReceipts = filteredReceipts.filter(r => r.userId === u.id || r.username === u.username);
+      const hasPaid = userReceipts.length > 0;
+      
+      const paidSum = userReceipts.reduce((sum, r) => sum + (r.paidAmount - (r.advanceAmount || 0)), 0);
+      const advanceSum = userReceipts.reduce((sum, r) => sum + (r.advanceAmount || 0), 0);
+      
+      // FIXED: Read balance exactly from Excel import — no phantom arrears
+      // If user has receipts, use the receipt's explicit balanceAmount
+      // If no receipts but has balance on user record, show that balance
+      // If no receipts and no balance → 0 (not paid but no arrears)
+      const lastReceipt = userReceipts[userReceipts.length - 1];
+      const balanceSum = hasPaid
+        ? (lastReceipt?.balanceAmount ?? 0)
+        : (u.balance ?? 0);
+
+      return {
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        phone: u.phone,
+        plan: u.plan,
+        hasPaid,
+        paidAmount: paidSum,
+        advanceAmount: advanceSum,
+        balance: balanceSum,
+        expiryDate: u.expiryDate,
+        ref: hasPaid ? userReceipts.map(r => r.transactionRef).join(', ') : '-',
+        date: hasPaid ? new Date(userReceipts[0].date).toLocaleDateString() : '-',
+        dateRaw: hasPaid ? new Date(userReceipts[0].date).getTime() : 0,
+        statusSort: hasPaid ? 0 : 1, // 0=Paid first, 1=Pending
+      };
+    }).filter(item => 
+      !detailSearchTerm || 
+      item.name.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+      item.username.toLowerCase().includes(detailSearchTerm.toLowerCase())
+    );
+
+    // Add serial numbers BEFORE sorting
+    list = list.map((item, idx) => ({ ...item, serialNo: idx + 1 }));
+
+    if (sortConfig !== null) {
+      list.sort((a: any, b: any) => {
+        const dir = sortConfig.direction === 'asc' ? 1 : -1;
+
+        switch(sortConfig.key) {
+          case 'serialNo':
+            return (a.serialNo - b.serialNo) * dir;
+
+          case 'username':
+          case 'name':
+            return (a[sortConfig.key] || '').toLowerCase().localeCompare(
+              (b[sortConfig.key] || '').toLowerCase()
+            ) * dir;
+
+          case 'hasPaid': // Status sort: Paid first or Pending first
+            return (a.statusSort - b.statusSort) * dir;
+
+          case 'date': // Date sort: use raw timestamp
+            return (a.dateRaw - b.dateRaw) * dir;
+
+          case 'paidAmount':
+          case 'advanceAmount':
+          case 'balance':
+            return ((a[sortConfig.key] || 0) - (b[sortConfig.key] || 0)) * dir;
+
+          default:
+            if (a[sortConfig.key] < b[sortConfig.key]) return -1 * dir;
+            if (a[sortConfig.key] > b[sortConfig.key]) return 1 * dir;
+            return 0;
+        }
+      });
+    }
+
+    return list;
+  }, [selectedMonth, deferredReceipts, deferredUsers, detailSearchTerm, sortConfig]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+
+
+  const stats = useMemo(() => {
+    return detailedList.reduce((acc, curr) => ({
+      paid: acc.paid + curr.paidAmount + curr.advanceAmount,
+      advance: acc.advance + curr.advanceAmount,
+      balance: acc.balance + curr.balance,
+      count: acc.count + (curr.hasPaid ? 1 : 0)
+    }), { paid: 0, advance: 0, balance: 0, count: 0 });
+  }, [detailedList]);
+
+  const handleSendReminder = async (item: any, type: 'sms' | 'wa') => {
+    const msg = renderMessageTemplate(settings, 'recovery_reminder', {
+      businessName: settings.businessName,
+      name: item.name,
+      period: selectedMonth,
+      balance: item.balance || 0
+    });
+    if (type === 'sms') {
+      window.location.href = `sms:${item.phone}?body=${encodeURIComponent(msg)}`;
+    } else {
+      const result = await sendWhatsAppDirect(item.phone, msg);
+      if (!result.success) {
+        console.error('[RecoverySummary] direct send failed, falling back to wa.me', result.error);
+        shareToWhatsApp(item.phone, msg);
+      }
+    }
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (json.length === 0) {
+          alert('The uploaded file appears to be empty or has no recognizable data.');
+          return;
+        }
+
+        const newReceipts: Receipt[] = [];
+        const updatedUsersMap = new Map<string, UserRecord>();
+        const newUsersToAdd: UserRecord[] = [];
+        let matchedCount = 0;
+        let createdCount = 0;
+
+        json.forEach((row, index) => {
+          const findVal = (possibleKeys: string[]) => {
+            const normalizedPossible = possibleKeys.map(pk => pk.toLowerCase().trim().replace(/[^a-z0-9]/g, ''));
+            const key = Object.keys(row).find(k => {
+              const normalizedHeader = k.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+              return normalizedPossible.includes(normalizedHeader);
+            });
+            return key ? row[key] : null;
+          };
+
+          const username = findVal(['username', 'user', 'accountid', 'userid', 'id', 'subscriber', 'consumerid']);
+          let period = findVal(['month', 'period', 'billingmonth', 'billmonth']);
+          const paidAmount = Number(findVal(['paidamount', 'paid', 'amount', 'received', 'recieved', 'payment'])) || 0;
+          const balanceAmount = Number(findVal(['balanceamount', 'balance', 'due', 'arrears', 'pending'])) || 0;
+          const advanceAmount = Number(findVal(['advanceamount', 'advance', 'overpaid'])) || 0;
+          const dateVal = findVal(['paymentdate', 'payment date', 'lastdate', 'date', 'paidon', 'timestamp']);
+          const refVal = findVal(['refs', 'ref', 'reference', 'transactionid', 'tid', 'receiptno']);
+          const name = findVal(['name', 'fullname', 'customername', 'displayname']) || 'Unknown';
+          const plan = findVal(['plan', 'package', 'subscription']) || 'Standard';
+          const monthlyFee = Number(findVal(['monthlyfee', 'fee', 'rate', 'price'])) || paidAmount + balanceAmount;
+
+          if (!username && !name) return;
+
+          let periodStr = '';
+          if (isImportingLegacy) {
+            periodStr = `${legacyMonth} ${legacyYear}`;
+          } else if (period) {
+            if (typeof period === 'number') {
+              const excelDate = new Date((period - (25567 + 1)) * 86400 * 1000);
+              periodStr = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(excelDate);
+            } else if (period instanceof Date) {
+              periodStr = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(period);
+            } else {
+              periodStr = String(period).trim();
+            }
+          } else {
+            periodStr = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+          }
+
+          const cleanUsername = String(username || name).trim().toLowerCase();
+          let user = users.find(u => u.username.toLowerCase().trim() === cleanUsername);
+
+          let receiptDate = new Date();
+          if (dateVal) {
+            if (typeof dateVal === 'number') {
+              receiptDate = new Date((dateVal - (25567 + 1)) * 86400 * 1000);
+            } else if (dateVal instanceof Date) {
+              receiptDate = dateVal;
+            } else {
+              const parsed = new Date(dateVal);
+              if (!isNaN(parsed.getTime())) receiptDate = parsed;
+            }
+          }
+
+          if (!user) {
+            // Create new user for legacy data
+            user = {
+              id: `user-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+              username: String(username || cleanUsername),
+              name: String(name),
+              phone: String(findVal(['phone', 'mobile']) || ''),
+              address: String(findVal(['address', 'location']) || ''),
+              plan: String(plan || 'Standard'),
+              monthlyFee: monthlyFee,
+              balance: balanceAmount,
+              lastPaymentDate: receiptDate.toISOString(),
+              expiryDate: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              status: 'active',
+              activatedMonths: [periodStr]
+            };
+            newUsersToAdd.push(user);
+            createdCount++;
+          } else {
+            matchedCount++;
+            let currentUser = updatedUsersMap.get(user.id) || user;
+            const currentMonths = new Set(currentUser.activatedMonths || []);
+            currentMonths.add(periodStr);
+            
+            // Update plan if provided
+            const updatedPlan = plan ? String(plan) : currentUser.plan;
+            
+            currentUser = { 
+              ...currentUser, 
+              activatedMonths: Array.from(currentMonths),
+              plan: updatedPlan,
+              lastPaymentDate: receiptDate.toISOString()
+            };
+            updatedUsersMap.set(user.id, currentUser);
+          }
+
+          // FIXED: Only generate receipt if actual payment was made (paidAmount > 0)
+          // If user only has a balance (Not Paid), keep them in Pending state — no receipt
+          if (paidAmount > 0) {
+            const receipt: Receipt = {
+              id: `import-${Date.now()}-${index}`,
+              userId: user.id,
+              username: user.username,
+              userName: user.name,
+              userPhone: user.phone,
+              totalAmount: paidAmount + balanceAmount,
+              paidAmount: paidAmount,
+              balanceAmount: balanceAmount,
+              advanceAmount: advanceAmount,
+              date: receiptDate.toISOString(),
+              period: periodStr,
+              paymentMethod: PaymentMethod.CASH,
+              status: PaymentStatus.SUCCESS,
+              transactionRef: refVal ? String(refVal) : `IMP-${Date.now()}-${index}`
+            };
+            newReceipts.push(receipt);
+          } else if (balanceAmount > 0) {
+            // User has explicit pending balance from Excel — set exactly, don't add to existing
+            const existingUser = updatedUsersMap.get(user.id) || user;
+            updatedUsersMap.set(user.id, {
+              ...existingUser,
+              balance: balanceAmount, // SET exactly as in Excel, not cumulative
+              status: existingUser.status || 'active'
+            });
+          } else {
+            // Zero balance in Excel — clear any phantom arrears
+            const existingUser = updatedUsersMap.get(user.id) || user;
+            updatedUsersMap.set(user.id, {
+              ...existingUser,
+              balance: 0, // Explicitly zero — no phantom arrears
+            });
+          }
+        });
+
+        if (newUsersToAdd.length > 0) onBulkAddUsers(newUsersToAdd);
+        if (updatedUsersMap.size > 0) onBulkUpdateUsers(Array.from(updatedUsersMap.values()));
+        if (newReceipts.length > 0) onImportReceipts(newReceipts);
+
+        alert(`Import Successful!\n- Ledger Created for: ${isImportingLegacy ? `${legacyMonth} ${legacyYear}` : 'Multiple Periods'}\n- New Users Added: ${createdCount}\n- Existing Users Updated: ${matchedCount}\n- Receipts Generated: ${newReceipts.length}`);
+        setIsImportingLegacy(false);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to import file. Please check format.');
+      } finally {
+        if (importInputRef.current) importInputRef.current.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const downloadTemplate = () => {
+    // Generate template based on existing users to make it easier for the user
+    const template = users.map(u => ({
+      'Username': u.username,
+      'Name': u.name,
+      'Plan': u.plan,
+      'Current Expiry Date': u.expiryDate ? new Date(u.expiryDate).toLocaleDateString() : '-',
+      'Month': new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+      'Paid Amount': 0,
+      'Payment Date': '', // User to fill
+      'Balance Amount': u.balance || 0,
+      'Advance Amount': 0,
+      'New Expiry Date': '', // Optional: User can fill to update expiry
+      'Status': 'PENDING',
+      'Refs': '-'
+    }));
+
+    if (template.length === 0) {
+      // Fallback if no users exist
+      template.push({
+        'Username': 'john_doe',
+        'Name': 'John Doe',
+        'Plan': 'Alpha (15MB)',
+        'Current Expiry Date': '2024-01-15',
+        'Month': 'January 2024',
+        'Paid Amount': 1500,
+        'Payment Date': '2024-01-15',
+        'Balance Amount': 0,
+        'Advance Amount': 0,
+        'New Expiry Date': '2024-02-15',
+        'Status': 'PAID',
+        'Refs': 'CASH-123'
+      });
+    }
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Recovery Template");
+    XLSX.writeFile(wb, "Recovery_Import_Template.xlsx");
+  };
+
+  const exportToExcel = () => {
+    if (!selectedMonth) return;
+    const worksheet = XLSX.utils.json_to_sheet(detailedList.map(item => ({
+      'Month': selectedMonth,
+      'Username': item.username,
+      'Full Name': item.name,
+      'Expiry Date': item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '-',
+      'Status': item.hasPaid ? 'PAID' : 'PENDING',
+      'Paid Amount': item.paidAmount,
+      'Advance Amount': item.advanceAmount,
+      'Balance Amount': item.balance,
+      'Payment Date': item.date,
+      'Refs': item.ref
+    })));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Monthly_Ledger");
+    XLSX.writeFile(workbook, `Ledger_${selectedMonth.replace(' ', '_')}.xlsx`);
+  };
+
+  const closeSheet = () => {
+    setSelectedMonth(null);
+    setDetailSearchTerm('');
+  };
+
+  const handleDownloadReceipt = async (receipt: Receipt) => {
+    setIsDownloading(true);
+    await new Promise(r => setTimeout(r, 500));
+    
+    const element = document.getElementById('receipt-view-area');
+    if (!element) {
+      setIsDownloading(false);
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(element, { 
+        scale: 3, 
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: element.scrollWidth,
+        width: element.scrollWidth,
+      });
+      
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${settings.businessName}_Receipt_${receipt.transactionRef}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download Error:', error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const renderReceiptPreview = () => {
+    if (!viewingReceipt) return null;
+    
+    const currentSelectedUser = users.find(u => u.id === viewingReceipt.userId);
+    const storedMonthlyFee = viewingReceipt.monthlyFee || (currentSelectedUser ? (settings.planPrices[currentSelectedUser.plan] || 0) : 0);
+    // FIXED: Use only explicitly stored arrears — no phantom auto-calculation
+    // Arrears = only what was in the imported Excel (balanceAmount field)
+    const arrears = 0; // No auto-calculated arrears — only show if explicitly in receipt
+    const nextMonthDue = (viewingReceipt.balanceAmount || 0) + (storedMonthlyFee - (viewingReceipt.discount || 0));
+
+    const AdsSection = ({ design }: { design: ReceiptDesign }) => {
+      const hasImage = !!settings.billAdsImage;
+      const hasText = !!settings.billAds;
+      if (!hasImage && !hasText) return null;
+
+      if (design === ReceiptDesign.THERMAL) {
+        return (
+          <div className="w-full text-center border-t border-dashed border-slate-300 pt-3 mt-3">
+             {hasImage && <img src={settings.billAdsImage} className="max-w-full h-auto mx-auto mb-2 opacity-90 grayscale" alt="Ad" />}
+             {hasText && <p className="text-[10px] font-bold leading-tight px-2">{settings.billAds}</p>}
+          </div>
+        );
+      }
+
+      return (
+        <div className="mt-8 pt-8 border-t-4 border-dashed border-slate-100">
+          <div className="bg-indigo-50/40 p-6 rounded-[2rem] border-2 border-indigo-100/50 flex flex-col items-center text-center gap-4">
+             {hasImage && (
+               <div className="w-full max-h-[160px] overflow-hidden rounded-2xl shadow-sm border border-white">
+                  <img src={settings.billAdsImage} className="w-full h-full object-contain" alt="Promotional Banner" />
+               </div>
+             )}
+             {hasText && (
+               <div>
+                 <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-[0.2em] mb-1">Exclusive Subscriber Offer</p>
+                 <p className="text-xs font-bold text-slate-700 leading-relaxed italic">"{settings.billAds}"</p>
+               </div>
+             )}
+          </div>
+        </div>
+      );
+    };
+
+    switch (settings.receiptDesign) {
+      case ReceiptDesign.UTILITY:
+        return (
+          <div className="bg-white p-4 md:p-10 text-black font-sans border-[4px] md:border-[6px] border-slate-900 w-full relative overflow-hidden shadow-2xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start border-b-[4px] border-slate-900 pb-6 mb-6 gap-6 sm:gap-0">
+              <div className="flex-1 w-full">
+                <div className="flex items-center gap-4 mb-4">
+                   <div className="h-[40px] md:h-[50px] w-auto bg-white border-2 border-slate-900 rounded-xl flex items-center justify-center overflow-hidden p-1">
+                     {settings.businessLogo ? (
+                       <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                     ) : (
+                       logoBase64 ? <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" /> : null
+                     )}
+                   </div>
+                   <div>
+                     <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none break-all">{settings.businessName}</h1>
+                     <p className="text-[8px] md:text-[10px] font-black uppercase text-indigo-600 tracking-[0.2em] md:tracking-[0.3em] mt-1">Digital Utility Infrastructure</p>
+                   </div>
+                </div>
+                <div className="mt-4 md:mt-6 flex flex-col sm:grid sm:grid-cols-2 gap-2 text-[10px] md:text-[11px] font-bold text-slate-700">
+                  <p>📞 {settings.businessPhone}</p>
+                  <p>✉️ {settings.businessEmail}</p>
+                </div>
+              </div>
+              <div className="sm:text-right w-full sm:w-auto">
+                <div className="bg-slate-50 p-4 rounded-[1.5rem] border-[3px] border-slate-900">
+                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Instrument Serial</p>
+                   <p className="text-lg md:text-xl font-black tracking-tighter break-all">{viewingReceipt.transactionRef}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:grid sm:grid-cols-6 gap-0 border-[3px] border-slate-900 mb-6 rounded-[1.5rem] overflow-hidden">
+               <div className="p-4 md:p-6 border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-slate-900 bg-slate-50 sm:col-span-2">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Account Holder</p>
+                  <p className="text-lg md:text-xl font-black uppercase leading-tight break-words">{viewingReceipt.userName}</p>
+                  <p className="text-[10px] font-black text-indigo-700 mt-1 break-words">@{viewingReceipt.username}</p>
+               </div>
+               <div className="p-4 md:p-6 sm:col-span-4">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Installation Address</p>
+                  <p className="text-xs md:text-sm font-bold uppercase text-slate-800 break-words">{viewingReceipt.userAddress || 'ADDRESS RECORD NOT PROVIDED'}</p>
+               </div>
+            </div>
+            <div className="overflow-x-auto w-full mb-6 relative rounded-[1.5rem] border-[3px] border-slate-900">
+              <table className="w-full text-left border-collapse min-w-[300px]">
+                <thead className="bg-slate-900 text-white text-[10px] md:text-[11px] uppercase font-black tracking-[0.1em]">
+                  <tr><th className="p-3 md:p-4">Billing Component</th><th className="p-3 md:p-4 text-right">Amount</th></tr>
+                </thead>
+                <tbody className="text-[11px] md:text-[13px] font-black">
+                  <tr className="border-b-[2px] border-slate-900">
+                    <td className="p-3 md:p-4 uppercase">Monthly Subscription ({viewingReceipt.period})</td>
+                    <td className="p-3 md:p-4 text-right">{(storedMonthlyFee || 0).toLocaleString()}</td>
+                  </tr>
+                  {arrears > 0 && (
+                    <tr className="border-b-[2px] border-slate-900 bg-rose-50 text-rose-700">
+                      <td className="p-3 md:p-4 uppercase">Previous Arrears</td>
+                      <td className="p-3 md:p-4 text-right">{(arrears || 0).toLocaleString()}</td>
+                    </tr>
+                  )}
+                  {viewingReceipt.discount && viewingReceipt.discount > 0 && (
+                    <tr className="border-[2px] border-slate-900 bg-emerald-50 text-emerald-700">
+                      <td className="p-3 md:p-4 uppercase">Discount Applied</td>
+                      <td className="p-3 md:p-4 text-right">-{(viewingReceipt.discount || 0).toLocaleString()}</td>
+                    </tr>
+                  ) || null}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-4 md:gap-6">
+               <div className="flex-1 p-4 md:p-6 bg-slate-50 rounded-[2rem] border-[2px] border-slate-900 border-dashed">
+                  <p className="text-[9px] md:text-[10px] leading-relaxed text-slate-700 font-bold">
+                    • Verified proof of connectivity payment.<br/>
+                    • Technical support: {settings.businessPhone}
+                  </p>
+               </div>
+               <div className="w-full sm:w-64 bg-indigo-600 text-white p-4 md:p-6 rounded-[2rem] border-[3px] border-slate-900 text-center">
+                  <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Received</p>
+                  <span className="text-2xl md:text-3xl font-black break-words">Rs. {(viewingReceipt.paidAmount || 0).toLocaleString()}</span>
+               </div>
+            </div>
+            <AdsSection design={ReceiptDesign.UTILITY} />
+          </div>
+        );
+      case ReceiptDesign.THERMAL:
+        return (
+          <div className="flex flex-col items-center text-center p-4 text-black leading-tight bg-white w-full max-w-[300px] mx-auto">
+            {settings.businessLogo ? (
+              <img src={settings.businessLogo} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            ) : logoBase64 ? (
+              <img src={logoBase64} alt="Logo" className="h-[40px] w-auto object-contain mb-2 grayscale" referrerPolicy="no-referrer" />
+            ) : null}
+            <h2 className="text-lg font-black uppercase mb-1">{settings.businessName}</h2>
+            <p className="text-[9px] font-bold mb-2">{viewingReceipt.isLatePayment ? 'LATE PAYMENT RECEIPT' : 'ISP RECEIPT'}</p>
+            {viewingReceipt.isLatePayment && (
+              <p className="text-[8px] font-black bg-black text-white px-2 py-0.5 mb-2 uppercase">RCVD: {new Date(viewingReceipt.actualPaymentDate || viewingReceipt.date).toLocaleDateString()}</p>
+            )}
+            <div className="w-full text-left space-y-1 text-[10px] border-y border-dashed border-slate-300 py-2 mb-2">
+              <div className="flex justify-between"><span className="font-bold">SERIAL:</span><span>{viewingReceipt.transactionRef}</span></div>
+              <div className="flex justify-between"><span className="font-bold">DATE:</span><span>{new Date(viewingReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between"><span className="font-bold">NAME:</span><span className="font-black truncate ml-2">{viewingReceipt.userName}</span></div>
+              <div className="flex justify-between"><span className="font-bold">PERIOD:</span><span>{viewingReceipt.period}</span></div>
+            </div>
+            <div className="w-full text-left space-y-1 text-[10px] mb-4">
+              <div className="flex justify-between"><span>Monthly Bill:</span><span>Rs. {storedMonthlyFee.toLocaleString()}</span></div>
+              {arrears > 0 && <div className="flex justify-between text-red-600"><span>Arrears:</span><span>Rs. {arrears.toLocaleString()}</span></div>}
+              <div className="flex justify-between font-black border-t border-slate-100 pt-1"><span>Total:</span><span>Rs. {viewingReceipt.totalAmount.toLocaleString()}</span></div>
+              <div className="flex justify-between text-indigo-700 font-bold pt-1"><span>Paid:</span><span>Rs. {viewingReceipt.paidAmount.toLocaleString()}</span></div>
+              <div className="flex justify-between font-black pt-1 border-t border-dashed border-slate-200"><span>Next Due:</span><span>Rs. {nextMonthDue.toLocaleString()}</span></div>
+            </div>
+            <AdsSection design={ReceiptDesign.THERMAL} />
+          </div>
+        );
+      case ReceiptDesign.MODERN:
+        return (
+          <div className="bg-white p-5 md:p-6 rounded-[1.5rem] text-slate-900 border border-slate-100 w-full relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-indigo-600 p-4 md:p-5 rounded-[1.5rem] text-white gap-4 sm:gap-0">
+              <div className="flex items-center gap-3">
+                <div className="h-[40px] w-auto bg-white rounded-lg p-1">
+                  {settings.businessLogo ? (
+                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : logoBase64 ? (
+                    <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : null}
+                </div>
+                <div>
+                  <h2 className="font-black text-sm break-words">{settings.businessName}</h2>
+                  {viewingReceipt.isLatePayment && <p className="text-[8px] font-black opacity-70 uppercase tracking-widest mt-0.5">Late Payment History</p>}
+                </div>
+              </div>
+              <div className="sm:text-right text-xs">
+                <p className="text-[9px] font-black opacity-60">SN: {viewingReceipt.transactionRef}</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-50 pb-4 gap-4 sm:gap-0">
+                <div className="w-full">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Customer</p>
+                  <p className="text-lg font-black break-words">{viewingReceipt.userName}</p>
+                  <p className="text-xs font-bold text-indigo-600 break-words">@{viewingReceipt.username}</p>
+                </div>
+                <div className="sm:text-right w-full sm:w-auto">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Period</p>
+                  <p className="text-xs font-black bg-slate-50 p-2 sm:p-0 rounded sm:bg-transparent">{viewingReceipt.period}</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm w-full">
+                <div className="flex justify-between"><span>Subscription</span><span className="font-black text-right pl-2">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
+                {arrears > 0 && <div className="flex justify-between text-rose-500"><span>Arrears</span><span className="font-black text-right pl-2">Rs. {arrears.toLocaleString()}</span></div>}
+                <div className="flex justify-between bg-slate-50 p-4 rounded-xl mt-4 max-w-full">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Paid</span>
+                  <span className="text-lg md:text-xl font-black text-indigo-600 text-right pl-2 break-words">Rs. {viewingReceipt.paidAmount.toLocaleString()}</span>
+                </div>
+              </div>
+              <AdsSection design={ReceiptDesign.MODERN} />
+            </div>
+          </div>
+        );
+      case ReceiptDesign.PROFESSIONAL:
+      default:
+        return (
+          <div className="text-black bg-white p-4 md:p-6 w-full relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start mb-6 md:mb-8 border-b-2 border-slate-50 pb-6 gap-6 sm:gap-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+                <div className="h-[40px] md:h-[50px] w-auto bg-white border border-slate-100 rounded-xl p-1">
+                  {settings.businessLogo ? (
+                    <img src={settings.businessLogo} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : logoBase64 ? (
+                    <img src={logoBase64} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
+                  ) : null}
+                </div>
+                <div className="w-full">
+                  <h2 className="text-xl md:text-2xl font-black text-indigo-950 uppercase break-words">{settings.businessName}</h2>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{settings.businessPhone}</p>
+                    {viewingReceipt.isLatePayment && (
+                      <span className="text-[8px] bg-rose-500 text-white px-2 py-0.5 rounded font-black uppercase">Late Record</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="sm:text-right w-full sm:w-auto p-3 sm:p-0 bg-slate-50 sm:bg-transparent rounded-lg">
+                <p className="text-[10px] font-black text-indigo-600 uppercase break-all">SN: {viewingReceipt.transactionRef}</p>
+                <p className="text-[9px] font-bold text-slate-400">{new Date(viewingReceipt.date).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Bill To</p>
+                <p className="text-lg font-black">{viewingReceipt.userName}</p>
+                <p className="text-xs font-black text-indigo-600">@{viewingReceipt.username}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Billing Period</p>
+                <p className="text-sm font-bold">{viewingReceipt.period}</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-6 mb-6">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-slate-200"><th className="text-left pb-2 text-[9px] uppercase font-black">Description</th><th className="text-right pb-2 text-[9px] uppercase font-black">Amount</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr><td className="py-3 font-bold">Monthly Subscription</td><td className="py-3 text-right font-black">Rs. {storedMonthlyFee.toLocaleString()}</td></tr>
+                  {arrears > 0 && <tr><td className="py-2 text-slate-500 italic">Previous Arrears</td><td className="py-2 text-right font-bold text-red-500">Rs. {arrears.toLocaleString()}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="space-y-2 text-right">
+              <div className="flex justify-between items-center border-t border-slate-100 pt-2"><span className="text-[10px] font-black text-slate-400 uppercase">Amount Received</span><span className="text-2xl font-black text-indigo-600">Rs. {viewingReceipt.paidAmount.toLocaleString()}</span></div>
+              <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-200"><span className="text-[10px] font-black text-slate-400 uppercase">Next Due</span><span className="text-lg font-black">Rs. {nextMonthDue.toLocaleString()}</span></div>
+            </div>
+            <AdsSection design={ReceiptDesign.PROFESSIONAL} />
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+      {!selectedMonth ? (
+        <div className="space-y-4">
+          <div className="mb-6 flex justify-between items-end px-2">
+            <div>
+              <h3 className="text-2xl font-black text-black dark:text-white uppercase tracking-tight">Recovery Catalog</h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">Select month to view ledger</p>
+            </div>
+            <div>
+               <div className="flex gap-2">
+                 <button onClick={downloadTemplate} className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    Template
+                 </button>
+                 <button onClick={() => setIsImportingLegacy(true)} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    Upload Past Record
+                 </button>
+               </div>
+               <input 
+                 type="file" 
+                 ref={importInputRef} 
+                 style={{ display: 'none' }} 
+                 accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv"
+                 onClick={(e) => (e.target as HTMLInputElement).value = ''}
+                 onChange={handleImportExcel} 
+               />
+            </div>
+          </div>
+
+          {/* Ayesha bot — Phase 2: Credit / Advance Recovery */}
+          <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-white/5 p-8">
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+              <div>
+                <h3 className="text-xl font-black text-black dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  🟡 Credit / Advance Recovery
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">Ayesha auto-reminds every 2 days, capped at 6</p>
+              </div>
+              <button
+                onClick={() => { setRecoveryForm({ userId: '', amount: 0, date: new Date().toISOString().slice(0, 10) }); setRecoverySearch(''); setShowRecoveryModal(true); }}
+                className="px-6 py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+              >
+                + Mark Recovery
+              </button>
+            </div>
+
+            {pendingRecoveries.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-6">Koi pending credit recovery nahi hai.</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingRecoveries.map(u => {
+                  const days = u.creditDate ? Math.max(0, Math.floor((Date.now() - new Date(u.creditDate).getTime()) / 86400000)) : 0;
+                  const reminderCount = u.creditReminderCount || 0;
+                  const capped = reminderCount >= 6;
+                  return (
+                    <div key={u.id} className={`flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl border ${capped ? 'border-rose-200 dark:border-rose-500/20 bg-rose-50/50 dark:bg-rose-500/5' : 'border-amber-200 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-500/5'}`}>
+                      <div>
+                        <p className="font-black text-slate-900 dark:text-white">{u.name} <span className="text-xs text-slate-400 font-bold">@{u.username}</span></p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">{u.phone} • {days} din se pending • {reminderCount}/6 reminders{capped ? ' — manual follow-up zaroori' : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-lg font-black text-amber-600 dark:text-amber-500">Rs. {(u.creditAmount || 0).toLocaleString()}</span>
+                        <button
+                          onClick={() => onUpdateUser?.({ ...u, creditRecharge: false, creditAmount: undefined, creditDate: undefined, creditLastReminderSent: undefined, creditReminderCount: 0 })}
+                          className="px-4 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                        >
+                          Mark Recovered
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {monthlyData.map((summary) => (
+            <div 
+              key={summary.period} 
+              className="relative bg-white dark:bg-[#0f172a] p-8 rounded-[3rem] shadow-sm border border-slate-100 dark:border-white/5 flex justify-between items-center group transition-all cursor-pointer hover:shadow-xl hover:-translate-y-1" 
+              onClick={() => setSelectedMonth(summary.period)}
+            >
+              <div className="absolute top-8 right-8 z-10 flex gap-2">
+                <button 
+                  onClick={(e) => handleRenameClick(e, summary.period)}
+                  className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                  title="Rename Period"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onDeletePeriod(summary.period); }}
+                  className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                  title="Delete Period"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+              </div>
+
+              <div>
+                <h4 className="text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-2">COLLECTION PERIOD</h4>
+                <p className="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-4">{summary.period}</p>
+                <div className="flex flex-wrap items-center gap-6">
+                   <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recovery</span>
+                      <span className="text-lg font-black text-emerald-600 dark:text-emerald-500">Rs. {(summary.totalPaid || 0).toLocaleString()}</span>
+                   </div>
+                   <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Subscribers</span>
+                      <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{summary.activatedCount} Active</span>
+                   </div>
+                   <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Payments</span>
+                      <span className="text-lg font-black text-slate-600 dark:text-slate-200">{summary.paidCount} Collected</span>
+                   </div>
+                   <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recovery %</span>
+                      <span className="text-lg font-black text-[#38dc8f]">{(() => { const expected = (summary.totalPaid || 0) + (summary.totalBalance || 0); return expected > 0 ? Math.round(((summary.totalPaid || 0) / expected) * 100) : 0; })()}%</span>
+                   </div>
+                </div>
+              </div>
+              <div className="hidden sm:flex flex-col items-end gap-4 mt-12">
+                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-[1.5rem] flex items-center justify-center text-slate-300 transition-all group-hover:bg-indigo-600 group-hover:text-white">
+                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-white/5 overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-500">
+          <div className="p-8 border-b border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-slate-950/20">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-indigo-600 rounded-[1.25rem] flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-500/20">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mb-1">Monthly Recovery Record</h4>
+                  <p className="text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tight">{selectedMonth}</p>
+                </div>
+              </div>
+              <button onClick={closeSheet} className="p-4 bg-white dark:bg-slate-800 rounded-2xl text-slate-400 dark:text-slate-500 hover:text-rose-500 transition-colors shadow-sm">✕</button>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-3 mb-10">
+              <div className="relative flex-1">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                <input type="text" placeholder="Search customer records..." className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-950 rounded-2xl font-bold text-sm border border-slate-200 dark:border-0 outline-none text-slate-900 dark:text-white shadow-sm" value={detailSearchTerm} onChange={e => setDetailSearchTerm(e.target.value)} />
+              </div>
+              <button onClick={() => { setAddUserSearch(''); setShowAddUserModal(true); }} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 whitespace-nowrap active:scale-95 transition-all">+ Add User</button>
+              <button onClick={exportToExcel} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 whitespace-nowrap active:scale-95 transition-all">Export To Excel</button>
+              <div className="relative">
+                <button onClick={() => setShowColumnMenu(v => !v)} className="px-8 py-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm whitespace-nowrap active:scale-95 transition-all flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                  Columns
+                </button>
+                {showColumnMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowColumnMenu(false)}></div>
+                    <div className="absolute right-0 mt-2 w-64 max-h-96 overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl z-50 p-3">
+                      <div className="flex justify-between items-center px-2 pb-2 mb-1 border-b border-slate-100 dark:border-slate-700">
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Show/Hide Columns</span>
+                        <button onClick={resetLedgerColumns} className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase hover:underline">Reset</button>
+                      </div>
+                      {(Object.keys(LEDGER_COLUMN_LABELS) as LedgerColumnKey[]).map(key => (
+                        <label key={key} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns[key]}
+                            onChange={() => toggleLedgerColumn(key)}
+                            className="w-4 h-4 rounded accent-indigo-600"
+                          />
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{LEDGER_COLUMN_LABELS[key]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Received</p>
+                <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">Rs. {(stats.paid || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Advance Amount</p>
+                <p className="text-xl font-black text-emerald-600 dark:text-emerald-500">Rs. {(stats.advance || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p className="text-[9px] font-black text-rose-600 dark:text-rose-500 uppercase tracking-widest mb-1">Total Arrears</p>
+                <p className="text-xl font-black text-rose-600 dark:text-rose-400">Rs. {(stats.balance || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-slate-800 dark:bg-indigo-600 p-5 rounded-[1.5rem] text-white shadow-xl">
+                <p className="text-[9px] font-black text-white dark:text-white uppercase tracking-widest mb-1">TOTAL EXPECTED COLLECTION</p>
+                <p className="text-xl font-black text-white dark:text-white">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Recovery %</p>
+                <p className="text-xl font-black text-[#38dc8f]">{(() => { const expected = (stats.paid || 0) + (stats.balance || 0); return expected > 0 ? Math.round(((stats.paid || 0) / expected) * 100) : 0; })()}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left min-w-[1200px]">
+              <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] uppercase font-black text-slate-500 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                <tr>
+                  {visibleColumns.serialNo && (
+                  <th className="px-4 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('serialNo')}>
+                    Sr.# {sortConfig?.key === 'serialNo' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.username && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('username')}>
+                    Sub ID {sortConfig?.key === 'username' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.name && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('name')}>
+                    Subscriber {sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.status && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('hasPaid')}>
+                    Status {sortConfig?.key === 'hasPaid' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.paidAmount && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('paidAmount')}>
+                    Paid Amount {sortConfig?.key === 'paidAmount' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.advanceAmount && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('advanceAmount')}>
+                    Advance Amount {sortConfig?.key === 'advanceAmount' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.balance && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('balance')}>
+                    Balance Amount {sortConfig?.key === 'balance' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.expiryDate && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('expiryDate')}>
+                    Expiry Date {sortConfig?.key === 'expiryDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.actions && (
+                  <th className="px-8 py-5">Actions</th>
+                  )}
+                  {visibleColumns.date && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('date')}>
+                    Payment Date {sortConfig?.key === 'date' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                  {visibleColumns.ref && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('ref')}>
+                    Reference {sortConfig?.key === 'ref' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {detailedList.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    {visibleColumns.serialNo && (
+                    <td className="px-4 py-5"><span className="text-xs font-black text-slate-400 dark:text-slate-500">{(item as any).serialNo}</span></td>
+                    )}
+                    {visibleColumns.username && (
+                    <td className="px-8 py-5"><span className={`text-xs font-black text-indigo-600 dark:text-indigo-400 ${onUpdateUser ? 'cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors' : ''}`} onClick={() => { if (!onUpdateUser) return; const fullUser = users.find(u => u.id === item.id || u.username === item.username); if (fullUser) { setEditingUser(fullUser); setEditForm({ ...fullUser, expiryDate: fullUser.expiryDate ? new Date(fullUser.expiryDate).toISOString().split('T')[0] : '' }); } }} title={onUpdateUser ? 'Click to edit profile' : item.username}>@{item.username}</span></td>
+                    )}
+                    {visibleColumns.name && (
+                    <td className="px-8 py-5">
+                       <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.name}</span>
+                          <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-tighter">{item.plan}</span>
+                       </div>
+                    </td>
+                    )}
+                    {visibleColumns.status && (
+                    <td className="px-8 py-5">
+                      <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                        item.hasPaid ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
+                      }`}>
+                        {item.hasPaid ? 'PAID' : 'PENDING'}
+                      </span>
+                    </td>
+                    )}
+                    {visibleColumns.paidAmount && (
+                    <td className="px-8 py-5">
+                       <span className="text-sm font-black text-slate-800 dark:text-slate-100">Rs. {(item.paidAmount || 0).toLocaleString()}</span>
+                    </td>
+                    )}
+                    {visibleColumns.advanceAmount && (
+                    <td className="px-8 py-5">
+                       <span className={`text-sm font-black ${(item.advanceAmount || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.advanceAmount || 0).toLocaleString()}</span>
+                    </td>
+                    )}
+                    {visibleColumns.balance && (
+                    <td className="px-8 py-5">
+                       <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.balance || 0).toLocaleString()}</span>
+                    </td>
+                    )}
+                    {visibleColumns.expiryDate && (
+                    <td className="px-8 py-5">
+                       <span className="text-xs font-black text-orange-600 dark:text-orange-400">{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '-'}</span>
+                    </td>
+                    )}
+                    {visibleColumns.actions && (
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-2">
+                        {!item.hasPaid ? (
+                          <>
+                             <button onClick={() => handleSendReminder(item, 'sms')} title="Send SMS" className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-all">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                             </button>
+                             <button onClick={() => handleSendReminder(item, 'wa')} title="Send WhatsApp" className="p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all">
+                               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" style={{color:'#25D366'}}>
+                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                               </svg>
+                             </button>
+                             {/* Receipt button removed - was jumping to wrong place, will be re-added differently later */}
+                             <button onClick={() => { setQuickReceiptPreSelectConsumed(false); setQuickReceiptUser({ userId: item.id, month: selectedMonth || '', ts: Date.now() }); }} title="Generate Receipt" className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                             </button>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                                <span className="text-[9px] font-black uppercase">Cleared</span>
+                             </div>
+                             <button 
+                               onClick={() => {
+                                 const r = receipts.find(rec => rec.userId === item.id && rec.period === selectedMonth);
+                                 if (r) setViewingReceipt(r);
+                               }}
+                               className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
+                             >
+                               View Receipt
+                             </button>
+                             <button
+                               onClick={() => { setQuickReceiptPreSelectConsumed(false); setQuickReceiptUser({ userId: item.id, month: selectedMonth || '', ts: Date.now() }); }}
+                               title="Generate Additional Receipt"
+                               className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
+                             >
+                               + Receipt
+                             </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    )}
+                    {visibleColumns.date && (
+                    <td className="px-8 py-5">
+                       <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{item.date}</span>
+                    </td>
+                    )}
+                    {visibleColumns.ref && (
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter truncate max-w-[120px]">{item.ref}</span>
+                      </div>
+                    </td>
+                    )}
+                    <td className="px-4 py-5">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(item.name + " ko is mahine ki list se hatayen? Directory mein rahega.")) {
+                            const fullUser = (users || []).find(u => u.id === item.id);
+                            if (fullUser && selectedMonth) {
+                              onBulkUpdateUsers([{
+                                ...fullUser,
+                                activatedMonths: (fullUser.activatedMonths || []).filter(m => m !== selectedMonth)
+                              }]);
+                            }
+                          }
+                        }}
+                        title="Remove from this month's ledger"
+                        className="p-2 rounded-xl text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-all"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-10 bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row justify-between items-center border-t border-slate-100 dark:border-slate-800 gap-6">
+            <div className="flex gap-16">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Total Arrears</span>
+                <span className="text-3xl font-black text-rose-600 dark:text-rose-400">Rs. {(stats.balance || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Total Collected</span>
+                <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">Rs. {(stats.paid || 0).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="text-right">
+               <div className="bg-white dark:bg-slate-900 px-8 py-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl">
+                  <p className="text-[10px] font-black text-[#38dc8f] uppercase tracking-widest mb-1">TOTAL EXPECTED COLLECTION</p>
+                  <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isImportingLegacy && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setIsImportingLegacy(false)}></div>
+          <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 text-center">Historical Upload</h2>
+            <p className="text-xs text-slate-500 mb-6 text-center">Select the month and year for this historical record.</p>
+            
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Select Month</label>
+                <select 
+                  value={legacyMonth}
+                  onChange={(e) => setLegacyMonth(e.target.value)}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-950 rounded-xl font-bold outline-none border-2 border-transparent focus:border-indigo-500 transition-all"
+                >
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Select Year</label>
+                <select 
+                  value={legacyYear}
+                  onChange={(e) => setLegacyYear(e.target.value)}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-950 rounded-xl font-bold outline-none border-2 border-transparent focus:border-indigo-500 transition-all"
+                >
+                  {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => importInputRef.current?.click()} 
+                className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+              >
+                Select File
+              </button>
+              <button 
+                onClick={() => setIsImportingLegacy(false)} 
+                className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editingPeriod && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setEditingPeriod(null)}></div>
+          <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 text-center animate-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2">Rename Period</h2>
+            <p className="text-xs text-slate-500 mb-6">Enter a new name for this collection period.</p>
+            
+            <input 
+              type="text" 
+              value={newPeriodName}
+              onChange={(e) => setNewPeriodName(e.target.value)}
+              className="w-full p-4 bg-slate-50 dark:bg-slate-950 rounded-xl font-bold text-center text-lg outline-none border-2 border-transparent focus:border-indigo-500 transition-all mb-6"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && confirmRename()}
+            />
+
+            <div className="flex gap-3">
+              <button onClick={confirmRename} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">Save Changes</button>
+              <button onClick={() => setEditingPeriod(null)} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {viewingReceipt && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={() => setViewingReceipt(null)}></div>
+          <div className="relative z-10 w-full max-w-2xl my-8 animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <h3 className="text-white font-black uppercase tracking-widest text-xs">Receipt Preview</h3>
+              <button onClick={() => setViewingReceipt(null)} className="w-10 h-10 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-slate-700 dark:text-white rounded-full flex items-center justify-center transition-colors">✕</button>
+            </div>
+            
+            <div className="bg-white rounded-[1.5rem] shadow-2xl overflow-x-auto mb-6 custom-scrollbar">
+               <div id="receipt-view-area" className="min-w-fit w-full inline-block bg-white pb-1">
+                 {renderReceiptPreview()}
+               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 px-2">
+               <button 
+                 onClick={() => handleDownloadReceipt(viewingReceipt)} 
+                 disabled={isDownloading}
+                 className="flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2"
+               >
+                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                 {isDownloading ? 'Capturing...' : 'Download PNG'}
+               </button>
+               <button 
+                 disabled={isSendingRecoveryWA}
+                 onClick={async () => {
+                   if (isSendingRecoveryWA) return;
+                   setIsSendingRecoveryWA(true);
+                   try {
+                     const nextDue = (viewingReceipt.balanceAmount || 0) + (viewingReceipt.monthlyFee - (viewingReceipt.discount || 0));
+                     const msg = renderMessageTemplate(settings, 'receipt_share_recovery', {
+                       businessName: settings.businessName,
+                       transactionRef: viewingReceipt.transactionRef,
+                       date: new Date(viewingReceipt.date).toLocaleDateString(),
+                       name: viewingReceipt.userName,
+                       period: viewingReceipt.period,
+                       advance: viewingReceipt.advanceAmount || 0,
+                       paidAmount: viewingReceipt.paidAmount || 0,
+                       nextDue: nextDue
+                     });
+                     // Cloud API (sendWhatsAppDirect) skipped for now — WABA number is
+                     // paused (Meta Business Verification incomplete, same reason it's
+                     // disabled in ReceiptGenerator's direct-receipt flow) and this call
+                     // had no timeout, so it sat waiting on a dead endpoint and made the
+                     // button look stuck. Go straight to the instant wa.me link instead,
+                     // matching the smooth Direct Receipt Text behavior.
+                     shareToWhatsApp(viewingReceipt.userPhone, msg);
+                   } finally {
+                     setIsSendingRecoveryWA(false);
+                   }
+                 }}
+                 className="flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
+               >
+                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
+                 {isSendingRecoveryWA ? 'Opening...' : 'Share WhatsApp'}
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add User to Period Modal */}
+      {showAddUserModal && selectedMonth && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-white/10">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-0.5">Add to Period</p>
+                <p className="text-lg font-black text-slate-900 dark:text-white">{selectedMonth}</p>
+              </div>
+              <button onClick={() => setShowAddUserModal(false)} className="w-9 h-9 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 font-black text-sm transition-all">✕</button>
+            </div>
+            <div className="p-4">
+              <input
+                type="text"
+                placeholder="Search by name or username..."
+                value={addUserSearch}
+                onChange={e => setAddUserSearch(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold outline-none border border-transparent focus:border-indigo-500 transition-all mb-3"
+                autoFocus
+              />
+              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                {(users || [])
+                  .filter(u => u.status !== 'deleted' &&
+                    !(u.activatedMonths || []).includes(selectedMonth) &&
+                    !receipts.some(r => r.userId === u.id && r.period === selectedMonth) &&
+                    (addUserSearch === '' ||
+                      (u.name || '').toLowerCase().includes(addUserSearch.toLowerCase()) ||
+                      (u.username || '').toLowerCase().includes(addUserSearch.toLowerCase()))
+                  )
+                  .map(u => (
+                    <div key={u.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{u.name}</p>
+                        <p className="text-[10px] font-bold text-slate-400">@{u.username} · {u.plan} · Rs. {(u.monthlyFee || 0).toLocaleString()}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          onBulkUpdateUsers([{
+                            ...u,
+                            activatedMonths: [...(u.activatedMonths || []), selectedMonth]
+                          }]);
+                          setShowAddUserModal(false);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wide transition-all"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))
+                }
+                {(users || []).filter(u => u.status !== 'deleted' &&
+                  !(u.activatedMonths || []).includes(selectedMonth) &&
+                  !receipts.some(r => r.userId === u.id && r.period === selectedMonth) &&
+                  (addUserSearch === '' ||
+                    (u.name || '').toLowerCase().includes(addUserSearch.toLowerCase()) ||
+                    (u.username || '').toLowerCase().includes(addUserSearch.toLowerCase()))
+                ).length === 0 && (
+                  <p className="text-center text-sm text-slate-400 py-6 font-bold">Sab users already is period mein hain ✅</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-md p-8 border border-slate-100 dark:border-white/5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">Edit Profile</h2>
+                <p className="text-xs text-indigo-500 font-bold">@{editingUser.username}</p>
+              </div>
+              <button onClick={() => setEditingUser(null)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors text-xl">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Full Name</label>
+                <input type="text" value={editForm.name || ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Phone</label>
+                <input type="text" value={editForm.phone || ''} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Address</label>
+                <input type="text" value={editForm.address || ''} onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Expiry Date</label>
+                <input type="date" value={editForm.expiryDate || ''} onChange={e => setEditForm(p => ({ ...p, expiryDate: e.target.value }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Balance (Rs.)</label>
+                <input type="number" value={editForm.balance ?? ''} onChange={e => setEditForm(p => ({ ...p, balance: Number(e.target.value) }))} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setEditingUser(null)} className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Cancel</button>
+              <button onClick={() => { if (!onUpdateUser) return; const expiryISO = editForm.expiryDate ? new Date(editForm.expiryDate).toISOString() : editingUser.expiryDate; onUpdateUser({ ...editingUser, ...editForm, expiryDate: expiryISO }); setEditingUser(null); }} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 active:scale-95 transition-all">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRecoveryModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowRecoveryModal(false)}></div>
+          <div className="bg-white dark:bg-[#0f172a] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 p-8 space-y-6">
+            <h4 className="text-xl font-black text-black dark:text-white uppercase tracking-tight">Mark Credit Recovery</h4>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">CUSTOMER</label>
+              <input
+                placeholder="Search by name or username..."
+                value={recoverySearch}
+                onChange={e => { setRecoverySearch(e.target.value); setRecoveryForm(p => ({ ...p, userId: '' })); }}
+                className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white"
+              />
+              {recoverySearch && !recoveryForm.userId && (
+                <div className="max-h-40 overflow-y-auto space-y-1 border border-slate-100 dark:border-white/5 rounded-2xl p-2">
+                  {users
+                    .filter(u => u.status !== 'deleted' && (u.name?.toLowerCase().includes(recoverySearch.toLowerCase()) || u.username?.toLowerCase().includes(recoverySearch.toLowerCase())))
+                    .slice(0, 8)
+                    .map(u => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => { setRecoveryForm(p => ({ ...p, userId: u.id })); setRecoverySearch(`${u.name} (@${u.username})`); }}
+                        className="w-full text-left p-3 rounded-xl text-sm font-bold hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 transition-all"
+                      >
+                        {u.name} <span className="opacity-60">@{u.username}</span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">AMOUNT (RS.)</label>
+                <input
+                  type="number"
+                  value={recoveryForm.amount}
+                  onChange={e => setRecoveryForm(p => ({ ...p, amount: Number(e.target.value) }))}
+                  className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">DATE</label>
+                <input
+                  type="date"
+                  value={recoveryForm.date}
+                  onChange={e => setRecoveryForm(p => ({ ...p, date: e.target.value }))}
+                  className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                disabled={!recoveryForm.userId}
+                onClick={() => {
+                  const u = users.find(x => x.id === recoveryForm.userId);
+                  if (!u) return;
+                  onUpdateUser?.({ ...u, creditRecharge: true, creditAmount: recoveryForm.amount, creditDate: recoveryForm.date, creditReminderCount: 0, creditLastReminderSent: undefined });
+                  setShowRecoveryModal(false);
+                }}
+                className="flex-1 bg-amber-500 disabled:opacity-40 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all"
+              >
+                SAVE
+              </button>
+              <button type="button" onClick={() => setShowRecoveryModal(false)} className="px-8 bg-slate-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all">
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {quickReceiptUser && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={() => { setQuickReceiptUser(null); setQuickReceiptPreSelectConsumed(false); }}></div>
+          <div className="relative z-10 w-full max-w-4xl my-4 sm:my-8 animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <h3 className="text-white font-black uppercase tracking-widest text-xs">Generate Receipt</h3>
+              <button onClick={() => { setQuickReceiptUser(null); setQuickReceiptPreSelectConsumed(false); }} className="w-10 h-10 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors">✕</button>
+            </div>
+            <div className="bg-slate-50 dark:bg-[#0a1120] rounded-[1.5rem] shadow-2xl overflow-y-auto max-h-[85vh] p-4 sm:p-6 custom-scrollbar">
+              <ReceiptGenerator
+                users={users}
+                receipts={receipts}
+                settings={settings}
+                subManagers={subManagers}
+                onAddReceipt={(r) => onAddReceipt?.(r)}
+                onUpdateReceipt={(r) => onUpdateReceipt?.(r)}
+                onUpdateUser={(userId, update) => {
+                  const fullUser = users.find(u => u.id === userId);
+                  if (fullUser) onUpdateUser?.({ ...fullUser, ...update });
+                }}
+                onDeleteReceipt={(id) => onDeleteReceipt?.(id)}
+                setLoadingMessage={(msg) => setLoadingMessage?.(msg)}
+                preSelectUser={quickReceiptPreSelectConsumed ? null : quickReceiptUser}
+                onPreSelectConsumed={() => setQuickReceiptPreSelectConsumed(true)}
+                hideHistory={true}
+                defaultCollectedBy={defaultCollectedBy}
+                managerId={managerId}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RecoverySummary;
