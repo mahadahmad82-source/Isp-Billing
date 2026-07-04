@@ -113,7 +113,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const [billingMonth, setBillingMonth] = useState<string>(filterMonth);
   const [billingYear, setBillingYear] = useState<string>(filterYear);
 
-  const syncUserAmounts = useCallback((userId: string) => {
+  const syncUserAmounts = useCallback((userId: string, overrideMonth?: string, overrideYear?: string) => {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
@@ -124,7 +124,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     
     // 2. Detect Arrears/Advance from most recent PREVIOUS receipt
     // Exclude the current billing period so we never carry forward the same month's balance
-    const currentBillingPeriod = `${billingMonth} ${billingYear}`;
+    // overrideMonth/overrideYear let callers pass the target period explicitly (e.g. Recovery
+    // Ledger preselect) — billingMonth/billingYear state may not have re-rendered yet when this
+    // runs synchronously right after setBillingMonth/setBillingYear, and reading stale state here
+    // made the target month itself look "missed", double-charging its fee as arrears.
+    const effectiveMonth = overrideMonth || billingMonth;
+    const effectiveYear = overrideYear || billingYear;
+    const currentBillingPeriod = `${effectiveMonth} ${effectiveYear}`;
     const userReceipts = receipts.filter(r => r.userId === user.id);
 
     // Reliable period parser: "May 2026" → new Date("May 1, 2026")
@@ -270,7 +276,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         }
 
         setViewMode('create');
-        syncUserAmounts(user.id);
+        syncUserAmounts(user.id, monthParts.length === 2 ? monthParts[0] : undefined, monthParts.length === 2 ? monthParts[1] : undefined);
         justPreselectedRef.current = true;
         onPreSelectConsumed?.();
       }
