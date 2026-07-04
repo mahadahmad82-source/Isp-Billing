@@ -81,6 +81,37 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   });
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  // Recovery Ledger — column visibility (hide/unhide), persisted per device
+  type LedgerColumnKey = 'serialNo' | 'username' | 'name' | 'status' | 'paidAmount' | 'advanceAmount' | 'balance' | 'expiryDate' | 'actions' | 'date' | 'ref';
+  const LEDGER_COLUMN_LABELS: Record<LedgerColumnKey, string> = {
+    serialNo: 'Sr.#', username: 'Sub ID', name: 'Subscriber', status: 'Status',
+    paidAmount: 'Paid Amount', advanceAmount: 'Advance Amount', balance: 'Balance Amount',
+    expiryDate: 'Expiry Date', actions: 'Actions', date: 'Payment Date', ref: 'Reference'
+  };
+  const DEFAULT_LEDGER_COLUMNS: Record<LedgerColumnKey, boolean> = {
+    serialNo: true, username: true, name: true, status: true, paidAmount: true,
+    advanceAmount: true, balance: true, expiryDate: true, actions: true, date: true, ref: true
+  };
+  const [visibleColumns, setVisibleColumns] = useState<Record<LedgerColumnKey, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('recoveryLedgerColumns');
+      if (saved) return { ...DEFAULT_LEDGER_COLUMNS, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_LEDGER_COLUMNS;
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const toggleLedgerColumn = (key: LedgerColumnKey) => {
+    setVisibleColumns(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('recoveryLedgerColumns', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const resetLedgerColumns = () => {
+    setVisibleColumns(DEFAULT_LEDGER_COLUMNS);
+    try { localStorage.setItem('recoveryLedgerColumns', JSON.stringify(DEFAULT_LEDGER_COLUMNS)); } catch {}
+  };
+
   // Auto-open specific month when returning from invoice view
   useEffect(() => {
     const handler = (e: Event) => {
@@ -966,6 +997,34 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               </div>
               <button onClick={() => { setAddUserSearch(''); setShowAddUserModal(true); }} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 whitespace-nowrap active:scale-95 transition-all">+ Add User</button>
               <button onClick={exportToExcel} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 whitespace-nowrap active:scale-95 transition-all">Export To Excel</button>
+              <div className="relative">
+                <button onClick={() => setShowColumnMenu(v => !v)} className="px-8 py-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm whitespace-nowrap active:scale-95 transition-all flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                  Columns
+                </button>
+                {showColumnMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowColumnMenu(false)}></div>
+                    <div className="absolute right-0 mt-2 w-64 max-h-96 overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl z-50 p-3">
+                      <div className="flex justify-between items-center px-2 pb-2 mb-1 border-b border-slate-100 dark:border-slate-700">
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Show/Hide Columns</span>
+                        <button onClick={resetLedgerColumns} className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase hover:underline">Reset</button>
+                      </div>
+                      {(Object.keys(LEDGER_COLUMN_LABELS) as LedgerColumnKey[]).map(key => (
+                        <label key={key} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns[key]}
+                            onChange={() => toggleLedgerColumn(key)}
+                            className="w-4 h-4 rounded accent-indigo-600"
+                          />
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{LEDGER_COLUMN_LABELS[key]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -996,50 +1055,79 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             <table className="w-full text-left min-w-[1200px]">
               <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] uppercase font-black text-slate-500 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
                 <tr>
+                  {visibleColumns.serialNo && (
                   <th className="px-4 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('serialNo')}>
                     Sr.# {sortConfig?.key === 'serialNo' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.username && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('username')}>
                     Sub ID {sortConfig?.key === 'username' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.name && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('name')}>
                     Subscriber {sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.status && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('hasPaid')}>
                     Status {sortConfig?.key === 'hasPaid' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.paidAmount && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('paidAmount')}>
                     Paid Amount {sortConfig?.key === 'paidAmount' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.advanceAmount && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('advanceAmount')}>
                     Advance Amount {sortConfig?.key === 'advanceAmount' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.balance && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('balance')}>
                     Balance Amount {sortConfig?.key === 'balance' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.expiryDate && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('expiryDate')}>
                     Expiry Date {sortConfig?.key === 'expiryDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.actions && (
                   <th className="px-8 py-5">Actions</th>
+                  )}
+                  {visibleColumns.date && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('date')}>
                     Payment Date {sortConfig?.key === 'date' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
+                  {visibleColumns.ref && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('ref')}>
                     Reference {sortConfig?.key === 'ref' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {detailedList.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    {visibleColumns.serialNo && (
                     <td className="px-4 py-5"><span className="text-xs font-black text-slate-400 dark:text-slate-500">{(item as any).serialNo}</span></td>
+                    )}
+                    {visibleColumns.username && (
                     <td className="px-8 py-5"><span className={`text-xs font-black text-indigo-600 dark:text-indigo-400 ${onUpdateUser ? 'cursor-pointer hover:underline hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors' : ''}`} onClick={() => { if (!onUpdateUser) return; const fullUser = users.find(u => u.id === item.id || u.username === item.username); if (fullUser) { setEditingUser(fullUser); setEditForm({ ...fullUser, expiryDate: fullUser.expiryDate ? new Date(fullUser.expiryDate).toISOString().split('T')[0] : '' }); } }} title={onUpdateUser ? 'Click to edit profile' : item.username}>@{item.username}</span></td>
+                    )}
+                    {visibleColumns.name && (
                     <td className="px-8 py-5">
                        <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.name}</span>
                           <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-tighter">{item.plan}</span>
                        </div>
                     </td>
+                    )}
+                    {visibleColumns.status && (
                     <td className="px-8 py-5">
                       <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                         item.hasPaid ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
@@ -1047,18 +1135,28 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                         {item.hasPaid ? 'PAID' : 'PENDING'}
                       </span>
                     </td>
+                    )}
+                    {visibleColumns.paidAmount && (
                     <td className="px-8 py-5">
                        <span className="text-sm font-black text-slate-800 dark:text-slate-100">Rs. {(item.paidAmount || 0).toLocaleString()}</span>
                     </td>
+                    )}
+                    {visibleColumns.advanceAmount && (
                     <td className="px-8 py-5">
                        <span className={`text-sm font-black ${(item.advanceAmount || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.advanceAmount || 0).toLocaleString()}</span>
                     </td>
+                    )}
+                    {visibleColumns.balance && (
                     <td className="px-8 py-5">
                        <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.balance || 0).toLocaleString()}</span>
                     </td>
+                    )}
+                    {visibleColumns.expiryDate && (
                     <td className="px-8 py-5">
                        <span className="text-xs font-black text-orange-600 dark:text-orange-400">{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '-'}</span>
                     </td>
+                    )}
+                    {visibleColumns.actions && (
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
                         {!item.hasPaid ? (
@@ -1102,14 +1200,19 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                         )}
                       </div>
                     </td>
+                    )}
+                    {visibleColumns.date && (
                     <td className="px-8 py-5">
                        <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{item.date}</span>
                     </td>
+                    )}
+                    {visibleColumns.ref && (
                     <td className="px-8 py-5">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter truncate max-w-[120px]">{item.ref}</span>
                       </div>
                     </td>
+                    )}
                     <td className="px-4 py-5">
                       <button
                         onClick={() => {
