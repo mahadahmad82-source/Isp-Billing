@@ -70,6 +70,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [addUserSearch, setAddUserSearch] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSendingRecoveryWA, setIsSendingRecoveryWA] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
   // Ayesha bot — Phase 2: Credit/Advance Recovery tracking
@@ -1251,24 +1252,36 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                  {isDownloading ? 'Capturing...' : 'Download PNG'}
                </button>
                <button 
+                 disabled={isSendingRecoveryWA}
                  onClick={async () => {
-                   const nextDue = (viewingReceipt.balanceAmount || 0) + (viewingReceipt.monthlyFee - (viewingReceipt.discount || 0));
-                   const msg = renderMessageTemplate(settings, 'receipt_share_recovery', {
-                     businessName: settings.businessName,
-                     transactionRef: viewingReceipt.transactionRef,
-                     date: new Date(viewingReceipt.date).toLocaleDateString(),
-                     name: viewingReceipt.userName,
-                     period: viewingReceipt.period,
-                     paidAmount: viewingReceipt.paidAmount || 0,
-                     nextDue: nextDue
-                   });
-                   const result = await sendWhatsAppDirect(viewingReceipt.userPhone, msg);
-                   if (!result.success) shareToWhatsApp(viewingReceipt.userPhone, msg);
+                   if (isSendingRecoveryWA) return;
+                   setIsSendingRecoveryWA(true);
+                   try {
+                     const nextDue = (viewingReceipt.balanceAmount || 0) + (viewingReceipt.monthlyFee - (viewingReceipt.discount || 0));
+                     const msg = renderMessageTemplate(settings, 'receipt_share_recovery', {
+                       businessName: settings.businessName,
+                       transactionRef: viewingReceipt.transactionRef,
+                       date: new Date(viewingReceipt.date).toLocaleDateString(),
+                       name: viewingReceipt.userName,
+                       period: viewingReceipt.period,
+                       paidAmount: viewingReceipt.paidAmount || 0,
+                       nextDue: nextDue
+                     });
+                     // Cloud API (sendWhatsAppDirect) skipped for now — WABA number is
+                     // paused (Meta Business Verification incomplete, same reason it's
+                     // disabled in ReceiptGenerator's direct-receipt flow) and this call
+                     // had no timeout, so it sat waiting on a dead endpoint and made the
+                     // button look stuck. Go straight to the instant wa.me link instead,
+                     // matching the smooth Direct Receipt Text behavior.
+                     shareToWhatsApp(viewingReceipt.userPhone, msg);
+                   } finally {
+                     setIsSendingRecoveryWA(false);
+                   }
                  }}
-                 className="flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-2"
+                 className="flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
                >
                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
-                 Share WhatsApp
+                 {isSendingRecoveryWA ? 'Opening...' : 'Share WhatsApp'}
                </button>
             </div>
           </div>
