@@ -177,6 +177,7 @@ export interface Receipt {
   actualPaymentDate?: string;
   collectedBy?: string;
   expiryDate?: string;
+  rechargeDate?: string;
 }
 
 export interface AppNotification {
