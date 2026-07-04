@@ -183,6 +183,12 @@ html:not(.dark) [class*="text-white/"] {
   color: #475569 !important;
 }
 
+/* ── Restore white text inside permanently-dark indigo containers
+   (sidebar drawer + Insights banner use bg-indigo-900 in BOTH themes,
+   so the global rule above wrongly turned their text invisible-gray) ── */
+html:not(.dark) .bg-indigo-900 .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
+html:not(.dark) .bg-indigo-900 .text-white\/70 { color: rgba(255,255,255,0.7) !important; }
+
 /* ── AdminDashboard card backgrounds ── */
 html:not(.dark) .bg-slate-800\/60 { background-color: rgba(241,245,249,0.9) !important; }
 html:not(.dark) .bg-slate-900\/50 { background-color: rgba(226,232,240,0.7) !important; }
