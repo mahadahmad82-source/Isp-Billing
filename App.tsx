@@ -240,6 +240,12 @@ const App: React.FC = () => {
   
   const lastActivityRef = useRef<number>(Date.now());
 
+  // Always-fresh mirror of `state` for use inside intervals/closures
+  // (fixes stale-closure bug where 30s notification poller kept re-firing
+  // already-shown notifications because it read `state` captured at mount)
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
   useEffect(() => {
     // Basic initialization
     setIsAdmin(activeManager === 'admin');
@@ -530,7 +536,7 @@ const App: React.FC = () => {
         if (!data?.data) return;
         const remoteState = data.data as AppState;
         const remotePending: AppNotification[] = remoteState.pendingManagerNotifications || [];
-        const alreadyShown: string[] = (state.shownManagerNotificationIds || []);
+        const alreadyShown: string[] = (stateRef.current.shownManagerNotificationIds || []);
         
         // Find new notifications not yet shown
         const newNotifs = remotePending.filter(n => !alreadyShown.includes(n.id));
@@ -558,11 +564,11 @@ const App: React.FC = () => {
         }
 
         // ─── Agent: check for notifications assigned to this agent ───
-        if (state.currentManager && state.subManagers) {
-          const agentInfo = state.subManagers.find(sm => sm.username === activeManager);
+        if (stateRef.current.currentManager && stateRef.current.subManagers) {
+          const agentInfo = stateRef.current.subManagers.find(sm => sm.username === activeManager);
           if (agentInfo) {
             const remoteAgentPending = (remoteState.agentPendingNotifications || {})[agentInfo.id] || [];
-            const agentShown = state.shownManagerNotificationIds || [];
+            const agentShown = stateRef.current.shownManagerNotificationIds || [];
             const newAgentNotifs = remoteAgentPending.filter(n => !agentShown.includes(n.id));
             
             if (newAgentNotifs.length > 0) {
