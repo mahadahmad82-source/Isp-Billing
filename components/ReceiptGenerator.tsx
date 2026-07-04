@@ -462,6 +462,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         newExpiry.setMonth(newExpiry.getMonth() + 1);
       }
       const resolvedExpiryDate = isNaN(newExpiry.getTime()) ? new Date().toISOString() : newExpiry.toISOString();
+      // Recharge Date = start of this billing cycle (the previous expiry), NOT
+      // the payment date. Monthly activation always runs cycle-start -> +1
+      // month, regardless of which day the customer actually pays.
+      const resolvedRechargeDate = safeCurrentExpiry.toISOString();
 
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
@@ -478,6 +482,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         monthlyFee: monthlyFee || 0,
         date: receiptDate.toISOString(),
         expiryDate: resolvedExpiryDate,
+        rechargeDate: resolvedRechargeDate,
         period: `${billingMonth} ${billingYear}`,
         paymentMethod: paymentMethod,
         status: paymentStatus,
@@ -711,6 +716,17 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     const expiryDateObj = rawExpiryDate ? new Date(rawExpiryDate) : null;
     const hasValidExpiry = !!expiryDateObj && !isNaN(expiryDateObj.getTime());
     const expiryDateDisplay = hasValidExpiry ? expiryDateObj!.toLocaleDateString() : 'N/A';
+    // Recharge Date = cycle-start date (previous expiry), NOT the payment date.
+    // Fallback for receipts saved before this field existed: derive as expiry - 1 month.
+    let rechargeDateObj: Date | null = null;
+    if (activeReceipt.rechargeDate) {
+      rechargeDateObj = new Date(activeReceipt.rechargeDate);
+    } else if (hasValidExpiry) {
+      rechargeDateObj = new Date(expiryDateObj!);
+      rechargeDateObj.setMonth(rechargeDateObj.getMonth() - 1);
+    }
+    const hasValidRecharge = !!rechargeDateObj && !isNaN(rechargeDateObj.getTime());
+    const rechargeDateDisplay = hasValidRecharge ? rechargeDateObj!.toLocaleDateString() : 'N/A';
 
     // Common Ads component for all designs
     const AdsSection = ({ design }: { design: ReceiptDesign }) => {
@@ -813,14 +829,18 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Physical Installation Address</p>
                     <p className="text-lg font-bold uppercase leading-relaxed text-slate-800 max-w-md">{activeReceipt.userAddress || 'ADDRESS RECORD NOT PROVIDED'}</p>
                   </div>
-                  <div className="flex gap-10 mt-8">
+                  <div className="flex gap-8 mt-8 flex-wrap">
                      <div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Revenue Status</p>
                         <p className="text-sm font-black text-emerald-600 uppercase">Paid / Confirmed</p>
                      </div>
                      <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recharge Date</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Payment Date</p>
                         <p className="text-sm font-black uppercase">{new Date(activeReceipt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                     </div>
+                     <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recharge Date</p>
+                        <p className="text-sm font-black uppercase">{hasValidRecharge ? rechargeDateObj!.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</p>
                      </div>
                      <div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Expiry Date</p>
@@ -955,9 +975,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             <p className="text-[9px] border-y border-dashed border-slate-300 w-full py-1 mb-3 font-mono">-------------------------------------</p>
             <div className="w-full text-left space-y-1.5 mb-3">
               <div className="flex justify-between text-[11px]"><span>SERIAL:</span><span>{activeReceipt.transactionRef}</span></div>
-              <div className="flex justify-between text-[11px]"><span>RECHARGE:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between text-[11px]"><span>PAID ON:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between text-[11px]"><span>RECHARGE:</span><span>{rechargeDateDisplay}</span></div>
               <div className="flex justify-between text-[11px]"><span>EXPIRY:</span><span>{expiryDateDisplay}</span></div>
-              <div className="flex justify-between text-[11px]"><span>PAYMENT:</span><span className="font-bold uppercase tracking-tight">{activeReceipt.paymentMethod}</span></div>
+              <div className="flex justify-between text-[11px]"><span>METHOD:</span><span className="font-bold uppercase tracking-tight">{activeReceipt.paymentMethod}</span></div>
               <div className="flex justify-between text-[11px]"><span>NAME:</span><span className="font-bold whitespace-normal text-right flex-1 ml-2">{activeReceipt.userName}</span></div>
               <div className="flex justify-between text-[11px]"><span>USER ID:</span><span className="font-bold text-right text-indigo-700">@{activeReceipt.username}</span></div>
               <div className="flex justify-between text-[11px] items-start"><span>ADDR:</span><span className="text-[9px] whitespace-normal text-right flex-1 ml-2">{activeReceipt.userAddress || 'N/A'}</span></div>
@@ -1026,7 +1047,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               </div>
 
               <div className="space-y-2 py-2">
-                <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Recharge Date</span><span className="font-black">{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+                <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Payment Date</span><span className="font-black">{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+                <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Recharge Date</span><span className="font-black">{rechargeDateDisplay}</span></div>
                 <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Expiry Date</span><span className="font-black">{expiryDateDisplay}</span></div>
                 <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Monthly Plan ({activeReceipt.period})</span><span className="font-black">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
                 {arrears > 0 && <div className="flex flex-col sm:flex-row justify-between text-sm gap-1 sm:gap-0"><span className="text-slate-500 font-medium">Previous Arrears</span><span className="font-black text-rose-500">Rs. {arrears.toLocaleString()}</span></div>}
@@ -1067,7 +1089,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
             <div className="space-y-1.5 text-[11px] mb-4">
               <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Ref:</span><span className="font-black">{activeReceipt.transactionRef}</span></div>
-              <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Recharge:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Paid On:</span><span>{new Date(activeReceipt.date).toLocaleDateString()}</span></div>
+              <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Recharge:</span><span>{rechargeDateDisplay}</span></div>
               <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Expiry:</span><span>{expiryDateDisplay}</span></div>
               <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Mode:</span><span className="font-black uppercase">{activeReceipt.paymentMethod}</span></div>
               <div className="flex justify-between items-start"><span className="text-slate-400 font-bold uppercase">Issued By:</span><span className="font-black uppercase">{getAgentDisplay(activeReceipt.collectedBy || defaultCollectedBy || 'Agent')}</span></div>
@@ -1130,8 +1153,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <p className="text-sm font-bold text-black">{activeReceipt.period}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recharge Date</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Date</p>
                   <p className="text-sm font-bold text-black">{new Date(activeReceipt.date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recharge Date</p>
+                  <p className="text-sm font-bold text-black">{rechargeDateDisplay}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Expiry Date</p>
@@ -1199,7 +1226,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <h1 className="text-3xl sm:text-4xl font-black text-slate-900 leading-none">INVOICE</h1>
                 <div className="mt-3 text-xs text-slate-500 space-y-0.5">
                   <p><span className="font-bold text-slate-700">INVOICE NO:</span> #{activeReceipt.transactionRef}</p>
-                  <p><span className="font-bold text-slate-700">RECHARGE DATE:</span> {new Date(activeReceipt.date).toLocaleDateString('en-GB')}</p>
+                  <p><span className="font-bold text-slate-700">PAYMENT DATE:</span> {new Date(activeReceipt.date).toLocaleDateString('en-GB')}</p>
+                  <p><span className="font-bold text-slate-700">RECHARGE DATE:</span> {hasValidRecharge ? rechargeDateObj!.toLocaleDateString('en-GB') : 'N/A'}</p>
                   <p><span className="font-bold text-slate-700">EXPIRY DATE:</span> {hasValidExpiry ? expiryDateObj!.toLocaleDateString('en-GB') : 'N/A'}</p>
                   <p><span className="font-bold text-slate-700">PERIOD:</span> {activeReceipt.period}</p>
                 </div>
