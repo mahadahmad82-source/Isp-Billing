@@ -176,6 +176,7 @@ export interface Receipt {
   isLatePayment?: boolean;
   actualPaymentDate?: string;
   collectedBy?: string;
+  expiryDate?: string;
 }
 
 export interface AppNotification {
