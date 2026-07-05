@@ -138,6 +138,102 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
       ur: 'اپنا بزنس نام، لوگو، پلان کی قیمتیں اور تھیم یہاں سیٹ کریں۔ آپ ٹور گائیڈ بھی یہیں سے دوبارہ چلا سکتے ہیں۔'
     }
   }],
+  team: [{
+    id: 'team', icon: '🧑‍💼',
+    title: { en: 'Team Hub', ur: 'ٹیم ہب' },
+    description: {
+      en: 'Add sub-managers or staff, control exactly what each one can see or do, and track their activity.',
+      ur: 'سب مینیجرز یا اسٹاف شامل کریں، ہر ایک کو مخصوص اجازتیں دیں اور ان کی ایکٹیویٹی ٹریک کریں۔'
+    }
+  }],
+  expenses: [{
+    id: 'expenses', icon: '💸',
+    title: { en: 'Business Expenses', ur: 'بزنس اخراجات' },
+    description: {
+      en: 'Log salaries, bills, and equipment costs here — your Dashboard profit number automatically subtracts these.',
+      ur: 'تنخواہیں، بل اور آلات کے اخراجات یہاں درج کریں — ڈیش بورڈ کا منافع خودکار طور پر ان کو منہا کر کے دکھاتا ہے۔'
+    }
+  }],
+  outage: [{
+    id: 'outage', icon: '🛰️',
+    title: { en: 'Outage Tracker', ur: 'آؤٹیج ٹریکر' },
+    description: {
+      en: 'Log network outages by area so you always know what\'s down, since when, and who to notify.',
+      ur: 'علاقے کے حساب سے نیٹ ورک آؤٹیج درج کریں تاکہ معلوم رہے کیا بند ہے، کب سے، اور کسے مطلع کرنا ہے۔'
+    }
+  }],
+  area: [{
+    id: 'area', icon: '🗺️',
+    title: { en: 'Area Dashboard', ur: 'ایریا ڈیش بورڈ' },
+    description: {
+      en: 'See customers, revenue and recovery broken down zone by zone, to spot which areas need attention.',
+      ur: 'کسٹمرز، ریونیو اور ریکوری کو علاقے کے لحاظ سے دیکھیں تاکہ پتا چلے کس زون پر توجہ درکار ہے۔'
+    }
+  }],
+  equipment: [{
+    id: 'equipment', icon: '📡',
+    title: { en: 'Equipment Tracker', ur: 'آلات ٹریکر' },
+    description: {
+      en: 'Track every router, ONU and cable issued to customers, plus what\'s left in your stock.',
+      ur: 'ہر راؤٹر، ONU اور کیبل جو کسٹمرز کو دی گئی، اور اسٹاک میں باقی سامان یہاں سے ٹریک کریں۔'
+    }
+  }],
+  leads: [{
+    id: 'leads', icon: '🎯',
+    title: { en: 'Leads Pipeline', ur: 'لیڈز پائپ لائن' },
+    description: {
+      en: 'Track potential new customers from first contact all the way to activation, so no lead gets forgotten.',
+      ur: 'نئے ممکنہ کسٹمرز کو پہلے رابطے سے لے کر ایکٹیویشن تک ٹریک کریں تاکہ کوئی لیڈ نہ بھولے۔'
+    }
+  }],
+  reminders: [{
+    id: 'reminders', icon: '📢',
+    title: { en: 'Bulk Reminders', ur: 'بلک یاد دہانی' },
+    description: {
+      en: 'Send a WhatsApp reminder to many expiring or overdue customers at once, instead of one by one.',
+      ur: 'معیاد ختم ہونے یا بقایا رکھنے والے کئی کسٹمرز کو ایک ساتھ واٹس ایپ یاد دہانی بھیجیں، ایک ایک کر کے نہیں۔'
+    }
+  }],
+  templates: [{
+    id: 'templates', icon: '📝',
+    title: { en: 'Message Templates', ur: 'میسج ٹیمپلیٹس' },
+    description: {
+      en: 'Customize the wording of every WhatsApp message the app sends — reminders, receipts, and more.',
+      ur: 'ہر واٹس ایپ پیغام کے الفاظ یہاں سے کسٹمائز کریں — یاد دہانی، رسیدیں اور دیگر پیغامات۔'
+    }
+  }],
+  wabot: [{
+    id: 'wabot', icon: '🤖',
+    title: { en: 'Ayesha — WhatsApp Bot', ur: 'عائشہ — واٹس ایپ بوٹ' },
+    description: {
+      en: 'Your AI assistant that answers customer questions on WhatsApp automatically. Manage its conversations and training here.',
+      ur: 'آپ کا AI اسسٹنٹ جو واٹس ایپ پر کسٹمرز کے سوالات کا خودکار جواب دیتا ہے۔ اس کی گفتگو اور تربیت یہاں سے منظم کریں۔'
+    }
+  }],
+  systemlogs: [{
+    id: 'systemlogs', icon: '🗂️',
+    title: { en: 'System Logs', ur: 'سسٹم لاگز' },
+    description: {
+      en: 'A full audit trail of logins, syncs and important changes — useful if something ever looks off.',
+      ur: 'لاگ ان، سنک اور اہم تبدیلیوں کا مکمل ریکارڈ — اگر کبھی کچھ غلط لگے تو یہاں سے چیک کریں۔'
+    }
+  }],
+  complaints: [{
+    id: 'complaints', icon: '🎫',
+    title: { en: 'Complaint Manager', ur: 'شکایات مینیجر' },
+    description: {
+      en: 'Log and resolve customer complaints end-to-end, so nothing slips through the cracks.',
+      ur: 'کسٹمر کی شکایات درج کریں اور مکمل حل کریں تاکہ کوئی مسئلہ نظر انداز نہ ہو۔'
+    }
+  }],
+  invoice: [{
+    id: 'invoice', icon: '🧮',
+    title: { en: 'Monthly Invoice', ur: 'ماہانہ انوائس' },
+    description: {
+      en: 'Generate this month\'s invoice for all customers in one go, instead of creating receipts one at a time.',
+      ur: 'تمام کسٹمرز کے لیے اس مہینے کا انوائس ایک ہی بار میں بنائیں، ایک ایک کر کے رسید بنانے کے بجائے۔'
+    }
+  }],
 };
 
 interface TourGuideProps {
