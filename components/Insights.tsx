@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserRecord, Receipt, AppSettings, PaymentStatus } from '../types';
-import { getReceiptAmount, calcTotalRevenue } from '../utils/revenueCalc';
 import { analyzeTrends } from '../services/geminiService';
 
 interface InsightsProps {
@@ -213,28 +212,8 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
         </div>
       </section>
 
-      {/* Snapshot Cards - Responsive Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-[#0f172a] p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl">
-          <h4 className="text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
-            <span className="w-8 h-8 bg-blue-500/10 text-blue-500 rounded-lg flex items-center justify-center text-sm">📈</span> Growth Metrics
-          </h4>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Avg Payment / Unit</span>
-              <span className="text-sm font-black text-slate-900 dark:text-white">Rs. {Math.round((receipts || []).length > 0 ? calcTotalRevenue(receipts || []) / receipts.filter(r => r.status === PaymentStatus.SUCCESS).length : 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Retention Target</span>
-              <span className="text-sm font-black text-emerald-500">95%</span>
-            </div>
-            <div className="flex justify-between items-center p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Active Receivables</span>
-              <span className="text-sm font-black text-rose-500">Rs. {(users || []).filter(u => u.status === 'expired').reduce((s,u) => s + (u.balance || 0), 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
+      {/* Snapshot Card */}
+      <div className="max-w-xl mx-auto w-full">
         <div className="bg-white dark:bg-[#0f172a] p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl flex flex-col items-center">
           <h4 className="w-full text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
             <span className="w-8 h-8 bg-purple-500/10 text-purple-500 rounded-lg flex items-center justify-center text-sm">🛡️</span> Recovery Status

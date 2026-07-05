@@ -16,9 +16,11 @@ interface SettingsProps {
   onLogout: () => void;
   onBulkUpdateUsers: (users: UserRecord[]) => void;
   activeManager: string;
+  onReplayWelcomeTour?: () => void;
+  onResetFeatureTips?: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager, onReplayWelcomeTour, onResetFeatureTips }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [mikrotikHost, setMikrotikHost] = useState((settings as any).mikrotikHost || '');
   const [mikrotikPort, setMikrotikPort] = useState((settings as any).mikrotikPort || '8728');
@@ -1108,6 +1110,31 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Tour Guide */}
+        <div className="bg-white/5 dark:bg-white/5 bg-slate-50 border border-white/10 dark:border-white/10 border-slate-200 rounded-[2.5rem] p-6 mb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-xl">🎓</div>
+            <div>
+              <p className="font-black text-sm dark:text-white text-slate-900">Tour Guide</p>
+              <p className="text-xs dark:text-white/40 text-slate-500">Replay the welcome walkthrough or re-show feature tips (English + Urdu)</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => onReplayWelcomeTour?.()}
+              className="px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest text-center transition-all active:scale-95"
+            >
+              ▶ Replay Welcome Tour
+            </button>
+            <button
+              onClick={() => onResetFeatureTips?.()}
+              className="px-4 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-center transition-all active:scale-95"
+            >
+              ↺ Reset Feature Tips
+            </button>
           </div>
         </div>
 

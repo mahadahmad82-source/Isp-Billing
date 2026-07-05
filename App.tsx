@@ -39,7 +39,7 @@ import LandingPage from './components/LandingPage';
 import TermsAndPolicy from './components/TermsAndPolicy';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
-import OnboardingTour from './components/OnboardingTour';
+import TourGuide, { WELCOME_STEPS, TAB_STEPS } from './components/TourGuide';
 import { useSubscription, canAccess } from './hooks/useSubscription';
 import UpgradeGate from './components/UpgradeGate';
 
@@ -104,7 +104,9 @@ const App: React.FC = () => {
     const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
-  const [showTour, setShowTour] = useState(false);
+  const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+  const [showTabTour, setShowTabTour] = useState(false);
+  const [showTourReminder, setShowTourReminder] = useState(false);
   const [tabLoading, setTabLoading] = useState(false);
 
   // Sync URL hash with activeTab — enables right-click "Open in new tab"
@@ -132,6 +134,7 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [activeTab]);
   const [tourMode, setTourMode] = useState<string>('welcome');
+  const [tourFirstLoginTs, setTourFirstLoginTs] = useState<number | null>(null);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string; ts: number} | null>(null);
@@ -160,26 +163,75 @@ const App: React.FC = () => {
     });
   };
 
-  // Per-page Tour logic
+  // ── Tour Guide (v2) ────────────────────────────────────────────
+  // Welcome tour — runs once, right after a manager's very first login.
   useEffect(() => {
-    if (!activeManager || activeManager === 'admin' || showTour) return;
-
-    // Check master skip key first
-    const masterSkipKey = `tour_disabled_${activeManager}`;
+    if (!activeManager || activeManager === 'admin') return;
+    const masterSkipKey = `myisp_tour_disabled_${activeManager}`;
     if (localStorage.getItem(masterSkipKey) === 'true') return;
 
-    const tourKey = `tour_seen_${activeManager}_${activeTab}`;
-    const alreadySeen = localStorage.getItem(tourKey);
+    const firstLoginKey = `myisp_tour_first_login_${activeManager}`;
+    let firstLogin = localStorage.getItem(firstLoginKey);
+    if (!firstLogin) {
+      firstLogin = String(Date.now());
+      localStorage.setItem(firstLoginKey, firstLogin);
+    }
+    setTourFirstLoginTs(Number(firstLogin));
 
-    if (!alreadySeen) {
-      // Small delay for tab transition
+    const welcomeDoneKey = `myisp_tour_welcome_done_${activeManager}`;
+    const dismissedThisSession = sessionStorage.getItem('myisp_tour_welcome_dismissed_session');
+    if (localStorage.getItem(welcomeDoneKey) !== 'true' && !dismissedThisSession) {
+      const timer = setTimeout(() => setShowWelcomeTour(true), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [activeManager]);
+
+  // Show a small "Take the Tour" reminder for 24h if the welcome tour was closed but not completed
+  useEffect(() => {
+    if (!activeManager || activeManager === 'admin' || showWelcomeTour) { setShowTourReminder(false); return; }
+    const masterSkipKey = `myisp_tour_disabled_${activeManager}`;
+    const welcomeDoneKey = `myisp_tour_welcome_done_${activeManager}`;
+    if (localStorage.getItem(masterSkipKey) === 'true' || localStorage.getItem(welcomeDoneKey) === 'true') {
+      setShowTourReminder(false);
+      return;
+    }
+    if (!tourFirstLoginTs) return;
+    const within24h = Date.now() - tourFirstLoginTs < 24 * 60 * 60 * 1000;
+    setShowTourReminder(within24h);
+  }, [activeManager, showWelcomeTour, tourFirstLoginTs]);
+
+  // Per-tab feature tips — shown once per tab, the first time a manager opens it
+  useEffect(() => {
+    if (!activeManager || activeManager === 'admin' || showWelcomeTour || showTabTour) return;
+    if (localStorage.getItem(`myisp_tour_disabled_${activeManager}`) === 'true') return;
+    if (!TAB_STEPS[activeTab]) return;
+
+    const tabTourKey = `myisp_tour_tab_done_${activeManager}_${activeTab}`;
+    if (!localStorage.getItem(tabTourKey)) {
       const timer = setTimeout(() => {
         setTourMode(activeTab);
-        setShowTour(true);
+        setShowTabTour(true);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, activeManager, showTour]);
+  }, [activeTab, activeManager, showWelcomeTour, showTabTour]);
+
+  const handleReplayWelcomeTour = () => {
+    if (!activeManager) return;
+    localStorage.removeItem(`myisp_tour_disabled_${activeManager}`);
+    localStorage.removeItem(`myisp_tour_welcome_done_${activeManager}`);
+    sessionStorage.removeItem('myisp_tour_welcome_dismissed_session');
+    setShowTourReminder(false);
+    setShowWelcomeTour(true);
+  };
+
+  const handleResetFeatureTips = () => {
+    if (!activeManager) return;
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(`myisp_tour_tab_done_${activeManager}_`))
+      .forEach(k => localStorage.removeItem(k));
+    setSuccessToast('Feature tips reset — tips will show again as you open each tab.');
+  };
 
   // Listen for custom event from RecoverySummary
   useEffect(() => {
@@ -328,14 +380,7 @@ const App: React.FC = () => {
           outageLogs: finalState.outageLogs || [],
           planHistory: finalState.planHistory || [],
         });
-        // Show onboarding welcome for new managers
-        if (activeManager !== 'admin') {
-          const welcomeKey = `tour_seen_${activeManager}_welcome`;
-          if (!localStorage.getItem(welcomeKey)) {
-            setShowTour(true);
-            setTourMode('welcome');
-          }
-        }
+        // Welcome tour is now triggered reactively by the Tour Guide v2 effect above.
       }).finally(() => setIsSyncing(false));
     } else {
       setActiveSession(null);
@@ -607,14 +652,8 @@ const App: React.FC = () => {
       if (error) console.error('[Login] track_manager_login failed:', error);
     });
     
-    // Explicitly check for tour on login
-    if (username !== 'admin') {
-      const welcomeKey = `tour_seen_${username}_welcome`;
-      if (!localStorage.getItem(welcomeKey)) {
-        setTourMode('welcome');
-        setShowTour(true);
-      }
-    } else {
+    // Welcome tour is triggered reactively by the Tour Guide v2 effect once activeManager updates.
+    if (username === 'admin') {
       setActiveTab('admin-overview');
     }
   };
@@ -1460,7 +1499,7 @@ const App: React.FC = () => {
             />
           )}
           {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} />}
-          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} />}
+          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
           {!tabLoading && activeTab === 'complaints' && userRole !== 'sub-manager' && (
             <ComplaintManager
@@ -1832,22 +1871,45 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {showTour && (
-        <OnboardingTour 
+      {showWelcomeTour && (
+        <TourGuide
+          steps={WELCOME_STEPS}
           onClose={() => {
-            setShowTour(false);
+            setShowWelcomeTour(false);
             if (activeManager) {
-              localStorage.setItem(`tour_seen_${activeManager}_${tourMode}`, 'true');
-            }
-          }} 
-          onSkipAll={() => {
-            setShowTour(false);
-            if (activeManager) {
-              localStorage.setItem(`tour_disabled_${activeManager}`, 'true');
+              localStorage.setItem(`myisp_tour_welcome_done_${activeManager}`, 'true');
             }
           }}
-          activeTab={tourMode}
+          onSkipAll={() => {
+            setShowWelcomeTour(false);
+            sessionStorage.setItem('myisp_tour_welcome_dismissed_session', 'true');
+            if (activeManager) {
+              localStorage.setItem(`myisp_tour_disabled_${activeManager}`, 'true');
+              localStorage.setItem(`myisp_tour_welcome_done_${activeManager}`, 'true');
+            }
+          }}
         />
+      )}
+
+      {showTabTour && TAB_STEPS[tourMode] && (
+        <TourGuide
+          steps={TAB_STEPS[tourMode]}
+          onClose={() => {
+            setShowTabTour(false);
+            if (activeManager) {
+              localStorage.setItem(`myisp_tour_tab_done_${activeManager}_${tourMode}`, 'true');
+            }
+          }}
+        />
+      )}
+
+      {showTourReminder && !showWelcomeTour && !showTabTour && (
+        <button
+          onClick={handleReplayWelcomeTour}
+          className="fixed bottom-24 md:bottom-8 right-5 z-[350] flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white pl-4 pr-5 py-3.5 rounded-full shadow-2xl shadow-indigo-600/30 font-bold text-xs uppercase tracking-widest transition-all active:scale-95 animate-in slide-in-from-bottom-5"
+        >
+          <span className="text-base">🎓</span> Take the Tour
+        </button>
       )}
 
       {pendingRemindersCount > 0 && activeTab !== 'expiries' && !isReminderBannerDismissed && (

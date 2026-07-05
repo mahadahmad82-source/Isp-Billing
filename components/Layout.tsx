@@ -162,6 +162,18 @@ const Layout: React.FC<LayoutProps> = ({
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Let the Tour Guide open/close the nav drawer while spotlighting it
+  useEffect(() => {
+    const openHandler = () => setDrawerOpen(true);
+    const closeHandler = () => setDrawerOpen(false);
+    window.addEventListener('myisp-tour-open-drawer', openHandler);
+    window.addEventListener('myisp-tour-close-drawer', closeHandler);
+    return () => {
+      window.removeEventListener('myisp-tour-open-drawer', openHandler);
+      window.removeEventListener('myisp-tour-close-drawer', closeHandler);
+    };
+  }, []);
   const [profileOpen, setProfileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileInitialTab, setProfileInitialTab] = useState<'profile'|'security'|'session'>('profile');

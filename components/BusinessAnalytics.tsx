@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { UserRecord, Receipt, BusinessExpense, AppSettings, PaymentStatus } from '../types';
+import { UserRecord, Receipt, BusinessExpense, AppSettings, PaymentStatus, PaymentMethod } from '../types';
 import { calcMonthlyRevenue } from '../utils/revenueCalc';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -27,7 +27,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, expenses, settings }) => {
-  const [activeSection, setActiveSection] = useState<'overview' | 'revenue' | 'plans' | 'deductions'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'revenue' | 'plans' | 'deductions' | 'daily'>('overview');
+  const [dailyDate, setDailyDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   // ── Active/Expired based on expiryDate (source of truth) ──
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
@@ -61,26 +62,39 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return months;
   }, [receipts, expenses]);
 
-  // ── Plan stats — active count = activated this month (activatedMonths), expired by expiryDate ──
+  // ── Plan stats — Revenue = actually collected this month (from receipts).
+  // Expected = standard plan price summed across ALL non-deleted users on that plan. ──
   const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+  const currentMonthNameForPlans = new Date().toLocaleDateString('en-US', { month: 'long' });
+  const currentYearForPlans = new Date().getFullYear();
   const planStats = useMemo(() => {
     const map: Record<string, {
       activeCount: number; expiredCount: number;
       revenue: number; discounted: number; expectedFull: number;
     }> = {};
     users.forEach(u => {
+      if (u.status === 'deleted') return;
       if (!map[u.plan]) map[u.plan] = { activeCount: 0, expiredCount: 0, revenue: 0, discounted: 0, expectedFull: 0 };
       const activatedThisMonth = (u.activatedMonths || []).includes(currentMonthLabel);
+      const actual = Number(u.monthlyFee) || 0;
+      const standard = Number(settings?.planPrices?.[u.plan]) || actual;
+      // Expected: total billing potential for this plan — every non-deleted user counts, active or expired
+      map[u.plan].expectedFull += standard;
       if (activatedThisMonth) {
         map[u.plan].activeCount++;
-        const actual = Number(u.monthlyFee) || 0;
-        const standard = Number(settings?.planPrices?.[u.plan]) || actual;
-        map[u.plan].revenue += actual;
-        map[u.plan].expectedFull += standard;
         if (actual < standard && standard > 0) map[u.plan].discounted++;
       } else if (!isActiveUser(u)) {
         map[u.plan].expiredCount++;
       }
+    });
+    // Revenue: only what has actually been collected this month, straight from receipts
+    (receipts || []).forEach(r => {
+      if (r.status !== PaymentStatus.SUCCESS) return;
+      const periodMatch = (r.period || '').includes(currentMonthNameForPlans) && (r.period || '').includes(String(currentYearForPlans));
+      if (!periodMatch) return;
+      const plan = r.plan || users.find(u => u.id === r.userId || u.username === r.username)?.plan;
+      if (!plan || !map[plan]) return;
+      map[plan].revenue += (typeof r.paidAmount === 'number' ? r.paidAmount : 0);
     });
     return Object.entries(map)
       .filter(([, d]) => d.activeCount + d.expiredCount > 0)
@@ -93,7 +107,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
         'Expected Full': d.expectedFull,
         Discounted: d.discounted,
       }));
-  }, [users, settings, today]);
+  }, [users, receipts, settings, today]);
 
   // ── Pie: active vs expired by expiryDate ──
   const statusPie = useMemo(() => {
@@ -123,6 +137,27 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return { fullPrice, discounted, totalLost, totalExpectedFull };
   }, [users, settings, today]);
 
+  // ── Daily Collection — payment method breakdown for a chosen date ──
+  const dailyStats = useMemo(() => {
+    const dayReceipts = (receipts || []).filter(r => {
+      if (r.status !== PaymentStatus.SUCCESS) return false;
+      try { return new Date(r.date).toISOString().slice(0, 10) === dailyDate; } catch { return false; }
+    });
+    const methods: PaymentMethod[] = [PaymentMethod.CASH, PaymentMethod.TRANSFER, PaymentMethod.MOBILE_MONEY, PaymentMethod.CARD];
+    const byMethod = methods.map(m => {
+      const list = dayReceipts.filter(r => r.paymentMethod === m);
+      const total = list.reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
+      return { method: m, total, count: list.length };
+    }).filter(m => m.count > 0 || true); // keep all methods visible, even at zero
+    const totalCollected = dayReceipts.reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
+    return {
+      receipts: dayReceipts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      byMethod,
+      totalCollected,
+      count: dayReceipts.length,
+    };
+  }, [receipts, dailyDate]);
+
   // ── KPI cards ──
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' });
   const currentYear = new Date().getFullYear();
@@ -144,6 +179,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     { id: 'revenue', label: 'Revenue Trend' },
     { id: 'plans', label: 'Plan Analytics' },
     { id: 'deductions', label: 'Discounts' },
+    { id: 'daily', label: 'Daily Collection' },
   ] as const;
 
   return (
@@ -378,9 +414,150 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                     );
                   })}
                 </tbody>
+                {(() => {
+                  const discountedList = users.filter(u => {
+                    const std = settings.planPrices?.[u.plan] || 0;
+                    return (u.monthlyFee || 0) < std && isActiveUser(u);
+                  });
+                  const totalStd = discountedList.reduce((s, u) => s + (Number(settings.planPrices?.[u.plan]) || 0), 0);
+                  const totalPaying = discountedList.reduce((s, u) => s + (Number(u.monthlyFee) || 0), 0);
+                  const totalDiscount = totalStd - totalPaying;
+                  return (
+                    <tfoot className="bg-slate-50 dark:bg-white/[0.02] border-t-2 border-amber-500/20">
+                      <tr>
+                        <td className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase" colSpan={2}>Total ({discountedList.length} users)</td>
+                        <td className="px-6 py-4 text-right font-black text-slate-500">Rs. {totalStd.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right font-black text-amber-500">Rs. {totalPaying.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right font-black text-rose-500">-Rs. {totalDiscount.toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
+                  );
+                })()}
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── DAILY COLLECTION ── */}
+      {activeSection === 'daily' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collection Date</p>
+              <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">Payment-method wise breakdown</p>
+            </div>
+            <input
+              type="date"
+              value={dailyDate}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={e => setDailyDate(e.target.value)}
+              className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 overflow-hidden">
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Collected</p>
+              <p className="text-xl font-black text-emerald-500 truncate">Rs. {dailyStats.totalCollected.toLocaleString()}</p>
+            </div>
+            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 overflow-hidden">
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">Payments Received</p>
+              <p className="text-xl font-black text-indigo-500 truncate">{dailyStats.count}</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">By Payment Method</p>
+            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-6">{new Date(dailyDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            {dailyStats.totalCollected === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-6">Is din koi collection nahi hui.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={dailyStats.byMethod} barCategoryGap="35%">
+                  <XAxis dataKey="method" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={v => `${(Number(v)/1000).toFixed(0)}k`} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="total" name="Rs. Collected" radius={[8,8,0,0]} fill="#6366f1" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Method Breakdown</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5">
+                  <tr>
+                    <th className="px-6 py-3 text-left">Method</th>
+                    <th className="px-6 py-3 text-right">Payments</th>
+                    <th className="px-6 py-3 text-right">Collected</th>
+                    <th className="px-6 py-3 text-right">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/[0.03]">
+                  {dailyStats.byMethod.map(m => (
+                    <tr key={m.method} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
+                      <td className="px-6 py-3">
+                        <span className="px-2 py-1 bg-indigo-500/10 text-indigo-500 rounded-lg text-[10px] font-bold uppercase">{m.method}</span>
+                      </td>
+                      <td className="px-6 py-3 text-right font-bold text-slate-600 dark:text-slate-300">{m.count}</td>
+                      <td className="px-6 py-3 text-right font-black text-emerald-500">Rs. {m.total.toLocaleString()}</td>
+                      <td className="px-6 py-3 text-right text-slate-400 text-xs">
+                        {dailyStats.totalCollected > 0 ? Math.round((m.total / dailyStats.totalCollected) * 100) : 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-slate-50 dark:bg-white/[0.02] border-t-2 border-indigo-500/20">
+                  <tr>
+                    <td className="px-6 py-3 text-[10px] font-black text-slate-500 uppercase">Total</td>
+                    <td className="px-6 py-3 text-right font-black text-slate-600 dark:text-slate-300">{dailyStats.count}</td>
+                    <td className="px-6 py-3 text-right font-black text-emerald-500">Rs. {dailyStats.totalCollected.toLocaleString()}</td>
+                    <td className="px-6 py-3 text-right font-black text-slate-400 text-xs">100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {dailyStats.receipts.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Today's Receipts</p>
+              </div>
+              <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left">Customer</th>
+                      <th className="px-6 py-3 text-left">Method</th>
+                      <th className="px-6 py-3 text-right">Amount</th>
+                      <th className="px-6 py-3 text-right">Ref</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/[0.03]">
+                    {dailyStats.receipts.map(r => (
+                      <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
+                        <td className="px-6 py-3">
+                          <p className="font-bold text-slate-900 dark:text-white">{r.userName}</p>
+                          <p className="text-[10px] text-slate-400">@{r.username}</p>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="px-2 py-1 bg-slate-500/10 text-slate-500 rounded-lg text-[10px] font-bold uppercase">{r.paymentMethod}</span>
+                        </td>
+                        <td className="px-6 py-3 text-right font-black text-emerald-500">Rs. {(r.paidAmount || 0).toLocaleString()}</td>
+                        <td className="px-6 py-3 text-right text-slate-400 text-xs">{r.transactionRef || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

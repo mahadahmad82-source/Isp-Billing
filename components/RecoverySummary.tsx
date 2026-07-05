@@ -163,33 +163,51 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
 
   const monthlyData = useMemo(() => {
     const summaries: Record<string, SummaryItem> = {};
-    
+
     // Auto-generate current month entry so ledger is always "Updated"
     const now = new Date();
     const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(now);
-    summaries[currentPeriod] = { period: currentPeriod, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
 
-    // Count activated users for each month
-    (deferredUsers || []).forEach(u => {
-      (u.activatedMonths || []).forEach(m => {
-        if (!summaries[m]) {
-          summaries[m] = { period: m, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
-        }
-        summaries[m].activatedCount += 1;
+    // Every period that should exist: current month + any month with activated users or receipts
+    const periodSet = new Set<string>([currentPeriod]);
+    (deferredUsers || []).forEach(u => (u.activatedMonths || []).forEach(m => periodSet.add(m)));
+    (deferredReceipts || []).forEach(r => { if (r.period) periodSet.add(r.period); });
+
+    periodSet.forEach(period => {
+      const periodReceipts = (deferredReceipts || []).filter(r => r.period === period);
+      // Active Payment Unit = every user billed this period: activated this month OR has a receipt this month.
+      // This matches the drill-down ledger exactly, so folder % and detail % never disagree.
+      const periodUsers = (deferredUsers || []).filter(u =>
+        (u.activatedMonths || []).includes(period) ||
+        periodReceipts.some(r => r.userId === u.id || r.username === u.username)
+      );
+
+      let totalPaid = 0, totalAdvance = 0, totalBalance = 0, paidCount = 0;
+      periodUsers.forEach(u => {
+        const userReceipts = periodReceipts.filter(r => r.userId === u.id || r.username === u.username);
+        const hasPaid = userReceipts.length > 0;
+        const paidSum = userReceipts.reduce((s, r) => s + (r.paidAmount - (r.advanceAmount || 0)), 0);
+        const advanceSum = userReceipts.reduce((s, r) => s + (r.advanceAmount || 0), 0);
+        const lastReceipt = userReceipts[userReceipts.length - 1];
+        // Non-payers count their outstanding user.balance too — without this, the % looked
+        // artificially high because non-payers contributed nothing to the "expected" side.
+        const balanceSum = hasPaid ? (lastReceipt?.balanceAmount ?? 0) : (u.balance ?? 0);
+        totalPaid += paidSum + advanceSum;
+        totalAdvance += advanceSum;
+        totalBalance += balanceSum;
+        if (hasPaid) paidCount += 1;
       });
+
+      summaries[period] = {
+        period,
+        totalPaid,
+        totalAdvance,
+        totalBalance,
+        paidCount,
+        activatedCount: periodUsers.length, // = Active Payment Unit for this period
+      };
     });
 
-    (deferredReceipts || []).forEach(r => {
-      const period = r.period;
-      if (!summaries[period]) {
-        summaries[period] = { period, totalPaid: 0, totalAdvance: 0, totalBalance: 0, paidCount: 0, activatedCount: 0 };
-      }
-      summaries[period].totalPaid += (r.paidAmount || 0);
-      summaries[period].totalAdvance += (r.advanceAmount || 0);
-      summaries[period].totalBalance += (r.balanceAmount || 0);
-      summaries[period].paidCount += 1;
-    });
-    
     return Object.values(summaries).sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime());
   }, [deferredReceipts, deferredUsers]);
 
@@ -953,7 +971,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                       <span className="text-lg font-black text-emerald-600 dark:text-emerald-500">Rs. {(summary.totalPaid || 0).toLocaleString()}</span>
                    </div>
                    <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">
-                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Subscribers</span>
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Active Payment Unit</span>
                       <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{summary.activatedCount} Active</span>
                    </div>
                    <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">

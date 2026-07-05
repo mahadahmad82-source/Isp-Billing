@@ -451,6 +451,31 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
         </div>
       </div>
 
+      {/* ── Growth Metrics (moved here from AI Insights) ── */}
+      <div className="bg-white dark:bg-[#0f172a] p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl">
+        <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
+          <span className="w-8 h-8 bg-blue-500/10 text-blue-500 rounded-lg flex items-center justify-center text-sm">📈</span> Growth Metrics
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Avg Payment / Unit</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">
+              Rs. {Math.round((receipts || []).filter(r => r.status === PaymentStatus.SUCCESS).length > 0
+                ? totalRevenue / receipts.filter(r => r.status === PaymentStatus.SUCCESS).length
+                : 0).toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Retention Target</span>
+            <span className="text-sm font-black text-emerald-500">95%</span>
+          </div>
+          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Active Receivables</span>
+            <span className="text-sm font-black text-rose-500">Rs. {(users || []).filter(u => u.status === 'expired').reduce((s,u) => s + (u.balance || 0), 0).toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
       {/* ── Churn Risk ── */}
       {(() => {
         const today2 = new Date(); today2.setHours(0,0,0,0);
