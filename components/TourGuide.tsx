@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export type TourLang = 'en' | 'ur';
@@ -154,6 +154,9 @@ const TourGuide: React.FC<TourGuideProps> = ({ steps, onClose, onSkipAll }) => {
     try { return (localStorage.getItem(LANG_KEY) as TourLang) || 'en'; } catch { return 'en'; }
   });
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [resolvedStepId, setResolvedStepId] = useState<string | null>(null);
+  const [cardPos, setCardPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const step = steps[idx];
 
@@ -169,24 +172,58 @@ const TourGuide: React.FC<TourGuideProps> = ({ steps, onClose, onSkipAll }) => {
     }
   }, [step?.id]);
 
+  // Find + scroll the target element into view, then measure it.
+  // `resolvedStepId` only flips to this step once we actually know whether a target
+  // exists — this stops the tour from flashing the wrong modal type mid-transition.
   useLayoutEffect(() => {
-    if (!step?.targetId) { setRect(null); return; }
-    let raf = 0;
-    const update = () => {
-      const el = document.getElementById(step.targetId!);
-      setRect(el ? el.getBoundingClientRect() : null);
-    };
-    // small delay lets the drawer/animation finish before we measure
-    const t = setTimeout(update, 260);
+    setCardPos(null);
+    setRect(null);
+    setResolvedStepId(null);
+    if (!step) return;
+
+    if (!step.targetId) { setResolvedStepId(step.id); return; }
+    const el = document.getElementById(step.targetId);
+    if (!el) { setResolvedStepId(step.id); return; }
+
+    const update = () => { setRect(el.getBoundingClientRect()); setResolvedStepId(step.id); };
+    // Bring it into the middle of the screen first (matters most on mobile),
+    // then measure once the scroll/drawer animation has settled.
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t1 = setTimeout(update, 120);
+    const t2 = setTimeout(update, 380);
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     return () => {
-      clearTimeout(t);
-      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
   }, [step?.id, step?.targetId]);
+
+  // Once we know the target's position AND the card's real (rendered) size,
+  // work out a spot that is 100% guaranteed to sit inside the viewport.
+  useLayoutEffect(() => {
+    if (!rect) { setCardPos(null); return; }
+    const pad = 12;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(CARD_WIDTH, vw - pad * 2);
+    const height = cardRef.current?.offsetHeight || 280;
+
+    const spaceBelow = vh - rect.bottom;
+    const spaceAbove = rect.top;
+    const placeBelow = spaceBelow >= height + pad || spaceBelow >= spaceAbove;
+
+    let top = placeBelow ? rect.bottom + pad : rect.top - pad - height;
+    // Hard clamp — no matter what the target's position is, the card always stays on screen
+    top = Math.max(pad, Math.min(top, vh - height - pad));
+
+    let left = rect.left + rect.width / 2 - width / 2;
+    left = Math.max(pad, Math.min(left, vw - width - pad));
+
+    setCardPos({ top, left, width, maxHeight: vh - pad * 2 });
+  }, [rect, step?.id, lang]);
 
   if (!step) return null;
 
@@ -200,7 +237,7 @@ const TourGuide: React.FC<TourGuideProps> = ({ steps, onClose, onSkipAll }) => {
   const toggleLang = () => setLang(l => (l === 'en' ? 'ur' : 'en'));
 
   const CardBody = (
-    <div className="p-7" dir={lang === 'ur' ? 'rtl' : 'ltr'}>
+    <div className="p-5 sm:p-7" dir={lang === 'ur' ? 'rtl' : 'ltr'} ref={cardRef}>
       <div className="flex items-center justify-between mb-4">
         {multiStep ? (
           <button onClick={onSkipAll} className="text-[9px] font-bold text-slate-400 hover:text-rose-500 uppercase tracking-widest transition-colors">
@@ -255,16 +292,18 @@ const TourGuide: React.FC<TourGuideProps> = ({ steps, onClose, onSkipAll }) => {
     </div>
   );
 
-  // Spotlight mode — element found, highlight it + place card near it
+  // Still figuring out whether this step has an on-screen target — render nothing
+  // rather than briefly flashing the wrong modal type.
+  if (resolvedStepId !== step.id) {
+    return <div className="fixed inset-0 z-[600] no-print" />;
+  }
+
+  // Spotlight mode — element found, highlight it + place card near it (always fully on-screen)
   if (rect) {
-    const pad = 10;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const placeBelow = spaceBelow > 300 || spaceBelow > spaceAbove;
-    const top = placeBelow ? Math.min(rect.bottom + pad, window.innerHeight - 20) : undefined;
-    const bottom = !placeBelow ? Math.max(window.innerHeight - rect.top + pad, 10) : undefined;
-    let left = rect.left + rect.width / 2 - CARD_WIDTH / 2;
-    left = Math.min(Math.max(pad, left), window.innerWidth - CARD_WIDTH - pad);
+    const ready = !!cardPos;
+    const style: React.CSSProperties = ready
+      ? { position: 'fixed', top: cardPos!.top, left: cardPos!.left, width: cardPos!.width, maxHeight: cardPos!.maxHeight, overflowY: 'auto' }
+      : { position: 'fixed', top: 0, left: -9999, width: Math.min(CARD_WIDTH, window.innerWidth - 24), visibility: 'hidden' };
 
     return (
       <div className="fixed inset-0 z-[600] no-print">
@@ -274,15 +313,16 @@ const TourGuide: React.FC<TourGuideProps> = ({ steps, onClose, onSkipAll }) => {
             top: rect.top - 8, left: rect.left - 8, width: rect.width + 16, height: rect.height + 16,
             boxShadow: '0 0 0 9999px rgba(2,6,23,0.72)',
             border: '2px solid rgba(99,102,241,0.9)',
+            opacity: ready ? 1 : 0,
           }}
         />
         <AnimatePresence mode="wait">
           <motion.div
             key={step.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={ready ? { opacity: 0, scale: 0.95 } : false}
+            animate={{ opacity: ready ? 1 : 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            style={{ position: 'fixed', top, bottom, left, width: CARD_WIDTH, maxHeight: '80vh', overflowY: 'auto' }}
+            style={style}
             className="bg-white dark:bg-slate-900 rounded-[1.75rem] border border-slate-200 dark:border-slate-800 shadow-2xl"
           >
             {CardBody}
@@ -301,7 +341,7 @@ const TourGuide: React.FC<TourGuideProps> = ({ steps, onClose, onSkipAll }) => {
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden"
+          className="w-full max-w-md max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl"
         >
           {CardBody}
         </motion.div>
