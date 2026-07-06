@@ -78,7 +78,12 @@ export interface AppSettings {
   routerCatalog?: RouterCatalog; // Admin-editable WhatsApp bot router catalog (models/specs/prices/images)
   botTemplates?: Record<string, BotTemplate>; // Admin-editable WhatsApp bot reply templates (wording of every canned reply)
   messageTemplates?: Record<string, MessageTemplate>; // Admin-editable manual-send templates (Customer Directory, Recovery Ledger, Receipt Share, Expiry Reminder, Bulk Reminder)
+  areas?: string[]; // Manager-defined list of service areas (Area Dashboard) — used to populate area select in Customer Directory
 }
+
+// Connection category — how the subscriber is physically connected (Customer Directory column + filter)
+export const CONNECTION_TYPES = ['Fiber', 'Local/Panel', 'Bandwidth', 'Sharing', 'Wireless', 'Other'] as const;
+export type ConnectionType = typeof CONNECTION_TYPES[number];
 
 export interface MessageTemplate {
   category: string; // 'reminder' | 'recovery' | 'receipt' | 'expiry' | 'bulk' | 'other'
@@ -127,6 +132,7 @@ export interface UserRecord {
   status: 'active' | 'expired' | 'pending' | 'deleted';
   companyId?: string;
   area?: string;
+  connectionType?: string; // Fiber / Local-Panel / Bandwidth / Sharing / Wireless / Other — see CONNECTION_TYPES
   // Ayesha bot — reactivation targeting: true once customer has physically moved out
   // of the coverage area (excludes them from "disconnected 90+ days" reactivation campaigns).
   movedOut?: boolean;
@@ -309,7 +315,7 @@ export interface LeadRecord {
 
 // ─── EQUIPMENT / DEVICE TRACKER ─────────────────────────────
 export type EquipmentType = 'router' | 'onu_ont' | 'media_converter' | 'switch' | 'cable' | 'power_adapter' | 'other';
-export type EquipmentStatus = 'available' | 'deployed' | 'damaged' | 'lost' | 'maintenance';
+export type EquipmentStatus = 'available' | 'deployed' | 'damaged' | 'lost' | 'maintenance' | 'sold';
 
 export interface EquipmentRecord {
   id: string;
@@ -326,6 +332,14 @@ export interface EquipmentRecord {
   purchasePrice?: number;
   notes?: string;
   createdAt: string;
+  // ── Sale to customer (owner sells device, issues a receipt, keeps a sales record) ──
+  soldToUserId?: string;
+  soldToUserName?: string;
+  soldToUserPhone?: string;
+  soldPrice?: number;
+  soldDate?: string;
+  saleReceiptNo?: string;
+  saleNotes?: string;
 }
 
 // ─── SERVICE SUSPENSION LOG ──────────────────────────────────
