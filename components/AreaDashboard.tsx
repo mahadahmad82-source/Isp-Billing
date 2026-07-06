@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useIsDark } from '../hooks/useIsDark';
-import { UserRecord, Receipt } from '../types';
+import { UserRecord, Receipt, AppSettings } from '../types';
 
 interface Props {
   users: UserRecord[];
   receipts: Receipt[];
-  settings: { availablePlans?: { name: string; price: number }[]; monthlyFee?: number };
+  settings: AppSettings & { availablePlans?: { name: string; price: number }[]; monthlyFee?: number };
+  onUpdateAreas?: (areas: string[]) => void;
+  onAssignUserArea?: (userId: string, area: string) => void;
 }
 
 interface AreaStats {
@@ -19,11 +21,35 @@ interface AreaStats {
   plans: Record<string, number>;
 }
 
-const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
+const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAreas, onAssignUserArea }) => {
   const isDark = useIsDark();
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'total' | 'revenue' | 'expired'>('total');
+  const [showManageAreas, setShowManageAreas] = useState(false);
+  const [newAreaName, setNewAreaName] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
+  const definedAreas = settings.areas || [];
+
+  const handleAddArea = () => {
+    const name = newAreaName.trim();
+    if (!name) return;
+    if (definedAreas.some(a => a.toLowerCase() === name.toLowerCase())) {
+      showToast('Yeh area pehle se maujood hai!');
+      return;
+    }
+    onUpdateAreas?.([...definedAreas, name]);
+    setNewAreaName('');
+    showToast(`"${name}" area add ho gaya!`);
+  };
+
+  const handleRemoveArea = (name: string) => {
+    onUpdateAreas?.(definedAreas.filter(a => a !== name));
+    showToast(`"${name}" area list se hata diya (customers ka data safe hai).`);
+  };
 
   const today = new Date(); today.setHours(0,0,0,0);
   const currentMonth = `${today.toLocaleString('en',{month:'long'})} ${today.getFullYear()}`;
@@ -140,37 +166,96 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
       )}
 
       {/* Customer list */}
-      <p className={`text-xs font-black ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Customers</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className={`text-xs font-black ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>Customers</p>
+        <p className={`text-[10px] ${isDark ? 'text-white/30' : 'text-slate-400'}`}>Area badalne ke liye dropdown use karein</p>
+      </div>
       <div className="space-y-2">
         {selectedAreaUsers.map(u => {
           const active = isActive(u);
           return (
-            <div key={u.id} className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 flex items-center justify-between`}>
-              <div>
-                <p className="font-bold text-sm">{u.name}</p>
-                <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>{u.phone} • {u.plan}</p>
+            <div key={u.id} className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 flex items-center justify-between gap-2`}>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-sm truncate">{u.name}</p>
+                <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs truncate`}>{u.phone} • {u.plan}</p>
               </div>
-              <span className={`text-[10px] px-2.5 py-1 rounded-full font-black border ${
+              <span className={`text-[10px] px-2.5 py-1 rounded-full font-black border shrink-0 ${
                 (u as any).isSuspended ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' :
                 active ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' :
                 'bg-red-500/15 border-red-500/30 text-red-400'
               }`}>
                 {(u as any).isSuspended ? 'Suspended' : active ? 'Active' : 'Expired'}
               </span>
+              {onAssignUserArea && (
+                <select
+                  value={u.area || ''}
+                  onChange={e => { onAssignUserArea(u.id, e.target.value); showToast(`${u.name} → ${e.target.value || 'No Area'}`); }}
+                  className={`shrink-0 text-[10px] font-bold ${isDark ? 'bg-white/10 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500`}
+                >
+                  <option value="">No Area</option>
+                  {Array.from(new Set([...definedAreas, ...users.map(x => x.area).filter(Boolean) as string[], selectedArea as string])).filter(Boolean).map(a => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+              )}
             </div>
           );
         })}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+          <div className="bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold">{toast}</div>
+        </div>
+      )}
     </div>
   );
 
   // ── MAIN VIEW ──────────────────────────────────────────────
   return (
     <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
-      <div className="mb-5">
-        <h1 className="text-2xl font-black">Area Dashboard</h1>
-        <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Har area ka alag breakdown</p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-black">Area Dashboard</h1>
+          <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Har area ka alag breakdown</p>
+        </div>
+        {onUpdateAreas && (
+          <button onClick={() => setShowManageAreas(v => !v)}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5 shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+            Areas
+          </button>
+        )}
       </div>
+
+      {/* Manage Areas panel */}
+      {showManageAreas && onUpdateAreas && (
+        <div className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl p-4 mb-5`}>
+          <p className={`text-xs font-black ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Naya Area Banao</p>
+          <div className="flex gap-2 mb-4">
+            <input value={newAreaName} onChange={e => setNewAreaName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddArea(); }}
+              placeholder="e.g. Gulshan Block 5, DHA Phase 2..."
+              className={`flex-1 ${isDark ? 'bg-white/5' : 'bg-slate-50'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`} />
+            <button onClick={handleAddArea} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95">
+              Add
+            </button>
+          </div>
+          {definedAreas.length === 0 ? (
+            <p className={`text-xs ${isDark ? 'text-white/30' : 'text-slate-400'}`}>Abhi koi area define nahi. Upar naam likh kar "Add" dabayein — phir Customer Directory ke form mein yeh area select ho sakega.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {definedAreas.map(a => (
+                <span key={a} className={`flex items-center gap-1.5 text-xs font-bold ${isDark ? 'bg-white/10' : 'bg-slate-100'} px-3 py-1.5 rounded-full`}>
+                  📍 {a}
+                  <button onClick={() => handleRemoveArea(a)} className="text-rose-400 hover:text-rose-300 font-black ml-1">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Overall totals */}
       <div className="grid grid-cols-2 gap-3 mb-5">
@@ -252,6 +337,13 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings }) => {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+          <div className="bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold">{toast}</div>
         </div>
       )}
     </div>
