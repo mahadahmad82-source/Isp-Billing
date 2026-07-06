@@ -1602,6 +1602,7 @@ const App: React.FC = () => {
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
               users={filteredUsers}
+              settings={currentSettings}
               onAdd={(e) => setState(prev => {
                 const ns = { ...prev, equipmentRecords: [...(prev.equipmentRecords || []), e] };
                 saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
@@ -1682,6 +1683,11 @@ const App: React.FC = () => {
                 users={filteredUsers}
                 receipts={filteredReceipts}
                 settings={currentSettings}
+                onUpdateAreas={(areas) => handleUpdateSettings({ ...currentSettings, areas })}
+                onAssignUserArea={(userId, area) => {
+                  const user = state.users.find(u => u.id === userId);
+                  if (user) handleFullUpdateUser({ ...user, area });
+                }}
               />
             ) : (
               <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard" />
