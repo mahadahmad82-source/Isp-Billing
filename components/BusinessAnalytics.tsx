@@ -120,16 +120,19 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   }, [users, today]);
 
   // ── Discount analysis — active users only ──
+  // NOTE: monthlyFee is the GROSS/standard plan price; persistentDiscount is subtracted
+  // at billing time to get the net amount actually charged (see UserManagement.tsx).
+  // So "discounted" must be based on persistentDiscount, not monthlyFee vs planPrices.
   const discountStats = useMemo(() => {
     let fullPrice = 0, discounted = 0, totalLost = 0, totalExpectedFull = 0;
     const activeUsers = users.filter(u => isActiveUser(u));
     activeUsers.forEach(u => {
-      const actual = Number(u.monthlyFee) || 0;
-      const standard = Number(settings?.planPrices?.[u.plan]) || actual;
+      const disc = Number(u.persistentDiscount) || 0;
+      const standard = Number(u.monthlyFee) || 0;
       totalExpectedFull += standard;
-      if (actual < standard && standard > 0) {
+      if (disc > 0) {
         discounted++;
-        totalLost += standard - actual;
+        totalLost += disc;
       } else {
         fullPrice++;
       }
@@ -376,7 +379,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Discounted Users Detail</p>
-              <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">Active users paying below plan price</p>
+              <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">Active users with a monthly discount applied</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -390,12 +393,10 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-white/[0.03]">
-                  {users.filter(u => {
-                    const std = settings.planPrices?.[u.plan] || 0;
-                    return (u.monthlyFee || 0) < std && isActiveUser(u);
-                  }).map(u => {
-                    const std = settings.planPrices?.[u.plan] || 0;
-                    const diff = std - (u.monthlyFee || 0);
+                  {users.filter(u => (Number(u.persistentDiscount) || 0) > 0 && isActiveUser(u)).map(u => {
+                    const std = Number(u.monthlyFee) || 0;
+                    const disc = Number(u.persistentDiscount) || 0;
+                    const paying = std - disc;
                     return (
                       <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.01]">
                         <td className="px-6 py-4">
@@ -405,23 +406,28 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-indigo-500/10 text-indigo-500 rounded-lg text-[10px] font-bold uppercase">{u.plan}</span>
                         </td>
-                        <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {(Number(std)||0).toLocaleString()}</td>
-                        <td className="px-6 py-4 text-right font-bold text-amber-500">Rs. {(Number((u.monthlyFee||0))||0).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right text-slate-500 font-medium">Rs. {std.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right font-bold text-amber-500">Rs. {paying.toLocaleString()}</td>
                         <td className="px-6 py-4 text-right">
-                          <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded-lg text-xs font-bold">-Rs. {(Number(diff)||0).toLocaleString()}</span>
+                          <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded-lg text-xs font-bold">-Rs. {disc.toLocaleString()}</span>
                         </td>
                       </tr>
                     );
                   })}
+                  {users.filter(u => (Number(u.persistentDiscount) || 0) > 0 && isActiveUser(u)).length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-slate-400 text-xs font-bold">
+                        Koi active customer par discount set nahi hai. Customer edit karke "Monthly Discount" field mein amount daalein.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
                 {(() => {
-                  const discountedList = users.filter(u => {
-                    const std = settings.planPrices?.[u.plan] || 0;
-                    return (u.monthlyFee || 0) < std && isActiveUser(u);
-                  });
-                  const totalStd = discountedList.reduce((s, u) => s + (Number(settings.planPrices?.[u.plan]) || 0), 0);
-                  const totalPaying = discountedList.reduce((s, u) => s + (Number(u.monthlyFee) || 0), 0);
-                  const totalDiscount = totalStd - totalPaying;
+                  const discountedList = users.filter(u => (Number(u.persistentDiscount) || 0) > 0 && isActiveUser(u));
+                  const totalStd = discountedList.reduce((s, u) => s + (Number(u.monthlyFee) || 0), 0);
+                  const totalDiscount = discountedList.reduce((s, u) => s + (Number(u.persistentDiscount) || 0), 0);
+                  const totalPaying = totalStd - totalDiscount;
+                  if (discountedList.length === 0) return null;
                   return (
                     <tfoot className="bg-slate-50 dark:bg-white/[0.02] border-t-2 border-amber-500/20">
                       <tr>
