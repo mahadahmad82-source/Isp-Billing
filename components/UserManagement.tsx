@@ -1,7 +1,7 @@
 
 import QuickActivate from './QuickActivate';
 import React, { useState, useRef, useMemo } from 'react';
-import { UserRecord, AppSettings, Receipt, PaymentStatus } from '../types';
+import { UserRecord, AppSettings, Receipt, PaymentStatus, CONNECTION_TYPES } from '../types';
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
@@ -116,6 +116,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     { key: 'status', label: 'Payment' },
     { key: 'pay_exp', label: 'Pay + Expiry' },
     { key: 'discount', label: 'Discount' },
+    { key: 'connection_type', label: 'Connection Type' },
+    { key: 'area', label: 'Area' },
     { key: 'expiry', label: 'Expiry' },
   ] as const;
 
@@ -124,13 +126,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const getDefaultVisibleColumns = (): Record<ColumnKey, boolean> => ({
     account_id: true, full_name: true, phone: true, phone2: false,
     address: false, plan: true, monthly_fee: true, status: false,
-    pay_exp: true, discount: false, expiry: true,
+    pay_exp: true, discount: false, connection_type: true, area: false, expiry: true,
   });
 
   const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
     try {
       const saved = localStorage.getItem('um_visible_columns');
-      return saved ? JSON.parse(saved) : getDefaultVisibleColumns();
+      // Merge with defaults so newly-added columns (e.g. connection_type, area) show up
+      // even for managers whose column preferences were saved before these existed.
+      return saved ? { ...getDefaultVisibleColumns(), ...JSON.parse(saved) } : getDefaultVisibleColumns();
     } catch { return getDefaultVisibleColumns(); }
   });
 
@@ -185,6 +189,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     monthlyFee: settings.planPrices?.[firstAvailablePlan] || 0,
     balance: 0,
     persistentDiscount: 0,
+    connectionType: '',
+    area: '',
     status: 'active',
     expiryDate: getDefaultExpiryString()
   });
@@ -201,6 +207,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
       monthlyFee: settings.planPrices?.[firstAvailablePlan] || 0,
       balance: 0,
       persistentDiscount: 0,
+      connectionType: '',
+      area: '',
       status: 'active',
       expiryDate: getDefaultExpiryString()
     });
@@ -285,6 +293,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
       'Monthly Fee': u.monthlyFee,
       'Balance': u.balance,
       'Discount': u.persistentDiscount || 0,
+      'Connection Type': u.connectionType || '',
+      'Area': u.area || '',
       'Expiry': new Date(u.expiryDate).toLocaleDateString(),
       'Registration Date': u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
       'Month': selectedMonth,
@@ -805,6 +815,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       { key: 'status', label: 'PAYMENT', asc: 'paid_first', desc: 'pending_first', center: true },
                       { key: 'pay_exp', label: 'STATUS', asc: null, desc: null, center: true },
                       { key: 'discount', label: 'DISCOUNT', asc: null, desc: null, center: true },
+                      { key: 'connection_type', label: 'CONNECTION TYPE', asc: null, desc: null, center: true },
+                      { key: 'area', label: 'AREA', asc: null, desc: null },
                       { key: 'expiry', label: 'EXPIRY', asc: 'expiry_asc', desc: 'expiry_desc' },
                     ] as { key: ColumnKey; label: string; asc: SortKey | null; desc: SortKey | null; center?: boolean }[])
                     .filter(col => visibleColumns[col.key])
@@ -831,7 +843,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="px-8 py-12 text-center text-slate-500 dark:text-slate-400 text-sm font-bold">
+                      <td colSpan={14} className="px-8 py-12 text-center text-slate-500 dark:text-slate-400 text-sm font-bold">
                         No customers found for {selectedMonth}.
                         {isCurrentMonth && <p className="text-xs mt-2 text-indigo-500">Add or Import users to get started.</p>}
                       </td>
@@ -926,6 +938,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           {visibleColumns.discount && (
                           <td className="px-6 py-6 text-center">
                              <span className="text-xs font-black text-emerald-600">Rs. {(user.persistentDiscount || 0).toLocaleString()}</span>
+                          </td>)}
+                          {visibleColumns.connection_type && (
+                          <td className="px-6 py-6 text-center">
+                            {user.connectionType ? (
+                              <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400">{user.connectionType}</span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">—</span>
+                            )}
+                          </td>)}
+                          {visibleColumns.area && (
+                          <td className="px-6 py-6">
+                             <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user.area || '—'}</span>
                           </td>)}
                           {visibleColumns.expiry && (
                           <td className="px-6 py-6">
@@ -1046,6 +1070,24 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest ml-1">MONTHLY DISCOUNT</label>
                     <input type="number" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-emerald-500/10 font-bold outline-none text-emerald-600 dark:text-emerald-500 text-2xl focus:border-emerald-500/50 transition-all" value={formData.persistentDiscount || 0} onChange={e => setFormData({...formData, persistentDiscount: Number(e.target.value)})} placeholder="0" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">CONNECTION TYPE</label>
+                    <select className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-black text-slate-900 dark:text-white text-lg outline-none appearance-none cursor-pointer" value={formData.connectionType || ''} onChange={e => setFormData({...formData, connectionType: e.target.value})}>
+                      <option value="" className="bg-white dark:bg-[#0f172a]">— Select —</option>
+                      {CONNECTION_TYPES.map(ct => <option key={ct} value={ct} className="bg-white dark:bg-[#0f172a]">{ct}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">AREA</label>
+                    <input list="um-area-options" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-lg focus:border-indigo-500 transition-all" placeholder="Area select ya naya likhein..." value={formData.area || ''} onChange={e => setFormData({...formData, area: e.target.value})} />
+                    <datalist id="um-area-options">
+                      {Array.from(new Set([...(settings.areas || []), ...users.map(u => u.area).filter(Boolean) as string[]])).map(a => (
+                        <option key={a} value={a} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
                 <div className="space-y-3">
