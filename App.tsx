@@ -461,6 +461,7 @@ const App: React.FC = () => {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD for dedup
 
     state.users.forEach(u => {
       if (u && u.companyId && u.companyId !== activeCompany?.id) return;
@@ -472,9 +473,10 @@ const App: React.FC = () => {
       exp.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
+      // Expiring Tomorrow
       if (diffDays === 1) {
         list.push({
-          id: `notif-exp-${u.id}`,
+          id: `notif-exp-tmrw-${u.id}-${todayStr}`,
           type: 'EXPIRY',
           priority: 'MEDIUM',
           title: '⏰ Expiring Tomorrow',
@@ -486,13 +488,30 @@ const App: React.FC = () => {
         });
       }
 
-      if (diffDays <= 0) {
+      // Expiring Today (NEW)
+      if (diffDays === 0) {
         list.push({
-          id: `notif-expired-${u.id}`,
+          id: `notif-exp-today-${u.id}-${todayStr}`,
+          type: 'EXPIRY',
+          priority: 'HIGH',
+          title: '🚨 Expiring Today',
+          message: `${u.name} (${u.plan}) — subscription expires TODAY. Renew immediately to avoid disconnection.`,
+          timestamp: new Date().toISOString(),
+          userId: u.id,
+          actionLabel: 'Renew Now',
+          actionTab: 'expiries'
+        });
+      }
+
+      // Recently Expired — last 3 days only (replaces old "all expired" flood)
+      if (diffDays < 0 && diffDays >= -3) {
+        const daysAgo = Math.abs(diffDays);
+        list.push({
+          id: `notif-expired-${u.id}-${todayStr}`,
           type: 'OVERDUE',
           priority: 'HIGH',
           title: '🔴 User Expired',
-          message: `${u.name} (${u.plan}) subscription has expired${diffDays < 0 ? ` ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''} ago` : ' today'}.${(u.balance || 0) > 0 ? ` Outstanding: Rs. ${(u.balance || 0).toLocaleString()}` : ''}`,
+          message: `${u.name} (${u.plan}) expired ${daysAgo} day${daysAgo > 1 ? 's' : ''} ago.${(u.balance || 0) > 0 ? ` Outstanding: Rs. ${(u.balance || 0).toLocaleString()}` : ''}`,
           timestamp: new Date().toISOString(),
           userId: u.id,
           actionLabel: 'Recover',
