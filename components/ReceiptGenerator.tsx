@@ -903,7 +903,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                        • Service activation is subject to the clearing of the mentioned net amount.<br/>
                        • Technical support is available via the office contact listed above.<br/>
                        {settings.globalNote && <span className="block mt-3 text-indigo-700 font-black">• {settings.globalNote}</span>}
-                       {activeReceipt.description && <span className="block mt-3 text-amber-700 font-black">📝 {activeReceipt.description}</span>}
+                       {activeReceipt.description && <span className="flex items-center gap-1.5 mt-3 text-amber-700 font-black"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{activeReceipt.description}</span>}
                      </p>
                   </div>
                   
@@ -999,7 +999,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
             <AdsSection design={ReceiptDesign.THERMAL} />
             <p className="text-[9px] font-bold uppercase tracking-wider mt-2">Thank you!</p>
-            {activeReceipt.description && <p className="text-[9px] font-bold text-center mt-2 border-t border-dashed border-slate-300 pt-2">📝 {activeReceipt.description}</p>}
+            {activeReceipt.description && <p className="flex items-center justify-center gap-1 text-[9px] font-bold text-center mt-2 border-t border-dashed border-slate-300 pt-2"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{activeReceipt.description}</p>}
           </div>
         );
 
@@ -1071,7 +1071,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               </div>
               <AdsSection design={ReceiptDesign.MODERN} />
             </div>
-            {activeReceipt.description && <div className="mt-4 text-center px-4"><p className="text-[9px] text-amber-300 font-bold italic">📝 {activeReceipt.description}</p></div>}
+            {activeReceipt.description && <div className="mt-4 text-center px-4"><p className="flex items-center justify-center gap-1 text-[9px] text-amber-300 font-bold italic"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{activeReceipt.description}</p></div>}
             <div className="mt-4 text-center"><p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest italic">{settings.globalNote || 'Thank you for your business!'}</p></div>
           </div>
         );
@@ -1200,7 +1200,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
             <AdsSection design={ReceiptDesign.PROFESSIONAL} />
             <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-50 text-center">
-              {activeReceipt.description && <p className="text-[8px] sm:text-[10px] font-bold text-amber-500 italic mb-1">📝 {activeReceipt.description}</p>}
+              {activeReceipt.description && <p className="flex items-center gap-1 text-[8px] sm:text-[10px] font-bold text-amber-500 italic mb-1"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{activeReceipt.description}</p>}
               <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">{settings.globalNote || 'Thank you for choosing MahadNet!'}</p>
             </div>
           </div>
@@ -1317,7 +1317,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="bg-orange-500 text-white px-4 py-2 rounded-t-xl"><p className="text-[10px] font-black uppercase tracking-widest">Terms & Conditions</p></div>
                 <div className="border border-orange-200 rounded-b-xl px-4 py-3 text-slate-500">
                   <p>Service valid 30 days. Payment non-refundable. Pay on time to avoid service interruption.</p>
-                  {activeReceipt.description && <p className="mt-2 font-bold text-amber-600">📝 {activeReceipt.description}</p>}
+                  {activeReceipt.description && <p className="flex items-center gap-1.5 mt-2 font-bold text-amber-600"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{activeReceipt.description}</p>}
                 </div>
               </div>
             </div>
