@@ -903,6 +903,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                        • Service activation is subject to the clearing of the mentioned net amount.<br/>
                        • Technical support is available via the office contact listed above.<br/>
                        {settings.globalNote && <span className="block mt-3 text-indigo-700 font-black">• {settings.globalNote}</span>}
+                       {activeReceipt.description && <span className="block mt-3 text-amber-700 font-black">📝 {activeReceipt.description}</span>}
                      </p>
                   </div>
                   
@@ -998,6 +999,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
             <AdsSection design={ReceiptDesign.THERMAL} />
             <p className="text-[9px] font-bold uppercase tracking-wider mt-2">Thank you!</p>
+            {activeReceipt.description && <p className="text-[9px] font-bold text-center mt-2 border-t border-dashed border-slate-300 pt-2">📝 {activeReceipt.description}</p>}
           </div>
         );
 
@@ -1069,7 +1071,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
               </div>
               <AdsSection design={ReceiptDesign.MODERN} />
             </div>
-            <div className="mt-8 text-center"><p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest italic">{settings.globalNote || 'Thank you for your business!'}</p></div>
+            {activeReceipt.description && <div className="mt-4 text-center px-4"><p className="text-[9px] text-amber-300 font-bold italic">📝 {activeReceipt.description}</p></div>}
+            <div className="mt-4 text-center"><p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest italic">{settings.globalNote || 'Thank you for your business!'}</p></div>
           </div>
         );
 
@@ -1197,6 +1200,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             </div>
             <AdsSection design={ReceiptDesign.PROFESSIONAL} />
             <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-50 text-center">
+              {activeReceipt.description && <p className="text-[8px] sm:text-[10px] font-bold text-amber-500 italic mb-1">📝 {activeReceipt.description}</p>}
               <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">{settings.globalNote || 'Thank you for choosing MahadNet!'}</p>
             </div>
           </div>
@@ -1313,6 +1317,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="bg-orange-500 text-white px-4 py-2 rounded-t-xl"><p className="text-[10px] font-black uppercase tracking-widest">Terms & Conditions</p></div>
                 <div className="border border-orange-200 rounded-b-xl px-4 py-3 text-slate-500">
                   <p>Service valid 30 days. Payment non-refundable. Pay on time to avoid service interruption.</p>
+                  {activeReceipt.description && <p className="mt-2 font-bold text-amber-600">📝 {activeReceipt.description}</p>}
                 </div>
               </div>
             </div>
@@ -1551,6 +1556,17 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 </div>
 
                 <div className="space-y-1"><label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest ml-1">Amount to be Paid</label><input type="number" className="w-full p-5 rounded-2xl border-2 border-indigo-500-op10 bg-indigo-500-op5 dark:bg-indigo-950-op20 outline-none font-black text-slate-900 dark:text-white text-2xl shadow-xl" value={amountPaid || ''} onChange={e => setAmountPaid(parseInt(e.target.value) || 0)} /></div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest ml-1">Note / Description (Optional)</label>
+                  <textarea
+                    rows={2}
+                    className="w-full p-4 rounded-2xl border-2 border-amber-500-op10 bg-amber-500-op5 dark:bg-amber-950-op10 outline-none font-bold text-slate-900 dark:text-white text-sm shadow-inner placeholder-slate-400 resize-none focus:border-amber-400-op30"
+                    placeholder="e.g. Router replaced, next month free, special offer..."
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                  />
+                </div>
                 
                 <div className="bg-slate-900 dark:bg-[#030712] p-8 rounded-[2rem] text-white border border-slate-700 dark:border-white-op5 shadow-2xl relative overflow-hidden">
                   <div className="relative z-10 flex justify-between items-center"><span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-white">Total Payable</span><span className="text-2xl font-black text-white">Rs. {totalPayable.toLocaleString()}</span></div>
