@@ -73,6 +73,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [isSendingRecoveryWA, setIsSendingRecoveryWA] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
+  const [viewingLedgerUser, setViewingLedgerUser] = useState<UserRecord | null>(null);
   // Ayesha bot — Phase 2: Credit/Advance Recovery tracking
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [recoverySearch, setRecoverySearch] = useState('');
@@ -1177,6 +1178,13 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     {visibleColumns.actions && (
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { const fullUser = users.find(u => u.id === item.id || u.username === item.username); if (fullUser) setViewingLedgerUser(fullUser); }}
+                          title="View Ledger"
+                          className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-white transition-all"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </button>
                         {!item.hasPaid ? (
                           <>
                              <button onClick={() => handleSendReminder(item, 'sms')} title="Send SMS" className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-all">
@@ -1615,6 +1623,130 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 defaultCollectedBy={defaultCollectedBy}
                 managerId={managerId}
               />
+            </div>
+          </div>
+        </div>
+      )}
+      {viewingLedgerUser && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setViewingLedgerUser(null)}></div>
+          <div className="bg-white dark:bg-[#0f172a] w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-white/5 rounded-t-[2.5rem]">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+                <div>
+                  <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Subscriber Ledger</h4>
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Transaction History & Plan Details</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 dark:text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Subscriber</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{viewingLedgerUser.name}</p>
+                  <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400">@{viewingLedgerUser.username}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Current Plan</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{viewingLedgerUser.plan}</p>
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Rs. {(viewingLedgerUser.monthlyFee || 0).toLocaleString()}/mo</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Outstanding Balance</p>
+                  <p className={`text-2xl font-black ${(viewingLedgerUser.balance || 0) > 0 ? 'text-rose-600' : 'text-emerald-500 dark:text-emerald-400'}`}>
+                    Rs. {(viewingLedgerUser.balance || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h5 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    Active Periods
+                  </h5>
+                  <div className="flex flex-wrap gap-2">
+                    {(viewingLedgerUser.activatedMonths || []).length > 0 ? (
+                      (viewingLedgerUser.activatedMonths || []).map(month => (
+                        <span key={month} className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-wider border border-indigo-100 dark:border-indigo-500/20">
+                          {month}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No active periods recorded.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Payment History
+                  </h5>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[420px]">
+                      <thead className="bg-slate-50 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-slate-500">
+                        <tr>
+                          <th className="px-6 py-4">Date</th>
+                          <th className="px-6 py-4">Ref #</th>
+                          <th className="px-6 py-4">Period</th>
+                          <th className="px-6 py-4 text-right">Amount</th>
+                          <th className="px-6 py-4 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                        {receipts.filter(r => r.userId === viewingLedgerUser.id).length > 0 ? (
+                          receipts
+                            .filter(r => r.userId === viewingLedgerUser.id)
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map(r => (
+                              <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                <td className="px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300">
+                                  {new Date(r.date).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 text-[10px] font-mono text-slate-500 max-w-[100px]">
+                                  <span className="block truncate" title={r.transactionRef}>{r.transactionRef}</span>
+                                </td>
+                                <td className="px-6 py-4 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400">
+                                  {r.period}
+                                </td>
+                                <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">
+                                  Rs. {r.paidAmount.toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                    r.status === PaymentStatus.SUCCESS
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
+                                  }`}>
+                                    {r.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-slate-400 text-xs">No transaction history found.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 rounded-b-[2.5rem] flex justify-end">
+              <button onClick={() => setViewingLedgerUser(null)} className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-transform">
+                Close Ledger
+              </button>
             </div>
           </div>
         </div>
