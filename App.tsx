@@ -865,7 +865,10 @@ const App: React.FC = () => {
     setState(prev => {
       const userMap = new Map(prev.users.map(u => [u.id, u]));
       updatedUsers.forEach(u => userMap.set(u.id, u));
-      return { ...prev, users: Array.from(userMap.values()) };
+      const ns = { ...prev, users: Array.from(userMap.values()) };
+      saveState(ns);
+      saveStateToSupabase(activeManager || '', ns);
+      return ns;
     });
   };
 
