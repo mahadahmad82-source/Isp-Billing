@@ -53,11 +53,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             {/* Right side */}
             <div className="flex items-center gap-3">
               <a href="/portal"
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-50">
+                className="backdrop-blur-md border border-white/20 bg-white/10 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-white/20 transition-all"
+              >
                 <span>👤</span> User Portal
               </a>
               <button onClick={onGetStarted}
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-50">
+                className="backdrop-blur-md border border-white/20 bg-white/10 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-white/20 transition-all"
+              >
                 Manager Login
               </button>
               {/* Mobile hamburger */}
@@ -92,7 +94,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               target="_blank" rel="noreferrer"
               onClick={() => setMenuOpen(false)}
               className="px-6 py-4 text-sm font-bold text-emerald-400 flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.17.198-.34.221-.534.073-.193-.149-1.064-.393-2.026-1.246-.75-.684-1.277-1.522-1.447-1.718-.17-.196-.18-.302-.04-.402.142-.149.297-.38.446-.571.149-.19.198-.326.298-.544.099-.217.05-.408-.024-.571-.074-.163-.67-1.614-.92-2.207-.243-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.09 3.2 5.016 4.487.699.3 1.245.48 1.67.616.7.223 1.338.192 1.84.116.561-.084 1.74-.71 1.984-1.393.244-.683.244-1.289.171-1.393-.073-.104-.27-.165-.57-.289z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.172.199-.341.223-.569.027-.228-.196-.755-.739-1.24-1.81-.309-.529-.618-1.487-.674-1.68-.034-.118-.11-.203-.229-.271-.112-.062-.294-.17-.442-.256-.149-.087-.298-.191-.323-.229-.032-.052-.011-.239.021-.375.032-.136.159-.822.242-1.242.082-.42.144-.72.144-.72s.019-.203.105-.35c.086-.147.261-.18.36-.18h.264c.117 0 .294.009.359.121.1.176.342.915.414 1.05.031.058.053.1.053.152 0 .051.039.119.088.206.049.087.212.335.459.574.247.239.509.497.559.56.05.063.1.15.064.241-.036.091-.167.406-.212.545-.045.14-.09.165-.206.11-.116-.054-.377-.139-.732-.431-.355-.292-.668-.77-.734-.868-.034-.049-.083-.131-.145-.229-.062-.098-.124-.117-.204-.117-.08 0-.237.029-.361.203-.124.174-.475 1.063-.567 1.348-.092.285-.092.498-.092.498s0 .239.088.501c.088.262.321.632.492.848.171.216.559.559.973.856.414.297.736.447.921.498.185.051.333.034.437-.114.104-.148.45-.93.568-1.24.118-.31.177-.364.295-.364.117 0 .24.088.363.088.123 0 .294-.018.478-.055zm-7.35-14.318c5.422 0 9.821 4.398 9.821 9.821 0 5.422-4.398 9.821-9.821 9.821-1.81 0-3.516-.491-4.984-1.347l-.356.024-1.46.479.479-1.46.024-.356c-.856-1.468-1.347-3.174-1.347-4.984 0-5.422 4.398-9.821 9.821-9.821z"/></svg>
               WhatsApp Now
             </a>
           </div>
@@ -120,12 +122,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 <div className="flex flex-col gap-2">
                 <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
                   target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600/20 border border-green-500/30 text-green-400 rounded-xl text-xs font-bold hover:bg-green-600/30 transition-all">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.17.198-.34.221-.534.073-.193-.149-1.064-.393-2.026-1.246-.75-.684-1.277-1.522-1.447-1.718-.17-.196-.18-.302-.04-.402.142-.149.297-.38.446-.571.149-.19.198-.326.298-.544.099-.217.05-.408-.024-.571-.074-.163-.67-1.614-.92-2.207-.243-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.09 3.2 5.016 4.487.699.3 1.245.48 1.67.616.7.223 1.338.192 1.84.116.561-.084 1.74-.71 1.984-1.393.244-.683.244-1.289.171-1.393-.073-.104-.27-.165-.57-.289z"/></svg>
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600/20 border border-green-500/30 text-green-400 rounded-xl text-xs font-bold hover:bg-green-600/30 transition-all"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.16[...]"/></svg>
                   WhatsApp: 0304-2773453
                 </a>
                 <a href="mailto:myispnetwork@gmail.com"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold hover:bg-indigo-600/30 transition-all">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold hover:bg-indigo-600/30 transition[...]"
+                >
                   ✉️ myispnetwork@gmail.com
                 </a>
               </div>
