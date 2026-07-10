@@ -11,8 +11,8 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const faqs = [
-    { q: "Is MYISP suitable for Pakistani ISPs?", a: "Absolutely! MYISP is built specifically for local Pakistani ISPs — with PKR billing, WhatsApp reminders, and support for Pakistan's common devices (TP-Link, Huawei ONU)." },
-    { q: "Can I import my Excel records?", a: "Yes! MYISP supports .xlsx and .csv files — your existing data imports directly." },
+    { q: "Is Bill Collector suitable for Pakistani ISPs?", a: "Absolutely! Bill Collector is built specifically for local Pakistani ISPs — with PKR billing, WhatsApp reminders, and support for Pakistan's common devices (TP-Link, Huawei ONU)." },
+    { q: "Can I import my Excel records?", a: "Yes! Bill Collector supports .xlsx and .csv files — your existing data imports directly." },
     { q: "How many customers can one account have?", a: "Unlimited customers on the Business plan. Up to 50 customers free on the Starter plan." },
     { q: "Can my agents use it too?", a: "Yes! Create sub-manager accounts for your field agents — they can collect receipts and log attendance." },
     { q: "Is my data safe? Will it get lost?", a: "Completely safe. Real-time sync happens on Supabase cloud. Break your phone, your data stays safe — log in on another device, everything comes back." },

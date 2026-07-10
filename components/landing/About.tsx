@@ -24,7 +24,7 @@ const About: React.FC = () => {
                 textShadow: '0 0 80px rgba(99,102,241,0.5)',
               }}>Architecting <br /> Digital Trust</h2>
             <p className="max-w-2xl text-base md:text-lg font-medium leading-relaxed mb-10 drop-shadow-md text-slate-300">
-              MYISP was born out of the need for a robust, offline-first management system 
+              Bill Collector was born out of the need for a robust, offline-first management system 
               that doesn't compromise on speed or security. We understand the challenges of 
               managing a growing subscriber base, and we've built the tools to help you scale 
               with absolute precision.
@@ -57,7 +57,7 @@ const About: React.FC = () => {
                   <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
                     <Shield className="w-6 h-6" />
                   </div>
-                  <span className="text-xl font-black tracking-tight uppercase text-white">MYISP Core</span>
+                  <span className="text-xl font-black tracking-tight uppercase text-white">Bill Collector Core</span>
                 </div>
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
@@ -109,7 +109,7 @@ const About: React.FC = () => {
               }}>Trusted by <br /> Network Engineers</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
-                { name: "Ahmad Khan", role: "ISP Owner", quote: "MYISP transformed how we handle recoveries. The precision is unmatched." },
+                { name: "Ahmad Khan", role: "ISP Owner", quote: "Bill Collector transformed how we handle recoveries. The precision is unmatched." },
                 { name: "Sarah Malik", role: "Network Manager", quote: "The offline capability is a lifesaver for our field operations." },
                 { name: "Bilal Sheikh", role: "Operations Lead", quote: "Professional receipts have made us look credible and trustworthy." }
               ].map((t, idx) => (
@@ -138,7 +138,7 @@ const AboutContact = () => (
     <div className="max-w-xl mx-auto text-center">
       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6">Contact Us</p>
       <div className="grid grid-cols-2 gap-4">
-        <a href="https://wa.me/923042773453?text=I%20want%20to%20talk%20about%20MYISP"
+        <a href="https://wa.me/923042773453?text=I%20want%20to%20talk%20about%20Bill%20Collector"
           target="_blank" rel="noreferrer"
           className="flex items-center gap-3 p-4 bg-green-600/15 border border-green-500/30 rounded-2xl hover:bg-green-600/25 transition-all">
           <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-sm">💬</div>

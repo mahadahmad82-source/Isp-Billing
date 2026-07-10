@@ -150,14 +150,14 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
           <motion.p variants={itemVariants}
             className="max-w-2xl mx-auto text-base md:text-lg font-medium leading-relaxed mb-8 drop-shadow-md"
             style={{ color: '#cbd5e1' }}>
-            MYISP is the ultimate management suite for local ISPs. Automated billing,
+            Bill Collector is the ultimate management suite for local ISPs. Automated billing,
             real-time recovery tracking, and professional receipts in one secure node.
           </motion.p>
 
           {/* CTAs */}
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <motion.button onClick={onGetStarted}
-              className="px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center gap-3 text-white transition-all shadow-lg shadow-indigo-500/50 hover:shadow-indigo-500/70 hover:-translate-y-0.5"
+              className="px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center gap-3 text-white transition-all"
               whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>
               <span className="flex items-center gap-3">
                 Get Started Free <ArrowRight className="w-4 h-4" />
@@ -301,7 +301,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                     </li>
                   ))}
                 </ul>
-                <button onClick={plan.name === 'Starter' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the MYISP ' + plan.name + ' plan', '_blank')}
+                <button onClick={plan.name === 'Starter' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the Bill Collector ' + plan.name + ' plan', '_blank')}
                   className={"w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 " + (plan.highlight ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/10')}>
                   {plan.cta}
                 </button>
@@ -388,7 +388,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
                   <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                   <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-tight">MYISP Platform Features</h2>
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight">Bill Collector Platform Features</h2>
                 <p className="text-indigo-300 text-sm mt-1">Everything your ISP needs</p>
               </div>
               <button onClick={() => setShowSpecs(false)} className="text-white/60 hover:text-white text-2xl">✕</button>
@@ -418,7 +418,7 @@ const Home: React.FC<HomeProps> = ({ onGetStarted }) => {
             </div>
             <motion.button
               onClick={() => { setShowSpecs(false); onGetStarted(); }}
-              className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 shadow-lg shadow-indigo-500/50 transition-all hover:-translate-y-0.5 hover:shadow-indigo-500/70"
+              className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500"
               whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
               Get Started Free <ArrowRight className="w-4 h-4" />
             </motion.button>
