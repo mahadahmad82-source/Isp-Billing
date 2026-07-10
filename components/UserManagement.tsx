@@ -581,7 +581,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
       const user = users.find(u => (u.username || '').toLowerCase() === username);
       if (!user) { notFound.push(parts[0]); return; }
 
-      updatedUsers.push({ ...user, expiryDate: isoDate, ...(bulkExpiryActivate ? { status: 'active' } : {}) });
+      // When "Activate" is on, this user must count in Recovery Ledger for the
+      // current month — Recovery Ledger only counts users whose activatedMonths
+      // includes the period, so status:'active' alone was NOT enough.
+      let activatedMonthsUpdate = {};
+      if (bulkExpiryActivate) {
+        const months = new Set(user.activatedMonths || []);
+        months.add(currentMonth);
+        activatedMonthsUpdate = { activatedMonths: Array.from(months) };
+      }
+
+      updatedUsers.push({ ...user, expiryDate: isoDate, ...activatedMonthsUpdate, ...(bulkExpiryActivate ? { status: 'active' } : {}) });
       updated.push(parts[0]);
     });
 
