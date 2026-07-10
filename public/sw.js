@@ -1,4 +1,4 @@
-// public/sw.js — MYISP service worker.
+// public/sw.js — Bill Collector service worker.
 // This file was referenced by index.html but never actually existed, so every
 // /sw.js request fell through to the SPA catch-all rewrite and got served index.html
 // instead of real JavaScript. That silently broke service worker registration, which
@@ -20,11 +20,11 @@ self.addEventListener('push', (event) => {
     try {
       data = event.data ? event.data.json() : {};
     } catch (e) {
-      data = { title: 'MYISP', body: event.data ? event.data.text() : 'New notification' };
+      data = { title: 'Bill Collector', body: event.data ? event.data.text() : 'New notification' };
     }
 
-    const title = data.title || 'MYISP';
-    const tag = data.tag || 'myisp-default';
+    const title = data.title || 'Bill Collector';
+    const tag = data.tag || 'bill-collector-default';
     let body = data.body || '';
 
     // WhatsApp-style stacking: if there's already a notification for this same

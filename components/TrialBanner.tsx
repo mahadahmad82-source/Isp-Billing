@@ -20,7 +20,7 @@ const TrialBanner: React.FC<Props> = ({ sub }) => {
         <span className="font-black">Free trial expire ho gaya!</span>
         <span className="hidden sm:inline text-red-200">Premium features lock hain. Upgrade karo.</span>
       </div>
-      <a href={`https://wa.me/923042773453?text=MYISP upgrade chahiye — ID: ${sub.managerId}`}
+      <a href={`https://wa.me/923042773453?text=Bill Collector upgrade chahiye — ID: ${sub.managerId}`}
         target="_blank" rel="noreferrer"
         className="flex items-center gap-1.5 bg-white text-red-600 px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider">
         Upgrade Now
@@ -47,7 +47,7 @@ const TrialBanner: React.FC<Props> = ({ sub }) => {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <a href={`https://wa.me/923042773453?text=MYISP upgrade karna hai — ID: ${sub.managerId}`}
+          <a href={`https://wa.me/923042773453?text=Bill Collector upgrade karna hai — ID: ${sub.managerId}`}
             target="_blank" rel="noreferrer"
             className="bg-white text-amber-700 px-3 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider">
             Upgrade

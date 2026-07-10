@@ -54,7 +54,7 @@ export default function WABotStandalone() {
     const hadDarkClass = document.documentElement.classList.contains('dark');
 
     if (link) link.setAttribute('href', '/wabot-manifest.json');
-    document.title = 'MYISP-BOT — WABot';
+    document.title = 'Bill Collector-BOT — WABot';
     document.documentElement.classList.remove('dark');
 
     return () => {
@@ -112,7 +112,7 @@ export default function WABotStandalone() {
       }
       // Real check — Supabase Auth, same as the main dashboard login. Works on
       // any device/origin since it isn't tied to this browser's localStorage.
-      const authEmail = typed.includes('@') ? typed : `${typed}@myisp.local`;
+      const authEmail = typed.includes('@') ? typed : `${typed}@billcollector.local`;
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password: loginPass });
       if (authError || !data?.user) {
         setLoginError('Username ya password ghalat hai.');
@@ -139,7 +139,7 @@ export default function WABotStandalone() {
         <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-7 flex flex-col items-center gap-5">
           <Avatar size={88} />
           <div className="text-center">
-            <h1 className="text-xl font-black text-slate-900">MYISP-BOT</h1>
+            <h1 className="text-xl font-black text-slate-900">Bill Collector-BOT</h1>
             <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
           </div>
 
@@ -173,17 +173,17 @@ export default function WABotStandalone() {
     );
   }
 
-  // ── LOADING ───────────────────────────────────────────────────────────────
+  // ── LOADING ──────────────────────────────────────────────────────────
   if (phase === 'loading' || (phase === 'ready' && !state)) {
     return (
       <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 overflow-hidden">
         <Avatar size={64} />
-        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading MYISP-BOT…</p>
+        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading Bill Collector-BOT…</p>
       </div>
     );
   }
 
-  // ── ERROR ─────────────────────────────────────────────────────────────────
+  // ── ERROR ───────────────────────────────────────────────────────────
   if (phase === 'error') {
     return (
       <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden">
@@ -203,7 +203,7 @@ export default function WABotStandalone() {
   if (!state) return null;
 
   const activeCompany = (state.companies || []).find(c => c.id === state.activeCompanyId) || state.companies?.[0];
-  const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'MYISP-BOT';
+  const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'Bill Collector-BOT';
   const routerCatalog: RouterCatalog | undefined = activeCompany?.settings?.routerCatalog || state.settings?.routerCatalog;
   const botTemplates: Record<string, BotTemplate> | undefined = activeCompany?.settings?.botTemplates || state.settings?.botTemplates;
   const filteredUsers = (state.users || []).filter(u => !u.companyId || u.companyId === activeCompany?.id);
@@ -272,7 +272,7 @@ export default function WABotStandalone() {
           title="Log out"
           className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 active:scale-95 transition-all"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 5v1a3 3 0 01-3 3H6a3 3 0 01-3-3V6a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 5v1a3 3 0 01-3 3H5a3 3 0 01-3-3v-5a3 3 0 013-3h4a3 3 0 013 3v1z"></path></svg>
         </button>
       </div>
       <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">

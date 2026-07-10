@@ -37,7 +37,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="flex justify-between items-center">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3" onClick={() => setMenuOpen(false)}>
-              {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[100px] sm:w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />}
+              {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[100px] sm:w-[120px] h-auto object-contain" referrerPolicy="no-referrer" />}
             </Link>
 
             {/* Desktop nav links - Center */}
@@ -53,11 +53,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             {/* Right side */}
             <div className="flex items-center gap-3">
               <a href="/portal"
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 hidden sm:inline-flex items-center gap-2">
+                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-50">
                 <span>👤</span> User Portal
               </a>
               <button onClick={onGetStarted}
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20">
+                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-50">
                 Manager Login
               </button>
               {/* Mobile hamburger */}
@@ -88,11 +88,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               className="px-6 py-4 text-sm font-bold text-cyan-400 flex items-center gap-2 border-b border-white/5">
               <span>👤</span> User Portal
             </a>
-            <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20MYISP"
+            <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
               target="_blank" rel="noreferrer"
               onClick={() => setMenuOpen(false)}
               className="px-6 py-4 text-sm font-bold text-emerald-400 flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.172.199-.341.156-.534-.048-.193-.205-.76-.94-.922-1.133-.162-.193-.325-.21-.529-.01-.203.199-1.852 2.283-2.102 2.722-.23.441-.476.481-.741.481-.28 0-.58-.088-.888-.088-.309 0-.653.039-.943-.188-.29-.227-.976-.95-1.466-1.701-.372-.49-.743-1.095-1.052-1.691-.307-.596-.615-1.195-.935-1.727-.32-.532-.637-1.034-.922-1.378-.285-.344-.57-.511-.884-.511-.315 0-.63.168-.915.512zm9.973-9.855c-.263-1.232-.803-2.349-1.574-3.262-.77-.914-1.684-1.508-2.742-1.782-1.058-.274-2.268-.099-3.63.525-1.362.624-2.894 1.855-4.596 3.693-1.702 1.838-2.957 3.701-3.766 5.588-.809 1.887-1.214 3.8-1.214 5.738 0 1.938.405 3.851 1.214 5.738.809 1.887 2.064 3.75 3.766 5.588 1.702 1.838 3.234 3.069 4.596 3.693 1.362.624 2.572.799 3.63.525 1.058-.274 1.972-.868 2.742-1.782.771-.913 1.311-2.03 1.574-3.262.263-1.231.197-2.577-.197-4.037-.394-1.46-1.088-3.035-2.082-4.725-.994-1.69-2.288-3.485-3.882-5.385-1.594-1.9-3.188-3.295-4.782-4.185-1.594-.89-3.088-1.275-4.482-1.155-1.394.12-2.588.814-3.582 2.082-1.494 1.877-2.241 4.288-2.241 7.232 0 2.944.747 5.355 2.241 7.232.994 1.268 2.188 1.962 3.582 2.082 1.394.12 2.888-.265 4.482-1.155 1.594-.89 3.188-2.285 4.782-4.185 1.594-1.9 2.888-3.695 3.882-5.385.994-1.69 1.688-3.265 2.082-4.725.394-1.46.46-2.806.197-4.037z" fill="currentColor"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.17.198-.34.221-.534.073-.193-.149-1.064-.393-2.026-1.246-.75-.684-1.277-1.522-1.447-1.718-.17-.196-.18-.302-.04-.402.142-.149.297-.38.446-.571.149-.19.198-.326.298-.544.099-.217.05-.408-.024-.571-.074-.163-.67-1.614-.92-2.207-.243-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.09 3.2 5.016 4.487.699.3 1.245.48 1.67.616.7.223 1.338.192 1.84.116.561-.084 1.74-.71 1.984-1.393.244-.683.244-1.289.171-1.393-.073-.104-.27-.165-.57-.289z"/></svg>
               WhatsApp Now
             </a>
           </div>
@@ -112,16 +112,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
               <div className="col-span-2">
-                {logoBase64 && <img src={logoBase64} alt="MYISP Logo" className="w-[76px] h-[76px] object-contain mb-6" referrerPolicy="no-referrer" />}
+                {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[76px] h-[76px] object-contain mb-6" referrerPolicy="no-referrer" />}
                 <p className="text-slate-300 max-w-sm font-medium text-base leading-relaxed mb-6">
                   Pakistan's best ISP billing and management platform. From small to enterprise — built for every ISP.
                 </p>
                 {/* WhatsApp contact */}
                 <div className="flex flex-col gap-2">
-                <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20MYISP"
+                <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
                   target="_blank" rel="noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600/20 border border-green-500/30 text-green-400 rounded-xl text-xs font-bold hover:bg-green-600/30 transition-all">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.172.199-.341.156-.534-.048-.193-.205-.76-.94-.922-1.133-.162-.193-.325-.21-.529-.01-.203.199-1.852 2.283-2.102 2.722-.23.441-.476.481-.741.481-.28 0-.58-.088-.888-.088-.309 0-.653.039-.943-.188-.29-.227-.976-.95-1.466-1.701-.372-.49-.743-1.095-1.052-1.691-.307-.596-.615-1.195-.935-1.727-.32-.532-.637-1.034-.922-1.378-.285-.344-.57-.511-.884-.511-.315 0-.63.168-.915.512zm9.973-9.855c-.263-1.232-.803-2.349-1.574-3.262-.77-.914-1.684-1.508-2.742-1.782-1.058-.274-2.268-.099-3.63.525-1.362.624-2.894 1.855-4.596 3.693-1.702 1.838-2.957 3.701-3.766 5.588-.809 1.887-1.214 3.8-1.214 5.738 0 1.938.405 3.851 1.214 5.738.809 1.887 2.064 3.75 3.766 5.588 1.702 1.838 3.234 3.069 4.596 3.693 1.362.624 2.572.799 3.63.525 1.058-.274 1.972-.868 2.742-1.782.771-.913 1.311-2.03 1.574-3.262.263-1.231.197-2.577-.197-4.037-.394-1.46-1.088-3.035-2.082-4.725-.994-1.69-2.288-3.485-3.882-5.385-1.594-1.9-3.188-3.295-4.782-4.185-1.594-.89-3.088-1.275-4.482-1.155-1.394.12-2.588.814-3.582 2.082-1.494 1.877-2.241 4.288-2.241 7.232 0 2.944.747 5.355 2.241 7.232.994 1.268 2.188 1.962 3.582 2.082 1.394.12 2.888-.265 4.482-1.155 1.594-.89 3.188-2.285 4.782-4.185 1.594-1.9 2.888-3.695 3.882-5.385.994-1.69 1.688-3.265 2.082-4.725.394-1.46.46-2.806.197-4.037z" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.17.198-.34.221-.534.073-.193-.149-1.064-.393-2.026-1.246-.75-.684-1.277-1.522-1.447-1.718-.17-.196-.18-.302-.04-.402.142-.149.297-.38.446-.571.149-.19.198-.326.298-.544.099-.217.05-.408-.024-.571-.074-.163-.67-1.614-.92-2.207-.243-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.09 3.2 5.016 4.487.699.3 1.245.48 1.67.616.7.223 1.338.192 1.84.116.561-.084 1.74-.71 1.984-1.393.244-.683.244-1.289.171-1.393-.073-.104-.27-.165-.57-.289z"/></svg>
                   WhatsApp: 0304-2773453
                 </a>
                 <a href="mailto:myispnetwork@gmail.com"
@@ -156,7 +156,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
 
             <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 MYISP. Made for Pakistani ISPs.</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 Bill Collector. Made for Pakistani ISPs.</p>
               <p className="text-[10px] text-slate-500 uppercase tracking-widest">Powered by myispnetwork@gmail.com</p>
             </div>
           </div>

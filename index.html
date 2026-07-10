@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>MYISP - Subscription & Receipt Manager</title>
+    <title>Bill Collector - Subscription & Receipt Manager</title>
     
     <!-- PWA & Android optimization -->
     <meta name="theme-color" content="#4f46e5">
@@ -17,8 +17,8 @@
       <application android:requestLegacyExternalStorage="true" ... >
     -->
     
-    <meta name="apple-mobile-web-app-title" content="MYISP">
-    <meta name="application-name" content="MYISP">
+    <meta name="apple-mobile-web-app-title" content="Bill Collector">
+    <meta name="application-name" content="Bill Collector">
     <meta name="msapplication-TileColor" content="#4f46e5">
 
     <link rel="manifest" href="manifest.json">
@@ -39,10 +39,10 @@
       // browser's PWA-installability check sees the /wabot identity (manifest,
       // icons, title) immediately — not after a delayed React useEffect. This
       // is what lets /wabot install as its own distinct home-screen app
-      // instead of being merged into the already-installed MYISP app.
+      // instead of being merged into the already-installed Bill Collector app.
       (function () {
         if (location.pathname.replace(/\/+$/, '') !== '/wabot') return;
-        document.title = 'MYISP-BOT — WABot';
+        document.title = 'Bill Collector-BOT — WABot';
         var swap = function (selector, href) {
           var el = document.querySelector(selector);
           if (el) el.setAttribute('href', href);
@@ -55,9 +55,9 @@
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) themeMeta.setAttribute('content', '#4f46e5');
         var appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-        if (appTitle) appTitle.setAttribute('content', 'MYISP-BOT');
+        if (appTitle) appTitle.setAttribute('content', 'Bill Collector-BOT');
         var appName = document.querySelector('meta[name="application-name"]');
-        if (appName) appName.setAttribute('content', 'MYISP-BOT');
+        if (appName) appName.setAttribute('content', 'Bill Collector-BOT');
       })();
     </script>
 </head>
