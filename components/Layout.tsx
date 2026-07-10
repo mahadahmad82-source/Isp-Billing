@@ -265,7 +265,7 @@ const Layout: React.FC<LayoutProps> = ({
             <img
               src={logoBase64}
               alt="Logo"
-              className="h-16 w-auto max-w-[220px] object-contain drop-shadow-sm"
+              className="h-12 w-auto max-w-[160px] object-contain drop-shadow-sm"
             />
           )}
         </div>
