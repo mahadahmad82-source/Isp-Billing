@@ -535,7 +535,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <div className="flex items-center justify-center gap-2 mt-3">
           <a href="/terms" className="text-[9px] text-slate-600 hover:text-indigo-400 font-black uppercase tracking-widest transition-colors">Terms & Policies</a>
           <span className="text-slate-700 text-[9px]">·</span>
-          <span className="text-[9px] text-slate-700 font-bold uppercase tracking-widest">myISP v2.0</span>
+          <span className="text-[9px] text-slate-700 font-bold uppercase tracking-widest">Bill Collector v2.0</span>
         </div>
       </div>
 
