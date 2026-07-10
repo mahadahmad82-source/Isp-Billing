@@ -97,6 +97,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [contextMenu, setContextMenu] = useState<{ user: UserRecord; x: number; y: number } | null>(null);
   const [showBulkChangePlan, setShowBulkChangePlan] = useState(false);
   const [bulkNewPlan, setBulkNewPlan] = useState('');
+  const [showBulkSetArea, setShowBulkSetArea] = useState(false);
+  const [bulkNewArea, setBulkNewArea] = useState('');
   const [showBulkExpiry, setShowBulkExpiry] = useState(false);
   const [bulkExpiryText, setBulkExpiryText] = useState('');
   const [bulkExpiryResult, setBulkExpiryResult] = useState<{ updated: string[]; notFound: string[] } | null>(null);
@@ -509,6 +511,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setAlertConfig({ title: 'Plan Updated', message: `${selectedIds.length} users ka plan "${bulkNewPlan}" ho gaya — Rs. ${price}/mo.`, type: 'success' });
   };
 
+  // Bulk set area handler
+  const handleBulkSetArea = () => {
+    if (!bulkNewArea.trim() || selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    selectedIds.forEach(id => {
+      const user = users.find(u => u.id === id);
+      if (user) onUpdateUser({ ...user, area: bulkNewArea.trim() });
+    });
+    setShowBulkSetArea(false);
+    setBulkNewArea('');
+    setSelectedIds([]);
+    setAlertConfig({ title: 'Area Updated', message: `${count} users ka area "${bulkNewArea.trim()}" set ho gaya.`, type: 'success' });
+  };
+
   // Bulk Expiry handler
   const handleBulkExpiry = () => {
     if (!bulkExpiryText.trim()) return;
@@ -723,6 +739,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <svg className="w-4 h-4 text-[#8b7fde] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                   <span className="text-[10px] font-black text-[#8b7fde] uppercase tracking-wide">Expiry</span>
+                </button>
+
+                {/* Bulk Set Area */}
+                <button
+                  onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Pehle users select karein.',type:'info'});return;} setBulkNewArea(''); setShowBulkSetArea(true); }}
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#0f2a3d] hover:bg-[#153650] border border-[#1a4560] active:scale-95 transition-all whitespace-nowrap relative"
+                >
+                  <svg className="w-4 h-4 text-[#4aa8e0] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <span className="text-[10px] font-black text-[#4aa8e0] uppercase tracking-wide">
+                    Area {selectedIds.length > 0 && <span className="ml-0.5 bg-sky-400/30 px-1 py-0.5 rounded-full text-[8px]">{selectedIds.length}</span>}
+                  </span>
                 </button>
 
                 <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} />
@@ -1361,6 +1388,52 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <button
                   onClick={handleBulkChangePlan}
                   className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                >
+                  ✅ Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Set Area Modal */}
+      {showBulkSetArea && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowBulkSetArea(false)}></div>
+          <div className="relative z-10 w-full max-w-sm bg-white dark:bg-[#0f172a] rounded-[2.5rem] p-8 border border-slate-100 dark:border-white/5 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-sky-100 dark:bg-sky-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl"></div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Bulk Set Area</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{selectedIds.length} users selected</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest block mb-2">Area Select Karein</label>
+                <input
+                  list="um-bulk-area-options"
+                  value={bulkNewArea}
+                  onChange={e => setBulkNewArea(e.target.value)}
+                  placeholder="Area select ya naya likhein..."
+                  className="w-full p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-sm font-black text-slate-800 dark:text-white outline-none"
+                />
+                <datalist id="um-bulk-area-options">
+                  {Array.from(new Set([...(settings.areas || []), ...users.map(u => u.area).filter(Boolean) as string[]])).map(a => (
+                    <option key={a} value={a} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowBulkSetArea(false)}
+                  className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-[11px] uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkSetArea}
+                  disabled={!bulkNewArea.trim()}
+                  className="flex-1 py-4 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
                 >
                   ✅ Apply
                 </button>
