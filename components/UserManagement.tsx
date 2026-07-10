@@ -466,18 +466,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const handleQuickActivate = (userIds: string[], expiryDate?: string) => {
+    // Build all updates first, then save ONCE via onBulkUpdateUsers.
+    // (Previously called onUpdateUser per-user in a loop, which fired N
+    // separate Supabase saves in parallel — a slower/earlier request could
+    // finish LAST and overwrite the DB with an incomplete state, silently
+    // dropping some activations. Single batched save closes that race.)
+    const updatedUsers: UserRecord[] = [];
     userIds.forEach(id => {
       const user = users.find(u => u.id === id);
       if (!user) return;
       const months = new Set(user.activatedMonths || []);
       months.add(currentMonth);
-      onUpdateUser({
+      updatedUsers.push({
         ...user,
         activatedMonths: Array.from(months),
         status: 'active',
         ...(expiryDate ? { expiryDate } : {}),
       });
     });
+    if (updatedUsers.length > 0) onBulkUpdateUsers(updatedUsers);
     // Switch to active customers view after activation
     setShowAllUsers(false);
     setSelectedMonth(currentMonth);
@@ -501,28 +508,31 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const handleBulkChangePlan = () => {
     if (!bulkNewPlan || selectedIds.length === 0) return;
     const price = settings.planPrices?.[bulkNewPlan] || 0;
+    const updatedUsers: UserRecord[] = [];
     selectedIds.forEach(id => {
       const user = users.find(u => u.id === id);
-      if (user) onUpdateUser({ ...user, plan: bulkNewPlan, monthlyFee: price });
+      if (user) updatedUsers.push({ ...user, plan: bulkNewPlan, monthlyFee: price });
     });
+    if (updatedUsers.length > 0) onBulkUpdateUsers(updatedUsers);
     setShowBulkChangePlan(false);
     setBulkNewPlan('');
     setSelectedIds([]);
-    setAlertConfig({ title: 'Plan Updated', message: `${selectedIds.length} users ka plan "${bulkNewPlan}" ho gaya — Rs. ${price}/mo.`, type: 'success' });
+    setAlertConfig({ title: 'Plan Updated', message: `${updatedUsers.length} users ka plan "${bulkNewPlan}" ho gaya — Rs. ${price}/mo.`, type: 'success' });
   };
 
   // Bulk set area handler
   const handleBulkSetArea = () => {
     if (!bulkNewArea.trim() || selectedIds.length === 0) return;
-    const count = selectedIds.length;
+    const updatedUsers: UserRecord[] = [];
     selectedIds.forEach(id => {
       const user = users.find(u => u.id === id);
-      if (user) onUpdateUser({ ...user, area: bulkNewArea.trim() });
+      if (user) updatedUsers.push({ ...user, area: bulkNewArea.trim() });
     });
+    if (updatedUsers.length > 0) onBulkUpdateUsers(updatedUsers);
     setShowBulkSetArea(false);
     setBulkNewArea('');
     setSelectedIds([]);
-    setAlertConfig({ title: 'Area Updated', message: `${count} users ka area "${bulkNewArea.trim()}" set ho gaya.`, type: 'success' });
+    setAlertConfig({ title: 'Area Updated', message: `${updatedUsers.length} users ka area "${bulkNewArea.trim()}" set ho gaya.`, type: 'success' });
   };
 
   // Bulk Expiry handler
@@ -531,6 +541,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const lines = bulkExpiryText.trim().split('\n');
     const updated: string[] = [];
     const notFound: string[] = [];
+    const updatedUsers: UserRecord[] = [];
 
     lines.forEach(line => {
       const trimmed = line.trim();
@@ -570,9 +581,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
       const user = users.find(u => (u.username || '').toLowerCase() === username);
       if (!user) { notFound.push(parts[0]); return; }
 
-      onUpdateUser({ ...user, expiryDate: isoDate, ...(bulkExpiryActivate ? { status: 'active' } : {}) });
+      updatedUsers.push({ ...user, expiryDate: isoDate, ...(bulkExpiryActivate ? { status: 'active' } : {}) });
       updated.push(parts[0]);
     });
+
+    if (updatedUsers.length > 0) onBulkUpdateUsers(updatedUsers);
 
     setBulkExpiryResult({ updated, notFound });
     setBulkExpiryText('');
@@ -601,7 +614,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     result = result.filter(user => 
       (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
       (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.phone || '').includes(searchTerm)
+      (user.phone || '').includes(searchTerm) ||
+      (user.address || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
     
     const hasPaid = (u: UserRecord) => receipts.some(r => r.userId === u.id && r.period && r.period.includes(selectedMonth.split(' ')[0]));
