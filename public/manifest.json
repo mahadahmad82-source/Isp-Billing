@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "MYISP - Subscription & Receipt Manager",
-  "short_name": "MYISP",
+  "name": "Bill Collector - Subscription & Receipt Manager",
+  "short_name": "Bill Collector",
   "description": "ISP billing, receipts, and customer management",
   "start_url": "/",
   "scope": "/",
@@ -11,13 +11,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/mene-logo.png",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/mene-logo.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
