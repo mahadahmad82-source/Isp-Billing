@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, RouterCatalog, BotTemplate } from '../types';
-import { getAccounts, getActiveSession, loadState, saveState, setActiveSession } from '../utils/storage';
+import { getAccounts, getActiveSession, loadState, saveAccount, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
 import { subscribeToPush } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import WABotInbox from './WABotInbox';
+import { isBiometricAvailable, isBiometricRegistered, registerBiometric, verifyBiometric } from '../utils/webauthn';
 
 // ── Shared gradient-ring avatar (Ayesha brand mark) ─────────────────────────
 const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
@@ -31,6 +32,12 @@ const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
 
 const BG = 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)';
 
+const FingerprintIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571M17 13.5c0 2.4-.5 4.5-1.5 6.5M4.5 16.5c.5-2 .5-3.5.5-5.5a7 7 0 0114 0c0 .5 0 1-.1 1.9M9 11a3 3 0 116 0c0 1.5-.2 3-.6 4.5M6.5 20c1-1.7 1.5-3.3 1.9-5" />
+  </svg>
+);
+
 type Phase = 'login' | 'loading' | 'ready' | 'error';
 
 export default function WABotStandalone() {
@@ -42,6 +49,11 @@ export default function WABotStandalone() {
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [enableBiometric, setEnableBiometric] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  // First saved-on-this-device account (if any) that already has fingerprint enabled.
+  const biometricAccount = getAccounts().find(a => isBiometricRegistered(a.username) && a.password);
 
   // Swap manifest + title while this screen is mounted, restore on unmount.
   // Also force LIGHT theme regardless of the main dashboard's saved theme —
@@ -71,6 +83,7 @@ export default function WABotStandalone() {
       setUsername(session);
       setPhase('loading');
     }
+    isBiometricAvailable().then(setBiometricAvailable);
   }, []);
 
   useEffect(() => {
@@ -105,6 +118,7 @@ export default function WABotStandalone() {
         a => a.username.toLowerCase() === typed.toLowerCase() && a.password === loginPass
       );
       if (localFound) {
+        if (enableBiometric && biometricAvailable) { try { await registerBiometric(localFound.username); } catch { /* non-fatal */ } }
         setActiveSession(localFound.username);
         setUsername(localFound.username);
         setPhase('loading');
@@ -119,6 +133,16 @@ export default function WABotStandalone() {
         return;
       }
       const loginUsername = typed.includes('@') ? typed.split('@')[0] : typed;
+      if (enableBiometric && biometricAvailable) {
+        // Save the account locally too (mirrors main app's "Remember Me") so the
+        // fingerprint fast-path has a password to use next time.
+        try {
+          if (!getAccounts().some(a => a.username === loginUsername)) {
+            saveAccount({ username: loginUsername, password: loginPass, businessName: loginUsername, email: data.user.email || '', phone: '', role: 'manager', managerUsername: '', createdAt: new Date().toISOString(), rememberPassword: true });
+          }
+          await registerBiometric(loginUsername);
+        } catch { /* non-fatal */ }
+      }
       setActiveSession(loginUsername);
       setUsername(loginUsername);
       setPhase('loading');
@@ -126,6 +150,22 @@ export default function WABotStandalone() {
       setLoginError('Login mein masla aaya. Dobara try karein.');
     } finally {
       setLoggingIn(false);
+    }
+  };
+
+  // Fingerprint quick-login using the first biometric-enabled saved account on this device.
+  const handleBiometricLogin = async () => {
+    if (!biometricAccount) return;
+    setBiometricBusy(true);
+    setLoginError('');
+    try {
+      const verified = await verifyBiometric(biometricAccount.username);
+      if (!verified) { setLoginError('Fingerprint verify nahi hua.'); return; }
+      setActiveSession(biometricAccount.username);
+      setUsername(biometricAccount.username);
+      setPhase('loading');
+    } finally {
+      setBiometricBusy(false);
     }
   };
 
@@ -160,6 +200,14 @@ export default function WABotStandalone() {
               className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
             />
             {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
+            {biometricAvailable && (
+              <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+                <input type="checkbox" checked={enableBiometric} onChange={e => setEnableBiometric(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer" />
+                <FingerprintIcon className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="text-[11px] font-semibold text-slate-500">Enable Fingerprint Login</span>
+              </label>
+            )}
             <button
               type="submit"
               disabled={loggingIn}
@@ -168,6 +216,18 @@ export default function WABotStandalone() {
               {loggingIn ? 'Logging in…' : 'Log In'}
             </button>
           </form>
+
+          {biometricAccount && (
+            <button
+              type="button"
+              onClick={handleBiometricLogin}
+              disabled={biometricBusy}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all disabled:opacity-50"
+            >
+              <FingerprintIcon className="w-4 h-4" />
+              {biometricBusy ? 'Verifying…' : `Login as ${biometricAccount.username} with Fingerprint`}
+            </button>
+          )}
         </div>
       </div>
     );
