@@ -37,7 +37,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="flex justify-between items-center">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3" onClick={() => setMenuOpen(false)}>
-              {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[150px] sm:w-[180px] h-auto object-contain" referrerPolicy="no-referrer" />}
+              {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[120px] sm:w-[150px] h-auto object-contain" referrerPolicy="no-referrer" />}
             </Link>
 
             {/* Desktop nav links - Center */}
@@ -114,7 +114,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
               <div className="col-span-2">
-                {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[110px] h-[110px] object-contain mb-6" referrerPolicy="no-referrer" />}
+                {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[85px] h-[85px] object-contain mb-6" referrerPolicy="no-referrer" />}
                 <p className="text-slate-300 max-w-sm font-medium text-base leading-relaxed mb-6">
                   Pakistan's best ISP billing and management platform. From small to enterprise — built for every ISP.
                 </p>
