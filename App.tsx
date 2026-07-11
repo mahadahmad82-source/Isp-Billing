@@ -261,7 +261,7 @@ const App: React.FC = () => {
     window.addEventListener('myisp-goto-tab', handler);
     return () => window.removeEventListener('myisp-goto-tab', handler);
   }, [setActiveTab]);
-  const [showLanding, setShowLanding] = useState(true);
+  const [showLanding, setShowLanding] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
   const [isReminderBannerDismissed, setIsReminderBannerDismissed] = useState(false);
