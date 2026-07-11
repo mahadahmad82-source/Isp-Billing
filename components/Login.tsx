@@ -5,6 +5,7 @@ import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAcc
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
 import ThreeBackground from './landing/ThreeBackground';
+import { isBiometricAvailable, isBiometricRegistered, registerBiometric, verifyBiometric } from '../utils/webauthn';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -22,6 +23,7 @@ const LockIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColo
 const PhoneIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 7V5z" /></svg>);
 const BriefcaseIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
 const MailIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
+const FingerprintIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571M17 13.5c0 2.4-.5 4.5-1.5 6.5M4.5 16.5c.5-2 .5-3.5.5-5.5a7 7 0 0114 0c0 .5 0 1-.1 1.9M9 11a3 3 0 116 0c0 1.5-.2 3-.6 4.5M6.5 20c1-1.7 1.5-3.3 1.9-5" /></svg>);
 
 // ── Input with left icon (outside component to prevent keyboard dismiss on re-render) ──
 const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode }) => (
@@ -59,6 +61,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [loadingText, setLoadingText] = useState('');
   const [rememberPassword, setRememberPassword] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [enableBiometric, setEnableBiometric] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState<string | null>(null);
 
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
@@ -70,12 +75,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     setAccounts(loadedAccounts);
     if (loadedAccounts.length > 0) setView('recent');
     else setView('login');
+    isBiometricAvailable().then(setBiometricAvailable);
   }, []);
 
   const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Finalises a successful login: optionally registers this device's
+  // fingerprint/Face for the account (if the user opted in), then proceeds.
+  const finishLogin = async (finalUsername: string) => {
+    if (enableBiometric && biometricAvailable) {
+      try { await registerBiometric(finalUsername); } catch { /* non-fatal — login still proceeds */ }
+    }
+    onLogin(finalUsername);
+  };
+
+  // Core login logic, parameterised so both the manual form submit and the
+  // fingerprint quick-login (which already knows username+password from a
+  // saved account) can share it. Parameter names intentionally shadow the
+  // component's username/password state so the body below is untouched.
+  const doLogin = async (username: string, password: string) => {
     if (isLoading) return;
     setIsLoading(true); setLoadingText('Authorising...'); setError('');
     try {
@@ -90,7 +108,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
           const authEmail = localFound.username.includes('@') ? localFound.username : `${localFound.username}@myisp.local`;
           await supabase.auth.signInWithPassword({ email: authEmail, password });
         } catch { /* fall through — local session still proceeds */ }
-        setActiveSession(localFound.username); onLogin(localFound.username); return;
+        setActiveSession(localFound.username); finishLogin(localFound.username); return;
       }
       let identifier = username;
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
@@ -114,8 +132,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
             if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) console.warn('Migration warning: ' + signUpErr.message);
             const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: localFound.password });
             if (signInData?.user) { data = signInData; authError = null; removeAccount(localFound.username); }
-            else { setActiveSession(localFound.username); onLogin(localFound.username); return; }
-          } catch { setActiveSession(localFound.username); onLogin(localFound.username); return; }
+            else { setActiveSession(localFound.username); finishLogin(localFound.username); return; }
+          } catch { setActiveSession(localFound.username); finishLogin(localFound.username); return; }
         } else {
           setLoadingText('Searching Remote Nodes...');
           try {
@@ -130,7 +148,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
               const agentUsername = agent.username;
               setActiveSession(agentUsername);
               saveAccount({ username: agentUsername, password, businessName: agent.name, email: agent.email || '', phone: agent.phone || '', role: 'sub-manager', managerUsername: match.manager_id, createdAt: new Date().toISOString(), rememberPassword: true });
-              onLogin(agentUsername); return;
+              finishLogin(agentUsername); return;
             }
           } catch (searchEx) { console.error('[Auth] Agent search failed:', searchEx); }
           throw new Error('Invalid username or password.');
@@ -146,11 +164,29 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         const role = profileData?.role || 'manager';
         setActiveSession(loginUser);
         if (rememberPassword) saveAccount({ username: loginUser, password, businessName: profileData?.full_name || data.user.user_metadata?.full_name || loginUser, email: data.user.email || '', phone: data.user.user_metadata?.phone || '', role: role as 'admin' | 'manager' | 'sub-manager', managerUsername: profileData?.manager_id || '', createdAt: new Date().toISOString(), rememberPassword: true });
-        onLogin(loginUser); return;
+        finishLogin(loginUser); return;
       }
       throw new Error('Authentication failed.');
     } catch (err: any) { showError(err.message || 'Authentication error occurred'); }
     finally { setIsLoading(false); }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doLogin(username, password);
+  };
+
+  // Fingerprint quick-login for a saved account card in the "recent" list.
+  const handleBiometricLogin = async (acc: ManagerAccount) => {
+    if (!acc.password) { showError('Is account ke liye password saved nahi hai — pehle manual login karein.'); return; }
+    setBiometricBusy(acc.username);
+    try {
+      const verified = await verifyBiometric(acc.username);
+      if (!verified) { showError('Fingerprint verify nahi hua.'); return; }
+      await doLogin(acc.username, acc.password);
+    } finally {
+      setBiometricBusy(null);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -333,7 +369,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   {accounts.map((acc, idx) => (
                     <div key={acc.username} className="relative group/wrapper">
                       <button onClick={() => handleSelectAccount(acc)}
-                        className="w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left pr-10"
+                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${isBiometricRegistered(acc.username) ? 'pr-20' : 'pr-10'}`}
                         style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(99,102,241,0.18)' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.5)'; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.18)'; }}>
@@ -347,6 +383,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                         </div>
                         <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                       </button>
+                      {isBiometricRegistered(acc.username) && (
+                        <button onClick={(e) => { e.stopPropagation(); handleBiometricLogin(acc); }} disabled={biometricBusy === acc.username}
+                          title="Fingerprint se login"
+                          className="absolute right-10 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-all disabled:opacity-40">
+                          {biometricBusy === acc.username ? (
+                            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                          ) : (
+                            <FingerprintIcon className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                       <button onClick={(e) => handleDeleteAccount(acc.username, e)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover/wrapper:opacity-100 transition-all text-slate-500 hover:text-rose-400 hover:bg-rose-500/10">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -499,6 +546,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                     </button>
                   )}
                 </div>
+
+                {/* Enable Fingerprint Login (login view only, if device supports it) */}
+                {view === 'login' && biometricAvailable && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none -mt-2">
+                    <input type="checkbox" checked={enableBiometric}
+                      onChange={e => { setEnableBiometric(e.target.checked); if (e.target.checked) setRememberPassword(true); }}
+                      className="w-4 h-4 rounded text-indigo-600 bg-white/10 border-white/20 focus:ring-indigo-500 cursor-pointer" />
+                    <FingerprintIcon className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enable Fingerprint Login</span>
+                  </label>
+                )}
 
                 {/* Submit Button */}
                 <button type="submit" disabled={isLoading}
