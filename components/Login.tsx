@@ -285,7 +285,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             </button>
           )}
-          {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[170px] h-auto object-contain mx-auto" />}
+          {logoBase64 && <img src={logoBase64} alt="Bill Collector Logo" className="w-[135px] h-auto object-contain mx-auto" />}
         </div>
 
         {/* Main Card */}
