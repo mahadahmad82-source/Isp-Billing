@@ -6,6 +6,8 @@ import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, 
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
+import { isBiometricRegistered } from './utils/webauthn';
+import BiometricLockScreen from './components/BiometricLockScreen';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
@@ -54,6 +56,10 @@ const INACTIVITY_LIMIT = 30 * 60 * 1000;
 
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
+  const [biometricLocked, setBiometricLocked] = useState<boolean>(() => {
+    const session = getActiveSession();
+    return !!session && isBiometricRegistered(session);
+  });
   const [state, setState] = useState<AppState>(() => {
     const loaded = loadState(activeManager);
     const initialState = { 
@@ -1238,6 +1244,23 @@ const App: React.FC = () => {
     return (
       <ErrorBoundary>
         <WABotStandalone />
+      </ErrorBoundary>
+    );
+  }
+
+  // App-open fingerprint gate: only shown when a session was restored
+  // automatically (auto-login) AND this account has fingerprint login
+  // enabled from Settings. A fresh manual login via the Login screen never
+  // hits this, since biometricLocked is only ever seeded true from the
+  // saved session at first mount.
+  if (activeManager && biometricLocked) {
+    return (
+      <ErrorBoundary>
+        <BiometricLockScreen
+          username={activeManager}
+          onUnlock={() => setBiometricLocked(false)}
+          onUsePassword={handleLogout}
+        />
       </ErrorBoundary>
     );
   }
