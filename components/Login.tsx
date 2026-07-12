@@ -5,7 +5,7 @@ import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAcc
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
 import ThreeBackground from './landing/ThreeBackground';
-import { isBiometricAvailable, isBiometricRegistered, registerBiometric, verifyBiometric } from '../utils/webauthn';
+import { isBiometricRegistered, verifyBiometric } from '../utils/webauthn';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -61,8 +61,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [loadingText, setLoadingText] = useState('');
   const [rememberPassword, setRememberPassword] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [enableBiometric, setEnableBiometric] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState<string | null>(null);
 
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -75,17 +73,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     setAccounts(loadedAccounts);
     if (loadedAccounts.length > 0) setView('recent');
     else setView('login');
-    isBiometricAvailable().then(setBiometricAvailable);
   }, []);
 
   const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
 
-  // Finalises a successful login: optionally registers this device's
-  // fingerprint/Face for the account (if the user opted in), then proceeds.
+  // Fingerprint enrollment happens only from Settings (inside a logged-in
+  // session, after re-confirming the password) — never from this public
+  // login screen. This just finalises a normal login.
   const finishLogin = async (finalUsername: string) => {
-    if (enableBiometric && biometricAvailable) {
-      try { await registerBiometric(finalUsername); } catch { /* non-fatal — login still proceeds */ }
-    }
     onLogin(finalUsername);
   };
 
@@ -386,7 +381,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                       {isBiometricRegistered(acc.username) && (
                         <button onClick={(e) => { e.stopPropagation(); handleBiometricLogin(acc); }} disabled={biometricBusy === acc.username}
                           title="Fingerprint se login"
-                          className="absolute right-10 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-all disabled:opacity-40">
+                          className="absolute right-11 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-indigo-300 hover:text-white transition-all disabled:opacity-40"
+                          style={{ background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.4)' }}>
                           {biometricBusy === acc.username ? (
                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
                           ) : (
@@ -546,17 +542,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                     </button>
                   )}
                 </div>
-
-                {/* Enable Fingerprint Login (login view only, if device supports it) */}
-                {view === 'login' && biometricAvailable && (
-                  <label className="flex items-center gap-2 cursor-pointer select-none -mt-2">
-                    <input type="checkbox" checked={enableBiometric}
-                      onChange={e => { setEnableBiometric(e.target.checked); if (e.target.checked) setRememberPassword(true); }}
-                      className="w-4 h-4 rounded text-indigo-600 bg-white/10 border-white/20 focus:ring-indigo-500 cursor-pointer" />
-                    <FingerprintIcon className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enable Fingerprint Login</span>
-                  </label>
-                )}
 
                 {/* Submit Button */}
                 <button type="submit" disabled={isLoading}
