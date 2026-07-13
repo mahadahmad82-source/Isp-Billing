@@ -5,7 +5,7 @@ import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
 import { subscribeToPush } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import WABotInbox from './WABotInbox';
-import { isBiometricAvailable, isBiometricRegistered, registerBiometric, removeBiometric, verifyBiometric } from '../utils/webauthn';
+import { isBiometricAvailable, isBiometricRegistered, registerBiometric, removeBiometric } from '../utils/webauthn';
 import BiometricLockScreen from './BiometricLockScreen';
 
 // ── Shared gradient-ring avatar (Ayesha brand mark) ─────────────────────────
@@ -51,7 +51,6 @@ export default function WABotStandalone() {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricBusy, setBiometricBusy] = useState(false);
   const [showBiometricEnroll, setShowBiometricEnroll] = useState(false);
   const [biometricConfirmPassword, setBiometricConfirmPassword] = useState('');
   const [biometricEnrollLoading, setBiometricEnrollLoading] = useState(false);
@@ -82,14 +81,20 @@ export default function WABotStandalone() {
 
   // Skip straight past login if a session already exists (WhatsApp-style "stay logged in") —
   // but if fingerprint login is enabled for that account, gate it behind a lock
-  // screen first instead of loading straight into the chat.
+  // screen first instead of loading straight into the chat. Even with NO active
+  // session, if this device has a fingerprint-enrolled account, open straight
+  // into that lock screen too (banking-app style) instead of the login form.
   useEffect(() => {
     const session = getActiveSession();
     if (session) {
       setUsername(session);
       setPhase(isBiometricRegistered(session) ? 'locked' : 'loading');
+    } else if (biometricAccount) {
+      setUsername(biometricAccount.username);
+      setPhase('locked');
     }
     isBiometricAvailable().then(setBiometricAvailable);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -148,28 +153,14 @@ export default function WABotStandalone() {
     }
   };
 
-  // Fingerprint quick-login using the first biometric-enabled saved account on this device.
-  const handleBiometricLogin = async () => {
-    if (!biometricAccount) return;
-    setBiometricBusy(true);
-    setLoginError('');
-    try {
-      const verified = await verifyBiometric(biometricAccount.username);
-      if (!verified) { setLoginError('Fingerprint verify nahi hua.'); return; }
-      setActiveSession(biometricAccount.username);
-      setUsername(biometricAccount.username);
-      setPhase('loading');
-    } finally {
-      setBiometricBusy(false);
-    }
-  };
-
   // ── LOCKED — app-open fingerprint gate (only if enabled for this account) ──
   if (phase === 'locked' && username) {
+    const acc = getAccounts().find(a => a.username === username);
     return (
       <BiometricLockScreen
         username={username}
-        onUnlock={() => setPhase('loading')}
+        businessName={acc?.businessName}
+        onUnlock={() => { setActiveSession(username); setPhase('loading'); return true; }}
         onUsePassword={() => { setActiveSession(null); setUsername(null); setState(null); setPhase('login'); }}
       />
     );
@@ -218,12 +209,10 @@ export default function WABotStandalone() {
           {biometricAccount && (
             <button
               type="button"
-              onClick={handleBiometricLogin}
-              disabled={biometricBusy}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all disabled:opacity-50"
+              onClick={() => setPhase('locked')}
+              className="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 uppercase tracking-wider transition-colors -mt-1"
             >
-              <FingerprintIcon className="w-4 h-4" />
-              {biometricBusy ? 'Verifying…' : `Login as ${biometricAccount.username} with Fingerprint`}
+              Try Fingerprint Instead
             </button>
           )}
         </div>
