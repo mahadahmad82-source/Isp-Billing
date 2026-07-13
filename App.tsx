@@ -7,6 +7,7 @@ import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, 
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { isBiometricRegistered } from './utils/webauthn';
+import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
 import BiometricLockScreen from './components/BiometricLockScreen';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
     const loaded = loadState(activeManager);
     const initialState = { 
       ...loaded, 
+      language: loaded.language || getStoredLanguage(),
       archives: loaded.archives || [],
       dismissedNotificationIds: loaded.dismissedNotificationIds || [],
       pendingManagerNotifications: loaded.pendingManagerNotifications || [],
@@ -799,6 +801,11 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, theme: prev.theme === 'dark' ? 'light' : 'dark' }));
   };
 
+  const handleLanguageChange = (language: Language) => {
+    setState(prev => ({ ...prev, language }));
+    setStoredLanguage(language); // keep Login page (pre-account-load) in sync too
+  };
+
   const handleUpdateSettings = (newSettings: AppSettings) => {
     const settingsLog = createLog('SETTINGS_UPDATED', 'App settings updated', 'settings');
     setLoadingMessage("Saving Settings...");
@@ -1448,6 +1455,8 @@ const App: React.FC = () => {
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
           theme={state.theme || 'light'} 
+          language={state.language || 'en'}
+          onLanguageChange={handleLanguageChange}
           businessName={currentSettings.businessName} 
           onToggleTheme={handleToggleTheme}
           lastSavedTime={lastSavedTime}

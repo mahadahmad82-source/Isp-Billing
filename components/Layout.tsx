@@ -5,12 +5,16 @@ import NotificationCenter from './NotificationCenter';
 import { AppNotification } from '../types';
 import { logoBase64 } from '../utils/logoBase64';
 import { avatarBase64 } from '../utils/avatarBase64';
+import LanguageToggle from './LanguageToggle';
+import { Language, t } from '../utils/i18n';
 
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   theme: 'light' | 'dark';
+  language?: Language;
+  onLanguageChange?: (language: Language) => void;
   businessName: string;
   onToggleTheme: () => void;
   lastSavedTime?: string;
@@ -134,6 +138,8 @@ const Layout: React.FC<LayoutProps> = ({
   activeTab,
   setActiveTab,
   theme,
+  language = 'en',
+  onLanguageChange = () => {},
   businessName,
   onToggleTheme,
   lastSavedTime,
@@ -337,6 +343,9 @@ const Layout: React.FC<LayoutProps> = ({
                     <span className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></span>
                     Settings
                   </button>
+                  <div className={`border-t ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                    <LanguageToggle language={language} onChange={onLanguageChange} variant="menuItem" isDark={isDark} />
+                  </div>
                   <div className={`border-t ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
                     <button
                       onClick={() => { setDropdownOpen(false); onLogout(); }}

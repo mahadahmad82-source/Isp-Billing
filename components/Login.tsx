@@ -7,6 +7,8 @@ import { logoBase64 } from '../utils/logoBase64';
 import ThreeBackground from './landing/ThreeBackground';
 import { isBiometricRegistered } from '../utils/webauthn';
 import BiometricLockScreen from './BiometricLockScreen';
+import LanguageToggle from './LanguageToggle';
+import { Language, getStoredLanguage, setStoredLanguage } from '../utils/i18n';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -46,6 +48,9 @@ const InputField = ({ icon, type = 'text', placeholder, value, onChange, disable
 const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [accounts, setAccounts] = useState<ManagerAccount[]>([]);
   const [view, setView] = useState<ViewType>('login');
+  const [language, setLanguage] = useState<Language>(getStoredLanguage());
+  const handleLanguageChange = (lang: Language) => { setLanguage(lang); setStoredLanguage(lang); };
+
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
@@ -324,6 +329,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       {/* Three.js Background */}
       <div className="absolute inset-0 z-0"><ThreeBackground isDark={true} /></div>
       <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(2,6,23,0.35) 100%)' }} />
+
+      <div className="absolute top-4 right-4 z-[20]">
+        <LanguageToggle language={language} onChange={handleLanguageChange} variant="pill" />
+      </div>
 
       <div className="w-full max-w-sm relative z-[10]">
 

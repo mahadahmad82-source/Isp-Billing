@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { UserRecord } from '../types';
+import { BoltIcon, CloseIcon, ClipboardIcon, CheckboxIcon, BarChartIcon, CheckCircleIcon, WarningIcon, CheckIcon, BulbIcon } from './icons/UiIcons';
 
 interface QuickActivateProps {
   users: UserRecord[];
@@ -63,7 +64,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
         setResult({ found, notFound });
         if (toActivate.length > 0) onActivateUsers(toActivate);
       } catch (err) {
-        alert('File read nahi hoi — Excel format check karein');
+        alert('Could not read the file — please check the Excel format');
       } finally {
         setExcelLoading(false);
         // Reset file input
@@ -146,10 +147,10 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
         <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-white font-bold text-lg uppercase tracking-tight">⚡ Quick Activate</h2>
-              <p className="text-white/70 text-xs mt-0.5">{currentMonth} ke liye users activate karo</p>
+              <h2 className="text-white font-bold text-lg uppercase tracking-tight flex items-center gap-2"><BoltIcon className="w-4 h-4" /> Quick Activate</h2>
+              <p className="text-white/70 text-xs mt-0.5">Activate users for {currentMonth}</p>
             </div>
-            <button onClick={onClose} className="text-white/60 hover:text-white text-xl">✕</button>
+            <button onClick={onClose} className="text-white/60 hover:text-white"><CloseIcon className="w-5 h-5" /></button>
           </div>
 
           {/* Stats */}
@@ -172,16 +173,16 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
         {/* Tabs */}
         <div className={`flex border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
           {[
-            { id: 'paste', label: '📋 Username Paste Karo' },
-            { id: 'select', label: '☑️ List se Select Karo' },
-          { id: 'excel', label: '📊 Excel Upload' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as any)}
-              className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
-                tab === t.id
+            { id: 'paste', label: 'Paste Usernames', icon: <ClipboardIcon className="w-3.5 h-3.5" /> },
+            { id: 'select', label: 'Select from List', icon: <CheckboxIcon className="w-3.5 h-3.5" /> },
+            { id: 'excel', label: 'Excel Upload', icon: <BarChartIcon className="w-3.5 h-3.5" /> },
+          ].map(tabItem => (
+            <button key={tabItem.id} onClick={() => setTab(tabItem.id as any)}
+              className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+                tab === tabItem.id
                   ? 'border-indigo-500 text-indigo-500'
                   : `border-transparent ${isDark ? 'text-slate-500' : 'text-slate-400'}`
-              }`}>{t.label}</button>
+              }`}>{tabItem.icon}{tabItem.label}</button>
           ))}
         </div>
 
@@ -192,18 +193,18 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
           {result && (
             <div className={`rounded-2xl p-4 mb-4 ${result.notFound.length > 0 ? 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20' : 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20'}`}>
               {result.found.length > 0 && (
-                <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mb-1">
-                  ✅ {result.found.length} users activate ho gaye!
+                <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1.5">
+                  <CheckCircleIcon className="w-4 h-4" /> {result.found.length} users activated!
                 </p>
               )}
               {result.notFound.length > 0 && (
-                <p className="text-xs font-black text-amber-600 dark:text-amber-400">
-                  ⚠️ Nahi mile: {result.notFound.join(', ')}
+                <p className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                  <WarningIcon className="w-4 h-4 flex-shrink-0 mt-0.5" /> Not found: {result.notFound.join(', ')}
                 </p>
               )}
               <button onClick={() => { setResult(null); onClose(); }}
-                className="mt-2 w-full py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest">
-                Done ✓
+                className="mt-2 w-full py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5">
+                Done <CheckIcon className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -213,12 +214,12 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
             <div className="space-y-4">
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Usernames paste karo (har line mein ek, ya comma se separate)
+                  Paste usernames (one per line, or comma-separated)
                 </label>
                 <textarea
                   value={pastedUsernames}
                   onChange={e => setPastedUsernames(e.target.value)}
-                  placeholder={`FC001\nFC002\nFC003\n\nYa:\nFC001, FC002, FC003`}
+                  placeholder={`FC001\nFC002\nFC003\n\nOr:\nFC001, FC002, FC003`}
                   rows={8}
                   className={`w-full px-4 py-3 rounded-2xl border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none
                     ${isDark ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
@@ -229,11 +230,11 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
               </div>
 
               <div className={`rounded-2xl p-4 ${isDark ? 'bg-white/5' : 'bg-indigo-50'} border ${isDark ? 'border-white/10' : 'border-indigo-100'}`}>
-                <p className={`text-xs font-black ${isDark ? 'text-slate-400' : 'text-indigo-700'} mb-1`}>💡 Kya hoga activate karne ke baad:</p>
+                <p className={`text-xs font-black ${isDark ? 'text-slate-400' : 'text-indigo-700'} mb-1 flex items-center gap-1.5`}><BulbIcon className="w-3.5 h-3.5" /> What happens after activation:</p>
                 <ul className={`text-xs space-y-1 ${isDark ? 'text-slate-500' : 'text-indigo-600'}`}>
-                  <li>• User current month ({currentMonth}) mein add ho jayega</li>
-                  <li>• Purana plan, fees, aur balance copy hoga</li>
-                  <li>• Aap directly receipt generate kar sakte ho</li>
+                  <li>• User is added to the current month ({currentMonth})</li>
+                  <li>• Previous plan, fees, and balance are carried over</li>
+                  <li>• You can generate a receipt right away</li>
                 </ul>
               </div>
 
@@ -251,7 +252,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                 />
                 {expiryDate && (
                   <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                    ⏳ Expire hoga: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    Expires: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 )}
               </div>
@@ -259,9 +260,9 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
               <button
                 onClick={handlePasteActivate}
                 disabled={!pastedUsernames.trim()}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5"
               >
-                ⚡ Activate Karo
+                <BoltIcon className="w-4 h-4" /> Activate
               </button>
             </div>
           )}
@@ -291,10 +292,10 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="text-4xl">📊</div>
+                    <div className={`flex justify-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}><BarChartIcon className="w-10 h-10" /></div>
                     <div>
-                      <p className={`text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Excel / CSV File Upload Karo</p>
-                      <p className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Click karein ya file drag karein</p>
+                      <p className={`text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Upload Excel / CSV File</p>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Click or drag a file here</p>
                     </div>
                     <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>.xlsx · .xls · .csv</p>
                   </div>
@@ -303,7 +304,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
 
               {/* Format Guide */}
               <div className={`rounded-2xl p-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}>
-                <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>📋 Excel Format</p>
+                <p className={`text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}><ClipboardIcon className="w-3.5 h-3.5" /> Excel Format</p>
                 <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                   <table className="w-full text-xs">
                     <thead className={`${isDark ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600'} font-black`}>
@@ -328,8 +329,8 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                     </tbody>
                   </table>
                 </div>
-                <p className={`text-[10px] mt-2 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-                  💡 Sirf usernames hone chahiye — koi extra info zaroori nahi. System automatically match karega!
+                <p className={`text-[10px] mt-2 flex items-start gap-1.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                  <BulbIcon className="w-3 h-3 flex-shrink-0 mt-0.5" /> Only usernames are needed — no extra info required. The system will match them automatically!
                 </p>
               </div>
             </div>
@@ -356,7 +357,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {filteredInactive.length === 0 ? (
                   <p className={`text-center py-8 text-xs font-black uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-                    {inactiveUsers.length === 0 ? 'Sab users already active hain! ✅' : 'Koi user nahi mila'}
+                    {inactiveUsers.length === 0 ? 'All users are already active!' : 'No users found'}
                   </p>
                 ) : filteredInactive.map(u => (
                   <div key={u.id}
@@ -369,7 +370,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                     <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                       selectedIds.has(u.id) ? 'bg-indigo-600 border-indigo-600' : isDark ? 'border-slate-600' : 'border-slate-300'
                     }`}>
-                      {selectedIds.has(u.id) && <span className="text-white text-[10px] font-black">✓</span>}
+                      {selectedIds.has(u.id) && <CheckIcon className="w-3 h-3 text-white" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-black truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{u.name}</p>
@@ -398,7 +399,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                 />
                 {expiryDate && (
                   <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                    ⏳ Expire hoga: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    Expires: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 )}
               </div>
@@ -406,9 +407,9 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
               <button
                 onClick={handleSelectActivate}
                 disabled={selectedIds.size === 0}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5"
               >
-                ⚡ {selectedIds.size > 0 ? `${selectedIds.size} Users` : ''} Activate Karo
+                <BoltIcon className="w-4 h-4" /> Activate {selectedIds.size > 0 ? `${selectedIds.size} Users` : ''}
               </button>
             </div>
           )}

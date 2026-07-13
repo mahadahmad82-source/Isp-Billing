@@ -397,6 +397,7 @@ export interface AppState {
   companies?: Company[];
   activeCompanyId?: string;
   theme?: 'light' | 'dark';
+  language?: 'en' | 'ur'; // UI display language preference — synced per account like theme
   settings?: AppSettings;
   currentManager?: string;
   dismissedNotificationIds?: string[];

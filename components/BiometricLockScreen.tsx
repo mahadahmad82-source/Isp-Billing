@@ -33,14 +33,14 @@ const BiometricLockScreen: React.FC<BiometricLockScreenProps> = ({ username, bus
     const verified = await verifyBiometric(username);
     if (!verified) {
       setStatus('error');
-      setErrorMsg('Fingerprint verify nahi hua. Dobara try karein.');
+      setErrorMsg('Fingerprint verification failed. Please try again.');
       return;
     }
     setStatus('signing-in');
     const result = await onUnlock();
     if (result === false) {
       setStatus('error');
-      setErrorMsg('Login mein masla aaya. Dobara try karein.');
+      setErrorMsg('There was a problem logging in. Please try again.');
     }
     // result === true/undefined → parent is expected to navigate away; stay
     // on "signing-in" so there's no flicker back to the unlock button.
@@ -64,7 +64,7 @@ const BiometricLockScreen: React.FC<BiometricLockScreenProps> = ({ username, bus
         </div>
         <h2 className="text-xl font-black text-white mb-1">{businessName || username}</h2>
         <p className="text-xs text-slate-400 font-medium mb-6">
-          {status === 'signing-in' ? 'Signing in…' : `@${username} — fingerprint se unlock karein`}
+          {status === 'signing-in' ? 'Signing in…' : `@${username} — unlock with fingerprint`}
         </p>
         {errorMsg && <p className="text-rose-400 text-[11px] font-bold mb-4">{errorMsg}</p>}
         <button onClick={attempt} disabled={busy}
