@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserRecord, Receipt, AppSettings, PlanChange } from '../types';
 import { useIsDark } from '../hooks/useIsDark';
+import { ReceiptIcon, ClipboardIcon } from './icons/UiIcons';
 
 interface Props {
   users: UserRecord[];
@@ -144,8 +145,8 @@ ${monthReceipts.length > 0 ? `
     <div className={`min-h-screen p-4 pb-24 ${pageBg}`}>
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className={`text-2xl font-black ${text}`}>🧾 Monthly Invoice</h1>
-          <p className={`text-xs mt-0.5 ${muted}`}>Customer ke liye professional invoice generate karo</p>
+          <h1 className={`text-2xl font-black ${text} flex items-center gap-2`}><ReceiptIcon className="w-5 h-5" /> Monthly Invoice</h1>
+          <p className={`text-xs mt-0.5 ${muted}`}>Generate a professional invoice for the customer</p>
         </div>
         <button onClick={handlePrint} disabled={!user}
           className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all active:scale-95">
@@ -249,7 +250,7 @@ ${monthReceipts.length > 0 ? `
 
       {planHistory.length > 0 && (
         <div className={`border rounded-2xl p-4 mt-4 ${card}`}>
-          <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${muted}`}>📋 Plan Change History</p>
+          <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${muted} flex items-center gap-1.5`}><ClipboardIcon className="w-3.5 h-3.5" /> Plan Change History</p>
           <div className="space-y-2">
             {planHistory.filter(p => !selectedUser || p.userId === selectedUser).slice(-10).reverse().map(p => (
               <div key={p.id} className={`flex items-center justify-between py-2 border-b last:border-0 ${isDark ? 'border-white/5' : 'border-slate-100'}`}>

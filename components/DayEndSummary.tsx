@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Receipt } from '../types';
 import { useIsDark } from '../hooks/useIsDark';
+import { BarChartIcon, InboxIcon } from './icons/UiIcons';
 
 interface Props {
   receipts: Receipt[];
@@ -124,8 +125,8 @@ const DayEndSummary: React.FC<Props> = ({ receipts, subManagers, businessName })
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className={`text-2xl font-black ${text}`}>📊 Day-End Summary</h1>
-          <p className={`text-xs mt-0.5 ${muted}`}>Aaj ka pura hisaab kitaab</p>
+          <h1 className={`text-2xl font-black ${text} flex items-center gap-2`}><BarChartIcon className="w-5 h-5" /> Day-End Summary</h1>
+          <p className={`text-xs mt-0.5 ${muted}`}>Today's complete collection summary</p>
         </div>
         <button onClick={handlePrint}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all active:scale-95">
@@ -159,9 +160,9 @@ const DayEndSummary: React.FC<Props> = ({ receipts, subManagers, businessName })
 
       {todayReceipts.length === 0 ? (
         <div className={`text-center py-20 ${muted}`}>
-          <div className="text-5xl mb-4">📭</div>
-          <p className="font-bold text-lg">Is din koi receipt nahi</p>
-          <p className="text-xs mt-1">Alag date select karo</p>
+          <div className="flex justify-center mb-4"><InboxIcon className="w-12 h-12" /></div>
+          <p className="font-bold text-lg">No receipts on this date</p>
+          <p className="text-xs mt-1">Try selecting a different date</p>
         </div>
       ) : (
         <>

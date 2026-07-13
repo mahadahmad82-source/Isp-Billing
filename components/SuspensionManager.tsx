@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useIsDark } from '../hooks/useIsDark';
+import { ClipboardIcon } from './icons/UiIcons';
 import { SuspensionLog, SuspensionReason, UserRecord } from '../types';
 
 interface Props {
@@ -11,11 +12,11 @@ interface Props {
 }
 
 const REASON_LABELS: Record<SuspensionReason, string> = {
-  non_payment: '💸 Non-Payment',
-  customer_request: '👤 Customer Request',
-  abuse: '⚠️ Abuse / Misuse',
-  maintenance: '🔧 Maintenance',
-  other: '📋 Other',
+  non_payment: 'Non-Payment',
+  customer_request: 'Customer Request',
+  abuse: 'Abuse / Misuse',
+  maintenance: 'Maintenance',
+  other: 'Other',
 };
 
 const genId = () => `SUS-${Date.now()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
@@ -71,7 +72,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
     };
     onAdd(log);
     onUpdateUserStatus(selectedUser.id, actionType === 'suspended' ? 'suspended' : 'active');
-    showToast(`${selectedUser.name} — ${actionType === 'suspended' ? 'Suspended ❌' : 'Restored ✅'}`);
+    showToast(`${selectedUser.name} — ${actionType === 'suspended' ? 'Suspended' : 'Restored'}`);
     setSelectedUser(null); setNote(''); setView('list');
   };
 
@@ -89,19 +90,19 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
       <div className={`flex gap-2 mb-5 p-1 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl`}>
         <button onClick={() => setActionType('suspended')}
           className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${actionType === 'suspended' ? 'bg-red-600 text-white' : 'text-white/40'}`}>
-          ❌ Suspend
+          Suspend
         </button>
         <button onClick={() => setActionType('restored')}
           className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${actionType === 'restored' ? 'bg-emerald-600 text-white' : 'text-white/40'}`}>
-          ✅ Restore
+          Restore
         </button>
       </div>
 
       {/* Customer search */}
       <div className="mb-4">
-        <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Customer Select Karo</label>
+        <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Select Customer</label>
         <input value={userSearch} onChange={e => setUserSearch(e.target.value)}
-          placeholder="Search naam ya phone..."
+          placeholder="Search name or phone..."
           className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 mb-2 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`}/>
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {filteredUsers.map(u => (
@@ -142,7 +143,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
           !selectedUser ? 'bg-white/10 text-white/30 cursor-not-allowed' :
           actionType === 'suspended' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500'
         }`}>
-        {actionType === 'suspended' ? '❌ Suspend Customer' : '✅ Restore Customer'}
+        {actionType === 'suspended' ? 'Suspend Customer' : 'Restore Customer'}
       </button>
     </div>
   );
@@ -214,8 +215,8 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
       {/* Log list */}
       {filteredLogs.length === 0 ? (
         <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
-          <div className="text-5xl mb-4">📋</div>
-          <p className="font-bold">Koi record nahi</p>
+          <div className="flex justify-center mb-4"><ClipboardIcon className="w-12 h-12" /></div>
+          <p className="font-bold">No records found</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -228,7 +229,7 @@ const SuspensionManager: React.FC<Props> = ({ suspensionLogs, users, currentUser
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
                   log.action === 'suspended' ? 'bg-red-500/15 border-red-500/30 text-red-400' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                }`}>{log.action === 'suspended' ? '❌ Suspended' : '✅ Restored'}</span>
+                }`}>{log.action === 'suspended' ? 'Suspended' : 'Restored'}</span>
               </div>
               <div className={`flex items-center gap-3 text-xs ${isDark ? 'text-white/40' : 'text-slate-500'} flex-wrap`}>
                 <span>{REASON_LABELS[log.reason]}</span>

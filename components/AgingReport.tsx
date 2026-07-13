@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useIsDark } from '../hooks/useIsDark';
 import { UserRecord } from '../types';
+import { CheckCircleIcon, MapPinIcon, PackageIcon } from './icons/UiIcons';
 
 interface Props {
   users: UserRecord[];
@@ -93,7 +94,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-2xl font-black">Receivable Aging</h1>
-        <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>Kitna paisa kitne dino se pending hai</p>
+        <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs mt-0.5`}>How much money has been pending, and for how long</p>
       </div>
 
       {/* Total Due Banner */}
@@ -124,7 +125,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
 
       {/* Search + Sort */}
       <div className="flex gap-2 mb-4">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search naam, phone, area..."
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, phone, area..."
           className={`flex-1 ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'placeholder-white/30' : 'placeholder-slate-400'}`}/>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
           className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-2.5 ${isDark ? 'text-white' : 'text-slate-900'} text-xs focus:outline-none focus:border-indigo-500`}>
@@ -136,9 +137,9 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
       {/* List */}
       {filtered.length === 0 ? (
         <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
-          <div className="text-5xl mb-4">✅</div>
-          <p className="font-bold text-lg">Sab clear hai!</p>
-          <p className="text-sm mt-1">Koi overdue customer nahi</p>
+          <div className="flex justify-center mb-4"><CheckCircleIcon className="w-12 h-12" /></div>
+          <p className="font-bold text-lg">All clear!</p>
+          <p className="text-sm mt-1">No overdue customers</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -150,7 +151,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
                   <div>
                     <p className="font-black text-base">{entry.user.name}</p>
                     <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-sm`}>{entry.user.phone}</p>
-                    {entry.user.area && <p className={`${isDark ? 'text-white/30' : 'text-slate-400'} text-xs mt-0.5`}>📍 {entry.user.area}</p>}
+                    {entry.user.area && <p className={`${isDark ? 'text-white/30' : 'text-slate-400'} text-xs mt-0.5 flex items-center gap-1`}><MapPinIcon className="w-3 h-3" /> {entry.user.area}</p>}
                   </div>
                   <div className="text-right">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${cfg.bg} ${cfg.color}`}>
@@ -161,7 +162,7 @@ const AgingReport: React.FC<Props> = ({ users, settings }) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className={`flex gap-2 text-xs ${isDark ? 'text-white/40' : 'text-slate-500'}`}>
-                    <span>📦 {entry.user.plan || 'No Plan'}</span>
+                    <span className="flex items-center gap-1"><PackageIcon className="w-3 h-3" /> {entry.user.plan || 'No Plan'}</span>
                     {entry.user.expiryDate && (
                       <span>• Expired: {new Date(entry.user.expiryDate).toLocaleDateString('en-PK', {day:'2-digit',month:'short',year:'numeric'})}</span>
                     )}
