@@ -64,8 +64,6 @@ function previewMessage(name: string, plan: string, dateStr: string): string {
 }
 
 export default async function handler(req: any, res: any) {
-  // ⏸ PAUSED 29 Jun 2026 — WA number disconnected from Cloud API pending Meta Business Verification. Remove this block to resume.
-  if (true) return res.status(200).json({ paused: true, reason: 'whatsapp_number_disconnected' });
   // Optional protection — Vercel automatically sends this header when CRON_SECRET env var is set
   const auth = req.headers?.authorization;
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
