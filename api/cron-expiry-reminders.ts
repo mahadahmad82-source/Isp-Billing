@@ -64,6 +64,16 @@ function previewMessage(name: string, plan: string, dateStr: string): string {
 }
 
 export default async function handler(req: any, res: any) {
+  // 🔒 Guard: vercel.json's `crons` array deploys identically to BOTH Vercel projects
+  // (main Isp-Billing app AND the standalone myisp-bot PWA, same repo). Without this,
+  // once myisp-bot gets its own env vars, this cron would ALSO fire there on the same
+  // schedule → every customer gets the expiry reminder twice. Only the main app's
+  // production domain is allowed to actually run this job.
+  const prodUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || '';
+  if (prodUrl.includes('myisp-bot')) {
+    return res.status(200).json({ skipped: true, reason: 'standalone_bot_project_duplicate_guard' });
+  }
+
   // Optional protection — Vercel automatically sends this header when CRON_SECRET env var is set
   const auth = req.headers?.authorization;
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
