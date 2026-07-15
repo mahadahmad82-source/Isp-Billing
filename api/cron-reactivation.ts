@@ -44,6 +44,8 @@ function reactivationMessage(name: string, plan: string): string {
 }
 
 export default async function handler(req: any, res: any) {
+  // ⏸ PAUSED 15 Jul 2026 — sends free-form text (not an approved Meta template); outside the 24h customer-service window Meta will reject/flag these sends and repeated attempts risk the number's quality rating. Re-enable only after the Utility/Marketing template for this campaign is approved (see cron-expiry-reminders.ts for the template-based pattern).
+  if (true) return res.status(200).json({ paused: true, reason: 'template_not_approved' });
   const auth = req.headers?.authorization;
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'unauthorized' });
