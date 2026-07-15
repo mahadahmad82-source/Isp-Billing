@@ -136,7 +136,7 @@ export default function WABotStandalone() {
       }
       // Real check — Supabase Auth, same as the main dashboard login. Works on
       // any device/origin since it isn't tied to this browser's localStorage.
-      const authEmail = typed.includes('@') ? typed : `${typed}@billcollector.local`;
+      const authEmail = typed.includes('@') ? typed : `${typed}@myisp.local`;
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password: loginPass });
       if (authError || !data?.user) {
         setLoginError('Username ya password ghalat hai.');
