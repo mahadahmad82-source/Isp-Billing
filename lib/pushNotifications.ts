@@ -20,8 +20,11 @@ export const getPermissionStatus = (): NotificationPermission => {
   return Notification.permission;
 };
 
-// Subscribe to push notifications
-export const subscribeToPush = async (managerId: string): Promise<boolean> => {
+// Subscribe to push notifications. `app` tags which installed PWA this subscription
+// belongs to ('billcollector' or 'wabot') so the send-push-notification function can
+// route conversation alerts only to WABot installs and business alerts only to
+// BillCollector installs, instead of blasting every notification to every device.
+export const subscribeToPush = async (managerId: string, app: 'billcollector' | 'wabot' = 'billcollector'): Promise<boolean> => {
   try {
     if (!isPushSupported()) return false;
 
@@ -57,6 +60,7 @@ export const subscribeToPush = async (managerId: string): Promise<boolean> => {
       p256dh: subJson.keys.p256dh,
       auth: subJson.keys.auth,
       device_name: deviceName,
+      app,
     }, { onConflict: 'endpoint' });
 
     if (error) {
