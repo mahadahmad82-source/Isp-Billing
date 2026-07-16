@@ -184,6 +184,7 @@ export interface Receipt {
   collectedBy?: string;
   expiryDate?: string;
   rechargeDate?: string;
+  receiptImageUrl?: string; // Auto-generated PNG URL — used by WABot for instant receipt sharing on request
 }
 
 export interface AppNotification {
