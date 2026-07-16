@@ -374,6 +374,50 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     return `92${digits.slice(-10)}`;
   };
 
+  // Generates the receipt PNG and stores it in Supabase Storage (whatsapp-media bucket),
+  // saving the public URL on the receipt record. This runs regardless of WABA send status,
+  // so the image is always ready for WABot to instantly share whenever the customer asks
+  // for it later (within the 24-hour customer-service window).
+  const generateAndStoreReceiptImage = async (receipt: Receipt) => {
+    try {
+      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const element = document.getElementById('receipt-download-area');
+      if (!element) return;
+      const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
+      const canvas = await html2canvas(element, {
+        scale: 1.5,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        imageTimeout: 8000,
+        windowWidth: isThermal ? window.innerWidth : 800,
+        onclone: (clonedDoc) => {
+          const area = clonedDoc.getElementById('receipt-download-area');
+          if (area) {
+            area.style.boxShadow = 'none';
+            if (!isThermal) area.style.minWidth = '800px';
+          }
+        },
+      });
+      canvas.toBlob(async (blob: Blob | null) => {
+        if (!blob) return;
+        try {
+          const path = `receipts/${Date.now()}-${(receipt.transactionRef || receipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
+          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png' });
+          if (upErr) throw upErr;
+          const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+          onUpdateReceipt({ ...receipt, receiptImageUrl: pub.publicUrl });
+        } catch (e) {
+          console.error('[ReceiptGenerator] receipt image store failed', e);
+        }
+      }, 'image/png', 1.0);
+    } catch (e) {
+      console.error('[ReceiptGenerator] receipt image generation failed', e);
+    }
+  };
+
   // Sends the receipt image to the customer automatically right after a payment is
   // recorded — through Ayesha's WhatsApp number (Meta Cloud API), the same channel
   // the bot itself uses, instead of requiring a manual "Share" tap every time.
@@ -523,6 +567,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       // so auto-download is back on as the fallback: customer's receipt still
       // lands as a saved image even though it can't be auto-WhatsApp'd right now.
       captureAndDownload(newReceipt);
+      // Always store the receipt PNG in Supabase Storage (independent of WABA send
+      // status) so WABot can instantly share it whenever the customer asks for it
+      // via chat — no regeneration needed at request time.
+      generateAndStoreReceiptImage(newReceipt);
       // TEMP DISABLED: Ayesha/WABA number is paused (Meta Business Verification not
       // complete), so WHATSAPP_TOKEN/PHONE_NUMBER_ID are stale and every auto-send was
       // failing — re-enable this line once the bot is reactivated.
