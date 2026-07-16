@@ -65,3 +65,62 @@ export const sendWhatsAppDirect = async (
     return { success: false, error: e?.message || 'Network error' };
   }
 };
+
+/**
+ * Sends receipt PNG image directly via Ayesha's Meta Cloud API
+ * — no template needed, works within 24-hour customer service window.
+ * Uploads PNG to Supabase Storage, gets public URL, sends via /api/wabot-send.
+ */
+export const sendReceiptViaWABot = async (
+  phone: string,
+  pngBlob: Blob,
+  receiptRef: string,
+  managerId: string = 'mahadnet'
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const formattedPhone = formatWhatsAppPhone(phone);
+
+    // 1. Upload PNG to Supabase Storage
+    const fileName = `receipts/${managerId}/${receiptRef}_${Date.now()}.png`;
+    const uploadRes = await fetch(
+      `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/receipt_temp/${fileName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw`,
+          'Content-Type': 'image/png',
+        },
+        body: pngBlob,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}));
+      return { success: false, error: `Storage upload failed: ${err?.message || uploadRes.status}` };
+    }
+
+    // 2. Send image via wabot-send endpoint
+    const mediaUrl = `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/receipt_temp/${fileName}`;
+
+    const sendRes = await fetch('/api/wabot-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: formattedPhone,
+        managerId,
+        type: 'image',
+        mediaUrl,
+        caption: `Receipt: ${receiptRef}`,
+      }),
+    });
+
+    if (!sendRes.ok) {
+      const err = await sendRes.json().catch(() => ({}));
+      return { success: false, error: err?.error || `HTTP ${sendRes.status}` };
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Unknown error' };
+  }
+};
