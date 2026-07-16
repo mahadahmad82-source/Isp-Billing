@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign, SubManagerAccount } from '../types';
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
-import { shareToWhatsApp } from '../utils/whatsapp';
+import { shareToWhatsApp, sendReceiptViaWABot } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
 import { supabase } from '../lib/supabase';
 
@@ -102,6 +102,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isSendingToWABot, setIsSendingToWABot] = useState(false);
   const [autoSendStatus, setAutoSendStatus] = useState<'sending' | 'sent' | 'failed' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [shareMessage, setShareMessage] = useState('');
@@ -673,6 +674,63 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     } finally {
       setIsSharing(false);
       setLoadingMessage(null);
+    }
+  };
+
+  const handleSendReceiptToWABot = async () => {
+    if (!activeReceipt) return;
+    setIsSendingToWABot(true);
+    setLoadingMessage('🤖 Preparing Receipt Image for WABot...');
+
+    try {
+      const element = document.getElementById('receipt-download-area');
+      if (!element) return;
+
+      const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        imageTimeout: 8000,
+        windowWidth: isThermal ? window.innerWidth : 800,
+        onclone: (clonedDoc) => {
+          const area = clonedDoc.getElementById('receipt-download-area');
+          if (area) {
+            area.style.boxShadow = 'none';
+            if (!isThermal) {
+               area.style.minWidth = '800px';
+            }
+          }
+        }
+      });
+
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+      if (!blob) {
+        setLoadingMessage('❌ Failed to capture receipt image');
+        setTimeout(() => setLoadingMessage(null), 3000);
+        return;
+      }
+
+      setLoadingMessage('📤 Uploading to Storage...');
+      const result = await sendReceiptViaWABot(
+        activeReceipt.userPhone,
+        blob,
+        activeReceipt.transactionRef,
+        managerId || 'mahadnet'
+      );
+
+      if (result.success) {
+        setLoadingMessage('✅ Receipt sent via WABot to customer!');
+        setTimeout(() => setLoadingMessage(null), 3000);
+      } else {
+        setLoadingMessage(`❌ Failed to send: ${result.error}`);
+        setTimeout(() => setLoadingMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('[ReceiptGenerator] WABot send failed', error);
+      setLoadingMessage('❌ Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setTimeout(() => setLoadingMessage(null), 5000);
+    } finally {
+      setIsSendingToWABot(false);
     }
   };
 
@@ -1619,6 +1677,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                         <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.224-3.62c1.566.933 3.46 1.441 5.519 1.442 5.457 0 9.894-4.437 9.897-9.895.002-2.646-1.03-5.132-2.903-7.005s-4.359-2.906-7.004-2.907c-5.456 0-9.892 4.437-9.894 9.895-.001 2.045.508 4.045 1.486 5.856l-.991 3.616 3.9-.996zm11.087-7.468c-.301-.15-1.784-.879-2.059-.98-.275-.1-.475-.15-.675.15s-.775.98-.95 1.18-.35.225-.65.075c-.301-.15-1.267-.467-2.414-1.491-.892-.796-1.493-1.778-1.668-2.079-.175-.301-.019-.463.131-.612.135-.133.301-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.588-.491-.508-.675-.517-.175-.008-.375-.01-.575-.01s-.525.075-.8.375c-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.116 3.231 5.126 4.532.715.311 1.273.497 1.707.635.719.227 1.373.195 1.89.118.577-.085 1.784-.73 2.034-1.435.25-.705.25-1.31.175-1.435-.075-.125-.275-.2-.575-.35z"/></svg>
                       )}
                       {isSharing ? 'Sending...' : 'WhatsApp'}
+                    </button>
+                    <button onClick={handleSendReceiptToWABot} disabled={isSendingToWABot} className="bg-violet-600 hover:bg-violet-700 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5 disabled:opacity-50">
+                      {isSendingToWABot ? (
+                        <svg className="w-5 h-5 sm:w-5 sm:h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      ) : (
+                        <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+                      )}
+                      {isSendingToWABot ? 'Sending...' : 'WABot'}
                     </button>
                     <button onClick={() => window.location.href = `sms:${activeReceipt.userPhone}?body=${encodeURIComponent(shareMessage.replace(/\*/g, ''))}`} className="bg-slate-900 hover:bg-slate-800 text-white py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex flex-col items-center gap-1.5">
                       <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
