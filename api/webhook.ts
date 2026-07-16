@@ -143,6 +143,18 @@ Koi sawaal? Call karein: *{support_number}* 🙏`,
   account_matched_new_number: `Ji {name}! Mil gaya aap ka account 😊 Lagta hai aap ne naya number use kiya hai — Mahad bhai ko record update karne ke liye inform kar diya hai.
 
 Ab batayen, kis cheez mein madad chahiye? Bill, complaint ya kuch aur? 🙏`,
+  receipt_share_caption: `📄 *{business_name} Receipt*
+Ref: {ref}
+Amount Paid: PKR {amount}
+Date: {date}
+
+Shukriya! ✅`,
+  receipt_not_available: `Assalam o Alaikum {name}! 😊
+
+Aap ki last receipt mili hai lekin image abhi ready nahi hai — Mahad bhai ko bata diya hai, thodi der mein bhej denge. 🙏`,
+  receipt_none_found: `Assalam o Alaikum {name}! 😊
+
+Aap ke naam se koi payment receipt abhi tak record nahi hui. Agar aap ne recently payment ki hai to thoda intezar karein ya Mahad bhai se confirm kar lein. 🙏`,
   talk_to_owner_prompt: `Zaroor! 😊 Apna message likh dein — main {owner_name} bhai tak foran pohcha dungi.`,
   message_forwarded_to_owner: `Aap ka message note ho gaya hai ✅ {owner_name} bhai available hote hi aap ko reply karenge. Shukriya! 🙏`,
   thanks_replies_en: `You're welcome! 😊 Let me know if you need anything else.
@@ -1083,7 +1095,8 @@ type Intent =
   | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
   | 'password_change' | 'coverage' | 'thanks' | 'bot_identity'
   | 'panel_issue' | 'router_recommend' | 'employment_question' | 'bill_dispute'
-  | 'closing_ack' | 'greeting_personal_chat' | 'router_pon_compat' | 'marketing_optout';
+  | 'closing_ack' | 'greeting_personal_chat' | 'router_pon_compat' | 'marketing_optout'
+  | 'receipt_request';
 
 function detectIntent(text: string): Intent {
   const t = text.trim().toLowerCase();
@@ -1172,6 +1185,13 @@ function detectIntent(text: string): Intent {
   // Vague complaint mention with NO symptom yet (e.g. "mujhe complain karni hai") → ask what's
   // wrong first, same as the numbered-menu flow, instead of registering a blank ticket.
   if (/\bcomplain(t)?\b|\bshikayat\b|\bmasla\b|\bissue\b/.test(t)) return 'menu_complaint';
+
+  // Customer asking for their payment receipt/slip/invoice/parchi image — checked
+  // before 'bill'/'bill_dispute' so phrases like "bill ki slip bhej do" route here
+  // instead of the balance-check flow. Opens the 24h window + triggers WABot to
+  // instantly share the stored receipt PNG for their most recent payment.
+  if (/receipt|\bslip\b|\bsilp\b|invoice|\bparchi\b|parchee|parchy/.test(t) && /bhej|send|kar\s*d/.test(t))
+    return 'receipt_request';
 
   // Dispute / confusion over balance — checked before generic 'bill' so the customer
   // gets their full payment ledger automatically instead of just the current balance.
@@ -2270,6 +2290,25 @@ export default async function handler(req: any, res: any) {
 
       const { managerId, rowData, user, receipts } = found;
 
+      if (intent === 'receipt_request') {
+        const latest = receipts[0];
+        if (latest && latest.receiptImageUrl) {
+          await sendImage(from, latest.receiptImageUrl, tmpl('receipt_share_caption', {
+            business_name: rowData?.settings?.businessName || 'MahadNet',
+            ref: latest.transactionRef || '',
+            amount: (latest.paidAmount || 0).toLocaleString(),
+            date: latest.date ? new Date(latest.date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+          }));
+        } else if (latest) {
+          // Receipt exists but has no stored image (e.g. created before this feature) —
+          // fall back to the text summary instead of leaving the customer with nothing.
+          await sendText(from, tmpl('receipt_not_available', { name: user.name }));
+          await sendText(from, billReply(user, receipts));
+        } else {
+          await sendText(from, tmpl('receipt_none_found', { name: user.name }));
+        }
+        continue;
+      }
       if (intent === 'bill')            { await sendText(from, billReply(user, receipts)); continue; }
       // Customer is disputing/confused about their balance — proactively send the full
       // payment ledger too, so they can see exactly which month's payment is missing
