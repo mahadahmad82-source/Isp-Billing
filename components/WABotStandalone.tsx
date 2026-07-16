@@ -5,8 +5,6 @@ import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
 import { subscribeToPush } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import WABotInbox from './WABotInbox';
-import { isBiometricAvailable, isBiometricRegistered, registerBiometric, removeBiometric } from '../utils/webauthn';
-import BiometricLockScreen from './BiometricLockScreen';
 
 // ── Shared gradient-ring avatar (Ayesha brand mark) ─────────────────────────
 const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
@@ -33,13 +31,7 @@ const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
 
 const BG = 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)';
 
-const FingerprintIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571M17 13.5c0 2.4-.5 4.5-1.5 6.5M4.5 16.5c.5-2 .5-3.5.5-5.5a7 7 0 0114 0c0 .5 0 1-.1 1.9M9 11a3 3 0 116 0c0 1.5-.2 3-.6 4.5M6.5 20c1-1.7 1.5-3.3 1.9-5" />
-  </svg>
-);
-
-type Phase = 'login' | 'locked' | 'loading' | 'ready' | 'error';
+type Phase = 'login' | 'loading' | 'ready' | 'error';
 
 export default function WABotStandalone() {
   const [phase, setPhase] = useState<Phase>('login');
@@ -50,13 +42,6 @@ export default function WABotStandalone() {
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [showBiometricEnroll, setShowBiometricEnroll] = useState(false);
-  const [biometricConfirmPassword, setBiometricConfirmPassword] = useState('');
-  const [biometricEnrollLoading, setBiometricEnrollLoading] = useState(false);
-  const [biometricEnrollError, setBiometricEnrollError] = useState('');
-  // First saved-on-this-device account (if any) that already has fingerprint enabled.
-  const biometricAccount = getAccounts().find(a => isBiometricRegistered(a.username) && a.password);
 
   // Swap manifest + title while this screen is mounted, restore on unmount.
   // Also force LIGHT theme regardless of the main dashboard's saved theme —
@@ -79,22 +64,13 @@ export default function WABotStandalone() {
     };
   }, []);
 
-  // Skip straight past login if a session already exists (WhatsApp-style "stay logged in") —
-  // but if fingerprint login is enabled for that account, gate it behind a lock
-  // screen first instead of loading straight into the chat. Even with NO active
-  // session, if this device has a fingerprint-enrolled account, open straight
-  // into that lock screen too (banking-app style) instead of the login form.
+  // Skip straight past login if a session already exists (WhatsApp-style "stay logged in").
   useEffect(() => {
     const session = getActiveSession();
     if (session) {
       setUsername(session);
-      setPhase(isBiometricRegistered(session) ? 'locked' : 'loading');
-    } else if (biometricAccount) {
-      setUsername(biometricAccount.username);
-      setPhase('locked');
+      setPhase('loading');
     }
-    isBiometricAvailable().then(setBiometricAvailable);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -105,7 +81,7 @@ export default function WABotStandalone() {
         const merged = await smartLoadAndSync(username, local);
         setState(merged);
         setPhase('ready');
-        subscribeToPush(username).catch(() => {});
+        subscribeToPush(username, 'wabot').catch(() => {});
       } catch (e: any) {
         console.error('[WABotStandalone load]', e?.message);
         setErrorMsg('Data load nahi ho saka. Dobara try karein.');
@@ -153,19 +129,6 @@ export default function WABotStandalone() {
     }
   };
 
-  // ── LOCKED — app-open fingerprint gate (only if enabled for this account) ──
-  if (phase === 'locked' && username) {
-    const acc = getAccounts().find(a => a.username === username);
-    return (
-      <BiometricLockScreen
-        username={username}
-        businessName={acc?.businessName}
-        onUnlock={() => { setActiveSession(username); setPhase('loading'); return true; }}
-        onUsePassword={() => { setActiveSession(null); setUsername(null); setState(null); setPhase('login'); }}
-      />
-    );
-  }
-
   // ── LOGIN (simple card) ───────────────────────────────────────────────────
   if (phase === 'login') {
     return (
@@ -205,16 +168,6 @@ export default function WABotStandalone() {
               {loggingIn ? 'Logging in…' : 'Log In'}
             </button>
           </form>
-
-          {biometricAccount && (
-            <button
-              type="button"
-              onClick={() => setPhase('locked')}
-              className="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 uppercase tracking-wider transition-colors -mt-1"
-            >
-              Try Fingerprint Instead
-            </button>
-          )}
         </div>
       </div>
     );
@@ -306,53 +259,6 @@ export default function WABotStandalone() {
     setPhase('login');
   };
 
-  // Security gate for enrollment: must re-confirm the account password (checked
-  // against Supabase Auth) before this device's fingerprint gets registered —
-  // mirrors the main dashboard's Settings > Fingerprint Login flow.
-  const handleConfirmEnrollBiometric = async () => {
-    if (!username || !biometricConfirmPassword) { setBiometricEnrollError('Password enter karein'); return; }
-    setBiometricEnrollLoading(true);
-    setBiometricEnrollError('');
-    try {
-      const localAccounts = getAccounts();
-      const localMatch = localAccounts.find(a => a.username === username && a.password === biometricConfirmPassword);
-      let verified = !!localMatch;
-      let verifiedEmail = localMatch?.email || '';
-
-      if (!verified) {
-        const { data: userData } = await supabase.auth.getUser();
-        const email = userData?.user?.email;
-        if (email) {
-          const { error: authError } = await supabase.auth.signInWithPassword({ email, password: biometricConfirmPassword });
-          if (!authError) { verified = true; verifiedEmail = email; }
-        }
-      }
-
-      if (!verified) { setBiometricEnrollError('Password ghalat hai'); return; }
-
-      const existing = localAccounts.find(a => a.username === username);
-      saveAccount({
-        username,
-        password: biometricConfirmPassword,
-        businessName: existing?.businessName || username,
-        email: existing?.email || verifiedEmail || '',
-        phone: existing?.phone || '',
-        role: existing?.role,
-        managerUsername: existing?.managerUsername || '',
-        createdAt: existing?.createdAt || new Date().toISOString(),
-        rememberPassword: true,
-      });
-
-      const registered = await registerBiometric(username);
-      if (!registered) { setBiometricEnrollError('Device ne fingerprint register nahi kiya.'); return; }
-
-      setShowBiometricEnroll(false);
-      setBiometricConfirmPassword('');
-    } finally {
-      setBiometricEnrollLoading(false);
-    }
-  };
-
   return (
     <div style={{ height: '100dvh' }} className="w-full flex flex-col bg-slate-50 overflow-hidden relative">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white shrink-0">
@@ -361,15 +267,6 @@ export default function WABotStandalone() {
           <p className="font-bold text-sm text-slate-900 truncate">{botName}</p>
           <p className="text-[10px] text-slate-400 uppercase tracking-wide">MahadNet WABot</p>
         </div>
-        {biometricAvailable && (
-          <button
-            onClick={() => { setBiometricEnrollError(''); setBiometricConfirmPassword(''); setShowBiometricEnroll(true); }}
-            title="Fingerprint Login"
-            className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl active:scale-95 transition-all ${isBiometricRegistered(username || '') ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}
-          >
-            <FingerprintIcon className="w-4 h-4" />
-          </button>
-        )}
         <button
           onClick={handleLogout}
           title="Log out"
@@ -378,46 +275,6 @@ export default function WABotStandalone() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 5v1a3 3 0 01-3 3H5a3 3 0 01-3-3v-5a3 3 0 013-3h4a3 3 0 013 3v1z"></path></svg>
         </button>
       </div>
-      {showBiometricEnroll && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 px-6" onClick={() => { setShowBiometricEnroll(false); setBiometricConfirmPassword(''); setBiometricEnrollError(''); }}>
-          <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-3">
-              <FingerprintIcon className="w-6 h-6 text-indigo-600" />
-              <h3 className="font-bold text-slate-900">Fingerprint Login {isBiometricRegistered(username || '') ? 'Setting' : 'Enroll Karein'}</h3>
-            </div>
-            {isBiometricRegistered(username || '') ? (
-              <>
-                <p className="text-xs text-slate-500 mb-4">Is device par fingerprint login ON hai.</p>
-                <button
-                  onClick={() => { removeBiometric(username || ''); setShowBiometricEnroll(false); }}
-                  className="w-full bg-rose-50 text-rose-600 py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all"
-                >
-                  Fingerprint Login Disable Karein
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-slate-500 mb-3">Security ke liye pehle apna current password confirm karein — is k baad device fingerprint mangega.</p>
-                <input
-                  type="password"
-                  value={biometricConfirmPassword}
-                  onChange={e => setBiometricConfirmPassword(e.target.value)}
-                  placeholder="Current password"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400 mb-2"
-                />
-                {biometricEnrollError && <p className="text-rose-500 text-xs mb-2">{biometricEnrollError}</p>}
-                <button
-                  onClick={handleConfirmEnrollBiometric}
-                  disabled={biometricEnrollLoading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all"
-                >
-                  {biometricEnrollLoading ? 'Verifying…' : 'Confirm & Enroll'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
       <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <WABotInbox
           managerId={username || 'mahadnet'}
