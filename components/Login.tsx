@@ -5,8 +5,6 @@ import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAcc
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
 import ThreeBackground from './landing/ThreeBackground';
-import { isBiometricRegistered } from '../utils/webauthn';
-import BiometricLockScreen from './BiometricLockScreen';
 import LanguageToggle from './LanguageToggle';
 import { Language, getStoredLanguage, setStoredLanguage } from '../utils/i18n';
 
@@ -16,7 +14,7 @@ interface LoginProps {
 }
 
 const ADMIN_USERNAME = 'admin';
-type ViewType = 'recent' | 'login' | 'signup' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin' | 'biometric';
+type ViewType = 'recent' | 'login' | 'signup' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
 
 // ── Icons (outside component to prevent re-render remounting) ──
 const EyeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>);
@@ -72,35 +70,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  const [biometricAccount, setBiometricAccount] = useState<ManagerAccount | null>(null);
-
   useEffect(() => {
     const loadedAccounts = getAccounts();
     setAccounts(loadedAccounts);
-    const bioAcc = loadedAccounts.find(a => isBiometricRegistered(a.username) && a.password) || null;
-    if (bioAcc) {
-      setBiometricAccount(bioAcc);
-      setView('biometric');
-    } else if (loadedAccounts.length > 0) {
-      setView('recent');
-    } else {
-      setView('login');
-    }
+    setView(loadedAccounts.length > 0 ? 'recent' : 'login');
   }, []);
 
   const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
 
-  // Fingerprint enrollment happens only from Settings (inside a logged-in
-  // session, after re-confirming the password) — never from this public
-  // login screen. This just finalises a normal login.
   const finishLogin = async (finalUsername: string) => {
     onLogin(finalUsername);
   };
 
-  // Core login logic, parameterised so both the manual form submit and the
-  // fingerprint quick-login (which already knows username+password from a
-  // saved account) can share it. Parameter names intentionally shadow the
-  // component's username/password state so the body below is untouched.
+  // Core login logic, parameterised so any caller with a known username+password
+  // pair can share it. Parameter names intentionally shadow the component's
+  // username/password state so the body below is untouched.
   const doLogin = async (username: string, password: string): Promise<boolean> => {
     if (isLoading) return false;
     setIsLoading(true); setLoadingText('Authorising...'); setError('');
@@ -182,13 +166,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     await doLogin(username, password);
-  };
-
-  // Called by the dominant biometric screen once the fingerprint itself is
-  // verified — actually signs the account in with its saved password.
-  const handleBiometricUnlock = async (): Promise<boolean> => {
-    if (!biometricAccount?.password) return false;
-    return doLogin(biometricAccount.username, biometricAccount.password);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -306,22 +283,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   };
 
   const heading = getHeading();
-
-  // Dominant biometric gate — if this device has a fingerprint-enrolled
-  // account, the app opens straight into this (banking-app style), not the
-  // login form or account list. Those only appear via "Use Password /
-  // Switch Account" below.
-  if (view === 'biometric' && biometricAccount) {
-    return (
-      <BiometricLockScreen
-        username={biometricAccount.username}
-        businessName={biometricAccount.businessName}
-        onUnlock={handleBiometricUnlock}
-        onUsePassword={() => setView(accounts.length > 0 ? 'recent' : 'login')}
-        usePasswordLabel={accounts.length > 1 ? 'Use Password / Switch Account' : 'Use Password Instead'}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#020617]">
