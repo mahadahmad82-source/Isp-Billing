@@ -6,7 +6,6 @@ import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
 import { logoBase64 } from '../utils/logoBase64';
 import { supabase } from '../lib/supabase';
-import { isBiometricAvailable, isBiometricRegistered, registerBiometric, removeBiometric } from '../utils/webauthn';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -32,80 +31,10 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported] = useState(isPushSupported());
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [showBiometricConfirm, setShowBiometricConfirm] = useState(false);
-  const [biometricConfirmPassword, setBiometricConfirmPassword] = useState('');
-  const [biometricLoading, setBiometricLoading] = useState(false);
-  const [biometricError, setBiometricError] = useState('');
 
   useEffect(() => {
     isSubscribed().then(setPushEnabled);
   }, []);
-
-  useEffect(() => {
-    isBiometricAvailable().then(setBiometricAvailable);
-    setBiometricEnabled(isBiometricRegistered(activeManager));
-  }, [activeManager]);
-
-  // Turning fingerprint login ON requires re-confirming the account password first —
-  // this is the actual security gate (enrollment can only happen from inside a
-  // logged-in session, and only after proving you know the password), not just a
-  // checkbox on the public login screen.
-  const handleConfirmEnableBiometric = async () => {
-    if (!biometricConfirmPassword) { setBiometricError('Password enter karein'); return; }
-    setBiometricLoading(true);
-    setBiometricError('');
-    try {
-      const localAccounts = getAccounts();
-      const localMatch = localAccounts.find(a => a.username === activeManager && a.password === biometricConfirmPassword);
-      let verified = !!localMatch;
-      let verifiedEmail = localMatch?.email || '';
-
-      if (!verified) {
-        const { data: userData } = await supabase.auth.getUser();
-        const email = userData?.user?.email;
-        if (email) {
-          const { error: authError } = await supabase.auth.signInWithPassword({ email, password: biometricConfirmPassword });
-          if (!authError) { verified = true; verifiedEmail = email; }
-        }
-      }
-
-      if (!verified) { setBiometricError('Password ghalat hai'); return; }
-
-      // Ensure a local account record exists with this password so the
-      // fingerprint fast-path on the login screen has something to fill in.
-      const existing = localAccounts.find(a => a.username === activeManager);
-      saveAccount({
-        username: activeManager,
-        password: biometricConfirmPassword,
-        businessName: existing?.businessName || activeManager,
-        email: existing?.email || verifiedEmail || '',
-        phone: existing?.phone || '',
-        role: existing?.role,
-        managerUsername: existing?.managerUsername || '',
-        createdAt: existing?.createdAt || new Date().toISOString(),
-        rememberPassword: true,
-      });
-
-      const registered = await registerBiometric(activeManager);
-      if (!registered) { setBiometricError('Device ne fingerprint register nahi kiya. Dobara try karein.'); return; }
-
-      setBiometricEnabled(true);
-      setShowBiometricConfirm(false);
-      setBiometricConfirmPassword('');
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
-
-  const handleDisableBiometric = () => {
-    removeBiometric(activeManager);
-    setBiometricEnabled(false);
-    setShowBiometricConfirm(false);
-    setBiometricConfirmPassword('');
-    setBiometricError('');
-  };
 
   // Employee accounts
 
@@ -117,7 +46,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         const ok = await unsubscribeFromPush(activeManager);
         if (ok) setPushEnabled(false);
       } else {
-        const ok = await subscribeToPush(activeManager);
+        const ok = await subscribeToPush(activeManager, 'billcollector');
         if (ok) {
           setPushEnabled(true);
           await sendPushNotification(activeManager, '🔔 MYISP Notifications Active!', 'Aapko ab expiry aur payment alerts milenge!', 'test');
@@ -1107,71 +1036,6 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
           )}
         </div>
-
-        {/* Fingerprint Login */}
-        {biometricAvailable && (
-          <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571M17 13.5c0 2.4-.5 4.5-1.5 6.5M4.5 16.5c.5-2 .5-3.5.5-5.5a7 7 0 0114 0c0 .5 0 1-.1 1.9M9 11a3 3 0 116 0c0 1.5-.2 3-.6 4.5M6.5 20c1-1.7 1.5-3.3 1.9-5" /></svg>
-                </div>
-                <div>
-                  <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Fingerprint Login</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                    {biometricEnabled ? '✅ Is device pe fingerprint login ON hai' : '❌ Fingerprint login OFF hai'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => { if (biometricEnabled) { handleDisableBiometric(); } else { setBiometricError(''); setShowBiometricConfirm(true); } }}
-                disabled={biometricLoading}
-                className={`relative w-16 h-8 rounded-full transition-all duration-300 focus:outline-none disabled:opacity-50 ${biometricEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
-              >
-                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${biometricEnabled ? 'left-9' : 'left-1'}`}></div>
-              </button>
-            </div>
-
-            {showBiometricConfirm && !biometricEnabled && (
-              <div className="mt-6 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-3">
-                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                  Security ke liye pehle apna current password confirm karein — is k baad device fingerprint mangega.
-                </p>
-                <input
-                  type="password"
-                  value={biometricConfirmPassword}
-                  onChange={e => setBiometricConfirmPassword(e.target.value)}
-                  placeholder="Current password"
-                  className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400"
-                />
-                {biometricError && <p className="text-rose-500 text-xs font-bold">{biometricError}</p>}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleConfirmEnableBiometric}
-                    disabled={biometricLoading}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all"
-                  >
-                    {biometricLoading ? 'Verifying...' : 'Confirm & Enroll'}
-                  </button>
-                  <button
-                    onClick={() => { setShowBiometricConfirm(false); setBiometricConfirmPassword(''); setBiometricError(''); }}
-                    className="px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {biometricEnabled && (
-              <div className="mt-6 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl p-4">
-                <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                  💡 Ab login page par fingerprint icon dikhega, aur app khulte hi fingerprint mangega.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Plan Catalog Management */}
         <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
