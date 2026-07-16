@@ -6,9 +6,7 @@ import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, 
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
-import { isBiometricRegistered } from './utils/webauthn';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
-import BiometricLockScreen from './components/BiometricLockScreen';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
@@ -57,10 +55,6 @@ const INACTIVITY_LIMIT = 30 * 60 * 1000;
 
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
-  const [biometricLocked, setBiometricLocked] = useState<boolean>(() => {
-    const session = getActiveSession();
-    return !!session && isBiometricRegistered(session);
-  });
   const [state, setState] = useState<AppState>(() => {
     const loaded = loadState(activeManager);
     const initialState = { 
@@ -269,7 +263,16 @@ const App: React.FC = () => {
     window.addEventListener('myisp-goto-tab', handler);
     return () => window.removeEventListener('myisp-goto-tab', handler);
   }, [setActiveTab]);
-  const [showLanding, setShowLanding] = useState(false);
+  const [showLanding, setShowLanding] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    // Installed PWA (Add to Home Screen / standalone display mode) → skip straight
+    // to Login, as requested. Normal browser visits (Google search, typed URL, a
+    // regular tab) → show the landing page first, same as any marketing site.
+    const isInstalledPWA =
+      window.matchMedia?.('(display-mode: standalone)')?.matches ||
+      (window.navigator as any).standalone === true;
+    return !isInstalledPWA;
+  });
   const [confirmConfig, setConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [pendingRemindersCount, setPendingRemindersCount] = useState(0);
   const [isReminderBannerDismissed, setIsReminderBannerDismissed] = useState(false);
@@ -614,9 +617,13 @@ const App: React.FC = () => {
         const newNotifs = remotePending.filter(n => !alreadyShown.includes(n.id));
         
         if (newNotifs.length > 0) {
-          // Show browser notification for each
+          // Show browser notification for each — except WABot-sourced ones ('SYSTEM'
+          // type, written by the webhook/cron jobs for WhatsApp events). Those now
+          // have their own conversation push inside the standalone WABot PWA, so
+          // popping them up inside BillCollector too is redundant. They still land
+          // silently in pendingManagerNotifications for the NotificationCenter list.
           newNotifs.forEach(n => {
-            showLocalNotification(n.title, n.message, n.type.toLowerCase());
+            if (n.type !== 'SYSTEM') showLocalNotification(n.title, n.message, n.type.toLowerCase());
           });          
           // Mark as shown + keep in pending for display in NotificationCenter
           setState(prev => {
@@ -645,7 +652,7 @@ const App: React.FC = () => {
             
             if (newAgentNotifs.length > 0) {
               newAgentNotifs.forEach(n => {
-                showLocalNotification(n.title, n.message, n.type.toLowerCase());
+                if (n.type !== 'SYSTEM') showLocalNotification(n.title, n.message, n.type.toLowerCase());
               });
               setState(prev => {
                 const newShown = [...(prev.shownManagerNotificationIds || []), ...newAgentNotifs.map(n => n.id)];
@@ -1251,23 +1258,6 @@ const App: React.FC = () => {
     return (
       <ErrorBoundary>
         <WABotStandalone />
-      </ErrorBoundary>
-    );
-  }
-
-  // App-open fingerprint gate: only shown when a session was restored
-  // automatically (auto-login) AND this account has fingerprint login
-  // enabled from Settings. A fresh manual login via the Login screen never
-  // hits this, since biometricLocked is only ever seeded true from the
-  // saved session at first mount.
-  if (activeManager && biometricLocked) {
-    return (
-      <ErrorBoundary>
-        <BiometricLockScreen
-          username={activeManager}
-          onUnlock={() => setBiometricLocked(false)}
-          onUsePassword={handleLogout}
-        />
       </ErrorBoundary>
     );
   }
