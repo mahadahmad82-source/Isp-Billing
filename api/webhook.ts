@@ -157,21 +157,27 @@ Aap ki last receipt mili hai lekin image abhi ready nahi hai — Mahad bhai ko b
 Aap ke naam se koi payment receipt abhi tak record nahi hui. Agar aap ne recently payment ki hai to thoda intezar karein ya Mahad bhai se confirm kar lein. 🙏`,
   talk_to_owner_prompt: `Zaroor! 😊 Apna message likh dein — main {owner_name} bhai tak foran pohcha dungi.`,
   message_forwarded_to_owner: `Aap ka message note ho gaya hai ✅ {owner_name} bhai available hote hi aap ko reply karenge. Shukriya! 🙏`,
-  thanks_replies_en: `You're welcome! 😊 Let me know if you need anything else.
-Glad to help! Feel free to reach out anytime. 🙏
-No problem at all! Happy to assist further if needed. 😊`,
-  thanks_replies_ur: `Aap ka shukriya! 😊 Koi aur madad chahiye to zaroor batayen.
-Khush rahein! 😊 Kabhi bhi zarurat ho to message kar dein.
-Welcome! 🙏 Aur kisi masle mein madad chahiye to batayen.
-Bilkul! Hum hamesha hazir hain madad ke liye. 😊`,
-  closing_ack_replies_en: `Alright! 😊 Feel free to message anytime you need help.
-Sounds good! 🙏 Reach out whenever you need anything.
-Got it! Let me know if there's anything else. 😊`,
-  closing_ack_replies_ur: `Theek hai! 😊 Koi bhi madad chahiye ho to bata dein, hum hamesha yahan hain.
-Acha ji! 🙏 Aur kuch puchna ho to bila jhijhak batayen.
-Bilkul! 😊 Jab bhi zarurat ho, yahan message kar dein.
-Theek hai! Koi aur sawal ho to zaroor poochein. 🙏`,
-  complaint_resolved_ack: `Bohot khushi hui ke masla hal ho gaya! 😊 Koi aur madad chahiye to zaroor batayen.`,
+  thanks_replies_en: `You're welcome! 😊
+No problem at all!
+Anytime! 🙏
+Glad I could help!
+Sure thing — message anytime you need something. 😊`,
+  thanks_replies_ur: `Koi baat nahi! 😊
+Khush rahein!
+Bilkul, koi masla nahi. 🙏
+Theek hai ji!
+Welcome! Kabhi bhi zarurat ho message kar dein. 😊`,
+  closing_ack_replies_en: `Alright! 😊
+Sounds good!
+Got it!
+Okay, take care. 🙏
+Sure, let us know if anything comes up.`,
+  closing_ack_replies_ur: `Theek hai! 😊
+Acha ji!
+Bilkul!
+Theek hai, khayal rakhein. 🙏
+Chaliye theek hai, aur kuch ho to bata dein.`,
+  complaint_resolved_ack: `Bohot khushi hui ke masla hal ho gaya! 😊`,
   marketing_optout_confirm_en: `Done — you won't receive promotional messages from us anymore. You can still message us anytime for support. 🙏`,
   marketing_optout_confirm_ur: `Theek hai — ab aap ko promotional messages nahi aayenge. Support ke liye aap kabhi bhi message kar sakte hain. 🙏`,
   bank_accounts: `💳 *Payment Options:*
@@ -198,12 +204,14 @@ Theek hai! Koi aur sawal ho to zaroor poochein. 🙏`,
 ━━━━━━━━━━━━━━━
 👤 Username: {username}
 📦 Package: *{plan}*
-💰 Monthly: Rs. {monthly_fee}
+💰 Monthly: Rs. {monthly_fee}{discount_line}
 {balance_line}
 📅 Expiry: {expiry_date}
 {last_payment_line}
 ━━━━━━━━━━━━━━━
 Koi sawaal ho to zaroor poochein! 🙏`,
+  bill_discount_line: `
+🎁 Special Discount: Rs. {discount}/month (is amount mein already shamil hai)`,
   bill_balance_pending: `🔴 *Pending: Rs. {amount}*
    ⚠️ Jaldi payment karein taake service active rahe!`,
   bill_balance_advance: `🟢 *Advance: Rs. {amount}*
@@ -260,8 +268,12 @@ Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dob
 Yeh milte hi foran activate/renew kar diya jayega! 🙏`,
   recharge_reply_plan_line: `
 📦 Aap ka package: *{plan}* — Rs. {amount}/month`,
+  recharge_discount_note: `
+🎁 Aap ka special discount already is amount mein adjust hai.`,
   payment_screenshot_received_named: `Shukriya {name}! 😊 Aap ka payment screenshot mil gaya hai — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`,
   payment_screenshot_received_unnamed: `Shukriya! 😊 Screenshot mil gaya hai. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`,
+  complaint_screenshot_received_named: `Ji {name}, tasveer mil gayi hai 📩 Lagta hai yeh kisi fault/issue ki hai — maine turant Mahad bhai ki team tak bhej di hai, jald hi dekh kar aap se rabta karenge. 🙏`,
+  complaint_screenshot_received_unnamed: `Tasveer mil gayi hai 📩 Lagta hai yeh kisi fault/issue ki hai — team ko bhej di hai, jald hi check kar liya jayega. Apna *username* ya *address* bhi bhej dein taake jald identify ho sakein. 🙏`,
   new_conn_reply: `MahadNet mein khushamdeed! 🎉
 
 Naya connection ke liye bas yeh batain:
@@ -714,8 +726,11 @@ async function logMessage(
 }
 
 // Downloads WhatsApp media (e.g. payment screenshot) via Meta Graph API and
-// re-uploads it to the public `whatsapp-media` Supabase Storage bucket.
-async function downloadAndStoreMedia(mediaId: string): Promise<string | null> {
+// re-uploads it to the public `whatsapp-media` Supabase Storage bucket. Also
+// returns the raw buffer + mimeType (used by classifyWhatsAppImage below) so
+// the image doesn't need to be downloaded from Meta a second time just to
+// figure out what it actually shows.
+async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; buffer: Buffer; mimeType: string } | null> {
   const token = process.env.WHATSAPP_TOKEN;
   if (!token) return null;
   try {
@@ -727,16 +742,52 @@ async function downloadAndStoreMedia(mediaId: string): Promise<string | null> {
     const mediaRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
     if (!mediaRes.ok) { console.error('[media download]', mediaRes.status); return null; }
     const buf = Buffer.from(await mediaRes.arrayBuffer());
-    const ext = (meta.mime_type || 'image/jpeg').split('/')[1]?.split(';')[0] || 'jpg';
+    const mimeType = meta.mime_type || 'image/jpeg';
+    const ext = mimeType.split('/')[1]?.split(';')[0] || 'jpg';
     const path = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': meta.mime_type || 'image/jpeg' },
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType },
       body: buf,
     });
     if (!upRes.ok) { console.error('[media upload]', upRes.status, await upRes.text()); return null; }
-    return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
+    return { url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, buffer: buf, mimeType };
   } catch (e: any) { console.error('[downloadAndStoreMedia]', e?.message); return null; }
+}
+
+// Classifies an inbound WhatsApp image as a payment-proof screenshot vs a
+// complaint/fault/technical photo (router/modem, cabling, error screens, etc.)
+// vs something unrelated — previously EVERY image got the exact same "payment
+// screenshot mil gaya, verify ho rahi hai" reply regardless of content, which
+// was wrong whenever a customer sent a fault photo instead. Falls back to
+// 'payment' (the old default behaviour) on any failure so a classifier outage
+// never breaks the existing payment-proof flow.
+async function classifyWhatsAppImage(buffer: Buffer, mimeType: string, caption: string): Promise<'payment' | 'complaint' | 'other'> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return 'payment';
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `Yeh image ek Pakistani ISP (internet provider) ke WhatsApp customer-support number par ek customer ne bheji hai. Dekh kar batao yeh kis category mein aati hai:
+- "payment": bank transfer/EasyPaisa/JazzCash receipt, transaction slip, ya paisay ki koi payment confirmation screenshot.
+- "complaint": router/modem/ONU/wifi device ki photo, cabling/fiber ka masla, error message/screen, signal lights, ya koi fault/technical issue dikhati tasveer.
+- "other": in dono mein se koi bhi nahi.
+${caption ? `Customer ka caption: "${caption}"` : 'Customer ne koi caption nahi likha.'}
+
+SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"category": "payment" | "complaint" | "other"}`;
+    const response: any = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
+      config: { temperature: 0.1, maxOutputTokens: 30, responseMimeType: 'application/json' },
+    });
+    const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    let category = '';
+    try { category = JSON.parse(raw)?.category; } catch { category = /complaint/i.test(raw) ? 'complaint' : /payment/i.test(raw) ? 'payment' : ''; }
+    if (category === 'payment' || category === 'complaint' || category === 'other') return category;
+    return 'payment';
+  } catch (e: any) {
+    console.error('[classifyWhatsAppImage]', e?.message);
+    return 'payment';
+  }
 }
 
 // Phones that should receive THIS turn's reply as a voice note instead of text.
@@ -1311,11 +1362,20 @@ function billReply(user: any, receipts: any[]): string {
     : tmpl('bill_balance_clear');
   const lastPaymentLine = last ? tmpl('bill_last_payment_line', { amount: last.paidAmount, period: last.period }) : '';
 
+  // Quote the customer's actual net rate, not the raw system/package price — a
+  // manager-set persistentDiscount must always be reflected here, otherwise the
+  // bot deals purely off the system price and contradicts a discount Mahad bhai
+  // already agreed with this specific customer.
+  const discount = user.persistentDiscount || 0;
+  const netFee = Math.max(0, (user.monthlyFee || 0) - discount);
+  const discountLine = discount > 0 ? tmpl('bill_discount_line', { discount }) : '';
+
   return tmpl('bill_reply', {
     name: user.name,
     username: user.username || user.name,
     plan: user.plan || 'Standard',
-    monthly_fee: user.monthlyFee || 0,
+    monthly_fee: netFee,
+    discount_line: discountLine,
     balance_line: balanceLine,
     expiry_date: expDate,
     last_payment_line: lastPaymentLine,
@@ -1465,8 +1525,11 @@ function unknownCustomerReply(): string {
 }
 
 function rechargeReply(user?: any, planPrices?: Record<string, number>): string {
+  const discount = user?.persistentDiscount || 0;
+  const baseFee = user?.monthlyFee || planPrices?.[user?.plan] || 0;
+  const netFee = Math.max(0, baseFee - discount);
   const planLine = user?.plan
-    ? tmpl('recharge_reply_plan_line', { plan: user.plan, amount: (user.monthlyFee || planPrices?.[user.plan] || 0).toLocaleString() })
+    ? tmpl('recharge_reply_plan_line', { plan: user.plan, amount: netFee.toLocaleString() }) + (discount > 0 ? tmpl('recharge_discount_note') : '')
     : '';
   return tmpl('recharge_reply', { bank_accounts: tmpl('bank_accounts'), plan_line: planLine });
 }
@@ -1573,6 +1636,8 @@ SOFT, REALISTIC TONE — ZAROORI: Bilkul aisi tarah baat karo jaise koi tajurbak
 SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage, payment) se related sawalon ka khud jawab do.
 Agar sawal in topics se bilkul mutaliq NAHI hai (jokes, siyasat, mazhab, ${botName} ke baray mein random/frank personal sawal, chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur politely maazrat karte hue redirect karo — har dafa alfaz badal kar, jese: "Maazrat chahti hoon, main sirf MahadNet ki internet services ke mutaliq baat kar sakti hoon 😊 Koi internet, bill ya package se related sawal ho to zaroor batayen." Kabhi yeh mat kaho ke "aap ka message note kar liya gaya hai / Mahad bhai tak pohcha diya jayega" jab tak masla wakai business-related ho — woh jumla sirf genuine business messages ke liye hai, casual chit-chat ke liye nahi.
 
+DISCOUNT AWARENESS — ZAROORI: Agar CUSTOMER INFO mein "Special Discount" mention hai, to iska matlab Mahad bhai ne is specific customer ko ek discount diya hua hai — CUSTOMER INFO mein diya gaya "Monthly (net)" amount hi is customer ka asal rate hai, jisme discount already shamil hai. Kabhi bhi full/system package price is customer ko mat batao — hamesha discount-adjusted (net) amount hi quote karo, chahe customer khud discount ka zikar kare ya na kare.
+
 PAYMENT & COLLECTION GUIDANCE:
 - Agar customer bole ke abhi payment nahi kar sakta / thodi dair mein karega: usay assure karo ke Mahad bhai ko inform kar diya jayega, jab convenient ho payment kar dein, koi pressure nahi.
 - Agar customer bole ke online/bank/easypaisa se payment nahi ho sakti: usay batao ke hamara "recovery boy" ghar aa kar cash collect kar sakta hai — uska *username* aur *address* maango taake visit arrange ho sake.
@@ -1586,9 +1651,13 @@ ROUTER RECOMMENDATION: Agar koi package speed (Mbps) ke against router pochay �
 TONE RULES (zaroori):
 - Cooperative aur warm raho lekin ziyada chamchagiri ya overpraise mat karo ("great question", "you're amazing" jese phrases mana hain)
 - Har reply mein wording badlo, ek hi stock jumla baar baar mat daalo
-- "afsos hua", "bura laga", "main madad ke liye haazir hoon" jese generic fillers repeat mat karo
+- "afsos hua", "bura laga", "main madad ke liye haazir hoon", "hum hamesha hazir hain", "hum hamesha yahan hain" jese generic AI-jesi fillers BILKUL mat use karo — na shuru mein, na end mein
 - Seedhi, samajhdaar, professional lekin insaan jesi baat karo — jese kisi achi call-center agent se baat ho rahi ho
 - Customer ko hamesha izzat aur respect se deal karo, jese ek qeemti customer ke saath behave kiya jata hai
+
+CONVERSATION ENDING — ZAROORI (typical chatbot jesi harkat se bacho): Jab customer "thanks", "ok", "theek hai" jesi baat kar ke conversation khatam kar raha ho, to sirf ek chhota, warm jawab do aur ruk jao — har reply ke end mein "koi aur madad chahiye to zaroor batayen" ya "main yahan hoon" jesi generic line chipkana ZAROORI nahi hai, aur baar baar yeh line dohrana bilkul mat karo. Sirf tab aisi line likho jab genuinely naya sawal ya action expect ho, warna seedha jawab de kar khatam karo — jese ek real insaan text karta hai, na ke ek AI jo har reply ke end mein "kuch aur chahiye?" pochta rehta hai.
+
+FOLLOW-UP QUESTIONS — ZAROORI: Sirf tabhi customer se koi extra sawal pochho jab us ke bagair jawab dena genuinely mumkin na ho. Agar sawal ka jawab already CUSTOMER INFO ya us ki baat se maloom hai, to seedha jawab do — extra clarifying sawal pooch kar conversation lamba mat karo, jese aksar AI chatbots karte hain.
 
 LANGUAGE — SIRF PAKISTANI ROMAN URDU (jab Roman Urdu mein jawab do):
 Hindi ke ye words BILKUL FORBIDDEN hain:
@@ -1840,25 +1909,48 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // ── Image (typically a payment screenshot) — previously silently dropped ──
+      // ── Image (payment screenshot OR a complaint/fault/technical photo) ──
+      // Previously EVERY image got the exact same "payment screenshot mil gaya, verify
+      // ho rahi hai" reply, even when the customer sent a router/fault photo. Now the
+      // image is classified first so the reply (and the manager notification) actually
+      // matches what was sent.
       if (type === 'image') {
         const mediaId: string | undefined = msg?.image?.id;
         const caption: string = msg?.image?.caption?.trim() || '';
         const found = await findCustomer(from);
         const managerId = found?.managerId || 'mahadnet';
-        const mediaUrl = mediaId ? await downloadAndStoreMedia(mediaId) : null;
+        const media = mediaId ? await downloadAndStoreMedia(mediaId) : null;
+        const mediaUrl = media?.url || null;
         await logMessage(from, 'in', 'image', mediaUrl || caption || '[image]', { flagged: true, managerId });
 
         const rowData = found?.rowData || (await getManagerRow(managerId)) || {};
-        await notifyManager(managerId, rowData, {
-          title: '🧾 Payment Screenshot Mila (WhatsApp)',
-          message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\n${mediaUrl}` : ''}`,
-          priority: 'MEDIUM',
-        });
+        const category = media ? await classifyWhatsAppImage(media.buffer, media.mimeType, caption) : 'payment';
 
-        await sendText(from, found?.user
-          ? tmpl('payment_screenshot_received_named', { name: found.user.name })
-          : tmpl('payment_screenshot_received_unnamed'));
+        if (category === 'complaint') {
+          const issueText = `[WhatsApp tasveer] Customer ne fault/complaint ki tasveer bheji hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\nImage: ${mediaUrl}` : ''}`;
+          if (found?.user) {
+            await saveComplaint(managerId, rowData, found.user, issueText);
+          } else {
+            await notifyManager(managerId, rowData, {
+              title: '🛠️ Fault/Complaint Screenshot (WhatsApp)',
+              message: `${from} ne fault/complaint ki tasveer bheji hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\n${mediaUrl}` : ''}`,
+              priority: 'MEDIUM',
+            });
+          }
+          await sendText(from, found?.user
+            ? tmpl('complaint_screenshot_received_named', { name: found.user.name })
+            : tmpl('complaint_screenshot_received_unnamed'));
+        } else {
+          // 'payment' (also the safe fallback when classification is unavailable/fails)
+          await notifyManager(managerId, rowData, {
+            title: '🧾 Payment Screenshot Mila (WhatsApp)',
+            message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\n${mediaUrl}` : ''}`,
+            priority: 'MEDIUM',
+          });
+          await sendText(from, found?.user
+            ? tmpl('payment_screenshot_received_named', { name: found.user.name })
+            : tmpl('payment_screenshot_received_unnamed'));
+        }
         continue;
       }
 
@@ -2337,7 +2429,9 @@ export default async function handler(req: any, res: any) {
       // so the bot actually thinks instead of just refusing with "Mahad bhai available nahi".
       const planPricesForGroq = rowData?.settings?.planPrices || {};
       const packagesListForGroq = Object.entries(planPricesForGroq).map(([n, p]) => `${n} — Rs.${p}`).join(', ') || 'Mahad bhai se confirm karein';
-      const custData = `Customer: ${user.name} | Package: ${user.plan} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}
+      const customerDiscount = user.persistentDiscount || 0;
+      const customerNetFee = Math.max(0, (user.monthlyFee || planPricesForGroq?.[user.plan] || 0) - customerDiscount);
+      const custData = `Customer: ${user.name} | Package: ${user.plan} | Monthly (net${customerDiscount > 0 ? ', discount already applied — mat repeat karo full price' : ''}): Rs.${customerNetFee} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}${customerDiscount > 0 ? `\nSpecial Discount: Rs.${customerDiscount}/month — is customer ko yeh discount diya gaya hai, yeh already Monthly (net) mein shamil hai. Kabhi bhi full/system price mat quote karna.` : ''}
 
 REAL BANK ACCOUNTS — agar account number/bank details maange to YEHI EXACT digits do, kabhi khud se number mat banao:
 ${tmpl('bank_accounts')}
