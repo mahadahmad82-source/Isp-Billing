@@ -1253,8 +1253,13 @@ const App: React.FC = () => {
   // Standalone installable PWA — independent of the main dashboard's login gate.
   // Handles its own session check internally so the installed /wabot icon opens
   // straight into the chat (or a quick conversational login) without the full
-  // dashboard chrome.
-  if (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/wabot') {
+  // dashboard chrome. Also triggers on the wabot.* subdomain root (e.g.
+  // wabot.billcollector.online) so that subdomain behaves like the old standalone
+  // myisp-bot.vercel.app project did — no need to append /wabot manually there.
+  if (typeof window !== 'undefined' && (
+    window.location.pathname.replace(/\/+$/, '') === '/wabot' ||
+    window.location.hostname.startsWith('wabot.')
+  )) {
     return (
       <ErrorBoundary>
         <WABotStandalone />
