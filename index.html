@@ -41,7 +41,8 @@
       // is what lets /wabot install as its own distinct home-screen app
       // instead of being merged into the already-installed Bill Collector app.
       (function () {
-        if (location.pathname.replace(/\/+$/, '') !== '/wabot') return;
+        var isWabot = location.pathname.replace(/\/+$/, '') === '/wabot' || location.hostname.indexOf('wabot.') === 0;
+        if (!isWabot) return;
         document.title = 'Bill Collector-BOT — WABot';
         var swap = function (selector, href) {
           var el = document.querySelector(selector);
