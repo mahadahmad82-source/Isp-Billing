@@ -3,6 +3,23 @@ import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate } from '../ty
 import { supabase } from '../lib/supabase';
 import * as lamejs from '@breezystack/lamejs';
 
+// WhatsApp's own text formatting (*bold*, _italic_, ~strikethrough~) is stored
+// verbatim in message content (that's what actually gets sent to the customer's
+// WhatsApp app, which renders it). The inbox view was showing that raw markdown
+// as literal asterisks/underscores instead of rendering it, so this parses the
+// same subset WhatsApp supports into React nodes for display here too.
+function renderWhatsAppText(text: string): React.ReactNode[] {
+  if (!text) return [text];
+  const pattern = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g;
+  const parts = text.split(pattern);
+  return parts.map((part, i) => {
+    if (/^\*[^*\n]+\*$/.test(part)) return <strong key={i}>{part.slice(1, -1)}</strong>;
+    if (/^_[^_\n]+_$/.test(part)) return <em key={i}>{part.slice(1, -1)}</em>;
+    if (/^~[^~\n]+~$/.test(part)) return <span key={i} style={{ textDecoration: 'line-through' }}>{part.slice(1, -1)}</span>;
+    return part;
+  });
+}
+
 interface WAMessage {
   id: string;
   manager_id: string;
@@ -1161,7 +1178,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                           {mediaSrc && <audio controls src={mediaSrc} className="max-w-[220px] mb-1.5" />}
                           {m.content && !isPlaceholderText && !m.content.startsWith('http') && (
                             <p className="whitespace-pre-wrap break-words text-[13px] opacity-90">
-                              {showTranslated[m.id] && hasTranslation ? m.translated_content : m.content}
+                              {renderWhatsAppText(showTranslated[m.id] && hasTranslation ? (m.translated_content || '') : m.content)}
                             </p>
                           )}
                           {isPlaceholderText && <p className="whitespace-pre-wrap break-words text-[13px] opacity-70 italic">{m.content}</p>}
@@ -1175,7 +1192,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                           )}
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                        <p className="whitespace-pre-wrap break-words">{renderWhatsAppText(m.content || '')}</p>
                       )}
                       <p className={`text-[10px] mt-1 font-bold flex items-center gap-1 ${m.direction === 'out' ? 'text-indigo-200 justify-end' : 'text-slate-400'}`}>
                         {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
