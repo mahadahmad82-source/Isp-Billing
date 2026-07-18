@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate } from '../types';
+import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
 import * as lamejs from '@breezystack/lamejs';
 
@@ -264,25 +265,35 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   // ── Templates tab state (every canned WhatsApp bot reply, grouped by category) ──
-  const [templatesState, setTemplatesState] = useState<Record<string, BotTemplate>>(botTemplates || {});
+  // `botTemplates` (the prop) is the RAW admin overrides only — exactly what's stored in
+  // Supabase settings.botTemplates. Previously this tab displayed that raw prop directly,
+  // so it started completely empty (nothing seeded client-side) and just showed a permanent
+  // "Templates load ho rahe hain" placeholder with no way to edit or add anything. Now it's
+  // merged over DEFAULT_BOT_TEMPLATES for display, same pattern as MessageTemplatesTab, while
+  // saving still only writes the specific touched key back — not a full duplicate copy of
+  // every default template.
+  const effectiveTemplates: Record<string, BotTemplate> = useMemo(() => {
+    return { ...DEFAULT_BOT_TEMPLATES, ...(botTemplates || {}) };
+  }, [botTemplates]);
+  const isCustomBotTemplate = (key: string) => !DEFAULT_BOT_TEMPLATES[key];
+  const isEditedBotTemplate = (key: string) => !!(botTemplates && botTemplates[key]);
+
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [editingTemplateKey, setEditingTemplateKey] = useState<string | null>(null);
   const [templateDraft, setTemplateDraft] = useState('');
-
-  useEffect(() => {
-    if (botTemplates && Object.keys(botTemplates).length > 0) setTemplatesState(botTemplates);
-  }, [botTemplates]);
+  const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
+  const [newBotTemplate, setNewBotTemplate] = useState({ key: '', label: '', category: 'General', text: '' });
 
   const templatesByCategory = useMemo(() => {
     const groups: Record<string, Array<[string, BotTemplate]>> = {};
-    for (const [key, item] of Object.entries(templatesState) as [string, BotTemplate][]) {
+    for (const [key, item] of Object.entries(effectiveTemplates) as [string, BotTemplate][]) {
       const cat = item.category || 'Other';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push([key, item]);
     }
     for (const cat of Object.keys(groups)) groups[cat].sort((a, b) => a[1].label.localeCompare(b[1].label));
     return groups;
-  }, [templatesState]);
+  }, [effectiveTemplates]);
 
   const templateCategoryOrder = [
     'Greetings & Identity', 'Thanks & Closing', 'Billing & Payments',
@@ -304,14 +315,48 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const openTemplateEdit = (key: string) => {
     if (editingTemplateKey === key) { setEditingTemplateKey(null); return; }
     setEditingTemplateKey(key);
-    setTemplateDraft(templatesState[key]?.text || '');
+    setTemplateDraft(effectiveTemplates[key]?.text || '');
   };
 
   const saveTemplateEdit = (key: string) => {
-    const next = { ...templatesState, [key]: { ...templatesState[key], text: templateDraft } };
-    setTemplatesState(next);
-    onUpdateBotTemplates?.(next);
+    const existing = effectiveTemplates[key];
+    const updated = { ...(botTemplates || {}), [key]: { ...existing, text: templateDraft } };
+    onUpdateBotTemplates?.(updated);
     setEditingTemplateKey(null);
+  };
+
+  const resetBotTemplateToDefault = (key: string) => {
+    if (!botTemplates || !botTemplates[key]) return;
+    if (!confirm('Is template ko default wording par reset karein?')) return;
+    const updated = { ...botTemplates };
+    delete updated[key];
+    onUpdateBotTemplates?.(updated);
+  };
+
+  const deleteCustomBotTemplate = (key: string) => {
+    if (!confirm('Yeh custom template permanently delete karein?')) return;
+    const updated = { ...(botTemplates || {}) };
+    delete updated[key];
+    onUpdateBotTemplates?.(updated);
+  };
+
+  const handleAddBotTemplate = () => {
+    if (!newBotTemplate.key.trim() || !newBotTemplate.label.trim() || !newBotTemplate.text.trim()) {
+      alert('Key, label aur text sab required hain');
+      return;
+    }
+    const safeKey = newBotTemplate.key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (effectiveTemplates[safeKey]) {
+      alert('Ye key already exist karti hai, dusra naam try karein');
+      return;
+    }
+    const updated = {
+      ...(botTemplates || {}),
+      [safeKey]: { category: newBotTemplate.category, label: newBotTemplate.label, text: newBotTemplate.text },
+    };
+    onUpdateBotTemplates?.(updated);
+    setNewBotTemplate({ key: '', label: '', category: 'General', text: '' });
+    setShowAddTemplateModal(false);
   };
 
   const loadKnowledge = useCallback(async () => {
@@ -1011,9 +1056,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         </div>
       ) : view === 'templates' ? (
         <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-y-auto p-6">
-          <div className="mb-5">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Ayesha ke har reply ki wording yahan se edit karein — koi code deploy ki zaroorat nahi. {'{curly_braces}'} wale tokens na hatayen, woh customer ka naam/amount/etc. se fill hote hain.</p>
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div>
+              <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
+              <p className="text-xs text-slate-400 font-bold mt-1">Ayesha ke har reply ki wording yahan se edit karein — koi code deploy ki zaroorat nahi. {'{curly_braces}'} wale tokens na hatayen, woh customer ka naam/amount/etc. se fill hote hain.</p>
+            </div>
+            <button
+              onClick={() => setShowAddTemplateModal(true)}
+              className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              + New
+            </button>
           </div>
 
           {orderedCategories.length === 0 ? (
@@ -1030,7 +1083,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                     {templatesByCategory[category].map(([key, item]) => (
                       <div key={key} className="rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-3">
                         <button onClick={() => openTemplateEdit(key)} className="w-full flex items-center justify-between gap-2 text-left">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{item.label}</span>
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.label}</span>
+                            {isEditedBotTemplate(key) && (
+                              <span className="flex-shrink-0 text-[9px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Edited</span>
+                            )}
+                          </span>
                           <svg className="w-4 h-4 flex-shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
                         {editingTemplateKey === key && (
@@ -1041,9 +1099,15 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                               onChange={e => setTemplateDraft(e.target.value)}
                               className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white"
                             />
-                            <div className="flex gap-2 mt-2">
+                            <div className="flex gap-2 mt-2 flex-wrap">
                               <button onClick={() => saveTemplateEdit(key)} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
                               <button onClick={() => setEditingTemplateKey(null)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                              {isEditedBotTemplate(key) && !isCustomBotTemplate(key) && (
+                                <button onClick={() => resetBotTemplateToDefault(key)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Reset</button>
+                              )}
+                              {isCustomBotTemplate(key) && (
+                                <button onClick={() => deleteCustomBotTemplate(key)} className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest">Delete</button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1053,6 +1117,63 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 )}
               </div>
             ))
+          )}
+
+          {showAddTemplateModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">Naya Template</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Key (unique, spaces nahi)</label>
+                    <input
+                      value={newBotTemplate.key}
+                      onChange={e => setNewBotTemplate(f => ({ ...f, key: e.target.value }))}
+                      placeholder="e.g. installation_followup"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Label</label>
+                    <input
+                      value={newBotTemplate.label}
+                      onChange={e => setNewBotTemplate(f => ({ ...f, label: e.target.value }))}
+                      placeholder="e.g. Installation Follow-up"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Category</label>
+                    <select
+                      value={newBotTemplate.category}
+                      onChange={e => setNewBotTemplate(f => ({ ...f, category: e.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                    >
+                      {[...templateCategoryOrder, 'General'].map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Message Text</label>
+                    <textarea
+                      rows={6}
+                      value={newBotTemplate.text}
+                      onChange={e => setNewBotTemplate(f => ({ ...f, text: e.target.value }))}
+                      placeholder="Type here... {name}, {businessName} jese placeholders use karein"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                    />
+                    <p className="text-[10px] text-slate-400 font-semibold mt-1.5">
+                      Note: yeh naya template abhi khud se kisi bot reply se link nahi hoga — sirf reference ke liye save hota hai, jab tak developer isko webhook.ts mein wire na kare.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-5">
+                  <button onClick={handleAddBotTemplate} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Create</button>
+                  <button onClick={() => { setShowAddTemplateModal(false); setNewBotTemplate({ key: '', label: '', category: 'General', text: '' }); }} className="px-4 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       ) : (
