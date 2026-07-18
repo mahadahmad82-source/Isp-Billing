@@ -308,6 +308,9 @@ Yeh milte hi coverage check kar ke 1-2 ghante mein confirm kar dengi! 📍`,
 
 Number ya naam likh kar bhej dein!`,
   connection_type_not_understood: `Maazrat, samajh nahi payi 🙏 Sirf *"Fiber"* ya *"Local"* likh dein.`,
+  coverage_area_matched: `Achi khabar! 😊 Aap ka area *{area}* hamari coverage list mein pehle se maujood hai ✅
+
+Team thodi hi der mein connection details ke liye rabta karegi. Packages dekhne ke liye *"packages"* likh kar bhejein! 📦`,
   address_noted_coverage: `Shukriya! 😊 Aap ka address note ho gaya hai:
 📍 {address}
 
@@ -544,6 +547,28 @@ async function findCustomerByUsernameOrName(query: string) {
   return null;
 }
 
+// After findCustomerByUsernameOrName matches someone messaging from a new/unrecognized
+// number, their real phone number in the DB still doesn't match `from` — so a plain
+// findCustomer(from) keeps failing on every later message. Previously this bounced the
+// customer straight back into the "number nahi mila" unknown-customer flow even though they
+// had just verified, which looped forever if they then asked about bill/complaint. This looks
+// the already-matched customer up directly by manager+id so verified customers can keep going
+// (bill, complaint, etc.) without re-verifying every single message.
+async function findCustomerByManagerAndId(managerId: string, userId: string) {
+  try {
+    const row = await getManagerRow(managerId);
+    if (!row) return null;
+    const users: any[] = row.users || [];
+    const user = users.find((u: any) => u && u.id === userId && u.status !== 'deleted');
+    if (!user) return null;
+    const receipts: any[] = (row.receipts || [])
+      .filter((r: any) => r.userId === user.id && r.status === 'Success')
+      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+    return { managerId, rowData: row, user, receipts, planPrices: row.settings?.planPrices || {} };
+  } catch (e: any) { console.error('[findCustomerByManagerAndId]', e?.message); return null; }
+}
+
 
 // Get planPrices from ANY manager (used when sender isn't a known customer yet)
 async function getAnyPlanPrices(): Promise<Record<string, number>> {
@@ -653,6 +678,33 @@ async function notifyManager(managerId: string, rowData: any, notif: { title: st
   } catch (e: any) { console.error('[notifyManager]', e?.message); }
   pushNotify(managerId, notif.title, notif.message.slice(0, 150), 'myisp-alert').catch(() => {});
   return newNotif;
+}
+
+// ── Area coverage auto-detection ─────────────────────────────────────────────
+// Areas are defined by the manager (Area Dashboard → settings.areas, e.g. "H26", "H30",
+// "G1", "HA01", "HA1", "HB01", "HC01", "F1", "FA", "FB") as short building/block codes.
+// When a customer asks about coverage and then sends their address, we try to spot one of
+// these exact codes in what they typed so Ayesha can confirm coverage instantly instead of
+// always saying "team will check in 1-2 hours" — while still logging the lead either way.
+function extractAreaTokens(text: string): string[] {
+  const raw = (text.toUpperCase().match(/[A-Z]+\d*|\d+/g) || []);
+  const tokens = new Set<string>(raw);
+  // Handles codes typed with a space or dash, e.g. "H 26" / "H-26" → also try "H26"
+  for (let i = 0; i < raw.length - 1; i++) {
+    const merged = raw[i] + raw[i + 1];
+    if (/^[A-Z]+\d+$/.test(merged)) tokens.add(merged);
+  }
+  return Array.from(tokens);
+}
+
+function detectAreaFromAddress(address: string, definedAreas: string[]): string | null {
+  if (!definedAreas?.length || !address) return null;
+  const tokens = extractAreaTokens(address);
+  for (const area of definedAreas) {
+    const norm = area.toUpperCase().replace(/[\s-]/g, '');
+    if (norm && tokens.includes(norm)) return area;
+  }
+  return null;
 }
 
 async function saveLead(managerId: string, rowData: any, lead: { name: string; phone: string; address: string; area?: string; interestedPlan?: string; note?: string; source: string }) {
@@ -1940,6 +1992,10 @@ export default async function handler(req: any, res: any) {
           await sendText(from, found?.user
             ? tmpl('complaint_screenshot_received_named', { name: found.user.name })
             : tmpl('complaint_screenshot_received_unnamed'));
+        } else if (category === 'other') {
+          // Random/unrelated photo — not a payment proof, not a fault/complaint photo.
+          // No reply needed and no manager notification (avoids noise); the message log
+          // entry above is enough of a record if it's ever needed.
         } else {
           // 'payment' (also the safe fallback when classification is unavailable/fails)
           await notifyManager(managerId, rowData, {
@@ -2088,6 +2144,18 @@ export default async function handler(req: any, res: any) {
               priority: 'MEDIUM',
             });
           }
+
+          // If this address came from a coverage question, try to auto-confirm it against
+          // the manager's defined Areas before falling back to the generic "team will check"
+          // reply — lead is already saved/notified above either way.
+          if (sessionData?.fromCoverage) {
+            const matchedArea = detectAreaFromAddress(text, row?.settings?.areas || []);
+            if (matchedArea) {
+              await sendText(from, tmpl('coverage_area_matched', { area: matchedArea }));
+              continue;
+            }
+          }
+
           let offer = '';
           if (missingRouter) offer += `\n📡 Router chahiye? *"router"* likh kar bhejein, catalog bhej deti hoon — ya aap khud bhi kahin se le sakte hain, koi pabandi nahi! 😊`;
           if (missingFiber) offer += `\n🌐 Fiber cable Rs. ${CONFIG.fiberPricePerMeter}/meter (2-core) milta hai — installation ke waqt length measure ho jayegi. Yeh aap khud bhi kahin se kharid kar la sakte hain.`;
@@ -2123,6 +2191,10 @@ export default async function handler(req: any, res: any) {
               message: `${matched.user.name} (username: ${matched.user.username || 'N/A'}) ne naye number ${from} se contact kiya hai. Record mein purana number: ${matched.user.phone}. Agar sahi hai to number update kar dein.`,
               priority: 'MEDIUM',
             });
+            // Remember this match so their NEXT messages (bill/complaint/etc.) don't bounce
+            // back into "number nahi mila" just because the phone number itself is still
+            // mismatched in the DB — see findCustomerByManagerAndId fallback below.
+            await setSession(from, 'verified_alt_number', { verifiedManagerId: matched.managerId, verifiedUserId: matched.user.id });
             await sendText(from, tmpl('account_matched_new_number', { name: matched.user.name }));
             continue;
           }
@@ -2166,13 +2238,16 @@ export default async function handler(req: any, res: any) {
         // Complaint described via menu option 1 → check outage/billing, then ask connection type
         if (session === 'awaiting_complaint_text') {
           await setSession(from, null);
-          const found = await findCustomer(from);
+          let found = await findCustomer(from);
+          if (!found && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
+            found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
+          }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const outage = getActiveOutage(found.rowData);
           if (outage) { await sendText(from, outageReply(outage)); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
-          await setSession(from, 'awaiting_connection_type', { issue: text });
+          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
           await sendText(from, connectionTypeQuestion());
           continue;
         }
@@ -2185,7 +2260,7 @@ export default async function handler(req: any, res: any) {
             continue;
           }
           const issue = sessionData?.issue || text;
-          await setSession(from, 'awaiting_complaint_confirm', { issue, connectionType: connType });
+          await setSession(from, 'awaiting_complaint_confirm', { issue, connectionType: connType, verifiedManagerId: sessionData?.verifiedManagerId, verifiedUserId: sessionData?.verifiedUserId });
           await sendText(from, troubleshootingReply(issue, connType));
           continue;
         }
@@ -2199,7 +2274,10 @@ export default async function handler(req: any, res: any) {
             await sendText(from, tmpl('complaint_resolved_ack'));
             continue;
           }
-          const found = await findCustomer(from);
+          let found = await findCustomer(from);
+          if (!found && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
+            found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
+          }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const connTag = sessionData?.connectionType === 'local' ? '[Local/UTP] ' : sessionData?.connectionType === 'fiber' ? '[Fiber] ' : '';
           const combinedIssue = sessionData?.issue ? `${connTag}${sessionData.issue} | Follow-up: ${text}` : `${connTag}${text}`;
@@ -2214,8 +2292,10 @@ export default async function handler(req: any, res: any) {
       // BOTH text and voice — for a first-contact intro, the visible numbered menu
       // matters even on a voice turn, unlike most other replies which go voice-only.
       if (intent === 'greeting') {
+        const wasVerified = sessionData?.verifiedManagerId && sessionData?.verifiedUserId;
         await setSession(from, null);
-        const found = await findCustomer(from);
+        let found = await findCustomer(from);
+        if (!found && wasVerified) found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
         await sendTextAndVoice(from, welcomeMenu(greetingSalutation(text), found?.user?.name, found?.rowData?.settings?.ayeshaBotName));
         continue;
       }
@@ -2325,7 +2405,7 @@ export default async function handler(req: any, res: any) {
       }
       if (intent === 'coverage') {
         await sendText(from, coverageReply());
-        await setSession(from, 'lead_awaiting_details');
+        await setSession(from, 'lead_awaiting_details', { fromCoverage: true });
         continue;
       }
       if (intent === 'payment_how')   { await sendText(from, tmpl('bank_accounts')); continue; }
@@ -2350,7 +2430,10 @@ export default async function handler(req: any, res: any) {
       }
 
       // ── DB required intents ──
-      const found = await findCustomer(from);
+      let found = await findCustomer(from);
+      if (!found && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
+        found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
+      }
 
       if (intent === 'menu_complaint') {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
@@ -2358,7 +2441,10 @@ export default async function handler(req: any, res: any) {
         if (outage) { await sendText(from, outageReply(outage)); continue; }
         const billingBlock = accountBillingBlockedReply(found.user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
-        await setSession(from, 'awaiting_complaint_text');
+        // Carry the resolved identity forward so the rest of the complaint flow (which
+        // re-looks-up the customer at each step) doesn't lose it if the phone number itself
+        // still doesn't match the DB (e.g. verified-via-alt-number customers).
+        await setSession(from, 'awaiting_complaint_text', { verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
         await sendText(from, tmpl('ask_complaint_detail', { name: found.user.name }));
         continue;
       }
