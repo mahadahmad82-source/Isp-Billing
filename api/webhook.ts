@@ -775,6 +775,55 @@ async function logMessage(
       }),
     });
   } catch (e: any) { console.error('[logMessage]', e?.message); }
+
+  // Fire-and-forget push notification to the Wabot BillCollector Android app
+  // for inbound customer messages only. Deliberately not awaited and wrapped
+  // so a push failure (or the push_tokens table being empty/missing) can
+  // never affect message logging or the bot's reply flow above/below this.
+  if (direction === 'in') {
+    notifyPushTokens(opts.managerId || 'mahadnet', customerPhone, type, content).catch((e: any) =>
+      console.error('[notifyPushTokens]', e?.message)
+    );
+  }
+}
+
+// Looks up Expo push tokens registered by the mobile app (push_tokens table)
+// for this manager and sends a notification via Expo's push API. See
+// mahadahmad82-source/Wabot-Android for the app that registers these tokens.
+async function notifyPushTokens(
+  managerId: string,
+  customerPhone: string,
+  type: string,
+  content: string
+) {
+  const tokRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/push_tokens?manager_id=eq.${managerId}&select=token`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  );
+  if (!tokRes.ok) return;
+  const rows: { token: string }[] = await tokRes.json();
+  if (!rows.length) return;
+
+  const preview =
+    type === 'text' ? (content || '').slice(0, 120)
+    : type === 'image' ? '📷 Photo'
+    : type === 'audio' || type === 'voice' ? '🎤 Voice message'
+    : type === 'document' ? '📄 Document'
+    : 'New message';
+
+  const messages = rows.map((r) => ({
+    to: r.token,
+    sound: 'default',
+    title: `+92${normPhone(customerPhone)}`,
+    body: preview,
+    data: { phone: normPhone(customerPhone) },
+  }));
+
+  await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(messages),
+  });
 }
 
 // Downloads WhatsApp media (e.g. payment screenshot) via Meta Graph API and
