@@ -9,16 +9,62 @@ function normPhone(p: string): string {
   return (p || '').replace(/\D/g, '').slice(-10);
 }
 
-type SendType = 'text' | 'image' | 'audio' | 'video' | 'document';
+// The 4 Meta-approved official templates (Utility category). bodyTemplate
+// mirrors the exact approved wording (from WhatsApp Manager) so the logged
+// message shown in the inbox reads naturally instead of raw {{n}} tokens.
+// paramLabels defines the required order — must match the approved
+// template's variable order exactly, or Meta will reject the send.
+const META_TEMPLATES: Record<string, { language: string; paramLabels: string[]; bodyTemplate: string }> = {
+  customer_support_activation: {
+    language: 'en',
+    paramLabels: ['name'],
+    bodyTemplate:
+      'This is an official announcement regarding our customer support and network services. We have successfully integrated our network complaint registration, technical support, and billing updates for {{1}} on this official WhatsApp channel.\n\nYou can now use this active chat to report internet issues, check billing status, or get instant assistance. Thank you for your cooperation. Regards, Team MahadNet network support.',
+  },
+  recharge_pending_payment: {
+    language: 'en',
+    paramLabels: ['name', 'rechargeAmount', 'duesAmount'],
+    bodyTemplate:
+      'Important account update: Your internet package has been successfully recharged as requested.\n\nAssalam-o-Alaikum {{1}}, your connection has been renewed on credit for PKR {{2}}.\n\nPlease clear your outstanding dues of PKR {{3}} as soon as possible to ensure uninterrupted high-speed internet service.\n\nTap the button below to view our official payment details. Thank you, Team MahadNet support.',
+  },
+  package_expiry_official: {
+    language: 'en',
+    paramLabels: ['name', 'expiryDate'],
+    bodyTemplate:
+      '[Alert] Internet service billing update aur expiry notification. Assalam-o-Alaikum {{1}}, aap ka internet package {{2}} ko expire ho raha hai.\n\nWaqt par bill jama karwaein taake aap ki internet service bina kisi rukawat ke chalti rahe. Thank you, Team MahadNet regards.',
+  },
+  payment_success_official: {
+    language: 'en',
+    paramLabels: ['name', 'paymentAmount', 'package', 'remainingBalance', 'advancePaid', 'newExpiryDate'],
+    bodyTemplate:
+      '[Official] Aap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Assalam-o-Alaikum {{1}}, aap ka total payment PKR {{2}} kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team MahadNet shukriya.',
+  },
+};
+
+function renderTemplateBody(bodyTemplate: string, params: string[]): string {
+  return params.reduce((text, val, i) => text.split(`{{${i + 1}}}`).join(val ?? ''), bodyTemplate);
+}
+
+type SendType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'template';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { to, body, managerId, type, mediaUrl, caption, filename } = req.body || {};
+  const { to, body, managerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
   const sendType: SendType = (type as SendType) || 'text';
   if (!to) return res.status(400).json({ error: 'to is required' });
   if (sendType === 'text' && !body) return res.status(400).json({ error: 'body is required for text' });
-  if (sendType !== 'text' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl is required for media messages' });
+  if (sendType !== 'text' && sendType !== 'template' && !mediaUrl)
+    return res.status(400).json({ error: 'mediaUrl is required for media messages' });
+  if (sendType === 'template') {
+    if (!templateName || !META_TEMPLATES[templateName]) {
+      return res.status(400).json({ error: `Unknown or missing templateName. Valid: ${Object.keys(META_TEMPLATES).join(', ')}` });
+    }
+    const expected = META_TEMPLATES[templateName].paramLabels.length;
+    if (!Array.isArray(templateParams) || templateParams.length !== expected) {
+      return res.status(400).json({ error: `templateParams must be an array of ${expected} values for ${templateName}` });
+    }
+  }
 
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
@@ -33,8 +79,25 @@ export default async function handler(req: any, res: any) {
     payload = { messaging_product: 'whatsapp', to, type: 'audio', audio: { link: mediaUrl } };
   } else if (sendType === 'video') {
     payload = { messaging_product: 'whatsapp', to, type: 'video', video: { link: mediaUrl, ...(caption ? { caption } : {}) } };
-  } else {
+  } else if (sendType === 'document') {
     payload = { messaging_product: 'whatsapp', to, type: 'document', document: { link: mediaUrl, ...(filename ? { filename } : {}), ...(caption ? { caption } : {}) } };
+  } else {
+    const tpl = META_TEMPLATES[templateName];
+    payload = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: tpl.language },
+        components: [
+          {
+            type: 'body',
+            parameters: (templateParams as string[]).map((v) => ({ type: 'text', text: String(v) })),
+          },
+        ],
+      },
+    };
   }
 
   let wamid: string | undefined;
@@ -57,8 +120,13 @@ export default async function handler(req: any, res: any) {
 
   const mgr = managerId || 'mahadnet';
   const phone = normPhone(to);
-  const logType = sendType === 'document' ? 'document' : sendType;
-  const logContent = sendType === 'text' ? body : (caption || mediaUrl);
+  const logType = sendType === 'template' ? 'text' : sendType === 'document' ? 'document' : sendType;
+  const logContent =
+    sendType === 'template'
+      ? renderTemplateBody(META_TEMPLATES[templateName].bodyTemplate, templateParams as string[])
+      : sendType === 'text'
+      ? body
+      : caption || mediaUrl;
 
   // Log the outbound message for the inbox thread.
   try {
@@ -67,7 +135,7 @@ export default async function handler(req: any, res: any) {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({
         manager_id: mgr, customer_phone: phone, direction: 'out', type: logType,
-        content: logContent, media_url: sendType === 'text' ? null : mediaUrl,
+        content: logContent, media_url: sendType === 'text' || sendType === 'template' ? null : mediaUrl,
         wa_message_id: wamid || null,
       }),
     });
