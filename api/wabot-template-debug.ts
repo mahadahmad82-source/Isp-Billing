@@ -1,22 +1,36 @@
-// TEMP DEBUG — fetches the real approved template components from Meta so we can
-// see the exact variable count/order. Remove this file once templates are fixed.
+// TEMP DEBUG — sends a live test template message so we can empirically determine
+// the correct approved param count/order (Graph API template-read isn't available
+// with the current token's asset permissions). Remove once templates are fixed.
 export default async function handler(req: any, res: any) {
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
+  const src = req.method === 'GET' ? req.query : req.body || {};
+  const templateName = src.templateName;
+  const to = src.to || '923477136214';
+  let paramList: string[] = [];
   try {
-    const results: any = {};
-    const tryFetch = async (key: string, url: string) => {
-      try {
-        const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        results[key] = await r.json();
-      } catch (e: any) {
-        results[key] = { fetchError: e?.message };
-      }
-    };
-    await tryFetch('me_businesses', `https://graph.facebook.com/v20.0/me/businesses?access_token=${token}`);
-    await tryFetch('phone_owner_business', `https://graph.facebook.com/v20.0/${pid}?fields=whatsapp_business_profile`);
-    await tryFetch('conversation_analytics', `https://graph.facebook.com/v20.0/${pid}/whatsapp_business_account`);
-    return res.status(200).json(results);
+    paramList = typeof src.params === 'string' ? JSON.parse(src.params) : src.params || [];
+  } catch {
+    paramList = [];
+  }
+
+  try {
+    const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: 'en' },
+          components: [{ type: 'body', parameters: paramList.map((v: string) => ({ type: 'text', text: v })) }],
+        },
+      }),
+    });
+    const d = await r.json();
+    return res.status(r.ok ? 200 : 502).json(d);
   } catch (e: any) {
     return res.status(500).json({ error: e?.message });
   }
