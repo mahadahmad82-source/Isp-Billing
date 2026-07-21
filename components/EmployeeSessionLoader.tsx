@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { loadState, saveState } from '../utils/storage';
-import { saveStateToSupabase } from '../utils/supabaseSync';
+import { saveStateToSupabase, loadStateFromSupabase } from '../utils/supabaseSync';
 import EmployeePanel from './EmployeePanel';
 import { AppState, Receipt } from '../types';
 
@@ -18,15 +17,12 @@ const EmployeeSessionLoader: React.FC<Props> = ({ session, theme, onLogout }) =>
   useEffect(() => {
     const loadManagerData = async () => {
       try {
-        // Try Supabase first
-        const { data } = await supabase
-          .from('manager_data')
-          .select('data')
-          .eq('manager_id', session.managerName)
-          .maybeSingle();
+        // Try Supabase first (handles both authenticated managers and
+        // no-JWT sessions like sub-managers via its built-in RPC fallback)
+        const remoteState = await loadStateFromSupabase(session.managerName);
 
-        if (data?.data) {
-          setManagerState(data.data as AppState);
+        if (remoteState) {
+          setManagerState(remoteState);
         } else {
           // Fallback to localStorage
           const localState = loadState(session.managerName);
