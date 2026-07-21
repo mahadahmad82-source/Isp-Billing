@@ -17,27 +17,27 @@ function normPhone(p: string): string {
 const META_TEMPLATES: Record<string, { language: string; paramLabels: string[]; bodyTemplate: string }> = {
   customer_support_activation: {
     language: 'en',
-    paramLabels: ['name'],
+    paramLabels: ['name', 'supportNumber'],
     bodyTemplate:
-      'This is an official announcement regarding our customer support and network services. We have successfully integrated our network complaint registration, technical support, and billing updates for {{1}} on this official WhatsApp channel.\n\nYou can now use this active chat to report internet issues, check billing status, or get instant assistance. Thank you for your cooperation. Regards, Team MahadNet network support.',
+      'This is an official announcement regarding our customer support and network services. We have successfully integrated our network complaint registration, technical support, and billing updates for {{1}} on this official WhatsApp channel.\n\nYou can now use this active chat to report internet issues, check billing status, or get instant assistance. For urgent help call {{2}}. Thank you for your cooperation. Regards, Team MahadNet network support.',
   },
   recharge_pending_payment: {
     language: 'en',
-    paramLabels: ['name', 'rechargeAmount', 'duesAmount'],
+    paramLabels: ['name', 'rechargeAmount', 'duesAmount', 'package'],
     bodyTemplate:
-      'Important account update: Your internet package has been successfully recharged as requested.\n\nAssalam-o-Alaikum {{1}}, your connection has been renewed on credit for PKR {{2}}.\n\nPlease clear your outstanding dues of PKR {{3}} as soon as possible to ensure uninterrupted high-speed internet service.\n\nTap the button below to view our official payment details. Thank you, Team MahadNet support.',
+      'Important account update: Your internet package has been successfully recharged as requested.\n\nAssalam-o-Alaikum {{1}}, your {{4}} connection has been renewed on credit for PKR {{2}}.\n\nPlease clear your outstanding dues of PKR {{3}} as soon as possible to ensure uninterrupted high-speed internet service.\n\nTap the button below to view our official payment details. Thank you, Team MahadNet support.',
   },
   package_expiry_official: {
     language: 'en',
-    paramLabels: ['name', 'expiryDate'],
+    paramLabels: ['name', 'expiryDate', 'package'],
     bodyTemplate:
-      '[Alert] Internet service billing update aur expiry notification. Assalam-o-Alaikum {{1}}, aap ka internet package {{2}} ko expire ho raha hai.\n\nWaqt par bill jama karwaein taake aap ki internet service bina kisi rukawat ke chalti rahe. Thank you, Team MahadNet regards.',
+      '[Alert] Internet service billing update aur expiry notification. Assalam-o-Alaikum {{1}}, aap ka internet package {{3}} {{2}} ko expire ho raha hai.\n\nWaqt par bill jama karwaein taake aap ki internet service bina kisi rukawat ke chalti rahe. Thank you, Team MahadNet regards.',
   },
   payment_success_official: {
     language: 'en',
-    paramLabels: ['name', 'paymentAmount', 'package', 'remainingBalance', 'advancePaid', 'newExpiryDate'],
+    paramLabels: ['name', 'paymentAmount', 'package', 'remainingBalance', 'advancePaid', 'newExpiryDate', 'paymentMethod'],
     bodyTemplate:
-      '[Official] Aap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Assalam-o-Alaikum {{1}}, aap ka total payment PKR {{2}} kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team MahadNet shukriya.',
+      '[Official] Aap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Assalam-o-Alaikum {{1}}, aap ka total payment PKR {{2}} ({{7}}) kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team MahadNet shukriya.',
   },
 };
 
