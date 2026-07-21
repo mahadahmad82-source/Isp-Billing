@@ -83,7 +83,7 @@ export const sendReceiptViaWABot = async (
     // 1. Upload PNG to Supabase Storage
     const fileName = `receipts/${managerId}/${receiptRef}_${Date.now()}.png`;
     const uploadRes = await fetch(
-      `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/receipt_temp/${fileName}`,
+      `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/whatsapp-media/${fileName}`,
       {
         method: 'POST',
         headers: {
@@ -100,7 +100,7 @@ export const sendReceiptViaWABot = async (
     }
 
     // 2. Send image via wabot-send endpoint
-    const mediaUrl = `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/receipt_temp/${fileName}`;
+    const mediaUrl = `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/whatsapp-media/${fileName}`;
 
     const sendRes = await fetch('/api/wabot-send', {
       method: 'POST',
