@@ -18,7 +18,7 @@ const PKT_OFFSET_MS = 5 * 60 * 60 * 1000; // Pakistan Standard Time = UTC+5, no 
 const TEMPLATE_NAME = 'package_expiry_official';
 const TEMPLATE_LANG = 'en';
 
-async function sendExpiryTemplate(to: string, name: string, dateStr: string): Promise<{ ok: boolean; wamid?: string }> {
+async function sendExpiryTemplate(to: string, name: string, dateStr: string, packageName: string): Promise<{ ok: boolean; wamid?: string }> {
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) {
@@ -36,7 +36,7 @@ async function sendExpiryTemplate(to: string, name: string, dateStr: string): Pr
         template: {
           name: TEMPLATE_NAME,
           language: { code: TEMPLATE_LANG },
-          components: [{ type: 'body', parameters: [{ type: 'text', text: name }, { type: 'text', text: dateStr }] }],
+          components: [{ type: 'body', parameters: [{ type: 'text', text: name }, { type: 'text', text: dateStr }, { type: 'text', text: packageName }] }],
         },
       }),
     });
@@ -118,7 +118,7 @@ export default async function handler(req: any, res: any) {
         // Just-expired window (0h–1h AFTER midnight has passed) — one ping per cycle.
         if (hoursSinceExpiry >= 0 && hoursSinceExpiry <= 1 && u.expiryJustNotifiedFor !== u.expiryDate) {
           const dateStr = new Date(u.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-          const { ok, wamid } = await sendExpiryTemplate(phone, u.name || 'Customer', dateStr);
+          const { ok, wamid } = await sendExpiryTemplate(phone, u.name || 'Customer', dateStr, u.plan || '');
           if (ok) {
             u.expiryJustNotifiedFor = u.expiryDate;
             changed = true;
