@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
-import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus, loadStateFromSupabase } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
@@ -602,14 +602,8 @@ const App: React.FC = () => {
 
     const pollNotifications = async () => {
       try {
-        const { data } = await supabase
-          .from('manager_data')
-          .select('data')
-          .eq('manager_id', activeManager)
-          .single();
-        
-        if (!data?.data) return;
-        const remoteState = data.data as AppState;
+        const remoteState = await loadStateFromSupabase(activeManager);
+        if (!remoteState) return;
         const remotePending: AppNotification[] = remoteState.pendingManagerNotifications || [];
         const alreadyShown: string[] = (stateRef.current.shownManagerNotificationIds || []);
         
