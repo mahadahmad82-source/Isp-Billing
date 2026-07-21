@@ -446,6 +446,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             String(receipt.balanceAmount || 0),
             String(receipt.advanceAmount || 0),
             newExpiryFormatted,
+            receipt.paymentMethod || 'Cash',
           ],
         }),
       });
