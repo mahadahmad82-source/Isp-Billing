@@ -56,6 +56,7 @@ export default async function handler(req: any, res: any) {
       creditAmount: user.creditAmount || 0,
       expiryDateFormatted: formatDate(user.expiryDate),
       lastPaymentAmount: lastReceipt?.paidAmount ?? netFee,
+      lastPaymentMethod: lastReceipt?.paymentMethod || '',
       lastReceiptBalance: lastReceipt?.balanceAmount ?? (balance > 0 ? balance : 0),
       lastReceiptAdvance: lastReceipt?.advanceAmount ?? (balance < 0 ? Math.abs(balance) : 0),
     });
