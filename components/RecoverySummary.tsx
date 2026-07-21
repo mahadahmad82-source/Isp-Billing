@@ -184,7 +184,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
           managerId,
           type: 'template',
           templateName: 'recharge_pending_payment',
-          templateParams: [u.name || '', String(u.creditAmount || 0), String(u.balance || u.creditAmount || 0)],
+          templateParams: [u.name || '', String(u.creditAmount || 0), String(u.balance || u.creditAmount || 0), u.plan || ''],
         }),
       });
       return res.ok;
