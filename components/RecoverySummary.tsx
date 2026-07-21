@@ -162,6 +162,54 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     [deferredUsers]
   );
 
+  // Send the Meta-approved "Recharge — Pending Payment" template — works even outside
+  // the 24h WhatsApp session window (unlike a plain text reminder), for both the
+  // per-row "Send Reminder" button and the "Send to All" bulk action below.
+  const [sendingRecoveryId, setSendingRecoveryId] = useState<string | null>(null);
+  const [bulkRecoverySending, setBulkRecoverySending] = useState(false);
+
+  const normalizePhoneForWa = (phone: string): string => {
+    const digits = (phone || '').replace(/\D/g, '');
+    return `92${digits.slice(-10)}`;
+  };
+
+  const sendPendingAmountTemplate = async (u: UserRecord): Promise<boolean> => {
+    if (!u.phone) return false;
+    try {
+      const res = await fetch('/api/wabot-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: normalizePhoneForWa(u.phone),
+          managerId,
+          type: 'template',
+          templateName: 'recharge_pending_payment',
+          templateParams: [u.name || '', String(u.creditAmount || 0), String(u.balance || u.creditAmount || 0)],
+        }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.error('[RecoverySummary] pending-amount template send failed:', e);
+      return false;
+    }
+  };
+
+  const handleSendPendingAmountOne = async (u: UserRecord) => {
+    setSendingRecoveryId(u.id);
+    await sendPendingAmountTemplate(u);
+    setSendingRecoveryId(null);
+  };
+
+  const handleSendPendingAmountAll = async () => {
+    if (bulkRecoverySending || pendingRecoveries.length === 0) return;
+    setBulkRecoverySending(true);
+    for (const u of pendingRecoveries) {
+      await sendPendingAmountTemplate(u);
+      await new Promise(r => setTimeout(r, 400)); // small gap so we don't hammer Meta's API
+    }
+    setBulkRecoverySending(false);
+  };
+
   const monthlyData = useMemo(() => {
     const summaries: Record<string, SummaryItem> = {};
 
@@ -902,12 +950,21 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 </h3>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">Ayesha auto-reminds every 2 days, capped at 6</p>
               </div>
-              <button
-                onClick={() => { setRecoveryForm({ userId: '', amount: 0, date: new Date().toISOString().slice(0, 10) }); setRecoverySearch(''); setShowRecoveryModal(true); }}
-                className="px-6 py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
-              >
-                + Mark Recovery
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSendPendingAmountAll}
+                  disabled={bulkRecoverySending || pendingRecoveries.length === 0}
+                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-40"
+                >
+                  {bulkRecoverySending ? 'Sending...' : '📤 Send Reminder to All'}
+                </button>
+                <button
+                  onClick={() => { setRecoveryForm({ userId: '', amount: 0, date: new Date().toISOString().slice(0, 10) }); setRecoverySearch(''); setShowRecoveryModal(true); }}
+                  className="px-6 py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                >
+                  + Mark Recovery
+                </button>
+              </div>
             </div>
 
             {pendingRecoveries.length === 0 ? (
@@ -926,6 +983,13 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-lg font-black text-amber-600 dark:text-amber-500">Rs. {(u.creditAmount || 0).toLocaleString()}</span>
+                        <button
+                          onClick={() => handleSendPendingAmountOne(u)}
+                          disabled={sendingRecoveryId === u.id}
+                          className="px-4 py-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-40"
+                        >
+                          {sendingRecoveryId === u.id ? 'Sending...' : '📤 Send Reminder'}
+                        </button>
                         <button
                           onClick={() => onUpdateUser?.({ ...u, creditRecharge: false, creditAmount: undefined, creditDate: undefined, creditLastReminderSent: undefined, creditReminderCount: 0 })}
                           className="px-4 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
