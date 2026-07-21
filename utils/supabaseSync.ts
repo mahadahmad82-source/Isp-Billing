@@ -34,12 +34,22 @@ const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts =
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       emit(attempt === 1 ? 'saving' : 'retrying');
-      const { error } = await supabase
+      let { error } = await supabase
         .from('manager_data')
         .upsert(
           { manager_id: managerId, data: stateWithTs, updated_at: stateWithTs._syncedAt },
           { onConflict: 'manager_id' }
         );
+      if (error) {
+        // Fallback for sessions without a Supabase Auth JWT (e.g. sub-managers,
+        // or the legacy local-login path) — RLS blocks the direct upsert above
+        // for them, so use the scoped SECURITY DEFINER RPC instead.
+        const { error: rpcErr } = await supabase.rpc('save_manager_state', {
+          p_manager_id: managerId,
+          p_data: stateWithTs,
+        });
+        error = rpcErr;
+      }
       if (!error) {
         localStorage.setItem(`${managerId}_syncedAt`, stateWithTs._syncedAt);
         dequeue(managerId);
@@ -67,8 +77,13 @@ export const saveStateToSupabase = async (managerId: string, state: AppState): P
   // Safety: never overwrite real DB data with empty state
   if (userCount === 0 && receiptCount === 0) {
     try {
-      const { data: existing } = await supabase
+      let { data: existing, error: existingErr } = await supabase
         .from('manager_data').select('data').eq('manager_id', managerId).maybeSingle();
+      if (existingErr || !existing) {
+        // RLS-blocked (no-JWT session) — check via RPC instead of assuming empty.
+        const { data: snapshot } = await supabase.rpc('get_manager_state_snapshot', { p_manager_id: managerId });
+        if (snapshot) existing = { data: snapshot } as any;
+      }
       const eu = (existing?.data as any)?.users?.length    || 0;
       const er = (existing?.data as any)?.receipts?.length || 0;
       if (eu > 0 || er > 0) {
