@@ -421,6 +421,39 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // Sends the receipt image to the customer automatically right after a payment is
   // recorded — through Ayesha's WhatsApp number (Meta Cloud API), the same channel
   // the bot itself uses, instead of requiring a manual "Share" tap every time.
+  // Automatically fires the Meta-approved "Payment Success" template right after a
+  // receipt is generated — works even outside the 24h WhatsApp session window (unlike
+  // a plain image/caption message), and needs no manual template picking/typing.
+  const autoSendPaymentTemplate = async (receipt: Receipt, custUser: UserRecord) => {
+    if (!custUser?.phone) return;
+    try {
+      const newExpiry = receipt.expiryDate ? new Date(receipt.expiryDate) : null;
+      const newExpiryFormatted = newExpiry && !isNaN(newExpiry.getTime())
+        ? newExpiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
+        : '';
+      await fetch('/api/wabot-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: normalizePhoneForWa(custUser.phone),
+          managerId,
+          type: 'template',
+          templateName: 'payment_success_official',
+          templateParams: [
+            receipt.userName || custUser.name || '',
+            String(receipt.paidAmount || 0),
+            receipt.plan || custUser.plan || '',
+            String(receipt.balanceAmount || 0),
+            String(receipt.advanceAmount || 0),
+            newExpiryFormatted,
+          ],
+        }),
+      });
+    } catch (e) {
+      console.error('[ReceiptGenerator] auto payment-success template send failed:', e);
+    }
+  };
+
   const autoSendReceiptViaWhatsApp = async (receipt: Receipt) => {
     if (!receipt.userPhone) return;
     setAutoSendStatus('sending');
@@ -571,10 +604,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       // status) so WABot can instantly share it whenever the customer asks for it
       // via chat — no regeneration needed at request time.
       generateAndStoreReceiptImage(newReceipt);
-      // TEMP DISABLED: Ayesha/WABA number is paused (Meta Business Verification not
-      // complete), so WHATSAPP_TOKEN/PHONE_NUMBER_ID are stale and every auto-send was
-      // failing — re-enable this line once the bot is reactivated.
-      // autoSendReceiptViaWhatsApp(newReceipt);
+      // Fires the Meta-approved "Payment Success" template right after the receipt is
+      // generated — works even outside the 24h WhatsApp session window (unlike a plain
+      // image/caption message), auto-filled from the receipt's own computed amounts so
+      // nothing has to be typed in manually.
+      autoSendPaymentTemplate(newReceipt, user);
 
     } catch (error) {
       console.error("Critical System Failure:", error);
