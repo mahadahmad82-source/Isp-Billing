@@ -1698,6 +1698,24 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
   }
 }
 
+// Safety net for the "CONVERSATION ENDING" prompt rule above: Groq is told not to
+// repeat the same generic "koi aur madad chahiye to batayen" closer every reply, but
+// small/fast models don't always follow that instruction reliably — customers notice
+// immediately when a support agent sounds like a scripted bot. This strips the trailing
+// generic-closer sentence whenever Ayesha's own last reply in this conversation already
+// ended with something near-identical, leaving the substantive part of the answer intact.
+function stripRepeatedGenericCloser(reply: string, recentHistory: string): string {
+  const genericCloserRe = /[^.!?\n]*\b(koi (aur )?(masla|madad|sawal|dikkat|pareshani)\b[^.!?\n]*\b(bataen|batayen|bata dein|bata dena|zaroor batayen)|main (hamesha )?(yahan|haazir) hoon)\b[^.!?\n]*[.!?]?\s*$/i;
+  const match = reply.match(genericCloserRe);
+  if (!match || match.index === undefined) return reply;
+
+  const lastAyeshaLine = recentHistory.split('\n').filter((l) => l.trim().startsWith('Ayesha:')).pop() || '';
+  if (!genericCloserRe.test(lastAyeshaLine)) return reply; // first time saying it — leave it alone
+
+  const trimmed = reply.slice(0, match.index).trim();
+  return trimmed || reply; // never send an empty message
+}
+
 async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = ''): Promise<{ onTopic: boolean; reply: string }> {
   // Customer wrote in Urdu/Nastaliq script → reply in that same script (previously this was
   // always force-converted to Roman Urdu, even when the customer clearly preferred Urdu script).
@@ -1793,6 +1811,7 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECEN
     };
   }
 
+  result.reply = stripRepeatedGenericCloser(result.reply, recentHistory);
   return result;
 }
 
@@ -1855,7 +1874,7 @@ async function sendAudio(to: string, audioUrl: string) {
     if (!r.ok) console.error('❌ Meta audio:', JSON.stringify(d).slice(0, 200));
     else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendAudio:', e?.message); }
-  await logMessage(to, 'out', 'audio', audioUrl, { waMessageId: wamid });
+  await logMessage(to, 'out', 'audio', audioUrl, { waMessageId: wamid, mediaUrl: audioUrl });
 }
 
 async function sendImage(to: string, imageUrl: string, caption: string) {
@@ -1876,7 +1895,7 @@ async function sendImage(to: string, imageUrl: string, caption: string) {
     if (!r.ok) console.error('❌ Meta image:', JSON.stringify(d).slice(0, 200));
     else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendImage:', e?.message); }
-  await logMessage(to, 'out', 'image', imageUrl, { waMessageId: wamid });
+  await logMessage(to, 'out', 'image', imageUrl, { waMessageId: wamid, mediaUrl: imageUrl });
 }
 
 async function sendRouterCatalog(to: string, band: '2.4g' | '5g') {
@@ -1974,10 +1993,25 @@ export default async function handler(req: any, res: any) {
       } catch (e: any) { console.error('[wabot push]', e?.message); }
 
       if (pausedPhones.includes(normPhone(from))) {
-        // Bot is paused on this thread — just log the message for the inbox, no auto-reply.
-        if (type === 'text' && text) await logMessage(from, 'in', 'text', text);
-        else if (type === 'image') await logMessage(from, 'in', 'image', msg?.image?.caption || '[image]', { flagged: true });
-        else if (type === 'audio' || type === 'voice') await logMessage(from, 'in', 'audio', '[voice note]');
+        // Bot is paused on this thread — skip the AI reply/classification pipeline, but
+        // still download/store any media exactly like the active-bot path below does.
+        // Previously this branch logged only a '[voice note]'/'[image]' placeholder with
+        // no media_url at all, which is why paused threads (i.e. almost every thread
+        // mahad had manually replied on) permanently lost the actual audio/photo — the
+        // Android app showed "Voice note unavailable" and the PWA fell back to plain
+        // placeholder text with no player, even though a real file was sent.
+        if (type === 'text' && text) {
+          await logMessage(from, 'in', 'text', text);
+        } else if (type === 'image') {
+          const mediaId: string | undefined = msg?.image?.id;
+          const caption: string = msg?.image?.caption?.trim() || '';
+          const media = mediaId ? await downloadAndStoreMedia(mediaId) : null;
+          await logMessage(from, 'in', 'image', caption || '[image]', { flagged: true, mediaUrl: media?.url || null });
+        } else if (type === 'audio' || type === 'voice') {
+          const mediaId: string | undefined = msg?.audio?.id || msg?.voice?.id;
+          const { transcript, mediaUrl } = mediaId ? await transcribeAudio(mediaId) : { transcript: null, mediaUrl: null };
+          await logMessage(from, 'in', 'audio', transcript || '[voice note]', { mediaUrl });
+        }
         continue;
       }
 
@@ -2022,7 +2056,7 @@ export default async function handler(req: any, res: any) {
         const managerId = found?.managerId || 'mahadnet';
         const media = mediaId ? await downloadAndStoreMedia(mediaId) : null;
         const mediaUrl = media?.url || null;
-        await logMessage(from, 'in', 'image', mediaUrl || caption || '[image]', { flagged: true, managerId });
+        await logMessage(from, 'in', 'image', mediaUrl || caption || '[image]', { flagged: true, managerId, mediaUrl });
 
         const rowData = found?.rowData || (await getManagerRow(managerId)) || {};
         const category = media ? await classifyWhatsAppImage(media.buffer, media.mimeType, caption) : 'payment';
