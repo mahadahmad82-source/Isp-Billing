@@ -23,7 +23,8 @@ export default async function handler(req: any, res: any) {
   const src = req.method === 'GET' ? req.query : req.body || {};
   const managerId = src.managerId || 'mahadnet';
   const phone = normPhone(src.phone);
-  if (!phone) return res.status(400).json({ error: 'phone is required' });
+  const username = (src.username || '').toString().trim().replace(/^@/, '').toLowerCase();
+  if (!phone && !username) return res.status(400).json({ error: 'phone or username is required' });
 
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}&select=data`, {
@@ -34,7 +35,11 @@ export default async function handler(req: any, res: any) {
     if (!data) return res.status(404).json({ found: false });
 
     const users: any[] = data.users || [];
-    const user = users.find((u) => normPhone(u?.phone) === phone || normPhone(u?.phone2) === phone);
+    const user = users.find((u) => {
+      if (username && (u?.username || '').toLowerCase() === username) return true;
+      if (phone && (normPhone(u?.phone) === phone || normPhone(u?.phone2) === phone)) return true;
+      return false;
+    });
     if (!user) return res.status(200).json({ found: false });
 
     const receipts: any[] = data.receipts || [];
@@ -49,6 +54,8 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({
       found: true,
       name: user.name || '',
+      username: user.username || '',
+      phone: user.phone || '',
       plan: user.plan || '',
       monthlyFee: user.monthlyFee || 0,
       netFee,
