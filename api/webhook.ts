@@ -858,36 +858,41 @@ async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; bu
 
 // Classifies an inbound WhatsApp image as a payment-proof screenshot vs a
 // complaint/fault/technical photo (router/modem, cabling, error screens, etc.)
-// vs something unrelated — previously EVERY image got the exact same "payment
-// screenshot mil gaya, verify ho rahi hai" reply regardless of content, which
-// was wrong whenever a customer sent a fault photo instead. Falls back to
-// 'payment' (the old default behaviour) on any failure so a classifier outage
-// never breaks the existing payment-proof flow.
+// vs something unrelated. STRICT by design: "payment" is only returned when the
+// image is clearly a real bank/wallet transaction slip/receipt — any uncertain,
+// blurry, or unrelated image, and any classifier failure (missing key, API error,
+// bad JSON), falls back to 'other' (no reply sent) instead of 'payment'. This is
+// intentional — previously it fell back to 'payment' on any failure, which caused
+// random/unrelated images to get the "payment verify ho rahi hai" reply.
 async function classifyWhatsAppImage(buffer: Buffer, mimeType: string, caption: string): Promise<'payment' | 'complaint' | 'other'> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return 'payment';
+  if (!apiKey) return 'other';
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const prompt = `Yeh image ek Pakistani ISP (internet provider) ke WhatsApp customer-support number par ek customer ne bheji hai. Dekh kar batao yeh kis category mein aati hai:
-- "payment": bank transfer/EasyPaisa/JazzCash receipt, transaction slip, ya paisay ki koi payment confirmation screenshot.
+    const prompt = `Yeh image ek Pakistani ISP (internet provider) ke WhatsApp customer-support number par ek customer ne bheji hai. Ghor se dekh kar STRICT criteria se category tay karo:
+
+- "payment": SIRF tab jab image mein saaf tor par ek bank/EasyPaisa/JazzCash/SadaPay/NayaPay transaction slip ya receipt dikhe — jisme amount (Rs./PKR), transaction/reference ID, date/time, aur "successful"/"paid"/"transfer complete" jaisa status ya bank/wallet app ka logo/naam saaf nazar aaye. Sirf paison ka zikar hona ya rasid "jaisi" lagna kaafi nahi — clear, unmistakable financial transaction proof hona chahiye.
 - "complaint": router/modem/ONU/wifi device ki photo, cabling/fiber ka masla, error message/screen, signal lights, ya koi fault/technical issue dikhati tasveer.
-- "other": in dono mein se koi bhi nahi.
+- "other": upar dono mein se koi bhi nahi — selfies, ID cards, chat/screenshot of app, memes, khana, kapre, random objects, ya koi bhi image jo clear transaction slip na ho, sab "other" mein aayenge.
+
+STRICT RULE: Agar image blurry/unclear hai, ya "payment" hone mein zara bhi shaq hai, to "payment" HARGIZ mat likho — "other" likho. Galat "payment" batana customer ko galat confirmation de deta hai jo bohot bara masla hai. Shaq wali surat mein hamesha "other" chuno, "payment" nahi.
+
 ${caption ? `Customer ka caption: "${caption}"` : 'Customer ne koi caption nahi likha.'}
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"category": "payment" | "complaint" | "other"}`;
     const response: any = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
-      config: { temperature: 0.1, maxOutputTokens: 30, responseMimeType: 'application/json' },
+      config: { temperature: 0, maxOutputTokens: 30, responseMimeType: 'application/json' },
     });
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     let category = '';
-    try { category = JSON.parse(raw)?.category; } catch { category = /complaint/i.test(raw) ? 'complaint' : /payment/i.test(raw) ? 'payment' : ''; }
+    try { category = JSON.parse(raw)?.category; } catch { category = /complaint/i.test(raw) ? 'complaint' : /payment/i.test(raw) ? 'payment' : 'other'; }
     if (category === 'payment' || category === 'complaint' || category === 'other') return category;
-    return 'payment';
+    return 'other';
   } catch (e: any) {
     console.error('[classifyWhatsAppImage]', e?.message);
-    return 'payment';
+    return 'other';
   }
 }
 
@@ -2059,7 +2064,9 @@ export default async function handler(req: any, res: any) {
         await logMessage(from, 'in', 'image', mediaUrl || caption || '[image]', { flagged: true, managerId, mediaUrl });
 
         const rowData = found?.rowData || (await getManagerRow(managerId)) || {};
-        const category = media ? await classifyWhatsAppImage(media.buffer, media.mimeType, caption) : 'payment';
+        // If media couldn't be downloaded, we can't actually see the image — don't guess
+        // 'payment', fall back to 'other' (logged, no reply) same as any classifier failure.
+        const category = media ? await classifyWhatsAppImage(media.buffer, media.mimeType, caption) : 'other';
 
         if (category === 'complaint') {
           const issueText = `[WhatsApp tasveer] Customer ne fault/complaint ki tasveer bheji hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\nImage: ${mediaUrl}` : ''}`;
@@ -2080,7 +2087,9 @@ export default async function handler(req: any, res: any) {
           // No reply needed and no manager notification (avoids noise); the message log
           // entry above is enough of a record if it's ever needed.
         } else {
-          // 'payment' (also the safe fallback when classification is unavailable/fails)
+          // 'payment' — only reached when the classifier is confident it's a real
+          // bank/wallet transaction slip. Uncertain/failed classification now falls
+          // back to 'other' above, not here.
           await notifyManager(managerId, rowData, {
             title: '🧾 Payment Screenshot Mila (WhatsApp)',
             message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\n${mediaUrl}` : ''}`,
