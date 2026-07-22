@@ -787,6 +787,27 @@ async function logMessage(
   }
 }
 
+// True if this phone has NOT sent an inbound message yet today (local server day).
+// Checked BEFORE the current message is logged, so "first contact" means this is
+// message #1 of the day, not #2. Used to proactively greet + show the full option
+// menu once per day per number — including totally random/unrecognized numbers —
+// instead of only replying with the menu when the customer explicitly says salam.
+async function isFirstContactToday(phone: string): Promise<boolean> {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/whatsapp_messages?customer_phone=eq.${normPhone(phone)}&direction=eq.in&created_at=gte.${todayStart.toISOString()}&select=id&limit=1`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows: any = await res.json();
+    return !Array.isArray(rows) || rows.length === 0;
+  } catch (e: any) {
+    console.error('[isFirstContactToday]', e?.message);
+    return false; // fail-safe: never spam extra greetings if this check itself breaks
+  }
+}
+
 // Looks up Expo push tokens registered by the mobile app (push_tokens table)
 // for this manager and sends a notification via Expo's push API. See
 // mahadahmad82-source/Wabot-Android for the app that registers these tokens.
@@ -2103,6 +2124,19 @@ export default async function handler(req: any, res: any) {
       }
 
       if (type !== 'text' || !text) continue;
+
+      // ── Daily first-contact greeting — checked BEFORE logging this message so
+      // "first today" is accurate. Applies to EVERY number (known customer or
+      // totally random/unrecognized) so whoever texts the support line sees Salam
+      // + the full numbered option menu at least once per day, not only when they
+      // explicitly type "assalam o alaikum". Their actual message still gets its
+      // normal reply right after this, via the existing logic below.
+      if (!alreadyLoggedThisTurn && (await isFirstContactToday(from))) {
+        try {
+          const foundForGreeting = await findCustomer(from);
+          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, foundForGreeting?.rowData?.settings?.ayeshaBotName));
+        } catch (e: any) { console.error('[daily greeting]', e?.message); }
+      }
 
       if (!alreadyLoggedThisTurn) await logMessage(from, 'in', 'text', text);
 
