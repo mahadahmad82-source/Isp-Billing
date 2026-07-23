@@ -102,12 +102,39 @@ export default async function handler(req: any, res: any) {
 
   let wamid: string | undefined;
   try {
-    const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+    let r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const d = await r.json();
+    let d = await r.json();
+
+    // Meta template language codes are locale-specific (e.g. "en_US"), not just the
+    // generic "en" we store in META_TEMPLATES. If a template was approved under a
+    // different English locale than what we sent, Meta returns error 132001
+    // ("template name does not exist in the translation") — this was the exact,
+    // 100%-reproducible reason payment_success_official auto-sends were silently
+    // failing on every attempt. Auto-retry with the other common English locale
+    // codes instead of giving up, so this self-heals regardless of which exact
+    // code the template is actually approved under.
+    if (!r.ok && sendType === 'template' && d?.error?.code === 132001) {
+      const tried = new Set([payload.template.language.code]);
+      const fallbacks = ['en_US', 'en_GB', 'en'].filter((l) => !tried.has(l));
+      for (const lang of fallbacks) {
+        payload.template.language.code = lang;
+        r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        d = await r.json();
+        if (r.ok) {
+          console.log(`✅ wabot-send: template ${templateName} sent using fallback language "${lang}"`);
+          break;
+        }
+      }
+    }
+
     if (!r.ok) {
       console.error('❌ wabot-send Meta:', JSON.stringify(d).slice(0, 300));
       return res.status(502).json({ error: 'WhatsApp send failed', detail: d });
