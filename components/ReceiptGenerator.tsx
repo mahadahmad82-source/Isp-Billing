@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign, SubManagerAccount } from '../types';
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
-import { shareToWhatsApp, sendReceiptViaWABot } from '../utils/whatsapp';
+import { shareToWhatsApp } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
 import { supabase } from '../lib/supabase';
 
@@ -431,7 +431,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const newExpiryFormatted = newExpiry && !isNaN(newExpiry.getTime())
         ? newExpiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
         : '';
-      await fetch('/api/wabot-send', {
+      const res = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -450,6 +450,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           ],
         }),
       });
+      // Previously not checked at all, so failures (e.g. Meta rejecting the send) were
+      // completely invisible — nothing logged, nothing shown, receipt just looked fine.
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[ReceiptGenerator] payment-success template send REJECTED by WhatsApp:', err);
+      }
     } catch (e) {
       console.error('[ReceiptGenerator] auto payment-success template send failed:', e);
     }
@@ -763,53 +769,43 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const handleSendReceiptToWABot = async () => {
     if (!activeReceipt) return;
     setIsSendingToWABot(true);
-    setLoadingMessage('🤖 Preparing Receipt Image for WABot...');
+    setLoadingMessage('🤖 Sending Payment Confirmation Template...');
 
     try {
-      const element = document.getElementById('receipt-download-area');
-      if (!element) return;
-
-      const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
-      const canvas = await html2canvas(element, { 
-        scale: 2, 
-        backgroundColor: '#ffffff',
-        imageTimeout: 8000,
-        windowWidth: isThermal ? window.innerWidth : 800,
-        onclone: (clonedDoc) => {
-          const area = clonedDoc.getElementById('receipt-download-area');
-          if (area) {
-            area.style.boxShadow = 'none';
-            if (!isThermal) {
-               area.style.minWidth = '800px';
-            }
-          }
-        }
+      const newExpiry = activeReceipt.expiryDate ? new Date(activeReceipt.expiryDate) : null;
+      const newExpiryFormatted = newExpiry && !isNaN(newExpiry.getTime())
+        ? newExpiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
+        : '';
+      const res = await fetch('/api/wabot-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: normalizePhoneForWa(activeReceipt.userPhone),
+          managerId: managerId || 'mahadnet',
+          type: 'template',
+          templateName: 'payment_success_official',
+          templateParams: [
+            activeReceipt.userName || '',
+            String(activeReceipt.paidAmount || 0),
+            activeReceipt.plan || '',
+            String(activeReceipt.balanceAmount || 0),
+            String(activeReceipt.advanceAmount || 0),
+            newExpiryFormatted,
+            activeReceipt.paymentMethod || 'Cash',
+          ],
+        }),
       });
 
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
-      if (!blob) {
-        setLoadingMessage('❌ Failed to capture receipt image');
-        setTimeout(() => setLoadingMessage(null), 3000);
-        return;
-      }
-
-      setLoadingMessage('📤 Uploading to Storage...');
-      const result = await sendReceiptViaWABot(
-        activeReceipt.userPhone,
-        blob,
-        activeReceipt.transactionRef,
-        managerId || 'mahadnet'
-      );
-
-      if (result.success) {
-        setLoadingMessage('✅ Receipt sent via WABot to customer!');
+      if (res.ok) {
+        setLoadingMessage('✅ Payment confirmation sent via WABot to customer!');
         setTimeout(() => setLoadingMessage(null), 3000);
       } else {
-        setLoadingMessage(`❌ Failed to send: ${result.error}`);
+        const err = await res.json().catch(() => ({}));
+        setLoadingMessage(`❌ Failed to send: ${err?.error || res.status}`);
         setTimeout(() => setLoadingMessage(null), 5000);
       }
     } catch (error) {
-      console.error('[ReceiptGenerator] WABot send failed', error);
+      console.error('[ReceiptGenerator] WABot template send failed', error);
       setLoadingMessage('❌ Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setTimeout(() => setLoadingMessage(null), 5000);
     } finally {
