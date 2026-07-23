@@ -44,5 +44,21 @@ export default async function handler(req: any, res: any) {
     }
   } catch (e: any) { out.phoneInfoError = e?.message; }
 
+  try {
+    const appWabaRes = await fetch(
+      `https://graph.facebook.com/v20.0/1046144497911368/whatsapp_business_accounts`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    out.appWabaList = await appWabaRes.json();
+    const wabaId2 = out.appWabaList?.data?.[0]?.id;
+    if (wabaId2 && !out.templates) {
+      const tplRes2 = await fetch(
+        `https://graph.facebook.com/v20.0/${wabaId2}/message_templates?fields=name,language,status,category&limit=100`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      out.templates2 = await tplRes2.json();
+    }
+  } catch (e: any) { out.appWabaError = e?.message; }
+
   return res.status(200).json(out);
 }
