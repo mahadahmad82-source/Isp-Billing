@@ -154,13 +154,39 @@ That repo already solved the exact same problem (real Supabase Auth session in a
 
 ---
 
-## 8. Open Decisions Needed From Mahad Before Phase 1 Build
-1. **Scope**: is this Android app for managers only, or also for field agents (sub-managers)? Changes whether §3.7's restricted agent shell needs to be built in Phase 1 or can be deferred.
-2. **Biometric unlock**: worth adding as new native functionality (§1.1) since it doesn't exist on web, or skip for v1?
-3. **Social login (Google/Facebook)**: build now or defer (§3.5)?
-4. **Admin panel**: does `admin` ever need to log into this app on mobile, or is admin strictly desktop-only?
+## 8. Decisions — LOCKED (confirmed by Mahad, July 23 2026)
+1. **Scope**: ✅ **Manager + Agents dono.** Both roles ship in this app — §3.7's restricted agent shell and full `SubManagerDashboard` (§10) are now in-scope for the build, not deferred.
+2. **Biometric unlock**: ✅ **Skip for v1.** Revisit later as new functionality if requested — not a port of anything existing.
+3. **Admin panel**: ✅ **Required.** `admin` login + the 6 `admin-*` tabs (§6) must work on mobile too.
+4. **Social login (Google/Facebook)**: not asked — default to **defer** (§3.5) since it's a small user segment and adds OAuth redirect complexity that's awkward in a WebView-less native flow. Revisit if Mahad asks.
 
 ---
 
-## 9. Next Step
-Once the above is confirmed: create `Billcollector-Android` repo (Expo SDK 51 init, mirroring `Wabot-Android`'s `package.json`/`app.json`/`eas.json` shape), port `AuthContext.tsx` pattern, then build `LoginScreen.tsx` covering all of §2's states one-by-one, starting with plain `login` + `signup` (skip forgot-password OTP and support-modal edge case until the base flow is confirmed working end-to-end).
+## 10. Agent Side — SubManager System Audit (`components/SubManager/*`, now in-scope)
+
+### 10.1 Two completely different components share the "Team Hub" name — don't confuse them
+- **`SubManagerManagement.tsx`** (710 lines) — the **manager's** view of their agents: recruit new agent, attendance overview, live map, performance reports, activity log, complaint assignment. Rendered only when `activeTab === 'team' && userRole !== 'sub-manager'` (App.tsx line ~1774). Lazy-loads `LiveTracking` and `ComplaintManager` internally (`React.lazy` + `Suspense`) so a map/complaint bug can't crash the whole tab.
+- **`SubManagerDashboard.tsx`** (988 lines) — the **agent's own** home screen. Rendered for literally *any* tab value except `'receipts'` when `userRole === 'sub-manager'` (App.tsx ~line 1346) — i.e. this single component IS the agent's whole app, not just one tab among several. Handles: duty check-in/out (via `LocationTracker`), issuing invoices (hands off to the stripped `ReceiptGenerator`, §3.7), viewing past receipts, resolving assigned complaint tickets.
+
+**Practical implication for Android**: the agent experience is really just two screens (`SubManagerDashboard` + the receipts/invoice screen), not the full manager tab bar. Build this as its own lightweight navigator, separate from the manager's tab-bar shell.
+
+### 10.2 Agent recruitment & credential flow — how an agent's login actually gets created
+Traced end-to-end via `RecruitAgentModal.tsx` → `SubManagerManagement`'s `onAgentRecruited` prop → `App.tsx` handler (~line 1782):
+1. `RecruitAgentModal` form (name/username/phone/email/password/area/salary) — despite importing `supabase`, it makes **zero actual Supabase calls**; it's a client-side-only form that does a fake `setTimeout` then calls `onSuccess(formData)`. All real persistence happens one level up.
+2. `App.tsx`'s `onAgentRecruited` handler: `saveAccount()`s a `ManagerAccount{role:'sub-manager', managerUsername}` into the **recruiting manager's own local device** storage (so the manager could theoretically test-login as the agent from their own browser), AND pushes a new entry into `state.subManagers[]` → dual-saved to `manager_data` via the normal save pattern.
+3. **Confirmed via live DB function inspection** (`find_sub_manager_login` source, pulled directly from Supabase): the `subManagers[]` JSONB array element **does store a plaintext `password` field** server-side, even though `types.ts`'s `SubManagerAccount` interface doesn't declare it (the recruitment payload is passed through as loosely-typed `any`, so the extra field silently persists). This is what makes the RPC work from *any* device — `find_sub_manager_login(identifier, password)` does a `SECURITY DEFINER` scan across every manager's `manager_data.subManagers[]` JSONB for a matching username/email/phone **and** matching plaintext password, returning the match with `password` stripped out of the response.
+4. **Security note** (worth flagging to Mahad, not blocking for the Android build): agent passwords are stored in plaintext inside the JSONB blob, same weak spot as `ManagerAccount` in localStorage. Not this doc's job to fix, but don't make it worse — e.g. don't log these payloads anywhere in the new app.
+
+### 10.3 Native-porting gotchas found in this folder
+- **`LiveTracking.tsx`** dynamically loads **Leaflet** (`window.L`, injected `<link>`/`<script>` tags) — this is a browser-only approach and **will not work in React Native**. Needs a full rebuild using `react-native-maps` (or `expo-maps`) for the agent-location map in the manager's Team Hub screen.
+- **`LocationTracker.tsx`** uses `navigator.geolocation.getCurrentPosition`/`watchPosition` — maps cleanly to `expo-location`'s equivalent APIs, no architecture change needed, just an API swap.
+- **`AgentPerformanceReport.tsx`** uses `recharts` + `lucide-react` (both web-only React libs) — charts need a React Native charting lib (e.g. `react-native-svg`-based charts, or reuse patterns already proven in `Wabot-Android` if it has any chart screens) and icons need `lucide-react-native` instead.
+- `SubManagerManagement.tsx`'s `React.lazy`/`Suspense` pattern doesn't apply the same way in React Native (no code-splitting the same way) — just use plain imports; RN bundle size isn't chunked per-route like a web SPA.
+
+---
+
+## 11. Next Step
+Create `Billcollector-Android` repo (Expo SDK 51 init, mirroring `Wabot-Android`'s `package.json`/`app.json`/`eas.json` shape), port `AuthContext.tsx` pattern, then build screens in this order:
+1. `LoginScreen.tsx` — §2's states one-by-one, starting with plain `login` + `signup` (defer forgot-password OTP + support-modal edge case + admin's background-reauth shortcut until the base flow works end-to-end).
+2. Role-based navigator split at the root: admin shell (6 `admin-*` screens) / manager shell (tab bar, §6 core tabs first) / agent shell (`SubManagerDashboard` + receipts, §10.1) — mirrors App.tsx's three-way branch (§3.7) exactly so there's no ambiguity about which screens a given login lands on.
+3. Manager's Team Hub (`SubManagerManagement` port) can come later in Phase 2 — it's the most complex single screen here (map + charts + lazy sub-sections) and isn't needed for a manager to do their core daily job (dashboard/customers/receipts/recoveries).
