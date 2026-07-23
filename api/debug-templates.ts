@@ -14,11 +14,27 @@ export default async function handler(req: any, res: any) {
 
   try {
     const phoneRes = await fetch(
-      `https://graph.facebook.com/v20.0/${pid}?fields=whatsapp_business_account,display_phone_number`,
+      `https://graph.facebook.com/v20.0/${pid}?fields=display_phone_number,verified_name`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     out.phoneInfo = await phoneRes.json();
-    const wabaId = out.phoneInfo?.whatsapp_business_account?.id;
+  } catch (e: any) { out.phoneInfoError = e?.message; }
+
+  try {
+    const bizRes = await fetch(
+      `https://graph.facebook.com/v20.0/me/businesses`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    out.businesses = await bizRes.json();
+    const businessId = out.businesses?.data?.[0]?.id;
+    if (businessId) {
+      const wabaListRes = await fetch(
+        `https://graph.facebook.com/v20.0/${businessId}/owned_whatsapp_business_accounts`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      out.wabaList = await wabaListRes.json();
+    }
+    const wabaId = out.wabaList?.data?.[0]?.id;
     if (wabaId) {
       const tplRes = await fetch(
         `https://graph.facebook.com/v20.0/${wabaId}/message_templates?fields=name,language,status,category&limit=100`,
