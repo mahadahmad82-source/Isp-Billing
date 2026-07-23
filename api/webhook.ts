@@ -1993,21 +1993,35 @@ export default async function handler(req: any, res: any) {
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
 
       // Meta's webhook delivery is at-least-once — it can resend the same event on
-      // retry/timeout. Without this check, a resend reprocesses the message, fires
-      // pushNotify again, and even sends a duplicate bot reply. Skip if we've
-      // already logged this exact wa_message_id.
+      // retry/timeout, and our handler can take several seconds (AI/TTS/image work),
+      // which is exactly the window Meta retries in. A SELECT-then-process check has
+      // a race: two concurrent invocations can both pass the check before either has
+      // actually logged the message — causing duplicate chat rows AND a duplicate bot
+      // reply/send. Fixed with an atomic claim: INSERT into a table with wa_message_id
+      // as PRIMARY KEY. Postgres guarantees only one concurrent request can win this;
+      // the loser gets a conflict and skips immediately, closing the race window.
       const msgId: string | undefined = msg.id;
       if (msgId) {
         try {
-          const dupRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages?wa_message_id=eq.${msgId}&select=id&limit=1`, {
-            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+          const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/webhook_processed_messages`, {
+            method: 'POST',
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({ wa_message_id: msgId }),
           });
-          const dupRows: any[] = await dupRes.json();
-          if (Array.isArray(dupRows) && dupRows.length > 0) {
+          // Deliberately NOT using resolution=ignore-duplicates/merge-duplicates — those
+          // suppress the conflict and always return 2xx, which defeats the whole point.
+          // A plain insert against the primary key gives a real 409 on duplicate, which
+          // is the atomic signal we need.
+          if (claimRes.status === 409) {
             console.log(`⏭️ duplicate webhook delivery for msg.id=${msgId}, skipping`);
             continue;
           }
-        } catch (e: any) { console.error('[dedup check]', e?.message); }
+        } catch (e: any) { console.error('[dedup claim]', e?.message); }
       }
 
       // Live push notification — fires for every inbound message, exactly like WhatsApp
