@@ -35,9 +35,9 @@ const META_TEMPLATES: Record<string, { language: string; paramLabels: string[]; 
   },
   payment_success_official: {
     language: 'en',
-    paramLabels: ['name', 'paymentAmount', 'package', 'remainingBalance', 'advancePaid', 'newExpiryDate', 'paymentMethod'],
+    paramLabels: ['name', 'paymentAmount', 'package', 'remainingBalance', 'advancePaid', 'newExpiryDate'],
     bodyTemplate:
-      '[Official] Aap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Assalam-o-Alaikum {{1}}, aap ka total payment PKR {{2}} ({{7}}) kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team MahadNet shukriya.',
+      '[Official] Asalam-o-Alaikum ap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Dear {{1}}, aap ka total payment PKR {{2}} kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team MahadNet shukriya.',
   },
 };
 
