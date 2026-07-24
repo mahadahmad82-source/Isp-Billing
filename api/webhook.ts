@@ -6,6 +6,12 @@ import * as lamejs from '@breezystack/lamejs';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
+
+// 🔒 This Meta WhatsApp number (03042773453) is strictly bound to the mahadnet
+// manager account only — customer lookups must never search/match across other
+// managers' data. When another manager needs WABot service, they get their own
+// WhatsApp Business number (Phase 5 multi-tenant routing), not this one.
+const BOUND_MANAGER_ID = 'mahadnet';
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_ayesha_bot';
 const IMG_BASE = 'https://raw.githubusercontent.com/mahadahmad82-source/Isp-Billing/main/public/whatsapp-images';
 
@@ -487,7 +493,7 @@ const normPhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
 async function findCustomer(from: string) {
   const norm = normPhone(from);
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${BOUND_MANAGER_ID}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     if (!res.ok) { console.error('[Supabase] fetch failed:', res.status); return null; }
@@ -522,7 +528,7 @@ async function findCustomerByUsernameOrName(query: string) {
   const q = query.trim().toLowerCase();
   if (!q || q.length < 3) return null;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${BOUND_MANAGER_ID}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     const rows: any[] = await res.json();
