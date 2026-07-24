@@ -923,6 +923,48 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"cat
   }
 }
 
+// Extracts structured transaction details (bank, TRX ID, amount, date/time, sender)
+// from a payment-proof screenshot via Gemini vision, so Mahad bhai can see the amount/
+// bank/TRX ID directly in the notification instead of opening every image manually.
+// Returns null on any failure — never blocks the existing notify/reply flow.
+async function extractReceiptDetails(buffer: Buffer, mimeType: string): Promise<{
+  bank: string | null; trxId: string | null; amount: string | null; dateTime: string | null; senderName: string | null;
+} | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `Yeh ek Pakistani bank/wallet (Easypaisa, JazzCash, SadaPay, NayaPay, HBL, Meezan, Bank Alfalah, UBL, MCB, NBP, etc.) ki payment/transaction receipt image hai. Ismein se yeh details nikaalo:
+
+- bank: Bank/wallet ka naam (e.g. "Easypaisa", "JazzCash", "HBL")
+- trxId: Transaction/Reference ID (receipt par jo exact string likhi hai)
+- amount: Sirf number, Rs./PKR symbol ke bagair (e.g. "1500")
+- dateTime: Receipt par jo date/time likha hai, jaisa likha hai waisa hi
+- senderName: Bhejne wale ka naam (agar likha ho)
+
+Agar koi field saaf na mile, uski value null rakho — andaza/guess mat lagao.
+
+SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"bank": "...", "trxId": "...", "amount": "...", "dateTime": "...", "senderName": "..."}`;
+    const response: any = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
+      config: { temperature: 0, maxOutputTokens: 200, responseMimeType: 'application/json' },
+    });
+    const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const parsed = JSON.parse(raw);
+    return {
+      bank: parsed?.bank || null,
+      trxId: parsed?.trxId || null,
+      amount: parsed?.amount || null,
+      dateTime: parsed?.dateTime || null,
+      senderName: parsed?.senderName || null,
+    };
+  } catch (e: any) {
+    console.error('[extractReceiptDetails]', e?.message);
+    return null;
+  }
+}
+
 // Phones that should receive THIS turn's reply as a voice note instead of text.
 // Cleared defensively at the top of every invocation, and per-message via try/finally
 // in the main handler — see voiceReplyTargets.delete(from) below.
@@ -934,10 +976,31 @@ const voiceReplyTargets = new Set<string>();
 // auto-detects language, so Urdu/Hindi speech sometimes comes back in Devanagari
 // or Urdu/Nastaliq script — that's handled by transliterateToRoman() in the caller,
 // not here, so the raw transcript stays intact for display/translation purposes.
+// Transcribes a WhatsApp voice note via Gemini 2.5 Flash's native audio understanding
+// first (noticeably more accurate on Pakistani-accented Roman Urdu/English than Whisper —
+// this is the engine Mahad bhai specifically asked to switch to). Falls back to Groq
+// Whisper automatically if Gemini has no key, errors, or returns nothing, so a single
+// provider hiccup never leaves a voice note untranscribed.
+async function transcribeWithGemini(buf: Buffer, mimeType: string): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `Yeh ek Pakistani WhatsApp customer ka voice message hai jo ek ISP (internet provider) ke support number par bheja gaya hai. Iska sirf aur sirf EXACT transcription likho — jis zaban/script mein bola gaya hai (Roman Urdu, Urdu script, English, ya mix), waisa hi likho. Tarjuma mat karo, koi tabsara/comment/prefix mat likho — sirf plain transcription text, kuch aur nahi.`;
+    const response: any = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
+      config: { temperature: 0 },
+    });
+    const out: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    return out || null;
+  } catch (e: any) { console.error('[transcribeWithGemini]', e?.message); return null; }
+}
+
 async function transcribeAudio(mediaId: string): Promise<{ transcript: string | null; mediaUrl: string | null }> {
   const waToken = process.env.WHATSAPP_TOKEN;
   const groqKey = process.env.GROQ_API_KEY;
-  if (!waToken || !groqKey || !mediaId) return { transcript: null, mediaUrl: null };
+  if (!waToken || !mediaId) return { transcript: null, mediaUrl: null };
   try {
     const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, { headers: { Authorization: `Bearer ${waToken}` } });
     if (!metaRes.ok) { console.error('[transcribeAudio meta]', metaRes.status); return { transcript: null, mediaUrl: null }; }
@@ -960,19 +1023,29 @@ async function transcribeAudio(mediaId: string): Promise<{ transcript: string | 
       else console.error('[transcribeAudio upload]', upRes.status, await upRes.text());
     } catch (e: any) { console.error('[transcribeAudio store]', e?.message); }
 
-    const form = new FormData();
-    form.append('file', new Blob([buf], { type: mimeType }), 'voice.ogg');
-    form.append('model', 'whisper-large-v3-turbo');
-    form.append('response_format', 'json');
+    // Primary: Gemini (better accuracy on Pakistani accents)
+    let transcript = await transcribeWithGemini(buf, mimeType);
 
-    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${groqKey}` },
-      body: form as any,
-    });
-    if (!groqRes.ok) { console.error('[transcribeAudio groq]', groqRes.status, await groqRes.text()); return { transcript: null, mediaUrl }; }
-    const data: any = await groqRes.json();
-    return { transcript: (data.text || '').trim() || null, mediaUrl };
+    // Fallback: Groq Whisper — only if Gemini gave nothing
+    if (!transcript && groqKey) {
+      const form = new FormData();
+      form.append('file', new Blob([buf], { type: mimeType }), 'voice.ogg');
+      form.append('model', 'whisper-large-v3-turbo');
+      form.append('response_format', 'json');
+      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${groqKey}` },
+        body: form as any,
+      });
+      if (groqRes.ok) {
+        const data: any = await groqRes.json();
+        transcript = (data.text || '').trim() || null;
+      } else {
+        console.error('[transcribeAudio groq]', groqRes.status, await groqRes.text());
+      }
+    }
+
+    return { transcript, mediaUrl };
   } catch (e: any) { console.error('[transcribeAudio]', e?.message); return { transcript: null, mediaUrl: null }; }
 }
 
@@ -1346,7 +1419,7 @@ function detectIntent(text: string): Intent {
   // Activation / recharge / renewal — checked before generic packages/pricing.
   // "activ\w*" now also catches plain "active" (e.g. "package active karwana hai"),
   // not just "activate"/"activation".
-  if (/activ\w*|recharge|chalu\s*kar|continue\s*kar(wa)?|dobara\s*chalu|package\s*(karwa|laga)|plan\s*(karwa|laga)/.test(t)) return 'recharge_request';
+  if (/activ\w*|recharge|renew\w*|chalu\s*kar|continue\s*kar(wa)?|dobara\s*chalu|package\s*(karwa|laga)|plan\s*(karwa|laga)/.test(t)) return 'recharge_request';
   if (/payment\s*(method|option|detail|info)|bank\s*(detail|account|number)|account\s*(number|detail|num|no)\b|kis\s*account|paisay?\s*(kaise|kahan|kese)|paise\s*(kaise|kahan|kese)|pay\s*(kese|kaise|kahan)|kese\s*pay|kaise\s*pay|kahan\s*pay|payment\s*kaise|easypaisa|jazzcash|nayapay|transfer|deposit\s*kahan|kahan\s*jama/.test(t)) return 'payment_how';
   // Fiber info — checked before generic "router_info"/"packages" since both regexes would otherwise catch "fiber"
   if (/^fiber$/.test(t) || /fiber\s*(connection|install|lagwa|chahiye|info|detail|charges?|home|to\s*home)/.test(t)) return 'fiber_info';
@@ -2131,9 +2204,13 @@ export default async function handler(req: any, res: any) {
           // 'payment' — only reached when the classifier is confident it's a real
           // bank/wallet transaction slip. Uncertain/failed classification now falls
           // back to 'other' above, not here.
+          const receiptDetails = media ? await extractReceiptDetails(media.buffer, media.mimeType) : null;
+          const detailsText = receiptDetails
+            ? `\n💰 Amount: ${receiptDetails.amount || 'N/A'}\n🏦 Bank: ${receiptDetails.bank || 'N/A'}\n🔖 TRX ID: ${receiptDetails.trxId || 'N/A'}\n🕒 ${receiptDetails.dateTime || 'N/A'}${receiptDetails.senderName ? `\n👤 Sender: ${receiptDetails.senderName}` : ''}`
+            : '';
           await notifyManager(managerId, rowData, {
             title: '🧾 Payment Screenshot Mila (WhatsApp)',
-            message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${mediaUrl ? `\n${mediaUrl}` : ''}`,
+            message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${detailsText}${mediaUrl ? `\n${mediaUrl}` : ''}`,
             priority: 'MEDIUM',
           });
           await sendText(from, found?.user
