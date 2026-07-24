@@ -9,6 +9,9 @@
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
+
+// 🔒 This Meta WhatsApp number (03042773453) is strictly bound to the mahadnet manager account only — it must NEVER send to other managers' customers. When another manager needs WABot service, they get their own WhatsApp Business number (Phase 5 multi-tenant routing), not this one.
+const BOUND_MANAGER_ID = 'mahadnet';
 const TEMPLATE_NAME = 'expiry_reminder_1day';
 const TEMPLATE_LANG = 'en';
 
@@ -105,6 +108,7 @@ export default async function handler(req: any, res: any) {
 
     for (const row of rows) {
       if (row.manager_id === '_bot_sessions') continue;
+      if (row.manager_id !== BOUND_MANAGER_ID) continue;
       const data = row.data || {};
       const users: any[] = data.users || [];
 
