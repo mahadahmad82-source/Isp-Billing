@@ -1435,9 +1435,13 @@ function detectIntent(text: string): Intent {
   // catch-all since "onu" would otherwise match that first.
   if (/\b(epon|xpon|gpon)\b/.test(t) && /chal|support|compatible|kya|hai\s*kya|hoga|works?|work/.test(t)) return 'router_pon_compat';
   if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
+  // Checked before the generic 'packages' catch-all below: "package khtm/khatam
+  // honay ki detail" is an expiry question, not a request for the price list —
+  // without this, the word "package" alone would win first and misroute it.
+  if (/package.{0,20}(khtm|khatam|expir)|(\bkhtm\b|\bkhatam\b).{0,20}package/.test(t)) return 'expiry';
   if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
-  if (/expir|khatam|kab\s*band|band\s*hoga|kitne\s*din|end\s*date/.test(t)) return 'expiry';
+  if (/expir|khatam|khtm|kab\s*band|band\s*hoga|kitne\s*din|end\s*date/.test(t)) return 'expiry';
 
   // Complaint — symptom described directly (e.g. "internet bhut slow") → register right away.
   if (/internet.{0,15}(nahi|band|slow|down|problem)|net.{0,12}(nahi|band|slow|down)|speed.{0,12}(slow|kam)|wifi.{0,12}(nahi|band)|kharab|chal\s*nahi|nahi\s*chal|atak\s*raha|ruk\s*ja(ta|ya)|buffer/.test(t)) return 'complaint';
@@ -2481,6 +2485,36 @@ export default async function handler(req: any, res: any) {
         if (session === 'awaiting_connection_type') {
           const connType = detectConnectionType(text);
           if (!connType) {
+            const t2 = text.toLowerCase().trim();
+
+            // Escape hatch #1: customer typed "8" / asked for the owner instead of
+            // answering Fiber/Local — route them to talk-to-owner instead of trapping
+            // them in a repeated "samajh nahi payi" loop.
+            if (/^8$/.test(t2) || /\bowner\b|\bmahad\s*bhai\b|\bmalik\b/.test(t2)) {
+              await setSession(from, 'awaiting_owner_message');
+              await sendText(from, tmpl('talk_to_owner_prompt', { owner_name: CONFIG.ownerName }));
+              continue;
+            }
+
+            // Escape hatch #2: customer sent a fresh "net down" style message instead
+            // of answering Fiber/Local (e.g. they moved on to a new complaint) —
+            // restart the complaint flow with this as the new issue instead of
+            // repeating "samajh nahi payi" forever.
+            if (/\b(net|internet|wifi)\b.{0,15}(off|band|nahi|slow|disconnect)|off\s*ho\s*gaya|band\s*ho\s*gaya/.test(t2)) {
+              let found2 = await findCustomer(from);
+              if (!found2 && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
+                found2 = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
+              }
+              if (!found2) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+              const outage2 = getActiveOutage(found2.rowData);
+              if (outage2) { await sendText(from, outageReply(outage2)); continue; }
+              const billingBlock2 = accountBillingBlockedReply(found2.user);
+              if (billingBlock2) { await sendText(from, billingBlock2); continue; }
+              await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found2.managerId, verifiedUserId: found2.user.id });
+              await sendText(from, connectionTypeQuestion());
+              continue;
+            }
+
             await sendText(from, tmpl('connection_type_not_understood'));
             continue;
           }
