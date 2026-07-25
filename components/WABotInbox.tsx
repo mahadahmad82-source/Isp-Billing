@@ -178,6 +178,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   const [allMessages, setAllMessages] = useState<WAMessage[]>([]);
+  const [conversationSummaries, setConversationSummaries] = useState<{
+    customer_phone: string;
+    last_content: string | null;
+    last_type: string;
+    last_time: string;
+    unread_count: number;
+  }[]>([]);
   const [pausedPhones, setPausedPhones] = useState<string[]>([]);
   const [contactNames, setContactNames] = useState<Record<string, string>>({});
   const [editingContactName, setEditingContactName] = useState(false);
@@ -435,6 +442,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         .limit(500);
       setAllMessages(msgs || []);
 
+      // The chat LIST must never depend on the 500-row cap above — once daily
+      // message volume passes 500 (very easy with cron reminders + bot replies),
+      // any customer who hadn't messaged very recently silently vanished from
+      // the list entirely. This RPC aggregates per-phone directly in Postgres
+      // with no row limit, so every conversation always shows up (same fix
+      // already applied on the Android app side).
+      const { data: summaries, error: summErr } = await supabase.rpc('get_conversation_summaries', {
+        p_manager_id: managerId,
+      });
+      if (summErr) console.error('[WABotInbox] summaries fetch failed', summErr);
+      setConversationSummaries(summaries || []);
+
       const { data: cfg } = await supabase
         .from('whatsapp_configs')
         .select('paused_phones, contact_names')
@@ -458,34 +477,25 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   }, [loadOverview]);
 
   const conversations: Conversation[] = useMemo(() => {
-    const byPhone = new Map<string, WAMessage[]>();
-    for (const m of allMessages) {
-      const list = byPhone.get(m.customer_phone) || [];
-      list.push(m);
-      byPhone.set(m.customer_phone, list);
-    }
-    const list: Conversation[] = [];
-    for (const [phone, msgs] of byPhone) {
-      const sorted = [...msgs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      const last = sorted[0];
-      const unread = sorted.filter(m => m.direction === 'in' && !m.is_read).length;
+    const list: Conversation[] = conversationSummaries.map((s) => {
+      const phone = s.customer_phone;
       const cust = customerByPhone.get(phone);
-      list.push({
+      return {
         phone,
         name: contactNames[phone] || cust?.name || `+92${phone}`,
         username: cust?.username,
         userId: cust?.id,
-        lastMessage: last?.content || '',
-        lastType: last?.type || 'text',
-        lastTime: last?.created_at || '',
-        unreadCount: unread,
+        lastMessage: s.last_type === 'text' ? s.last_content || '' : s.last_type,
+        lastType: s.last_type,
+        lastTime: s.last_time || '',
+        unreadCount: s.unread_count,
         paused: pausedPhones.includes(phone),
-      });
-    }
+      };
+    });
     return list
       .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
       .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
-  }, [allMessages, customerByPhone, pausedPhones, contactNames, search]);
+  }, [conversationSummaries, customerByPhone, pausedPhones, contactNames, search]);
 
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
 
@@ -516,6 +526,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         .eq('direction', 'in')
         .eq('is_read', false);
       setAllMessages(prev => prev.map(m => (m.customer_phone === phone && m.direction === 'in' ? { ...m, is_read: true } : m)));
+      // Zero the badge in the summary-driven list immediately too, instead of
+      // waiting for the next poll — same instant-clear UX as before.
+      setConversationSummaries(prev => prev.map(s => (s.customer_phone === phone ? { ...s, unread_count: 0 } : s)));
     } catch (e) {
       console.error('[WABotInbox] openConversation', e);
     }
@@ -533,6 +546,34 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         (payload: any) => {
           const m = payload.new as WAMessage;
           setAllMessages(prev => (prev.some(x => x.id === m.id) ? prev : [m, ...prev]));
+          // Patch the summary-driven list live too, so a brand-new conversation
+          // (or a new message on an existing one) shows up / jumps to top
+          // instantly instead of waiting for the next 15s poll.
+          setConversationSummaries(prev => {
+            const idx = prev.findIndex(s => s.customer_phone === m.customer_phone);
+            const bumpUnread = m.direction === 'in' && !m.is_read ? 1 : 0;
+            if (idx === -1) {
+              return [
+                ...prev,
+                {
+                  customer_phone: m.customer_phone,
+                  last_content: m.content,
+                  last_type: m.type,
+                  last_time: m.created_at,
+                  unread_count: bumpUnread,
+                },
+              ];
+            }
+            const updated = [...prev];
+            updated[idx] = {
+              ...updated[idx],
+              last_content: m.content,
+              last_type: m.type,
+              last_time: m.created_at,
+              unread_count: updated[idx].unread_count + bumpUnread,
+            };
+            return updated;
+          });
           if (selectedPhoneRef.current === m.customer_phone) {
             setThread(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m]));
             if (m.direction === 'in' && !m.is_read) {
