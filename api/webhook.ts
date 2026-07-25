@@ -2234,14 +2234,21 @@ export default async function handler(req: any, res: any) {
       // + the full numbered option menu at least once per day, not only when they
       // explicitly type "assalam o alaikum". Their actual message still gets its
       // normal reply right after this, via the existing logic below.
-      if (!alreadyLoggedThisTurn && (await isFirstContactToday(from))) {
+      const isFirstContactTodayFlag = !alreadyLoggedThisTurn && (await isFirstContactToday(from));
+
+      // Log the customer's inbound message FIRST (before sending/logging any reply).
+      // Previously the greeting below was sent+logged before this line, which gave the
+      // greeting's 'out' row an earlier created_at than the customer's own 'in' row —
+      // that's why the bot's reply rendered above the customer's message in the Android
+      // app / Admin Inbox thread on first-contact-of-the-day conversations.
+      if (!alreadyLoggedThisTurn) await logMessage(from, 'in', 'text', text);
+
+      if (isFirstContactTodayFlag) {
         try {
           const foundForGreeting = await findCustomer(from);
           await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, foundForGreeting?.rowData?.settings?.ayeshaBotName));
         } catch (e: any) { console.error('[daily greeting]', e?.message); }
       }
-
-      if (!alreadyLoggedThisTurn) await logMessage(from, 'in', 'text', text);
 
       // ── Batch rapid-fire fragments (see debounceAndCombineFragments above) so the
       // bot understands the WHOLE thought before replying, instead of reacting to each
@@ -2832,3 +2839,4 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
 
   return res.status(200).json({ status: 'ok' });
 }
+
