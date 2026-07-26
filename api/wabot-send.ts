@@ -48,36 +48,6 @@ function renderTemplateBody(bodyTemplate: string, params: string[]): string {
 type SendType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'template';
 
 export default async function handler(req: any, res: any) {
-  // TEMP diagnostic — will be removed right after use
-  if (req.method === 'GET' && req.query?.debugTemplates === '1') {
-    const token = process.env.WHATSAPP_TOKEN;
-    const pid = process.env.PHONE_NUMBER_ID;
-    const out: any = {};
-    try {
-      const meRes = await fetch(`https://graph.facebook.com/v20.0/me?fields=id,name`, { headers: { Authorization: `Bearer ${token}` } });
-      out.me = await meRes.json();
-    } catch (e: any) { out.meErr = e?.message; }
-    try {
-      const rawRes = await fetch(`https://graph.facebook.com/v20.0/996994173116575?fields=id,name`, { headers: { Authorization: `Bearer ${token}` } });
-      out.rawIdCheck = await rawRes.json();
-    } catch (e: any) { out.rawIdErr = e?.message; }
-    try {
-      const tRes = await fetch(
-        `https://graph.facebook.com/v20.0/996994173116575/message_templates?fields=name,status,language,components&limit=50`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      out.templatesViaMemoryId = await tRes.json();
-    } catch (e: any) { out.templatesErr = e?.message; }
-    try {
-      const bRes = await fetch(`https://graph.facebook.com/v20.0/122110246335391192/owned_whatsapp_business_accounts`, { headers: { Authorization: `Bearer ${token}` } });
-      out.ownedViaUserId = await bRes.json();
-    } catch (e: any) { out.ownedViaUserIdErr = e?.message; }
-    try {
-      const bRes2 = await fetch(`https://graph.facebook.com/v20.0/122110246335391192?fields=id,name`, { headers: { Authorization: `Bearer ${token}` } });
-      out.userIdNode = await bRes2.json();
-    } catch (e: any) { out.userIdNodeErr = e?.message; }
-    return res.status(200).json(out);
-  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const { to, body, managerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
