@@ -758,6 +758,66 @@ function getActiveOutage(rowData: any): any | null {
   return logs.find((o: any) => !o.endTime || new Date(o.endTime).getTime() > now) || null;
 }
 
+// ── Phase 2: Quota guard + usage tracking ─────────────────────────────────────
+// checkQuota: returns true if manager has hit their monthly message limit.
+// incrementUsage: increments messages_used_this_cycle + writes to bot_usage_logs.
+// Both are fire-and-forget safe — a DB failure must never stop the bot reply.
+async function checkQuota(managerId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=messages_used_this_cycle,message_quota,service_status`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows: any[] = await res.json();
+    const cfg = rows?.[0];
+    if (!cfg) return false; // no config = not yet onboarded, let through
+    if (cfg.service_status === 'suspended' || cfg.service_status === 'cancelled') {
+      console.warn(`[quota] manager=${managerId} service_status=${cfg.service_status} — blocking`);
+      return true;
+    }
+    const over = (cfg.messages_used_this_cycle ?? 0) >= (cfg.message_quota ?? 1000);
+    if (over) console.warn(`[quota] manager=${managerId} quota hit: ${cfg.messages_used_this_cycle}/${cfg.message_quota}`);
+    return over;
+  } catch (e: any) {
+    console.error('[quota check]', e?.message);
+    return false; // fail-open: don't block bot if DB is unreachable
+  }
+}
+
+async function incrementUsage(managerId: string, messageType: 'text' | 'audio' | 'image') {
+  try {
+    // Atomic increment via Postgres RPC
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_bot_usage`, {
+      method: 'POST',
+      headers: {
+        apikey:         SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_manager_id: managerId }),
+    });
+    // Log per-type daily usage for dashboard graphs
+    const today = new Date().toISOString().split('T')[0];
+    await fetch(`${SUPABASE_URL}/rest/v1/bot_usage_logs`, {
+      method: 'POST',
+      headers: {
+        apikey:         SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer:         'return=minimal',
+      },
+      body: JSON.stringify({
+        manager_id:   managerId,
+        date:         today,
+        message_type: messageType,
+        count:        1,
+      }),
+    });
+  } catch (e: any) {
+    console.error('[incrementUsage]', e?.message);
+  }
+}
+
 // ── Message logging (Phase 1 — whatsapp_messages table, Admin Inbox foundation) ─
 // Single-tenant for now: manager_id hardcoded to 'mahadnet'. Revisit when Phase 5
 // multi-tenant routing (whatsapp_configs.phone_number_id → manager_id) is built.
@@ -1953,6 +2013,7 @@ async function sendText(to: string, body: string) {
     else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendText:', e?.message); }
   await logMessage(to, 'out', 'text', body, { waMessageId: wamid });
+  if (wamid) incrementUsage(BOUND_MANAGER_ID, 'text').catch((e: any) => console.error('[incrementUsage text]', e?.message));
 }
 
 // Complaint-ticket confirmations must always carry the ticket ID as text (so it's
@@ -1986,6 +2047,7 @@ async function sendAudio(to: string, audioUrl: string) {
     else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendAudio:', e?.message); }
   await logMessage(to, 'out', 'audio', audioUrl, { waMessageId: wamid, mediaUrl: audioUrl });
+  if (wamid) incrementUsage(BOUND_MANAGER_ID, 'audio').catch((e: any) => console.error('[incrementUsage audio]', e?.message));
 }
 
 async function sendImage(to: string, imageUrl: string, caption: string) {
@@ -2007,6 +2069,7 @@ async function sendImage(to: string, imageUrl: string, caption: string) {
     else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendImage:', e?.message); }
   await logMessage(to, 'out', 'image', imageUrl, { waMessageId: wamid, mediaUrl: imageUrl });
+  if (wamid) incrementUsage(BOUND_MANAGER_ID, 'image').catch((e: any) => console.error('[incrementUsage image]', e?.message));
 }
 
 async function sendRouterCatalog(to: string, band: '2.4g' | '5g') {
@@ -2069,6 +2132,12 @@ export default async function handler(req: any, res: any) {
     // Load admin-editable reply templates (WABot "Templates" tab) — every canned reply
     // below resolves through tmpl(key, vars), so wording changes don't need a code deploy.
     if (messages.length > 0) TEMPLATES = await getTemplates();
+
+    // Phase 2: quota guard — if monthly limit hit, skip bot replies silently
+    if (messages.length > 0 && await checkQuota(BOUND_MANAGER_ID)) {
+      console.warn(`[webhook] quota exceeded for ${BOUND_MANAGER_ID} — dropping ${messages.length} message(s)`);
+      return res.status(200).end();
+    }
 
     for (const msg of messages) {
       const from: string = msg.from;
