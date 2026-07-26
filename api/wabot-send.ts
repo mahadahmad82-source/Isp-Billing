@@ -48,6 +48,21 @@ function renderTemplateBody(bodyTemplate: string, params: string[]): string {
 type SendType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'template';
 
 export default async function handler(req: any, res: any) {
+  // TEMP diagnostic — will be removed right after use
+  if (req.method === 'GET' && req.query?.debugTemplates === '1') {
+    const token = process.env.WHATSAPP_TOKEN;
+    const wabaId = '996994173116575';
+    try {
+      const r = await fetch(
+        `https://graph.facebook.com/v20.0/${wabaId}/message_templates?fields=name,status,language,components&limit=50`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const d = await r.json();
+      return res.status(200).json(d);
+    } catch (e: any) {
+      return res.status(500).json({ error: e?.message });
+    }
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const { to, body, managerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
