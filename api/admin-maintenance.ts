@@ -6,7 +6,11 @@
 //   GET  /api/admin-maintenance?action=reset-quota   → daily cron: reset expired billing cycles
 //   GET  /api/admin-maintenance?action=token-health  → daily cron: verify all stored tokens with Meta
 //
-// All actions require Authorization: Bearer <CRON_SECRET>.
+// Auth:
+//  - reset-quota / token-health: server-to-server only → Authorization: Bearer <CRON_SECRET>
+//  - add-token: called from the browser (Admin Panel) → Authorization: Bearer <Supabase user access_token>,
+//    verified against Supabase Auth + profiles.role === 'admin'. CRON_SECRET is NEVER shipped to the
+//    frontend bundle, so this action cannot use the CRON_SECRET path.
 
 import { encryptToken, decryptToken } from '../lib/whatsappCrypto';
 
@@ -21,13 +25,21 @@ const QUOTA_MAP: Record<string, number> = {
 };
 
 export default async function handler(req: any, res: any) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers['authorization'] || '';
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   const action = req.query?.action;
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+
+  if (action === 'add-token') {
+    // Frontend path: verify Supabase session belongs to an admin
+    const isAdmin = await verifyAdminSession(token);
+    if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
+  } else {
+    // Cron path: server-to-server secret only
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
 
   switch (action) {
     case 'add-token':
@@ -40,6 +52,31 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Unknown or missing ?action=. Use add-token | reset-quota | token-health' });
   }
 }
+
+async function verifyAdminSession(accessToken: string): Promise<boolean> {
+  if (!accessToken) return false;
+  try {
+    // 1. Resolve the user from their Supabase access token
+    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
+    });
+    if (!userRes.ok) return false;
+    const user = await userRes.json();
+    if (!user?.id) return false;
+
+    // 2. Check profiles.role === 'admin' for that user (service role bypasses RLS)
+    const profileRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=role`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows: any[] = await profileRes.json();
+    return rows?.[0]?.role === 'admin';
+  } catch (e: any) {
+    console.error('[verifyAdminSession]', e?.message);
+    return false;
+  }
+}
+
 
 // ── Action: add-token ──────────────────────────────────────────────────────
 // Receive an ISP manager's Meta token → test connection → encrypt → upsert whatsapp_configs
