@@ -72,6 +72,14 @@
     {
       "path": "/api/cron-cleanup-receipt-images",
       "schedule": "0 20 * * 0"
+    },
+    {
+      "path": "/api/cron-monthly-quota-reset",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron-token-health-check",
+      "schedule": "0 3 * * *"
     }
   ]
 }
