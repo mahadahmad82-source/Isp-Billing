@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
+import WABotAdminClients from './WABotAdminClients';
 import {
   Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle,
   Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key,
@@ -986,6 +987,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
             </div>
           )}
         </div>
+      )}
+
+      {/* ══════════ WABOT SAAS (Ayesha clients) ══════════ */}
+      {tab === 'wabot-saas' && (
+        <WABotAdminClients managers={managers.map(m => ({ username: m.username, business_name: m.business_name }))} />
       )}
 
       {/* ══════════ RESET PASSWORD MODAL ══════════ */}
