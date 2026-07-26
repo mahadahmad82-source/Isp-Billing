@@ -53,15 +53,20 @@ export default async function handler(req: any, res: any) {
     const token = process.env.WHATSAPP_TOKEN;
     const pid = process.env.PHONE_NUMBER_ID;
     try {
-      const pidRes = await fetch(`https://graph.facebook.com/v20.0/${pid}?fields=id,verified_name,display_phone_number`, {
+      const wabaRes = await fetch(`https://graph.facebook.com/v20.0/me/whatsapp_business_accounts`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const pidData = await pidRes.json();
-      const dbgRes = await fetch(`https://graph.facebook.com/v20.0/debug_token?input_token=${token}&access_token=${token}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const dbgData = await dbgRes.json();
-      return res.status(200).json({ pidLookup: pidData, tokenDebug: dbgData });
+      const wabaData = await wabaRes.json();
+      const wabaId = wabaData?.data?.[0]?.id;
+      let templates: any = null;
+      if (wabaId) {
+        const tRes = await fetch(
+          `https://graph.facebook.com/v20.0/${wabaId}/message_templates?fields=name,status,language,components&limit=50`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        templates = await tRes.json();
+      }
+      return res.status(200).json({ wabaLookup: wabaData, templates });
     } catch (e: any) {
       return res.status(500).json({ error: e?.message });
     }
