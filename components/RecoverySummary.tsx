@@ -74,24 +74,18 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
   const [viewingLedgerUser, setViewingLedgerUser] = useState<UserRecord | null>(null);
-  // Ayesha bot — Phase 2: Credit/Advance Recovery tracking
-  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
-  const [recoverySearch, setRecoverySearch] = useState('');
-  const [recoveryForm, setRecoveryForm] = useState<{ userId: string; amount: number; date: string }>({
-    userId: '', amount: 0, date: new Date().toISOString().slice(0, 10)
-  });
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Recovery Ledger — column visibility (hide/unhide), persisted per device
-  type LedgerColumnKey = 'serialNo' | 'username' | 'name' | 'status' | 'paidAmount' | 'advanceAmount' | 'balance' | 'expiryDate' | 'actions' | 'date' | 'ref';
+  type LedgerColumnKey = 'serialNo' | 'username' | 'name' | 'status' | 'paidAmount' | 'advanceAmount' | 'balance' | 'expiryDate' | 'metaReminder' | 'actions' | 'date' | 'ref';
   const LEDGER_COLUMN_LABELS: Record<LedgerColumnKey, string> = {
     serialNo: 'Sr.#', username: 'Sub ID', name: 'Subscriber', status: 'Status',
     paidAmount: 'Paid Amount', advanceAmount: 'Advance Amount', balance: 'Balance Amount',
-    expiryDate: 'Expiry Date', actions: 'Actions', date: 'Payment Date', ref: 'Reference'
+    expiryDate: 'Expiry Date', metaReminder: 'Meta Reminder', actions: 'Actions', date: 'Payment Date', ref: 'Reference'
   };
   const DEFAULT_LEDGER_COLUMNS: Record<LedgerColumnKey, boolean> = {
     serialNo: true, username: true, name: true, status: true, paidAmount: true,
-    advanceAmount: true, balance: true, expiryDate: true, actions: true, date: true, ref: true
+    advanceAmount: true, balance: true, expiryDate: true, metaReminder: true, actions: true, date: true, ref: true
   };
   const [visibleColumns, setVisibleColumns] = useState<Record<LedgerColumnKey, boolean>>(() => {
     try {
@@ -156,17 +150,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const deferredReceipts = useDeferredValue(receipts);
 
   // Group receipts by month for the main list and ALWAYS include the current month
-  // Ayesha bot — Phase 2: customers currently flagged for credit/advance recovery
-  const pendingRecoveries = useMemo(
-    () => deferredUsers.filter(u => u && u.status !== 'deleted' && u.creditRecharge),
-    [deferredUsers]
-  );
-
   // Send the Meta-approved "Recharge — Pending Payment" template — works even outside
-  // the 24h WhatsApp session window (unlike a plain text reminder), for both the
-  // per-row "Send Reminder" button and the "Send to All" bulk action below.
+  // the 24h WhatsApp session window (unlike a plain text reminder). Triggered directly
+  // from the Recovery Ledger row's "Meta Reminder" column for pending users — no separate
+  // search/add/mark step needed. Button auto-hides once the row shows hasPaid = true.
   const [sendingRecoveryId, setSendingRecoveryId] = useState<string | null>(null);
-  const [bulkRecoverySending, setBulkRecoverySending] = useState(false);
 
   const normalizePhoneForWa = (phone: string): string => {
     const digits = (phone || '').replace(/\D/g, '');
@@ -184,7 +172,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
           managerId,
           type: 'template',
           templateName: 'recharge_pending_payment',
-          templateParams: [u.name || '', String(u.creditAmount || 0), String(u.balance || u.creditAmount || 0), u.plan || ''],
+          templateParams: [u.name || '', String(u.balance || u.creditAmount || 0), String(u.balance || u.creditAmount || 0), u.plan || ''],
         }),
       });
       return res.ok;
@@ -198,16 +186,6 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     setSendingRecoveryId(u.id);
     await sendPendingAmountTemplate(u);
     setSendingRecoveryId(null);
-  };
-
-  const handleSendPendingAmountAll = async () => {
-    if (bulkRecoverySending || pendingRecoveries.length === 0) return;
-    setBulkRecoverySending(true);
-    for (const u of pendingRecoveries) {
-      await sendPendingAmountTemplate(u);
-      await new Promise(r => setTimeout(r, 400)); // small gap so we don't hammer Meta's API
-    }
-    setBulkRecoverySending(false);
   };
 
   const monthlyData = useMemo(() => {
@@ -941,69 +919,6 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             </div>
           </div>
 
-          {/* Ayesha bot — Phase 2: Credit / Advance Recovery */}
-          <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-white/5 p-8">
-            <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-              <div>
-                <h3 className="text-xl font-black text-black dark:text-white uppercase tracking-tight flex items-center gap-2">
-                  🟡 Credit / Advance Recovery
-                </h3>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">Ayesha auto-reminds every 2 days, capped at 6</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSendPendingAmountAll}
-                  disabled={bulkRecoverySending || pendingRecoveries.length === 0}
-                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-40"
-                >
-                  {bulkRecoverySending ? 'Sending...' : '📤 Send Reminder to All'}
-                </button>
-                <button
-                  onClick={() => { setRecoveryForm({ userId: '', amount: 0, date: new Date().toISOString().slice(0, 10) }); setRecoverySearch(''); setShowRecoveryModal(true); }}
-                  className="px-6 py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
-                >
-                  + Mark Recovery
-                </button>
-              </div>
-            </div>
-
-            {pendingRecoveries.length === 0 ? (
-              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-6">Koi pending credit recovery nahi hai.</p>
-            ) : (
-              <div className="space-y-3">
-                {pendingRecoveries.map(u => {
-                  const days = u.creditDate ? Math.max(0, Math.floor((Date.now() - new Date(u.creditDate).getTime()) / 86400000)) : 0;
-                  const reminderCount = u.creditReminderCount || 0;
-                  const capped = reminderCount >= 6;
-                  return (
-                    <div key={u.id} className={`flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl border ${capped ? 'border-rose-200 dark:border-rose-500/20 bg-rose-50/50 dark:bg-rose-500/5' : 'border-amber-200 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-500/5'}`}>
-                      <div>
-                        <p className="font-black text-slate-900 dark:text-white">{u.name} <span className="text-xs text-slate-400 font-bold">@{u.username}</span></p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">{u.phone} • {days} din se pending • {reminderCount}/6 reminders{capped ? ' — manual follow-up zaroori' : ''}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-lg font-black text-amber-600 dark:text-amber-500">Rs. {(u.creditAmount || 0).toLocaleString()}</span>
-                        <button
-                          onClick={() => handleSendPendingAmountOne(u)}
-                          disabled={sendingRecoveryId === u.id}
-                          className="px-4 py-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-40"
-                        >
-                          {sendingRecoveryId === u.id ? 'Sending...' : '📤 Send Reminder'}
-                        </button>
-                        <button
-                          onClick={() => onUpdateUser?.({ ...u, creditRecharge: false, creditAmount: undefined, creditDate: undefined, creditLastReminderSent: undefined, creditReminderCount: 0 })}
-                          className="px-4 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                        >
-                          Mark Recovered
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {monthlyData.map((summary) => (
             <div 
               key={summary.period} 
@@ -1178,6 +1093,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     Expiry Date {sortConfig?.key === 'expiryDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
                   )}
+                  {visibleColumns.metaReminder && (
+                  <th className="px-8 py-5">Meta Reminder</th>
+                  )}
                   {visibleColumns.actions && (
                   <th className="px-8 py-5">Actions</th>
                   )}
@@ -1237,6 +1155,21 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     {visibleColumns.expiryDate && (
                     <td className="px-8 py-5">
                        <span className="text-xs font-black text-orange-600 dark:text-orange-400">{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '-'}</span>
+                    </td>
+                    )}
+                    {visibleColumns.metaReminder && (
+                    <td className="px-8 py-5">
+                      {!item.hasPaid ? (
+                        <button
+                          onClick={() => handleSendPendingAmountOne(item as any)}
+                          disabled={sendingRecoveryId === item.id}
+                          className="px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-amber-500/20 transition-all disabled:opacity-40 whitespace-nowrap"
+                        >
+                          {sendingRecoveryId === item.id ? 'Sending...' : '📤 Meta Reminder'}
+                        </button>
+                      ) : (
+                        <span className="text-xs font-black text-slate-300 dark:text-slate-700">—</span>
+                      )}
                     </td>
                     )}
                     {visibleColumns.actions && (
@@ -1587,78 +1520,6 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         </div>
       )}
 
-      {showRecoveryModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowRecoveryModal(false)}></div>
-          <div className="bg-white dark:bg-[#0f172a] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 p-8 space-y-6">
-            <h4 className="text-xl font-black text-black dark:text-white uppercase tracking-tight">Mark Credit Recovery</h4>
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">CUSTOMER</label>
-              <input
-                placeholder="Search by name or username..."
-                value={recoverySearch}
-                onChange={e => { setRecoverySearch(e.target.value); setRecoveryForm(p => ({ ...p, userId: '' })); }}
-                className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white"
-              />
-              {recoverySearch && !recoveryForm.userId && (
-                <div className="max-h-40 overflow-y-auto space-y-1 border border-slate-100 dark:border-white/5 rounded-2xl p-2">
-                  {users
-                    .filter(u => u.status !== 'deleted' && (u.name?.toLowerCase().includes(recoverySearch.toLowerCase()) || u.username?.toLowerCase().includes(recoverySearch.toLowerCase())))
-                    .slice(0, 8)
-                    .map(u => (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => { setRecoveryForm(p => ({ ...p, userId: u.id })); setRecoverySearch(`${u.name} (@${u.username})`); }}
-                        className="w-full text-left p-3 rounded-xl text-sm font-bold hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 transition-all"
-                      >
-                        {u.name} <span className="opacity-60">@{u.username}</span>
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">AMOUNT (RS.)</label>
-                <input
-                  type="number"
-                  value={recoveryForm.amount}
-                  onChange={e => setRecoveryForm(p => ({ ...p, amount: Number(e.target.value) }))}
-                  className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">DATE</label>
-                <input
-                  type="date"
-                  value={recoveryForm.date}
-                  onChange={e => setRecoveryForm(p => ({ ...p, date: e.target.value }))}
-                  className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                disabled={!recoveryForm.userId}
-                onClick={() => {
-                  const u = users.find(x => x.id === recoveryForm.userId);
-                  if (!u) return;
-                  onUpdateUser?.({ ...u, creditRecharge: true, creditAmount: recoveryForm.amount, creditDate: recoveryForm.date, creditReminderCount: 0, creditLastReminderSent: undefined });
-                  setShowRecoveryModal(false);
-                }}
-                className="flex-1 bg-amber-500 disabled:opacity-40 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all"
-              >
-                SAVE
-              </button>
-              <button type="button" onClick={() => setShowRecoveryModal(false)} className="px-8 bg-slate-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all">
-                CANCEL
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {quickReceiptUser && (
         <div className="fixed inset-0 z-[700] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={() => { setQuickReceiptUser(null); setQuickReceiptPreSelectConsumed(false); }}></div>
