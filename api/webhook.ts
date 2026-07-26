@@ -809,7 +809,7 @@ async function incrementUsage(managerId: string, messageType: 'text' | 'audio' |
       body: JSON.stringify({
         manager_id:   managerId,
         date:         today,
-        message_type: messageType,
+        message_type: 'service', // Meta conversation category — all bot replies are within-24h "service" category
         count:        1,
       }),
     });
