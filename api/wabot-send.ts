@@ -53,7 +53,7 @@ export default async function handler(req: any, res: any) {
     const token = process.env.WHATSAPP_TOKEN;
     const pid = process.env.PHONE_NUMBER_ID;
     try {
-      const wabaRes = await fetch(`https://graph.facebook.com/v20.0/me/whatsapp_business_accounts`, {
+      const wabaRes = await fetch(`https://graph.facebook.com/v20.0/1046144497911368/whatsapp_business_accounts`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const wabaData = await wabaRes.json();
