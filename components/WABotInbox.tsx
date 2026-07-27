@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate } from '../types';
+import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
 import * as lamejs from '@breezystack/lamejs';
@@ -69,7 +69,26 @@ interface WABotInboxProps {
   onUpdateRouterCatalog?: (catalog: RouterCatalog) => void;
   botTemplates?: Record<string, BotTemplate>;
   onUpdateBotTemplates?: (templates: Record<string, BotTemplate>) => void;
+  ttsVoice?: string;
+  onUpdateTtsVoice?: (voice: string) => void;
+  wabotAgents?: WABotAgent[];
+  onUpdateWabotAgents?: (agents: WABotAgent[]) => void;
 }
+
+// All 30 Gemini TTS prebuilt voices, with their official one-word style descriptor —
+// shown in the picker so mahadnet can choose by vibe, not just by name.
+const GEMINI_VOICES: { name: string; style: string }[] = [
+  { name: 'Zephyr', style: 'Bright' }, { name: 'Puck', style: 'Upbeat' }, { name: 'Charon', style: 'Informative' },
+  { name: 'Kore', style: 'Firm' }, { name: 'Fenrir', style: 'Excitable' }, { name: 'Leda', style: 'Youthful' },
+  { name: 'Orus', style: 'Firm' }, { name: 'Aoede', style: 'Breezy' }, { name: 'Callirrhoe', style: 'Easy-going' },
+  { name: 'Autonoe', style: 'Bright' }, { name: 'Enceladus', style: 'Breathy' }, { name: 'Iapetus', style: 'Clear' },
+  { name: 'Umbriel', style: 'Easy-going' }, { name: 'Algieba', style: 'Smooth' }, { name: 'Despina', style: 'Smooth' },
+  { name: 'Erinome', style: 'Clear' }, { name: 'Algenib', style: 'Gravelly' }, { name: 'Rasalgethi', style: 'Informative' },
+  { name: 'Laomedeia', style: 'Upbeat' }, { name: 'Achernar', style: 'Soft' }, { name: 'Alnilam', style: 'Firm' },
+  { name: 'Schedar', style: 'Even' }, { name: 'Gacrux', style: 'Mature' }, { name: 'Pulcherrima', style: 'Forward' },
+  { name: 'Achird', style: 'Friendly' }, { name: 'Zubenelgenubi', style: 'Casual' }, { name: 'Vindemiatrix', style: 'Gentle' },
+  { name: 'Sadachbia', style: 'Lively' }, { name: 'Sadaltager', style: 'Knowledgeable' }, { name: 'Sulafat', style: 'Warm' },
+];
 
 const POLL_MS = 15000;
 
@@ -153,7 +172,7 @@ function DeliveryTicks({ status }: { status: string }) {
   );
 }
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents }) => {
   // WABot has its own theme, independent of the manager dashboard's dark/light
   // toggle, saved separately so it's remembered across visits. Defaults to
   // light (matching the brand look), but the eye-comfort toggle below lets it
@@ -219,7 +238,73 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
   // ── Training (Confused Replies) tab state ──
-  const [view, setView] = useState<'inbox' | 'training' | 'catalog' | 'templates'>('inbox');
+  const [view, setView] = useState<'inbox' | 'training' | 'catalog' | 'templates' | 'agents'>('inbox');
+
+  // ── Agents & Voice tab state ──
+  const [selectedVoice, setSelectedVoice] = useState<string>(ttsVoice || 'Kore');
+  useEffect(() => { setSelectedVoice(ttsVoice || 'Kore'); }, [ttsVoice]);
+  const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const agentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const [agentDraft, setAgentDraft] = useState<WABotAgent | null>(null);
+
+  const playVoicePreview = async (voice: string, sampleText?: string) => {
+    setPreviewingVoice(voice);
+    setPreviewError(null);
+    try {
+      const resp = await fetch('/api/wabot-tts-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice, sampleText }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.url) throw new Error(data.error || 'Preview failed');
+      if (agentAudioRef.current) { agentAudioRef.current.pause(); }
+      const audio = new Audio(data.url);
+      agentAudioRef.current = audio;
+      await audio.play();
+    } catch (e: any) {
+      setPreviewError(e?.message || 'Preview generate nahi ho saka. Dobara koshish karein.');
+    } finally {
+      setPreviewingVoice(null);
+    }
+  };
+
+  const saveDefaultVoice = (voice: string) => {
+    setSelectedVoice(voice);
+    onUpdateTtsVoice?.(voice);
+  };
+
+  const startNewAgent = () => {
+    const draft: WABotAgent = { id: `agent-${Date.now()}`, name: '', scope: '', keywords: [], voice: 'Kore', active: true };
+    setAgentDraft(draft);
+    setEditingAgentId(draft.id);
+  };
+
+  const editAgent = (agent: WABotAgent) => {
+    setAgentDraft({ ...agent });
+    setEditingAgentId(agent.id);
+  };
+
+  const saveAgentDraft = () => {
+    if (!agentDraft || !agentDraft.name.trim()) return;
+    const list = wabotAgents || [];
+    const exists = list.some(a => a.id === agentDraft.id);
+    const updated = exists ? list.map(a => a.id === agentDraft.id ? agentDraft : a) : [...list, agentDraft];
+    onUpdateWabotAgents?.(updated);
+    setEditingAgentId(null);
+    setAgentDraft(null);
+  };
+
+  const deleteAgent = (id: string) => {
+    onUpdateWabotAgents?.((wabotAgents || []).filter(a => a.id !== id));
+    if (editingAgentId === id) { setEditingAgentId(null); setAgentDraft(null); }
+  };
+
+  const toggleAgentActive = (id: string) => {
+    onUpdateWabotAgents?.((wabotAgents || []).map(a => a.id === id ? { ...a, active: !a.active } : a));
+  };
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -914,6 +999,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         </button>
 
         <button
+          onClick={() => setView('agents')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'agents' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#0f172a] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+          Agents &amp; Voice
+        </button>
+
+        <button
           onClick={toggleWabotTheme}
           title={wabotDark ? 'Light mode' : 'Dark mode (eye comfort)'}
           className="ml-auto w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#0f172a] text-slate-500 dark:text-amber-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
@@ -1216,6 +1309,208 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               </div>
             </div>
           )}
+        </div>
+      ) : view === 'agents' ? (
+        <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-y-auto p-6">
+          {/* ── Default Voice ── */}
+          <div className="mb-8">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Default Voice</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1 mb-4">Ye voice use hogi jab koi specific agent match na ho. Har voice sun kar pick karein.</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <select
+                value={selectedVoice}
+                onChange={e => saveDefaultVoice(e.target.value)}
+                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+              >
+                {GEMINI_VOICES.map(v => (
+                  <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => playVoicePreview(selectedVoice)}
+                disabled={previewingVoice === selectedVoice}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                {previewingVoice === selectedVoice ? 'Loading...' : 'Preview'}
+              </button>
+            </div>
+            {previewError && <p className="text-[11px] text-rose-400 font-bold">{previewError}</p>}
+          </div>
+
+          {/* ── Support Agents ── */}
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Support Agents</h3>
+              <p className="text-xs text-slate-400 font-bold mt-1">2-3 alag agents bana sakte hain (jese Ayesha=billing, Bilal=technical). Customer ke message mein keyword match ho to wo agent apna naam, scope aur voice ke sath jawab deta hai — koi match na ho to Default Voice/Bot Name use hota hai.</p>
+            </div>
+            <button
+              onClick={startNewAgent}
+              className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              + New Agent
+            </button>
+          </div>
+
+          {(!wabotAgents || wabotAgents.length === 0) && editingAgentId === null && (
+            <p className="text-xs text-slate-400 font-bold py-4">Abhi koi extra agent nahi bana — sirf Default Voice wali single persona active hai. "+ New Agent" se pehla specialized agent banayein.</p>
+          )}
+
+          <div className="space-y-3">
+            {(wabotAgents || []).map(agent => (
+              <div key={agent.id} className="rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-4">
+                {editingAgentId === agent.id && agentDraft ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Agent Name</label>
+                      <input
+                        value={agentDraft.name}
+                        onChange={e => setAgentDraft(d => d ? { ...d, name: e.target.value } : d)}
+                        placeholder="e.g. Bilal"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Specialization Scope</label>
+                      <textarea
+                        rows={3}
+                        value={agentDraft.scope}
+                        onChange={e => setAgentDraft(d => d ? { ...d, scope: e.target.value } : d)}
+                        placeholder="e.g. Sirf technical/connection issues (net slow, router, disconnect) handle karta hai — billing/payment ka jawab nahi deta"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Routing Keywords (comma se separate)</label>
+                      <input
+                        value={agentDraft.keywords.join(', ')}
+                        onChange={e => setAgentDraft(d => d ? { ...d, keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) } : d)}
+                        placeholder="e.g. net nahi chal raha, router, slow, disconnect"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Voice</label>
+                      <div className="flex gap-2">
+                        <select
+                          value={agentDraft.voice}
+                          onChange={e => setAgentDraft(d => d ? { ...d, voice: e.target.value } : d)}
+                          className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                        >
+                          {GEMINI_VOICES.map(v => (
+                            <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => playVoicePreview(agentDraft.voice)}
+                          disabled={previewingVoice === agentDraft.voice}
+                          className="flex-shrink-0 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          {previewingVoice === agentDraft.voice ? '...' : 'Preview'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={saveAgentDraft} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
+                      <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <button onClick={() => editAgent(agent)} className="min-w-0 text-left flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-black text-slate-900 dark:text-white">{agent.name}</span>
+                        <span className="text-[9px] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.voice}</span>
+                        {!agent.active && (
+                          <span className="text-[9px] bg-slate-500/10 text-slate-400 border border-slate-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Paused</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 font-semibold truncate">{agent.scope || 'Koi scope description nahi'}</p>
+                      {agent.keywords.length > 0 && (
+                        <p className="text-[10px] text-slate-400 font-bold mt-1 truncate">Keywords: {agent.keywords.join(', ')}</p>
+                      )}
+                    </button>
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      <button
+                        onClick={() => toggleAgentActive(agent.id)}
+                        className="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-lg font-black text-[10px] uppercase tracking-widest"
+                      >
+                        {agent.active ? 'Pause' : 'Resume'}
+                      </button>
+                      <button
+                        onClick={() => deleteAgent(agent.id)}
+                        className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg font-black text-[10px] uppercase tracking-widest"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {editingAgentId && agentDraft && !(wabotAgents || []).some(a => a.id === editingAgentId) && (
+              <div className="rounded-2xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-500/[0.03] p-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Agent Name</label>
+                    <input
+                      value={agentDraft.name}
+                      onChange={e => setAgentDraft(d => d ? { ...d, name: e.target.value } : d)}
+                      placeholder="e.g. Bilal"
+                      className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Specialization Scope</label>
+                    <textarea
+                      rows={3}
+                      value={agentDraft.scope}
+                      onChange={e => setAgentDraft(d => d ? { ...d, scope: e.target.value } : d)}
+                      placeholder="e.g. Sirf technical/connection issues (net slow, router, disconnect) handle karta hai — billing/payment ka jawab nahi deta"
+                      className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Routing Keywords (comma se separate)</label>
+                    <input
+                      value={agentDraft.keywords.join(', ')}
+                      onChange={e => setAgentDraft(d => d ? { ...d, keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) } : d)}
+                      placeholder="e.g. net nahi chal raha, router, slow, disconnect"
+                      className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Voice</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={agentDraft.voice}
+                        onChange={e => setAgentDraft(d => d ? { ...d, voice: e.target.value } : d)}
+                        className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                      >
+                        {GEMINI_VOICES.map(v => (
+                          <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => playVoicePreview(agentDraft.voice)}
+                        disabled={previewingVoice === agentDraft.voice}
+                        className="flex-shrink-0 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                        {previewingVoice === agentDraft.voice ? '...' : 'Preview'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={saveAgentDraft} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
+                    <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
     <div className="flex flex-1 gap-4 min-h-0">
