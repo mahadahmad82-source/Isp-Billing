@@ -54,6 +54,33 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       setViewMode('create');
     }
   }, [hideHistory, viewMode]);
+
+  useEffect(() => {
+    const mgr = managerId || 'mahadnet';
+    // mahadnet = platform owner's own connected Meta WhatsApp Business number.
+    // Everyone else needs an active row in whatsapp_configs (WABot SaaS onboarding)
+    // before they can send real Meta templates from here.
+    if (mgr === 'mahadnet') {
+      setWabotSubscribed(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('whatsapp_configs')
+          .select('service_status')
+          .eq('manager_id', mgr)
+          .single();
+        if (!cancelled) {
+          setWabotSubscribed(data?.service_status === 'active' || data?.service_status === 'trial');
+        }
+      } catch {
+        if (!cancelled) setWabotSubscribed(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [managerId]);
   const [agentId, setAgentId] = useState<string | undefined>(defaultCollectedBy);
 
   const getAgentDisplay = useCallback((collectedByValue: string, alignClass: string = 'items-end') => {
@@ -103,6 +130,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isSendingToWABot, setIsSendingToWABot] = useState(false);
+  // Right now only the platform owner's own connected Meta WhatsApp Business number can
+  // actually send templates (per-manager WABA routing is a later phase, not live yet).
+  // Other managers see an upsell banner instead of a silent/confusing failed send.
+  const [wabotSubscribed, setWabotSubscribed] = useState(false);
+  const [showWabotUpsell, setShowWabotUpsell] = useState(false);
   const [autoSendStatus, setAutoSendStatus] = useState<'sending' | 'sent' | 'failed' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [shareMessage, setShareMessage] = useState('');
@@ -426,6 +458,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // a plain image/caption message), and needs no manual template picking/typing.
   const autoSendPaymentTemplate = async (receipt: Receipt, custUser: UserRecord) => {
     if (!custUser?.phone) return;
+    if (!wabotSubscribed) return;
     try {
       const newExpiry = receipt.expiryDate ? new Date(receipt.expiryDate) : null;
       const newExpiryFormatted = newExpiry && !isNaN(newExpiry.getTime())
@@ -769,6 +802,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
   const handleSendReceiptToWABot = async () => {
     if (!activeReceipt) return;
+    if (!wabotSubscribed) {
+      setShowWabotUpsell(true);
+      return;
+    }
     setIsSendingToWABot(true);
     setLoadingMessage('🤖 Sending Payment Confirmation Template...');
 
@@ -1796,6 +1833,25 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           )}
         </div>
       </div>
+
+      {showWabotUpsell && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowWabotUpsell(false)}>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">WhatsApp Bot Subscription Required</h3>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+                Meta-approved WhatsApp payment templates bhejne ke liye WhatsApp Bot add-on subscription chahiye. Activate karwane ke liye apne admin se raabta karein.
+              </p>
+              <button onClick={() => setShowWabotUpsell(false)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">
+                Samajh Gaya
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
