@@ -1931,7 +1931,7 @@ DISCOUNT AWARENESS — ZAROORI: Agar CUSTOMER INFO mein "Special Discount" menti
 PAYMENT & COLLECTION GUIDANCE:
 - Agar customer bole ke abhi payment nahi kar sakta / thodi dair mein karega: usay assure karo ke Mahad bhai ko inform kar diya jayega, jab convenient ho payment kar dein, koi pressure nahi.
 - Agar customer bole ke online/bank/easypaisa se payment nahi ho sakti: usay batao ke hamara "recovery boy" ghar aa kar cash collect kar sakta hai — uska *username* aur *address* maango taake visit arrange ho sake.
-- Agar koi seedha "account number" ya "bank details" maange: foran bank account details share karo, ghuma phira kar baat mat karo ya "zarooratmand details" jese vague jawab mat do.
+- BANK/ACCOUNT DETAILS — SAKHT MANAHI: Tumhe koi bhi bank account number, IBAN, ya payment/wallet detail KABHI apne pas se nahi likhna — na yaad se, na andaza laga kar. Yeh CUSTOMER INFO mein diya hi nahi jata is liye tumhare pas asal number hai hi nahi. Agar koi "account number" ya "bank details" maange, to sirf itna kaho ke abhi verified payment details bhej rahi hoon, aur customer ko "3" likhne ko kaho — asal numbers automatically alag se fixed message mein chale jayenge. Kabhi khud koi digit ya account title mat likho.
 - Naya connection ke liye installation hamesha *FREE* hai — sirf monthly package ki payment honi hoti hai. Yeh hamesha clear batao jab koi charges ke baare mein poochay.
 
 TIMING: Kabhi "24 ghante" jaisa lamba wada mat karo — "thodi dair" ya "1-2 ghante mein" kaho.
@@ -2338,7 +2338,12 @@ export default async function handler(req: any, res: any) {
       // just asked its OWN numbered question (e.g. "1=Fiber, 2=Local"). That hijacked the
       // reply to an unrelated menu item instead of answering what was actually asked.
       // Now a bare digit only counts as a main-menu override when there's no active session.
-      const isOverrideCommand = intent === 'greeting' || intent === 'greeting_personal_chat' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || intent === 'marketing_optout' || (!session && /^[1-8]$/.test(text.trim()));
+      // SAFETY-CRITICAL: payment_how / menu_payment (customer asking for bank/payment
+      // details) must ALWAYS override any mid-flow session and go straight to the fixed,
+      // deterministic bank_accounts template below — never fall through to a session's
+      // free-text/LLM branch, which has no grounded bank data and can hallucinate a wrong
+      // account number. Real money risk if this is ever wrong.
+      const isOverrideCommand = intent === 'greeting' || intent === 'greeting_personal_chat' || intent === 'thanks' || intent === 'bot_identity' || intent === 'employment_question' || intent === 'marketing_optout' || intent === 'payment_how' || intent === 'menu_payment' || (!session && /^[1-8]$/.test(text.trim()));
 
       if (session && !isOverrideCommand) {
         // ── Customer is choosing a specific router model from the catalog just shown ──
