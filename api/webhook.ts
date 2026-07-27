@@ -1027,6 +1027,34 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"ban
   }
 }
 
+// Per-invocation TTS voice override — set once per webhook call after the matched
+// agent (or manager's default ttsVoice setting) is known, read by textToSpeech().
+// Reset at the top of every handler invocation, same lifecycle as voiceReplyTargets.
+let currentTtsVoice: string | null = null;
+
+// Simple keyword-based agent router for multi-agent WABot (e.g. Ayesha=billing,
+// Bilal=technical). Picks the active agent whose keyword list has the most hits in
+// the customer's message. Returns null (→ default single-persona behaviour, fully
+// backward compatible) if no agents are configured or nothing matches.
+function selectAgent(agents: any[] | undefined, text: string): any | null {
+  if (!Array.isArray(agents) || agents.length === 0) return null;
+  const active = agents.filter(a => a && a.active !== false && a.name);
+  if (active.length === 0) return null;
+  const lower = text.toLowerCase();
+  let best: any = null;
+  let bestScore = 0;
+  for (const agent of active) {
+    const keywords: string[] = Array.isArray(agent.keywords) ? agent.keywords : [];
+    let score = 0;
+    for (const kw of keywords) {
+      const k = String(kw || '').trim().toLowerCase();
+      if (k && lower.includes(k)) score++;
+    }
+    if (score > bestScore) { bestScore = score; best = agent; }
+  }
+  return best;
+}
+
 // Phones that should receive THIS turn's reply as a voice note instead of text.
 // Cleared defensively at the top of every invocation, and per-message via try/finally
 // in the main handler — see voiceReplyTargets.delete(from) below.
@@ -1177,8 +1205,8 @@ Output: Assalam o alaikum, internet kaam nahi kar raha`,
 async function textToSpeech(text: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || !text) return null;
-  // Override via GEMINI_TTS_VOICE if a different prebuilt voice is picked later.
-  const voiceName = process.env.GEMINI_TTS_VOICE || 'Kore';
+  // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
+  const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Kore';
   try {
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
@@ -1887,7 +1915,7 @@ function stripRepeatedGenericCloser(reply: string, recentHistory: string): strin
   return trimmed || reply; // never send an empty message
 }
 
-async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = ''): Promise<{ onTopic: boolean; reply: string }> {
+async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = '', agentScope: string = ''): Promise<{ onTopic: boolean; reply: string }> {
   // Customer wrote in Urdu/Nastaliq script → reply in that same script (previously this was
   // always force-converted to Roman Urdu, even when the customer clearly preferred Urdu script).
   const replyInUrduScript = containsUrduScript(userMessage);
@@ -1900,7 +1928,7 @@ async function askGroq(custData: string, userMessage: string, recentHistory: str
     : `SCRIPT — BILKUL ZAROORI: Customer ka message kisi bhi script mein ho (Roman/Latin letters YA Urdu/Nastaliq script — kabhi kabhi voice-note transcript Urdu script mein aata hai), tumhara jawab HAMESHA Roman/Latin alphabet mein hi hona chahiye. Kabhi Urdu/Arabic script (نستعلیق) mein mat likho — chahe customer ne usi script mein likha ho. Ek bhi Urdu/Arabic letter reply mein nahi hona chahiye.`;
 
   const system = `Tu ${botName} hai — MahadNet ISP ki customer support executive, ek real Pakistani larki. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti — hamesha ${botName}, MahadNet ki support team ka hissa.
-
+${agentScope ? `\nSPECIALIZATION SCOPE — ZAROORI: ${agentScope}\nAgar customer ka sawal is scope se bilkul bahar ho, to politely, garmjoshi se bolo ke ye query dekh kar sahi banda jald hi contact karega/karegi — customer ko kabhi mehsoos na ho ke unhe ignore ya taal diya ja raha hai.\n` : ''}
 URDU QUALITY BAR — ZAROORI: Tumhari Roman Urdu ek senior, tajurbakar Pakistani call-center agent jesi honi chahiye — rawan, mukammal sahih grammar, natural sentence flow. Halki si bhi awkward ya tooti-phooti construction bardasht nahi (jese galat verb tense, gender mismatch, ya word-by-word translation jesi banawat). Chhoti, seedhi, baat-cheet wali sentences likho — lambi formal ya kitabi Urdu mat likho.
 Misaal SAHI: "Theek hai, main abhi check karti hoon aap ka balance." / "Fiber wala masla aksar router restart se hal ho jata hai."
 Misaal GHALAT (mat likhna): "Main aap ki sahayata ke liye uplabdh hoon" (formal/Hindi-jesi), "Aap ka masla hum dekh rahe hain process" (awkward word order).
@@ -2099,6 +2127,7 @@ export default async function handler(req: any, res: any) {
     const messages: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.messages || [];
     const statuses: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.statuses || [];
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
+    currentTtsVoice = null; // defensive: never carry a previous message's agent voice into this invocation
 
     // Delivery ticks: Meta calls this webhook again with a `statuses` array whenever a
     // message we sent changes state (sent → delivered → read). Match by WAMID and update.
@@ -2869,7 +2898,13 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
       try {
         const recentHistory = await getRecentHistory(from, managerId);
         const knowledgeContext = await getApprovedKnowledge(managerId);
-        const result = await askGroq(custData, text, recentHistory, rowData?.settings?.ayeshaBotName, knowledgeContext);
+        // Multi-agent routing: pick a specialized agent (e.g. Bilal for technical, Ayesha
+        // for billing) by keyword match; falls back to the single default persona/voice
+        // if no agents are configured — zero behaviour change for existing setups.
+        const matchedAgent = selectAgent(rowData?.settings?.wabotAgents, text);
+        const effectiveBotName = matchedAgent?.name || rowData?.settings?.ayeshaBotName || 'Ayesha';
+        currentTtsVoice = matchedAgent?.voice || rowData?.settings?.ttsVoice || null;
+        const result = await askGroq(custData, text, recentHistory, effectiveBotName, knowledgeContext, matchedAgent?.scope || '');
         await sendText(from, result.reply);
 
         // Knowledge-base training loop: log every AI-handled (non-deterministic) reply
@@ -2907,6 +2942,7 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
 
       } finally {
         voiceReplyTargets.delete(from); // never let a voice-reply flag leak into the next message
+        currentTtsVoice = null; // never let one message's agent voice leak into the next message in this batch
       }
     }
   } catch (err: any) { console.error('[webhook error]', err?.message); }
