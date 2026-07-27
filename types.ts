@@ -48,6 +48,18 @@ export interface ManagerAccount {
   rememberPassword?: boolean;
 }
 
+// A WABot support agent — lets mahadnet run 2-3 named agents (e.g. Ayesha for billing,
+// Bilal for technical) each with their own persona name, specialization scope (injected
+// into the AI system prompt so it strictly stays in-lane), voice, and routing keywords.
+export interface WABotAgent {
+  id: string;
+  name: string; // persona name, e.g. "Ayesha", "Bilal"
+  scope: string; // plain-language description of what this agent handles — appended to the AI's instructions
+  keywords: string[]; // words/phrases in the customer's message that route to this agent
+  voice: string; // Gemini TTS voice name, e.g. "Kore", "Puck"
+  active: boolean;
+}
+
 export interface AppSettings {
   businessName: string;
   businessPhone: string;
@@ -75,6 +87,8 @@ export interface AppSettings {
   receiptSerialStart?: number; // Starting serial number for receipts (e.g. 1, 900, 5000)
   receiptSerialPrefix?: string; // Prefix for serial like MN, ISP, etc.
   ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
+  ttsVoice?: string; // Selected Gemini TTS voice name for the default persona (e.g. "Kore"), falls back to GEMINI_TTS_VOICE env var
+  wabotAgents?: WABotAgent[]; // Multi-agent WABot config — each agent has its own name, scope, voice, routing keywords
   routerCatalog?: RouterCatalog; // Admin-editable WhatsApp bot router catalog (models/specs/prices/images)
   botTemplates?: Record<string, BotTemplate>; // Admin-editable WhatsApp bot reply templates (wording of every canned reply)
   messageTemplates?: Record<string, MessageTemplate>; // Admin-editable manual-send templates (Customer Directory, Recovery Ledger, Receipt Share, Expiry Reminder, Bulk Reminder)
