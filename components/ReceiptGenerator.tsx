@@ -565,6 +565,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         advanceAmount: advanceAmount || 0,
         discount: discount || 0,
         monthlyFee: monthlyFee || 0,
+        plan: user.plan || '',
         date: receiptDate.toISOString(),
         expiryDate: resolvedExpiryDate,
         rechargeDate: resolvedRechargeDate,
