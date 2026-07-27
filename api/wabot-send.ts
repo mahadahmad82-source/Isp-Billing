@@ -93,7 +93,7 @@ export default async function handler(req: any, res: any) {
         components: [
           {
             type: 'body',
-            parameters: (templateParams as string[]).map((v) => ({ type: 'text', text: String(v) })),
+            parameters: (templateParams as string[]).map((v) => ({ type: 'text', text: (String(v ?? '').trim() || '-') })),
           },
         ],
       },
