@@ -446,6 +446,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             String(receipt.balanceAmount || 0),
             String(receipt.advanceAmount || 0),
             newExpiryFormatted,
+            settings.businessName || 'MahadNet',
           ],
         }),
       });
@@ -790,6 +791,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
             String(activeReceipt.balanceAmount || 0),
             String(activeReceipt.advanceAmount || 0),
             newExpiryFormatted,
+            settings.businessName || 'MahadNet',
           ],
         }),
       });
