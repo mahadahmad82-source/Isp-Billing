@@ -2,6 +2,9 @@
 // mahadnet's behalf (text, image, voice note, video, or document), logs it, and
 // auto-pauses Ayesha on that thread (so the bot doesn't collide with a human
 // reply mid-conversation).
+import { GoogleGenAI } from '@google/genai';
+import * as lamejs from '@breezystack/lamejs';
+
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
 
@@ -49,6 +52,15 @@ type SendType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'template';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+
+  // ── Voice preview for WABot Settings (Agents & Voice tab) ──
+  // Folded into this existing function (instead of a separate api/ file) to stay
+  // under Vercel Hobby's serverless function count limit — adding a new file here
+  // previously broke deployment (see git history), so new small endpoints reuse
+  // an existing handler via an `action` discriminator instead of a new file.
+  if (req.body?.action === 'previewVoice') {
+    return handlePreviewVoice(req, res);
+  }
 
   const { to, body, managerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
   const sendType: SendType = (type as SendType) || 'text';
@@ -185,4 +197,71 @@ export default async function handler(req: any, res: any) {
   } catch (e: any) { console.error('[wabot-send autopause]', e?.message); }
 
   return res.status(200).json({ success: true, wamid });
+}
+
+// ── Voice preview handler (called via action: 'previewVoice') ──
+// Generates a short Gemini TTS sample for a given voice name so mahadnet can
+// audition voices from WABot Settings before assigning one to an agent. Same
+// model/encoding pipeline as the live textToSpeech() in api/webhook.ts.
+const GEMINI_VALID_VOICES = new Set([
+  'Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Leda', 'Orus', 'Aoede', 'Callirrhoe',
+  'Autonoe', 'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Despina', 'Erinome',
+  'Algenib', 'Rasalgethi', 'Laomedeia', 'Achernar', 'Alnilam', 'Schedar', 'Gacrux',
+  'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat',
+]);
+
+async function handlePreviewVoice(req: any, res: any) {
+  try {
+    const { voice, sampleText } = req.body || {};
+    if (!voice || !GEMINI_VALID_VOICES.has(voice)) {
+      return res.status(400).json({ error: 'Invalid or missing voice name' });
+    }
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+
+    const text = (sampleText && String(sampleText).trim()) ||
+      'Assalam o Alaikum! Main aap ki customer support executive hoon. Aap ki kis tarah madad kar sakti hoon?';
+
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-preview-tts',
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+      },
+    } as any);
+
+    const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    const b64 = inline?.data;
+    if (!b64) return res.status(502).json({ error: 'No audio returned from Gemini' });
+
+    const pcm = Buffer.from(b64, 'base64');
+    const samples = new Int16Array(pcm.buffer, pcm.byteOffset, pcm.length / 2);
+    const encoder = new (lamejs as any).Mp3Encoder(1, 24000, 128);
+    const blockSize = 1152;
+    const mp3Chunks: Uint8Array[] = [];
+    for (let i = 0; i < samples.length; i += blockSize) {
+      const chunk = samples.subarray(i, i + blockSize);
+      const buf = encoder.encodeBuffer(chunk);
+      if (buf.length > 0) mp3Chunks.push(buf);
+    }
+    const tail = encoder.flush();
+    if (tail.length > 0) mp3Chunks.push(tail);
+    const mp3Buf = Buffer.concat(mp3Chunks.map((c) => Buffer.from(c)));
+
+    const path = `tts-previews/${voice}-${Date.now()}.mp3`;
+    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg' },
+      body: mp3Buf,
+    });
+    if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
+
+    return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}` });
+  } catch (e: any) {
+    console.error('[wabot-send previewVoice]', e?.message);
+    return res.status(500).json({ error: e?.message || 'Unknown error' });
+  }
 }
