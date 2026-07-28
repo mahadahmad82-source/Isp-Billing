@@ -253,10 +253,10 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     setPreviewingVoice(voice);
     setPreviewError(null);
     try {
-      const resp = await fetch('/api/wabot-tts-preview', {
+      const resp = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voice, sampleText }),
+        body: JSON.stringify({ action: 'previewVoice', voice, sampleText }),
       });
       const data = await resp.json();
       if (!resp.ok || !data.url) throw new Error(data.error || 'Preview failed');
