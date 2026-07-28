@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Configuration
 const PORT = 3000;
-const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://mzmajmjzopmkzboizrbm.supabase.co';
 
 // Lazy initialization of Supabase Admin Client
 let supabaseAdmin: any = null;
@@ -13,9 +13,7 @@ function getSupabaseAdmin() {
   if (!supabaseAdmin) {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!key) {
-      console.warn("SUPABASE_SERVICE_ROLE_KEY not found. Server-side sync will be limited.");
-      // Fallback to anon key if service role is missing (for local testing without secrets)
-      return createClient(SUPABASE_URL, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw');
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY not set in local env — required for admin routes. Add it to your local .env before running `npm run dev`.");
     }
     supabaseAdmin = createClient(SUPABASE_URL, key);
   }
