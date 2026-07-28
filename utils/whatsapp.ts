@@ -81,13 +81,15 @@ export const sendReceiptViaWABot = async (
     const formattedPhone = formatWhatsAppPhone(phone);
 
     // 1. Upload PNG to Supabase Storage
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
     const fileName = `receipts/${managerId}/${receiptRef}_${Date.now()}.png`;
     const uploadRes = await fetch(
-      `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/whatsapp-media/${fileName}`,
+      `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${fileName}`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16bWFqbWp6b3Bta3pib2l6cmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjUyMDcsImV4cCI6MjA5MzA0MTIwN30.YpirkCCMXoRGBpHVqv4YtIyKQMqhjWSxMf1m7hTOSjw`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type': 'image/png',
         },
         body: pngBlob,
@@ -100,7 +102,7 @@ export const sendReceiptViaWABot = async (
     }
 
     // 2. Send image via wabot-send endpoint
-    const mediaUrl = `https://mzmajmjzopmkzboizrbm.supabase.co/storage/v1/object/public/whatsapp-media/${fileName}`;
+    const mediaUrl = `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${fileName}`;
 
     const sendRes = await fetch('/api/wabot-send', {
       method: 'POST',
