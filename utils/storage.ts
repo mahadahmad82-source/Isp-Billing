@@ -65,7 +65,8 @@ export const loadState = (username: string | null): AppState => {
     globalNote: 'Thank you for choosing us.',
     planPrices: { ...DefaultPlanPricing },
     receiptDesign: ReceiptDesign.PROFESSIONAL,
-    isInitialized: false
+    isInitialized: false,
+    autoSendPaymentConfirmation: true
   };
 
   const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeUser;

@@ -93,6 +93,7 @@ export interface AppSettings {
   botTemplates?: Record<string, BotTemplate>; // Admin-editable WhatsApp bot reply templates (wording of every canned reply)
   messageTemplates?: Record<string, MessageTemplate>; // Admin-editable manual-send templates (Customer Directory, Recovery Ledger, Receipt Share, Expiry Reminder, Bulk Reminder)
   areas?: string[]; // Manager-defined list of service areas (Area Dashboard) — used to populate area select in Customer Directory
+  autoSendPaymentConfirmation?: boolean; // Toggle for automatic WhatsApp payment confirmation template sending
 }
 
 // Connection category — how the subscriber is physically connected (Customer Directory column + filter)

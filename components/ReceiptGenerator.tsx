@@ -649,7 +649,9 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       // generated — works even outside the 24h WhatsApp session window (unlike a plain
       // image/caption message), auto-filled from the receipt's own computed amounts so
       // nothing has to be typed in manually.
-      autoSendPaymentTemplate(newReceipt, user);
+      if (settings.autoSendPaymentConfirmation ?? true) {
+        autoSendPaymentTemplate(newReceipt, user);
+      }
 
     } catch (error) {
       console.error("Critical System Failure:", error);

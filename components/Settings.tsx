@@ -892,6 +892,34 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               Bot khud ko introduce karega: <span className="font-black text-emerald-500">"Main {localSettings.ayeshaBotName || 'Ayesha'} hoon..."</span>
             </p>
           </div>
+
+          <div className="pt-6 border-t border-slate-100 dark:border-white/5">
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+              <div className="flex-1 pr-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Automatic Payment Confirmation</p>
+                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${(localSettings.autoSendPaymentConfirmation ?? true) ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-500'}`}>
+                    {(localSettings.autoSendPaymentConfirmation ?? true) ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  Jab aap receipt generate karenge, customer ko automatic WhatsApp template send hoga.
+                </p>
+              </div>
+              <button
+                onClick={() => setLocalSettings(prev => ({ ...prev, autoSendPaymentConfirmation: !(prev.autoSendPaymentConfirmation ?? true) }))}
+                className={`relative w-14 h-8 rounded-full transition-all duration-300 flex-shrink-0 ${(localSettings.autoSendPaymentConfirmation ?? true) ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-slate-300 dark:bg-slate-700'}`}
+              >
+                <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg transition-transform duration-300 flex items-center justify-center ${(localSettings.autoSendPaymentConfirmation ?? true) ? 'translate-x-6' : 'translate-x-0'}`}>
+                  {(localSettings.autoSendPaymentConfirmation ?? true) ? (
+                    <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                  )}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Receipt Design Selector */}

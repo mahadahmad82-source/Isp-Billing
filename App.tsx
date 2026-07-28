@@ -92,7 +92,8 @@ const App: React.FC = () => {
           planPrices: { ...DefaultPlanPricing },
           receiptDesign: ReceiptDesign.PROFESSIONAL,
           isInitialized: false,
-          autoReminderChannel: 'whatsapp'
+          autoReminderChannel: 'whatsapp',
+          autoSendPaymentConfirmation: true
         }
       }];
       initialState.activeCompanyId = defaultCompanyId;
@@ -413,7 +414,8 @@ const App: React.FC = () => {
       planPrices: { ...DefaultPlanPricing },
       receiptDesign: ReceiptDesign.PROFESSIONAL,
       isInitialized: false,
-      autoReminderChannel: 'whatsapp'
+      autoReminderChannel: 'whatsapp',
+      autoSendPaymentConfirmation: true
     };
   }, [activeCompany, state?.settings]);
 
