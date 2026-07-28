@@ -1769,6 +1769,10 @@ const App: React.FC = () => {
               onUpdateRouterCatalog={(catalog) => handleUpdateSettings({ ...currentSettings, routerCatalog: catalog })}
               botTemplates={currentSettings.botTemplates}
               onUpdateBotTemplates={(templates) => handleUpdateSettings({ ...currentSettings, botTemplates: templates })}
+              ttsVoice={currentSettings.ttsVoice}
+              onUpdateTtsVoice={(voice) => handleUpdateSettings({ ...currentSettings, ttsVoice: voice })}
+              wabotAgents={currentSettings.wabotAgents}
+              onUpdateWabotAgents={(agents) => handleUpdateSettings({ ...currentSettings, wabotAgents: agents })}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (
