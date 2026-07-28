@@ -647,10 +647,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           display: flex;
           flex-direction: column;
           position: relative;
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s, box-shadow 0.4s, opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
           backdrop-filter: blur(16px);
           overflow: hidden;
           background: rgba(15, 23, 42, 0.5);
+          opacity: 0;
+          transform: translateY(40px) scale(0.95);
+        }
+        .bento-card.visible {
+          opacity: 1;
+          transform: translateY(0) scale(1);
         }
         .bento-card:hover {
           transform: translateY(-8px);
@@ -1246,7 +1252,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
           <div className="bento-grid px-6">
             {/* 1. Automated Billing (Large) */}
-            <div className="bento-card large scroll-reveal" style={{ borderLeft: `4px solid ${featuresList[0].color}` }}>
+            <div className="bento-card large scroll-reveal" data-index="0" style={{ borderLeft: `4px solid ${featuresList[0].color}` }}>
               <div className="bento-icon" style={{ background: `${featuresList[0].color}20`, color: featuresList[0].color }}>{featuresList[0].icon}</div>
               <h3>{featuresList[0].title}</h3>
               <p className="max-w-md">{featuresList[0].desc}</p>
@@ -1259,21 +1265,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
 
             {/* 2. WhatsApp Alerts (Tall) */}
-            <div className="bento-card tall scroll-reveal" style={{ borderTop: `4px solid ${featuresList[1].color}` }}>
+            <div className="bento-card tall scroll-reveal" data-index="1" style={{ borderTop: `4px solid ${featuresList[1].color}` }}>
               <div className="bento-icon" style={{ background: `${featuresList[1].color}20`, color: featuresList[1].color }}>{featuresList[1].icon}</div>
               <h3>{featuresList[1].title}</h3>
               <p>{featuresList[1].desc}</p>
             </div>
 
             {/* 3. Cloud Sync (Standard) */}
-            <div className="bento-card scroll-reveal" style={{ borderBottom: `4px solid ${featuresList[2].color}` }}>
+            <div className="bento-card scroll-reveal" data-index="2" style={{ borderBottom: `4px solid ${featuresList[2].color}` }}>
               <div className="bento-icon" style={{ background: `${featuresList[2].color}20`, color: featuresList[2].color }}>{featuresList[2].icon}</div>
               <h3>{featuresList[2].title}</h3>
               <p>{featuresList[2].desc}</p>
             </div>
 
             {/* 4. Smart Financials (Wide) */}
-            <div className="bento-card wide scroll-reveal" style={{ borderRight: `4px solid ${featuresList[3].color}` }}>
+            <div className="bento-card wide scroll-reveal" data-index="3" style={{ borderRight: `4px solid ${featuresList[3].color}` }}>
               <div className="flex flex-col md:flex-row md:items-center gap-8 h-full">
                 <div className="flex-1">
                   <div className="bento-icon" style={{ background: `${featuresList[3].color}20`, color: featuresList[3].color }}>{featuresList[3].icon}</div>
@@ -1288,14 +1294,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
 
             {/* 5. Agent Management (Standard) */}
-            <div className="bento-card scroll-reveal" style={{ borderTop: `4px solid ${featuresList[4].color}` }}>
+            <div className="bento-card scroll-reveal" data-index="4" style={{ borderTop: `4px solid ${featuresList[4].color}` }}>
               <div className="bento-icon" style={{ background: `${featuresList[4].color}20`, color: featuresList[4].color }}>{featuresList[4].icon}</div>
               <h3>{featuresList[4].title}</h3>
               <p>{featuresList[4].desc}</p>
             </div>
 
             {/* 6. Network Operations (Standard) */}
-            <div className="bento-card scroll-reveal" style={{ borderBottom: `4px solid ${featuresList[5].color}` }}>
+            <div className="bento-card scroll-reveal" data-index="5" style={{ borderBottom: `4px solid ${featuresList[5].color}` }}>
               <div className="bento-icon" style={{ background: `${featuresList[5].color}20`, color: featuresList[5].color }}>{featuresList[5].icon}</div>
               <h3>{featuresList[5].title}</h3>
               <p>{featuresList[5].desc}</p>
