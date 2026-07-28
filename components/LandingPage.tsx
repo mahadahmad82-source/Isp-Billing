@@ -622,78 +622,67 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(8px); }
         }
-        .horizontal-section {
-          height: 400vh;
-          position: relative;
-        }
-        .horizontal-sticky {
-          position: sticky;
-          top: 0;
-          height: 100vh;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-start;
+        .bento-section {
+          padding: 120px 24px;
           background: #020617;
-          padding-top: 12vh;
-          padding-bottom: 40px;
+          position: relative;
         }
-        .horizontal-sticky::before,
-        .horizontal-sticky::after {
-          content: '';
-          position: absolute;
-          left: 0; right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(99,102,241,0.4), transparent);
-        }
-        .horizontal-sticky::before { top: 0; }
-        .horizontal-sticky::after { bottom: 0; }
-        .section-label {
-          margin-bottom: 32px;
-          padding: 0 48px;
-        }
-        .section-label .num {
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.35em;
-          color: #818cf8;
-        }
-        .section-label h2 {
-          font-size: 2.25rem;
-          font-weight: 900;
-          color: white;
-          margin-top: 8px;
-        }
-        .cards-container {
-          display: flex;
-          align-items: center;
+        .bento-grid {
+          display: grid;
+          grid-template-columns: repeat(1, 1fr);
           gap: 24px;
-          padding: 0 48px;
-          will-change: transform;
-          flex-shrink: 0;
-          width: max-content;
-          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+          max-width: 1200px;
+          margin: 0 auto;
         }
-        .card {
-          width: 420px;
-          height: 420px;
-          min-width: 420px;
-          min-height: 420px;
-          aspect-ratio: 1 / 1;
+        @media (min-width: 768px) {
+          .bento-grid {
+            grid-template-columns: repeat(3, 1fr);
+            grid-auto-rows: 240px;
+          }
+        }
+        .bento-card {
           border-radius: 32px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 40px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 32px;
           display: flex;
           flex-direction: column;
-          justify-content: flex-start;
-          align-items: flex-start;
           position: relative;
-          flex-shrink: 0;
-          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s, box-shadow 0.4s;
-          box-sizing: border-box;
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           backdrop-filter: blur(16px);
           overflow: hidden;
+          background: rgba(15, 23, 42, 0.5);
+        }
+        .bento-card:hover {
+          transform: translateY(-8px);
+          border-color: rgba(99, 102, 241, 0.3);
+          box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+        }
+        .bento-card.large { grid-column: span 2; grid-row: span 2; }
+        .bento-card.tall { grid-row: span 2; }
+        .bento-card.wide { grid-column: span 2; }
+        
+        .bento-card h3 {
+          font-size: 1.25rem;
+          font-weight: 900;
+          color: #ffffff;
+          margin-bottom: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .bento-card p {
+          color: #94a3b8;
+          font-size: 0.95rem;
+          line-height: 1.6;
+          margin: 0;
+        }
+        .bento-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 24px;
         }
         .card-top-row {
           width: 100%;
@@ -1243,70 +1232,73 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
         </section>
 
-        {/* ── SECTION 2: HORIZONTAL SCROLL ── */}
-        <section className="horizontal-section" id="horizontal" ref={horizontalSectionRef}
-          style={{ height: '400vh' }}
-        >
-          <div className="horizontal-sticky relative overflow-hidden">
-            <div className="section-label scroll-reveal">
-              <div className="num">02 / Core Modules</div>
-              <h2>Premium Capabilities</h2>
-            </div>
-            <div className="cards-container" ref={cardsContainerRef}>
-              {featuresList.map((feat, i) => (
-                <div key={i} className="card group" style={{
-                  borderColor: `${feat.color}35`,
-                  background: `linear-gradient(145deg, ${feat.color}15, rgba(15, 23, 42, 0.95))`
-                }}>
-                  <div className="card-top-row">
-                    <div className="card-icon-badge" style={{ background: `${feat.color}20`, border: `1px solid ${feat.color}40`, color: feat.color }}>
-                      {feat.icon}
-                    </div>
-                    <div className="num-badge" style={{ background: `${feat.color}20`, border: `1px solid ${feat.color}35`, color: feat.color }}>
-                      {String(i + 1).padStart(2, '0')}
-                    </div>
-                  </div>
-                  <h3>{feat.title.toUpperCase()}</h3>
-                  <p>{feat.desc}</p>
-                  <div className="glow-line" style={{ background: `linear-gradient(90deg, ${feat.color}, transparent)` }}></div>
+        {/* ── SECTION 2: BENTO GRID CAPABILITIES ── */}
+        <section className="bento-section" id="features">
+          <div className="max-w-4xl mx-auto text-center mb-16 scroll-reveal">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">02 / Core Modules</span>
+            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
+              Premium <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Capabilities</span>
+            </h2>
+            <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
+              Everything you need to automate your ISP billing, recovery, and network management in one powerful platform.
+            </p>
+          </div>
+
+          <div className="bento-grid px-6">
+            {/* 1. Automated Billing (Large) */}
+            <div className="bento-card large scroll-reveal" style={{ borderLeft: `4px solid ${featuresList[0].color}` }}>
+              <div className="bento-icon" style={{ background: `${featuresList[0].color}20`, color: featuresList[0].color }}>{featuresList[0].icon}</div>
+              <h3>{featuresList[0].title}</h3>
+              <p className="max-w-md">{featuresList[0].desc}</p>
+              <div className="mt-auto flex items-center gap-4 pt-8">
+                <div className="flex -space-x-2">
+                  {[1,2,3].map(i => <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-950 bg-slate-800 flex items-center justify-center text-[10px] font-bold text-white">U{i}</div>)}
                 </div>
-              ))}
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Used by 150+ ISPs</span>
+              </div>
             </div>
 
-            {/* Visual Capability Snapping Tracker */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 z-20 w-full px-4 text-center">
-              <div className="flex gap-2.5 justify-center items-center">
-                {featuresList.map((feat, idx) => (
-                  <button key={idx} 
-                    onClick={() => {
-                      if (horizontalSectionRef.current) {
-                        const section = horizontalSectionRef.current;
-                        let sectionTop = 0;
-                        let el: HTMLElement | null = section;
-                        while (el) {
-                          sectionTop += el.offsetTop;
-                          el = el.offsetParent as HTMLElement;
-                        }
-                        const totalScrollableDistance = section.offsetHeight - window.innerHeight;
-                        const totalSteps = 5;
-                        const targetProgress = idx / totalSteps;
-                        const targetScroll = sectionTop + (targetProgress * 0.88) * totalScrollableDistance;
-                        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
-                      }
-                    }}
-                    className="h-2 rounded-full transition-all duration-500 hover:scale-110 cursor-pointer"
-                    style={{
-                      width: activeCardIdx === idx ? '36px' : '10px',
-                      background: activeCardIdx === idx ? feat.color : 'rgba(255, 255, 255, 0.15)',
-                      boxShadow: activeCardIdx === idx ? `0 0 10px ${feat.color}60` : 'none'
-                    }}
-                    title={`Go to Capability ${idx + 1}`}
-                  />
-                ))}
+            {/* 2. WhatsApp Alerts (Tall) */}
+            <div className="bento-card tall scroll-reveal" style={{ borderTop: `4px solid ${featuresList[1].color}` }}>
+              <div className="bento-icon" style={{ background: `${featuresList[1].color}20`, color: featuresList[1].color }}>{featuresList[1].icon}</div>
+              <h3>{featuresList[1].title}</h3>
+              <p>{featuresList[1].desc}</p>
+            </div>
+
+            {/* 3. Cloud Sync (Standard) */}
+            <div className="bento-card scroll-reveal" style={{ borderBottom: `4px solid ${featuresList[2].color}` }}>
+              <div className="bento-icon" style={{ background: `${featuresList[2].color}20`, color: featuresList[2].color }}>{featuresList[2].icon}</div>
+              <h3>{featuresList[2].title}</h3>
+              <p>{featuresList[2].desc}</p>
+            </div>
+
+            {/* 4. Smart Financials (Wide) */}
+            <div className="bento-card wide scroll-reveal" style={{ borderRight: `4px solid ${featuresList[3].color}` }}>
+              <div className="flex flex-col md:flex-row md:items-center gap-8 h-full">
+                <div className="flex-1">
+                  <div className="bento-icon" style={{ background: `${featuresList[3].color}20`, color: featuresList[3].color }}>{featuresList[3].icon}</div>
+                  <h3>{featuresList[3].title}</h3>
+                  <p>{featuresList[3].desc}</p>
+                </div>
+                <div className="hidden md:block w-32 h-32 bg-indigo-500/10 rounded-full border border-indigo-500/20 relative">
+                   <div className="absolute inset-2 rounded-full border-2 border-dashed border-indigo-500/30 animate-spin-slow"></div>
+                   <div className="absolute inset-0 flex items-center justify-center font-black text-indigo-400 text-xl">95%</div>
+                </div>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 select-none">
-                Capability {activeCardIdx + 1} of 6 : <span style={{ color: featuresList[activeCardIdx]?.color }} className="transition-colors duration-500">{featuresList[activeCardIdx]?.title}</span>
-              </span>
+            </div>
+
+            {/* 5. Agent Management (Standard) */}
+            <div className="bento-card scroll-reveal" style={{ borderTop: `4px solid ${featuresList[4].color}` }}>
+              <div className="bento-icon" style={{ background: `${featuresList[4].color}20`, color: featuresList[4].color }}>{featuresList[4].icon}</div>
+              <h3>{featuresList[4].title}</h3>
+              <p>{featuresList[4].desc}</p>
+            </div>
+
+            {/* 6. Network Operations (Standard) */}
+            <div className="bento-card scroll-reveal" style={{ borderBottom: `4px solid ${featuresList[5].color}` }}>
+              <div className="bento-icon" style={{ background: `${featuresList[5].color}20`, color: featuresList[5].color }}>{featuresList[5].icon}</div>
+              <h3>{featuresList[5].title}</h3>
+              <p>{featuresList[5].desc}</p>
             </div>
           </div>
         </section>
