@@ -99,13 +99,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         
         const scrolledDistance = window.scrollY - sectionTop;
         const totalScrollableDistance = section.offsetHeight - window.innerHeight;
-        const maxTranslate = container.scrollWidth - (window.innerWidth < 640 ? 40 : 80);
+        const maxTranslate = container.scrollWidth - window.innerWidth;
         
         if (scrolledDistance >= 0 && totalScrollableDistance > 0 && maxTranslate > 0) {
           const progress = Math.min(1, Math.max(0, scrolledDistance / totalScrollableDistance));
           
           // Allocate 92% of the scroll track for translation, leaving a subtle 8% buffer at the end
-          const translationProgress = Math.min(1, progress / 0.92);
+          const translationProgress = progress;
           
           const translateX = translationProgress * maxTranslate;
           container.style.transform = `translateX(-${translateX}px)`;
@@ -1243,7 +1243,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SECTION 2: HORIZONTAL SCROLL ── */}
         <section className="horizontal-section" id="horizontal" ref={horizontalSectionRef}
-          style={{ height: '600vh' }}
+          style={{ height: '500vh' }}
         >
           <div className="horizontal-sticky relative overflow-hidden">
             <div className="section-label scroll-reveal">
