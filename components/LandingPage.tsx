@@ -675,14 +675,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .card {
-          width: 310px;
-          height: 310px;
-          min-width: 310px;
-          min-height: 310px;
+          width: 420px;
+          height: 420px;
+          min-width: 420px;
+          min-height: 420px;
           aspect-ratio: 1 / 1;
-          border-radius: 22px;
+          border-radius: 32px;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 24px;
+          padding: 40px;
           display: flex;
           flex-direction: column;
           justify-content: flex-start;
@@ -702,9 +702,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           margin-bottom: 18px;
         }
         .card-icon-badge {
-          width: 42px;
-          height: 42px;
-          border-radius: 12px;
+          width: 60px;
+          height: 60px;
+          border-radius: 18px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -723,18 +723,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           letter-spacing: 0.05em;
         }
         .card h3 {
-          font-size: 1.05rem;
+          font-size: 1.5rem;
           font-weight: 900;
           letter-spacing: 0.04em;
           color: #ffffff;
-          margin-bottom: 12px;
+          margin-bottom: 16px;
           margin-top: 0;
           text-align: left;
-          line-height: 1.25;
+          line-height: 1.2;
         }
         .card p {
           color: #cbd5e1;
-          font-size: 0.825rem;
+          font-size: 1.1rem;
           font-weight: 500;
           line-height: 1.6;
           text-align: left;
