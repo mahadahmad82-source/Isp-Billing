@@ -31,6 +31,16 @@ const dequeue = (managerId: string) => {
 // ─── Core upsert with retries ─────────────────────────────────────────────────
 const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts = 3): Promise<boolean> => {
   const stateWithTs = { ...state, _syncedAt: new Date().toISOString() };
+
+  // Self-heal an expired/lost session BEFORE hammering the DB. An expired
+  // access token (refresh token rotated away by another tab/instance) was
+  // causing every attempt below — AND the RPC fallback — to fail identically
+  // with 401, filling the pending queue and burning retries for nothing.
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) await supabase.auth.refreshSession();
+  } catch { /* proceed to attempts regardless — unchanged fallback behavior below */ }
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       emit(attempt === 1 ? 'saving' : 'retrying');
@@ -102,6 +112,12 @@ export const flushPendingSync = async (): Promise<void> => {
   const q = getQueue();
   if (q.length === 0) return;
   console.log(`[Supabase] Flushing ${q.length} pending item(s)…`);
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) await supabase.auth.refreshSession();
+  } catch { /* proceed regardless */ }
+
   for (const item of q) {
     try {
       const state = JSON.parse(item.stateJson) as AppState;
