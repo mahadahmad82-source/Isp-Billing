@@ -623,7 +623,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           50% { transform: translateY(8px); }
         }
         .horizontal-section {
-          height: 300vh;
+          height: 400vh;
           position: relative;
         }
         .horizontal-sticky {
@@ -633,9 +633,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           overflow: hidden;
           display: flex;
           flex-direction: column;
-          justify-content: center;
+          justify-content: flex-start;
           background: #020617;
-          padding: 40px 0;
+          padding-top: 12vh;
+          padding-bottom: 40px;
         }
         .horizontal-sticky::before,
         .horizontal-sticky::after {
@@ -1244,7 +1245,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SECTION 2: HORIZONTAL SCROLL ── */}
         <section className="horizontal-section" id="horizontal" ref={horizontalSectionRef}
-          style={{ height: '300vh' }}
+          style={{ height: '400vh' }}
         >
           <div className="horizontal-sticky relative overflow-hidden">
             <div className="section-label scroll-reveal">
