@@ -7,4 +7,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error('[supabase] Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY env vars — set them in Vercel project settings.');
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+});
