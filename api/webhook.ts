@@ -2341,12 +2341,11 @@ export default async function handler(req: any, res: any) {
       // app / Admin Inbox thread on first-contact-of-the-day conversations.
       if (!alreadyLoggedThisTurn) await logMessage(from, 'in', 'text', text);
 
-      if (isFirstContactTodayFlag) {
-        try {
-          const foundForGreeting = await findCustomer(from);
-          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, foundForGreeting?.rowData?.settings?.ayeshaBotName));
-        } catch (e: any) { console.error('[daily greeting]', e?.message); }
-      }
+      // NOTE: the actual daily-greeting SEND is deferred until after intent detection
+      // below (search "isFirstContactTodayFlag" further down) — we need to know whether
+      // the customer's own first message of the day is itself a salam. If it is, the
+      // greeting-intent handler already sends a "Walaikum Assalam" menu, so sending this
+      // "Assalam o Alaikum" one too would double-greet them.
 
       // ── Batch rapid-fire fragments (see debounceAndCombineFragments above) so the
       // bot understands the WHOLE thought before replying, instead of reacting to each
@@ -2358,6 +2357,19 @@ export default async function handler(req: any, res: any) {
 
       const intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
+
+      // ── Send the daily first-contact greeting now (see note above), but SKIP it when
+      // the customer's own message is itself a greeting ('greeting' / 'greeting_personal_chat')
+      // — in that case the intent handlers below reply with "Walaikum Assalam" + menu
+      // instead, so only ONE greeting menu ever goes out, matching whichever salam applies:
+      // "Assalam o Alaikum" = customer messaged first without salam (proactive daily greeting).
+      // "Walaikum Assalam" = customer greeted us themselves (handled further below).
+      if (isFirstContactTodayFlag && intent !== 'greeting' && intent !== 'greeting_personal_chat') {
+        try {
+          const foundForGreeting = await findCustomer(from);
+          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, foundForGreeting?.rowData?.settings?.ayeshaBotName));
+        } catch (e: any) { console.error('[daily greeting]', e?.message); }
+      }
 
       // ── Priority: mid-flow slot-filling sessions (unless user issues a fresh command) ──
       const sessionObj = await getSession(from);
