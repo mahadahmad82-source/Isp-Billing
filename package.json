@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@andresaya/edge-tts": "^1.8.0",
     "@breezystack/lamejs": "^1.2.5",
     "@google/genai": "1.34.0",
     "@supabase/supabase-js": "^2.105.1",
