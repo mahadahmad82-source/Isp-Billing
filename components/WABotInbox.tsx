@@ -264,6 +264,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       const audio = new Audio(data.url);
       agentAudioRef.current = audio;
       await audio.play();
+      // Azure was requested but silently fell back to Edge-TTS — audio still played,
+      // so this isn't a hard error, but mahadnet needs to see WHY Azure itself failed.
+      if (provider === 'azure' && data.providerUsed === 'edge') {
+        setPreviewError(`⚠️ Yeh Edge-TTS ki awaz hai, Azure ki nahi — Azure fail hui: ${data.azureError || 'wajah maloom nahi'}`);
+      }
     } catch (e: any) {
       setPreviewError(e?.message || 'Preview generate nahi ho saka. Dobara koshish karein.');
     } finally {
