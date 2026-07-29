@@ -937,7 +937,7 @@ async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; bu
     const path = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType },
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType, 'Cache-Control': 'max-age=604800' },
       body: buf,
     });
     if (!upRes.ok) { console.error('[media upload]', upRes.status, await upRes.text()); return null; }
@@ -1106,7 +1106,7 @@ async function transcribeAudio(mediaId: string): Promise<{ transcript: string | 
       const path = `voice-notes/${Date.now()}-${mediaId}.${ext}`;
       const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
         method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType },
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType, 'Cache-Control': 'max-age=604800' },
         body: buf,
       });
       if (upRes.ok) mediaUrl = `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
@@ -1241,7 +1241,7 @@ async function textToSpeech(text: string): Promise<string | null> {
     const path = `tts-replies/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg' },
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
       body: mp3Buf,
     });
     if (!upRes.ok) { console.error('[textToSpeech upload]', upRes.status, await upRes.text()); return null; }
@@ -2961,4 +2961,5 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
 
   return res.status(200).json({ status: 'ok' });
 }
+
 
