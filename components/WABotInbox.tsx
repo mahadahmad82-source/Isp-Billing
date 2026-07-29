@@ -249,14 +249,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [agentDraft, setAgentDraft] = useState<WABotAgent | null>(null);
 
-  const playVoicePreview = async (voice: string, sampleText?: string) => {
+  const playVoicePreview = async (voice: string, sampleText?: string, provider?: string, gender?: string) => {
     setPreviewingVoice(voice);
     setPreviewError(null);
     try {
       const resp = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'previewVoice', voice, sampleText }),
+        body: JSON.stringify({ action: 'previewVoice', voice, sampleText, provider, gender }),
       });
       const data = await resp.json();
       if (!resp.ok || !data.url) throw new Error(data.error || 'Preview failed');
@@ -277,7 +277,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   const startNewAgent = () => {
-    const draft: WABotAgent = { id: `agent-${Date.now()}`, name: '', scope: '', keywords: [], voice: 'Kore', active: true };
+    const draft: WABotAgent = { id: `agent-${Date.now()}`, name: '', scope: '', keywords: [], voice: 'Kore', active: true, purpose: 'general', ttsProvider: 'gemini', gender: 'female' };
     setAgentDraft(draft);
     setEditingAgentId(draft.id);
   };
@@ -1342,7 +1342,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Support Agents</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">2-3 alag agents bana sakte hain (jese Ayesha=billing, Bilal=technical). Customer ke message mein keyword match ho to wo agent apna naam, scope aur voice ke sath jawab deta hai — koi match na ho to Default Voice/Bot Name use hota hai.</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">10 tak agents bana sakte hain (jese Ayesha=billing, Bilal=technical). Customer ke message mein keyword match ho to wo agent apna naam, scope, purpose, TTS provider, gender aur voice ke sath jawab deta hai — koi match na ho to Default Voice/Bot Name use hota hai. Har agent ka apna TTS provider (Gemini/Azure/Edge-TTS) test kar sakte hain.</p>
             </div>
             <button
               onClick={startNewAgent}
@@ -1411,6 +1411,59 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         </button>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Purpose</label>
+                        <select
+                          value={agentDraft.purpose || 'general'}
+                          onChange={e => setAgentDraft(d => d ? { ...d, purpose: e.target.value as WABotAgent['purpose'] } : d)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                        >
+                          <option value="billing">Billing</option>
+                          <option value="complaint">Complaint</option>
+                          <option value="new_connection">New Connection</option>
+                          <option value="network_qa">Network Q&amp;A</option>
+                          <option value="general">General</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Gender</label>
+                        <select
+                          value={agentDraft.gender || 'female'}
+                          onChange={e => setAgentDraft(d => d ? { ...d, gender: e.target.value as WABotAgent['gender'] } : d)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                        >
+                          <option value="female">Female</option>
+                          <option value="male">Male</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">TTS Provider</label>
+                      <div className="flex gap-2">
+                        <select
+                          value={agentDraft.ttsProvider || 'gemini'}
+                          onChange={e => setAgentDraft(d => d ? { ...d, ttsProvider: e.target.value as WABotAgent['ttsProvider'] } : d)}
+                          className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                        >
+                          <option value="gemini">Gemini (Roman Urdu native)</option>
+                          <option value="azure">Azure (free tier — script-based)</option>
+                          <option value="edge">Edge-TTS (unlimited free — script-based)</option>
+                        </select>
+                        <button
+                          onClick={() => playVoicePreview(agentDraft.voice, undefined, agentDraft.ttsProvider, agentDraft.gender)}
+                          disabled={previewingVoice === agentDraft.voice}
+                          className="flex-shrink-0 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          {previewingVoice === agentDraft.voice ? '...' : 'Test'}
+                        </button>
+                      </div>
+                      {agentDraft.ttsProvider === 'azure' && (
+                        <p className="text-[10px] text-amber-500 font-bold mt-1">Azure key set nahi ho to yeh automatically Edge-TTS (free) pe fallback ho jayega.</p>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <button onClick={saveAgentDraft} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
                       <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
@@ -1422,6 +1475,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-black text-slate-900 dark:text-white">{agent.name}</span>
                         <span className="text-[9px] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.voice}</span>
+                        <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.ttsProvider || 'gemini'}</span>
+                        <span className="text-[9px] bg-slate-500/10 text-slate-400 border border-slate-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{(agent.purpose || 'general').replace('_', ' ')}</span>
                         {!agent.active && (
                           <span className="text-[9px] bg-slate-500/10 text-slate-400 border border-slate-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Paused</span>
                         )}
@@ -1502,6 +1557,59 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         {previewingVoice === agentDraft.voice ? '...' : 'Preview'}
                       </button>
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Purpose</label>
+                      <select
+                        value={agentDraft.purpose || 'general'}
+                        onChange={e => setAgentDraft(d => d ? { ...d, purpose: e.target.value as WABotAgent['purpose'] } : d)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                      >
+                        <option value="billing">Billing</option>
+                        <option value="complaint">Complaint</option>
+                        <option value="new_connection">New Connection</option>
+                        <option value="network_qa">Network Q&amp;A</option>
+                        <option value="general">General</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Gender</label>
+                      <select
+                        value={agentDraft.gender || 'female'}
+                        onChange={e => setAgentDraft(d => d ? { ...d, gender: e.target.value as WABotAgent['gender'] } : d)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                      >
+                        <option value="female">Female</option>
+                        <option value="male">Male</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">TTS Provider</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={agentDraft.ttsProvider || 'gemini'}
+                        onChange={e => setAgentDraft(d => d ? { ...d, ttsProvider: e.target.value as WABotAgent['ttsProvider'] } : d)}
+                        className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#030712] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                      >
+                        <option value="gemini">Gemini (Roman Urdu native)</option>
+                        <option value="azure">Azure (free tier — script-based)</option>
+                        <option value="edge">Edge-TTS (unlimited free — script-based)</option>
+                      </select>
+                      <button
+                        onClick={() => playVoicePreview(agentDraft.voice, undefined, agentDraft.ttsProvider, agentDraft.gender)}
+                        disabled={previewingVoice === agentDraft.voice}
+                        className="flex-shrink-0 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                        {previewingVoice === agentDraft.voice ? '...' : 'Test'}
+                      </button>
+                    </div>
+                    {agentDraft.ttsProvider === 'azure' && (
+                      <p className="text-[10px] text-amber-500 font-bold mt-1">Azure key set nahi ho to yeh automatically Edge-TTS (free) pe fallback ho jayega.</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={saveAgentDraft} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
