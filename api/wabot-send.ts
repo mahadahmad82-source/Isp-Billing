@@ -237,7 +237,7 @@ async function handlePreviewVoice(req: any, res: any) {
         body: result.buffer,
       });
       if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
-      return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, providerUsed: result.providerUsed });
+      return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, providerUsed: result.providerUsed, azureError: result.azureError });
     }
 
     if (!voice || !GEMINI_VALID_VOICES.has(voice)) {
