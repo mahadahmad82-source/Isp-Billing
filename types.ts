@@ -51,13 +51,20 @@ export interface ManagerAccount {
 // A WABot support agent — lets mahadnet run 2-3 named agents (e.g. Ayesha for billing,
 // Bilal for technical) each with their own persona name, specialization scope (injected
 // into the AI system prompt so it strictly stays in-lane), voice, and routing keywords.
+export type WABotAgentPurpose = 'billing' | 'complaint' | 'new_connection' | 'network_qa' | 'general' | 'other';
+export type WABotTtsProvider = 'gemini' | 'azure' | 'edge';
+export type WABotAgentGender = 'male' | 'female';
+
 export interface WABotAgent {
   id: string;
   name: string; // persona name, e.g. "Ayesha", "Bilal"
   scope: string; // plain-language description of what this agent handles — appended to the AI's instructions
   keywords: string[]; // words/phrases in the customer's message that route to this agent
-  voice: string; // Gemini TTS voice name, e.g. "Kore", "Puck"
+  voice: string; // Gemini TTS voice name, e.g. "Kore", "Puck" — used when ttsProvider is 'gemini'
   active: boolean;
+  purpose?: WABotAgentPurpose; // label for mahadnet to organize/test agents by use-case (billing/complaint/etc) — informational, doesn't affect routing
+  ttsProvider?: WABotTtsProvider; // which TTS engine this agent's voice replies use, default 'gemini'. 'azure'/'edge' speak real Urdu script (auto-transliterated) instead of Gemini's native Roman Urdu, and auto-fallback to 'edge' (free/unlimited) if 'azure' has no key configured or fails
+  gender?: WABotAgentGender; // default 'female' (matches original Ayesha persona) — drives correct Urdu grammatical gender in the reply TEXT (kar sakta hoon vs kar sakti hoon), and picks the ur-PK-AsadNeural/ur-PK-UzmaNeural voice for azure/edge providers
 }
 
 export interface AppSettings {
