@@ -283,7 +283,7 @@ async function handlePreviewVoice(req: any, res: any) {
     });
     if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
 
-    return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}` });
+    return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, providerUsed: 'gemini' });
   } catch (e: any) {
     console.error('[wabot-send previewVoice]', e?.message);
     return res.status(500).json({ error: e?.message || 'Unknown error' });
