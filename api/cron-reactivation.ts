@@ -55,7 +55,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data`, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${BOUND_MANAGER_ID}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     const rows: any[] = await resp.json();
