@@ -245,6 +245,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setSelectedVoice(ttsVoice || 'Kore'); }, [ttsVoice]);
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewConfirm, setPreviewConfirm] = useState<string | null>(null);
   const agentAudioRef = useRef<HTMLAudioElement | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [agentDraft, setAgentDraft] = useState<WABotAgent | null>(null);
@@ -252,6 +253,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const playVoicePreview = async (voice: string, sampleText?: string, provider?: string, gender?: string) => {
     setPreviewingVoice(voice);
     setPreviewError(null);
+    setPreviewConfirm(null);
     try {
       const resp = await fetch('/api/wabot-send', {
         method: 'POST',
@@ -264,10 +266,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       const audio = new Audio(data.url);
       agentAudioRef.current = audio;
       await audio.play();
+      const providerLabel: Record<string, string> = { gemini: 'Gemini', azure: 'Azure', edge: 'Edge-TTS' };
       // Azure was requested but silently fell back to Edge-TTS — audio still played,
       // so this isn't a hard error, but mahadnet needs to see WHY Azure itself failed.
       if (provider === 'azure' && data.providerUsed === 'edge') {
         setPreviewError(`⚠️ Yeh Edge-TTS ki awaz hai, Azure ki nahi — Azure fail hui: ${data.azureError || 'wajah maloom nahi'}`);
+      } else if (data.providerUsed) {
+        setPreviewConfirm(`✓ Yeh awaz ${providerLabel[data.providerUsed] || data.providerUsed} se generate hui`);
       }
     } catch (e: any) {
       setPreviewError(e?.message || 'Preview generate nahi ho saka. Dobara koshish karein.');
@@ -1341,6 +1346,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               </button>
             </div>
             {previewError && <p className="text-[11px] text-rose-400 font-bold">{previewError}</p>}
+            {previewConfirm && <p className="text-[11px] text-emerald-500 font-bold">{previewConfirm}</p>}
           </div>
 
           {/* ── Support Agents ── */}
@@ -1468,6 +1474,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       {agentDraft.ttsProvider === 'azure' && (
                         <p className="text-[10px] text-amber-500 font-bold mt-1">Azure key set nahi ho to yeh automatically Edge-TTS (free) pe fallback ho jayega.</p>
                       )}
+                      {previewError && <p className="text-[10px] text-rose-400 font-bold mt-1">{previewError}</p>}
+                      {previewConfirm && <p className="text-[10px] text-emerald-500 font-bold mt-1">{previewConfirm}</p>}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={saveAgentDraft} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
@@ -1615,6 +1623,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                     {agentDraft.ttsProvider === 'azure' && (
                       <p className="text-[10px] text-amber-500 font-bold mt-1">Azure key set nahi ho to yeh automatically Edge-TTS (free) pe fallback ho jayega.</p>
                     )}
+                    {previewError && <p className="text-[10px] text-rose-400 font-bold mt-1">{previewError}</p>}
+                    {previewConfirm && <p className="text-[10px] text-emerald-500 font-bold mt-1">{previewConfirm}</p>}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={saveAgentDraft} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
