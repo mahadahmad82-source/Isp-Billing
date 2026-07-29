@@ -254,7 +254,7 @@ async function handlePreviewVoice(req: any, res: any) {
     const path = `tts-previews/${voice}-${Date.now()}.mp3`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg' },
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
       body: mp3Buf,
     });
     if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
@@ -265,3 +265,4 @@ async function handlePreviewVoice(req: any, res: any) {
     return res.status(500).json({ error: e?.message || 'Unknown error' });
   }
 }
+
