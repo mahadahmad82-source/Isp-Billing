@@ -4,7 +4,12 @@
 // reply mid-conversation).
 import { GoogleGenAI } from '@google/genai';
 import * as lamejs from '@breezystack/lamejs';
-import { synthesizeNonGemini } from '../lib/ttsProviders';
+// NOTE: synthesizeNonGemini is imported lazily inside handlePreviewVoice() below,
+// NOT at top-level. A top-level import of lib/ttsProviders crashed this ENTIRE
+// serverless function at module-load (ERR_MODULE_NOT_FOUND: /var/task/lib/ttsProviders),
+// which took down text/image/audio/video/template sending too — not just the
+// voice-preview feature that actually needed it. Lazy dynamic import isolates any
+// future failure in that module to just the previewVoice azure/edge path.
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
@@ -222,6 +227,7 @@ async function handlePreviewVoice(req: any, res: any) {
 
     // Azure/edge-tts preview — bypasses the Gemini-only path below entirely.
     if (provider === 'azure' || provider === 'edge') {
+      const { synthesizeNonGemini } = await import('../lib/ttsProviders');
       const result = await synthesizeNonGemini(text, provider, effectiveGender);
       if (!result) return res.status(502).json({ error: `${provider === 'azure' ? 'Azure' : 'Edge-TTS'} se audio generate nahi hua. Azure ke liye AZURE_SPEECH_KEY/AZURE_SPEECH_REGION set hain?` });
       const path = `tts-previews/${provider}-${effectiveGender}-${Date.now()}.mp3`;
