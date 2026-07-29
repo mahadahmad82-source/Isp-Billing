@@ -150,6 +150,21 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
   }
 };
 
+// ─── Merge helper: union arrays by id ─────────────────────────────────────────
+// A stale tab/session pushing an old snapshot must NEVER be able to silently
+// delete records (users/receipts/etc.) that already exist in the fresher copy.
+// So instead of picking one side wholesale by timestamp, we union both sides
+// by `id`. Real deletions still work fine through normal delete handlers
+// (which save right after removing locally); this only protects against a
+// stale background save clobbering newer records.
+const mergeById = <T extends { id?: string }>(a: T[] = [], b: T[] = []): T[] => {
+  const map = new Map<string, T>();
+  [...(a || []), ...(b || [])].forEach((item) => {
+    if (item && (item as any).id) map.set((item as any).id, item);
+  });
+  return Array.from(map.values());
+};
+
 // ─── Public: smart sync on login ─────────────────────────────────────────────
 export const smartLoadAndSync = async (
   managerId: string,
@@ -177,27 +192,40 @@ export const smartLoadAndSync = async (
     return localState;
   }
 
-  // Supabase is newer or equal → use Supabase
-  if (remoteTs >= localTs) {
-    console.log('[Sync] ✅ Using Supabase (newer)');
-    return {
-      ...supabaseState,
-      users:                    supabaseState.users                    || [],
-      receipts:                 supabaseState.receipts                 || [],
-      archives:                 supabaseState.archives                 || [],
-      companies:                supabaseState.companies                || [],
-      subManagers:              supabaseState.subManagers              || [],
-      attendanceLogs:           supabaseState.attendanceLogs           || [],
-      complaintTickets:         supabaseState.complaintTickets         || [],
-      businessExpenses:         supabaseState.businessExpenses         || [],
-      activeCompanyId:          supabaseState.activeCompanyId          || '',
-      dismissedNotificationIds: supabaseState.dismissedNotificationIds || [],
-      currentManager:           managerId,
-    };
+  // ── Merge instead of blind overwrite ──────────────────────────────────────
+  // Scalar/settings fields still follow "newer timestamp wins", but every
+  // record array is unioned by id so neither side can silently erase records
+  // the other side already has (this is what caused receipts to vanish).
+  const base = remoteTs >= localTs ? supabaseState : localState;
+  const merged: AppState = {
+    ...base,
+    users:                    mergeById(localState?.users,            supabaseState.users),
+    receipts:                 mergeById(localState?.receipts,         supabaseState.receipts),
+    archives:                 mergeById(localState?.archives,         supabaseState.archives),
+    companies:                mergeById(localState?.companies,        supabaseState.companies),
+    subManagers:              mergeById(localState?.subManagers,      supabaseState.subManagers),
+    attendanceLogs:           mergeById(localState?.attendanceLogs,   supabaseState.attendanceLogs),
+    complaintTickets:         mergeById(localState?.complaintTickets, supabaseState.complaintTickets),
+    businessExpenses:         mergeById(localState?.businessExpenses, supabaseState.businessExpenses),
+    activeCompanyId:          base.activeCompanyId || '',
+    dismissedNotificationIds: Array.from(new Set([...(localState?.dismissedNotificationIds || []), ...(supabaseState.dismissedNotificationIds || [])])),
+    currentManager:           managerId,
+  };
+
+  const mergedUsers = merged.users?.length || 0;
+  const mergedReceipts = merged.receipts?.length || 0;
+  const recovered = mergedUsers !== remoteUsers || mergedReceipts !== remoteReceipts;
+
+  if (recovered) {
+    console.log(`[Sync] 🔧 Merge recovered records — Supabase had ${remoteUsers}u/${remoteReceipts}r, merged has ${mergedUsers}u/${mergedReceipts}r`);
+  } else {
+    console.log(remoteTs >= localTs ? '[Sync] ✅ Using Supabase (newer)' : '[Sync] ✅ Using Local (newer)');
   }
 
-  // Local is newer → push to Supabase
-  console.log('[Sync] ✅ Using Local (newer) — pushing to Supabase');
-  await saveStateToSupabase(managerId, localState);
-  return localState;
+  // Push merged state back if it differs from what Supabase currently has, or
+  // if local was newer — this keeps both sides converged instead of drifting.
+  if (recovered || localTs > remoteTs) {
+    await saveStateToSupabase(managerId, merged);
+  }
+  return merged;
 };
