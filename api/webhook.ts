@@ -3,7 +3,13 @@
 
 import { GoogleGenAI } from '@google/genai';
 import * as lamejs from '@breezystack/lamejs';
-import { synthesizeNonGemini, type TtsProvider, type TtsGender } from '../lib/ttsProviders';
+// Type-only import — erased at compile time, never becomes a runtime module
+// resolution. synthesizeNonGemini itself is imported lazily inside
+// textToSpeech() below, NOT here at top-level: a top-level value import of
+// lib/ttsProviders crashed this ENTIRE webhook at module-load
+// (ERR_MODULE_NOT_FOUND: /var/task/lib/ttsProviders), which meant Ayesha
+// stopped replying to every single inbound customer message, not just voice ones.
+import type { TtsProvider, TtsGender } from '../lib/ttsProviders';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
@@ -1274,6 +1280,7 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
 async function textToSpeech(text: string): Promise<string | null> {
   if (!text) return null;
   if (currentTtsProvider === 'azure' || currentTtsProvider === 'edge') {
+    const { synthesizeNonGemini } = await import('../lib/ttsProviders');
     const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
     if (!result) {
       // Last-resort: try Gemini too before giving up entirely (only if it has a key).
