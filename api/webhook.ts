@@ -3,6 +3,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import * as lamejs from '@breezystack/lamejs';
+import { synthesizeNonGemini, type TtsProvider, type TtsGender } from '../lib/ttsProviders';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
@@ -1031,6 +1032,12 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"ban
 // agent (or manager's default ttsVoice setting) is known, read by textToSpeech().
 // Reset at the top of every handler invocation, same lifecycle as voiceReplyTargets.
 let currentTtsVoice: string | null = null;
+// Same per-invocation lifecycle as currentTtsVoice — which TTS engine + grammatical
+// gender this turn's matched agent uses. 'gemini'/'female' are the defaults so
+// existing single-persona (Ayesha) behaviour is byte-identical when no agent/legacy
+// settings specify otherwise.
+let currentTtsProvider: TtsProvider = 'gemini';
+let currentTtsGender: TtsGender = 'female';
 
 // Simple keyword-based agent router for multi-agent WABot (e.g. Ayesha=billing,
 // Bilal=technical). Picks the active agent whose keyword list has the most hits in
@@ -1202,7 +1209,20 @@ Output: Assalam o alaikum, internet kaam nahi kar raha`,
 // conversion step needed, unlike Azure's locale-bound voices) and follows a
 // plain-language style instruction prefixed to the text. Returns null on any
 // failure so the caller can gracefully fall back to a text reply.
-async function textToSpeech(text: string): Promise<string | null> {
+// Uploads a finished MP3 buffer to the shared whatsapp-media bucket and returns
+// its public URL — shared by every TTS provider path below.
+async function uploadTtsAudio(mp3Buf: Buffer, prefix: string): Promise<string | null> {
+  const path = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
+  const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
+    body: mp3Buf,
+  });
+  if (!upRes.ok) { console.error('[uploadTtsAudio]', upRes.status, await upRes.text()); return null; }
+  return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
+}
+
+async function textToSpeechGemini(text: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || !text) return null;
   // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
@@ -1220,7 +1240,7 @@ async function textToSpeech(text: string): Promise<string | null> {
     } as any);
     const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
     const b64 = inline?.data;
-    if (!b64) { console.error('[textToSpeech] no audio data in Gemini response'); return null; }
+    if (!b64) { console.error('[textToSpeechGemini] no audio data in Gemini response'); return null; }
     const pcm = Buffer.from(b64, 'base64'); // raw 16-bit PCM, mono, 24kHz
 
     // Encode PCM -> MP3 in pure JS (no ffmpeg binary available/needed here) —
@@ -1237,16 +1257,31 @@ async function textToSpeech(text: string): Promise<string | null> {
     const tail = encoder.flush();
     if (tail.length > 0) mp3Chunks.push(tail);
     const mp3Buf = Buffer.concat(mp3Chunks.map((c) => Buffer.from(c)));
+    return await uploadTtsAudio(mp3Buf, 'tts-replies');
+  } catch (e: any) { console.error('[textToSpeechGemini]', e?.message); return null; }
+}
 
-    const path = `tts-replies/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
-    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
-      method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
-      body: mp3Buf,
-    });
-    if (!upRes.ok) { console.error('[textToSpeech upload]', upRes.status, await upRes.text()); return null; }
-    return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
-  } catch (e: any) { console.error('[textToSpeech]', e?.message); return null; }
+// Converts text to a voice-note MP3 and stores it in the public whatsapp-media
+// bucket, returning its public URL — or null on failure so the caller falls
+// back to a text reply. Routes by currentTtsProvider (set per-message from the
+// matched agent, or 'gemini' by default — zero behaviour change for existing
+// single-persona setups):
+//   'gemini' → Gemini TTS, understands Roman Urdu natively (unchanged from before).
+//   'azure'/'edge' → real Urdu-script voices (ur-PK-Uzma/AsadNeural), so the Roman
+//   Urdu reply text is transliterated to Urdu script first (see lib/ttsProviders.ts).
+//   'azure' auto-falls-back to 'edge' if no Azure key is configured yet or the
+//   call fails, so this never fully breaks even before Azure is set up.
+async function textToSpeech(text: string): Promise<string | null> {
+  if (!text) return null;
+  if (currentTtsProvider === 'azure' || currentTtsProvider === 'edge') {
+    const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
+    if (!result) {
+      // Last-resort: try Gemini too before giving up entirely (only if it has a key).
+      return await textToSpeechGemini(text);
+    }
+    return await uploadTtsAudio(result.buffer, 'tts-replies');
+  }
+  return await textToSpeechGemini(text);
 }
 
 // True live push notification (Web Push, works even with the app closed) — reuses
@@ -1915,13 +1950,31 @@ function stripRepeatedGenericCloser(reply: string, recentHistory: string): strin
   return trimmed || reply; // never send an empty message
 }
 
-async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = '', agentScope: string = ''): Promise<{ onTopic: boolean; reply: string }> {
+async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = '', agentScope: string = '', agentGender: 'male' | 'female' = 'female'): Promise<{ onTopic: boolean; reply: string }> {
   // Customer wrote in Urdu/Nastaliq script → reply in that same script (previously this was
   // always force-converted to Roman Urdu, even when the customer clearly preferred Urdu script).
   const replyInUrduScript = containsUrduScript(userMessage);
   // Customer wrote a full English message (not just one stray English word mixed into
   // Roman Urdu) → reply fully in English, text and voice both.
   const isFullEnglish = !replyInUrduScript && isEnglishText(userMessage) && userMessage.trim().split(/\s+/).length >= 3;
+
+  // Urdu verb-gender agreement must match the agent's assigned voice gender —
+  // a male-voiced agent (e.g. Bilal) saying "main check karti hoon" (female form)
+  // sounds obviously wrong to a Pakistani listener. Default/unset stays 'female'
+  // so the original Ayesha persona's output is byte-identical to before.
+  const genderToneBlock = agentGender === 'male'
+    ? `MALE TONE — ZAROORI (Urdu replies mein, kabhi female/larkiyon wale verb forms mat use karo):
+GHALAT (female) → SAHI (male):
+rahi hoon → raha hoon | karungi → karoon ga / karunga | dungi → doon ga / dunga
+lungi → loon ga / lunga | bhejungi → bhejoon ga | samajhti hoon → samajhta hoon
+rahungi → rahunga | sakti hoon → sakta hoon | thi → tha | hui thi → hua tha
+madad karti hoon → madad karta hoon | dekhti hoon → dekhta hoon`
+    : `FEMALE TONE — ZAROORI (Urdu replies mein, kabhi male/larko wale verb forms mat use karo):
+GHALAT (male) → SAHI (female):
+raha hoon → rahi hoon | karoon ga / karunga → karungi | doon ga / dunga → dungi
+loon ga / lunga → lungi | bhejoon ga → bhejungi | samajhta hoon → samajhti hoon
+rahunga → rahungi | sakta hoon → sakti hoon | tha → thi | hua tha → hui thi
+madad karta hoon → madad karti hoon | dekhta hoon → dekhti hoon`;
 
   const scriptRule = replyInUrduScript
     ? `SCRIPT — ZAROORI: Customer ne apna message Urdu/Nastaliq script (اردو) mein likha hai — is liye tumhara jawab BHI sirf Urdu/Nastaliq script (اردو) mein hona chahiye, Roman/Latin letters mat likho.`
@@ -1939,12 +1992,7 @@ LANGUAGE MATCHING (zaroori):
 - Kabhi do zabanon ko mix mat karo ek hi reply mein.
 - ${scriptRule}${isFullEnglish ? `\n- Customer ne is dafa MUKAMMAL English mein likha hai — is liye jawab bhi PURI tarah professional English mein do, Roman Urdu bilkul mix mat karo.` : ''}
 
-FEMALE TONE — ZAROORI (Urdu replies mein, kabhi male/larko wale verb forms mat use karo):
-GHALAT (male) → SAHI (female):
-raha hoon → rahi hoon | karoon ga / karunga → karungi | doon ga / dunga → dungi
-loon ga / lunga → lungi | bhejoon ga → bhejungi | samajhta hoon → samajhti hoon
-rahunga → rahungi | sakta hoon → sakti hoon | tha → thi | hua tha → hui thi
-madad karta hoon → madad karti hoon | dekhta hoon → dekhti hoon
+${genderToneBlock}
 
 SOFT, REALISTIC TONE — ZAROORI: Bilkul aisi tarah baat karo jaise koi tajurbakar Pakistani call-center female agent live call par karti hai — narm, sukoon dene wala lehja, lekin natural insaan jesa, robotic ya script-jesa nahi.
 - Jawab seedha ek-line hukam jesa shuru mat karo — pehle thoda acknowledge karo (jese "Acha, samajh gayi", "Ji zaroor", "Theek hai, dekhti hoon abhi") phir baat continue karo.
@@ -1976,6 +2024,10 @@ TONE RULES (zaroori):
 CONVERSATION ENDING — ZAROORI (typical chatbot jesi harkat se bacho): Jab customer "thanks", "ok", "theek hai" jesi baat kar ke conversation khatam kar raha ho, to sirf ek chhota, warm jawab do aur ruk jao — har reply ke end mein "koi aur madad chahiye to zaroor batayen" ya "main yahan hoon" jesi generic line chipkana ZAROORI nahi hai, aur baar baar yeh line dohrana bilkul mat karo. Sirf tab aisi line likho jab genuinely naya sawal ya action expect ho, warna seedha jawab de kar khatam karo — jese ek real insaan text karta hai, na ke ek AI jo har reply ke end mein "kuch aur chahiye?" pochta rehta hai.
 
 FOLLOW-UP QUESTIONS — ZAROORI: Sirf tabhi customer se koi extra sawal pochho jab us ke bagair jawab dena genuinely mumkin na ho. Agar sawal ka jawab already CUSTOMER INFO ya us ki baat se maloom hai, to seedha jawab do — extra clarifying sawal pooch kar conversation lamba mat karo, jese aksar AI chatbots karte hain.
+
+INTENT UNDERSTANDING — ZAROORI: Pehle samjho customer ASAL mein kya chahta/chahti hai — sirf message ke chand alfaz pe mat jao. Agar wording ambiguous ho (ek se zyada matlab ho sakte hain), to sabse likely/common wajah maan kar jawab do, aur agar wakai zaroori ho tabhi ek chhota clarifying sawal pochho. Kabhi generic/template jawab mat do jo customer ke asal sawal ko address hi na kare.
+
+REPLY VARIETY — ZAROORI: Agar RECENT CONVERSATION mein customer ne wohi sawal dobara poocha ho ya conversation continue ho rahi ho, to bilkul wohi jumla/reply lafz-ba-lafz repeat mat karo — naye alfaz mein, thora aage bar kar jawab do (jese extra detail, ya "jese maine bataya" jaisa natural acknowledgment), taake customer ko lage wo ek samajhdar insaan se baat kar raha hai, ek scripted bot se nahi.
 
 LANGUAGE — SIRF PAKISTANI ROMAN URDU (jab Roman Urdu mein jawab do):
 Hindi ke ye words BILKUL FORBIDDEN hain:
@@ -2128,6 +2180,8 @@ export default async function handler(req: any, res: any) {
     const statuses: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.statuses || [];
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
     currentTtsVoice = null; // defensive: never carry a previous message's agent voice into this invocation
+    currentTtsProvider = 'gemini';
+    currentTtsGender = 'female';
 
     // Delivery ticks: Meta calls this webhook again with a `statuses` array whenever a
     // message we sent changes state (sent → delivered → read). Match by WAMID and update.
@@ -2916,7 +2970,9 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
         const matchedAgent = selectAgent(rowData?.settings?.wabotAgents, text);
         const effectiveBotName = matchedAgent?.name || rowData?.settings?.ayeshaBotName || 'Ayesha';
         currentTtsVoice = matchedAgent?.voice || rowData?.settings?.ttsVoice || null;
-        const result = await askGroq(custData, text, recentHistory, effectiveBotName, knowledgeContext, matchedAgent?.scope || '');
+        currentTtsProvider = (matchedAgent?.ttsProvider as TtsProvider) || 'gemini';
+        currentTtsGender = (matchedAgent?.gender as TtsGender) || 'female';
+        const result = await askGroq(custData, text, recentHistory, effectiveBotName, knowledgeContext, matchedAgent?.scope || '', currentTtsGender);
         await sendText(from, result.reply);
 
         // Knowledge-base training loop: log every AI-handled (non-deterministic) reply
@@ -2955,6 +3011,8 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
       } finally {
         voiceReplyTargets.delete(from); // never let a voice-reply flag leak into the next message
         currentTtsVoice = null; // never let one message's agent voice leak into the next message in this batch
+        currentTtsProvider = 'gemini';
+        currentTtsGender = 'female';
       }
     }
   } catch (err: any) { console.error('[webhook error]', err?.message); }
