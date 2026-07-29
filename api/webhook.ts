@@ -1286,6 +1286,7 @@ async function textToSpeech(text: string): Promise<string | null> {
       // Last-resort: try Gemini too before giving up entirely (only if it has a key).
       return await textToSpeechGemini(text);
     }
+    if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
     return await uploadTtsAudio(result.buffer, 'tts-replies');
   }
   return await textToSpeechGemini(text);
