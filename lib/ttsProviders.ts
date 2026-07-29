@@ -77,12 +77,17 @@ export async function synthesizeEdge(urduText: string, gender: TtsGender): Promi
   } catch (e: any) { console.error('[synthesizeEdge]', e?.message); return null; }
 }
 
-// Azure Speech F0 free tier — no-ops safely (returns null) until mahadnet sets up
-// his own Azure account and provides AZURE_SPEECH_KEY + AZURE_SPEECH_REGION.
-export async function synthesizeAzure(urduText: string, gender: TtsGender): Promise<Buffer | null> {
+// Azure Speech F0 free tier — returns a diagnostic `error` string (instead of
+// silently returning null) when the key/region are missing or the call fails,
+// so the UI can show mahadnet exactly why Azure didn't work instead of just
+// silently sounding like it fell back to Edge-TTS.
+export async function synthesizeAzure(urduText: string, gender: TtsGender): Promise<{ buffer: Buffer | null; error?: string }> {
   const key = process.env.AZURE_SPEECH_KEY;
   const region = process.env.AZURE_SPEECH_REGION;
-  if (!key || !region || !urduText) return null;
+  if (!key || !region) {
+    return { buffer: null, error: `Vercel env vars missing/not-deployed-yet: ${!key ? 'AZURE_SPEECH_KEY ' : ''}${!region ? 'AZURE_SPEECH_REGION' : ''}`.trim() };
+  }
+  if (!urduText) return { buffer: null, error: 'Empty text' };
   const voice = edgeVoiceFor(gender);
   const genderTag = gender === 'male' ? 'Male' : 'Female';
   const escaped = urduText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -98,29 +103,37 @@ export async function synthesizeAzure(urduText: string, gender: TtsGender): Prom
       },
       body: ssml,
     });
-    if (!res.ok) { console.error('[synthesizeAzure]', res.status, await res.text()); return null; }
-    return Buffer.from(await res.arrayBuffer());
-  } catch (e: any) { console.error('[synthesizeAzure]', e?.message); return null; }
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
+      console.error('[synthesizeAzure]', res.status, bodyText);
+      return { buffer: null, error: `Azure HTTP ${res.status} (region: ${region}) — ${bodyText.slice(0, 150) || 'no body'}` };
+    }
+    return { buffer: Buffer.from(await res.arrayBuffer()) };
+  } catch (e: any) {
+    console.error('[synthesizeAzure]', e?.message);
+    return { buffer: null, error: `Network/fetch error: ${e?.message || 'unknown'}` };
+  }
 }
 
 // Unified entry point for non-Gemini providers — does the Roman->Urdu
 // transliteration + provider call + automatic edge-tts fallback so callers
 // (webhook.ts's textToSpeech, wabot-send.ts's previewVoice) don't repeat this
-// logic. Returns an MP3 Buffer + which provider actually produced it, or null
+// logic. Returns an MP3 Buffer + which provider actually produced it (+ the
+// Azure failure reason, if Azure was requested but fell back to edge), or null
 // if everything failed (caller gracefully falls back to a plain text reply).
 export async function synthesizeNonGemini(
   romanText: string,
   provider: 'azure' | 'edge',
   gender: TtsGender
-): Promise<{ buffer: Buffer; providerUsed: 'azure' | 'edge' } | null> {
+): Promise<{ buffer: Buffer; providerUsed: 'azure' | 'edge'; azureError?: string } | null> {
   const urduText = await transliterateRomanToUrdu(romanText);
   const textForTts = urduText || romanText; // if transliteration fails, still attempt with Roman text rather than giving up
 
   if (provider === 'azure') {
-    const buf = await synthesizeAzure(textForTts, gender);
-    if (buf) return { buffer: buf, providerUsed: 'azure' };
+    const azureResult = await synthesizeAzure(textForTts, gender);
+    if (azureResult.buffer) return { buffer: azureResult.buffer, providerUsed: 'azure' };
     const edgeBuf = await synthesizeEdge(textForTts, gender);
-    if (edgeBuf) return { buffer: edgeBuf, providerUsed: 'edge' };
+    if (edgeBuf) return { buffer: edgeBuf, providerUsed: 'edge', azureError: azureResult.error };
     return null;
   }
 
