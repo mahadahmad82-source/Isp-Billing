@@ -4,6 +4,7 @@
 // reply mid-conversation).
 import { GoogleGenAI } from '@google/genai';
 import * as lamejs from '@breezystack/lamejs';
+import { synthesizeNonGemini } from '../lib/ttsProviders';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
@@ -212,15 +213,32 @@ const GEMINI_VALID_VOICES = new Set([
 
 async function handlePreviewVoice(req: any, res: any) {
   try {
-    const { voice, sampleText } = req.body || {};
+    const { voice, sampleText, provider, gender } = req.body || {};
+    const effectiveGender: 'male' | 'female' = gender === 'male' ? 'male' : 'female';
+    const defaultSample = effectiveGender === 'male'
+      ? 'Assalam o Alaikum! Main aap ka customer support executive hoon. Aap ki kis tarah madad kar sakta hoon?'
+      : 'Assalam o Alaikum! Main aap ki customer support executive hoon. Aap ki kis tarah madad kar sakti hoon?';
+    const text = (sampleText && String(sampleText).trim()) || defaultSample;
+
+    // Azure/edge-tts preview — bypasses the Gemini-only path below entirely.
+    if (provider === 'azure' || provider === 'edge') {
+      const result = await synthesizeNonGemini(text, provider, effectiveGender);
+      if (!result) return res.status(502).json({ error: `${provider === 'azure' ? 'Azure' : 'Edge-TTS'} se audio generate nahi hua. Azure ke liye AZURE_SPEECH_KEY/AZURE_SPEECH_REGION set hain?` });
+      const path = `tts-previews/${provider}-${effectiveGender}-${Date.now()}.mp3`;
+      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
+        body: result.buffer,
+      });
+      if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
+      return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, providerUsed: result.providerUsed });
+    }
+
     if (!voice || !GEMINI_VALID_VOICES.has(voice)) {
       return res.status(400).json({ error: 'Invalid or missing voice name' });
     }
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
-
-    const text = (sampleText && String(sampleText).trim()) ||
-      'Assalam o Alaikum! Main aap ki customer support executive hoon. Aap ki kis tarah madad kar sakti hoon?';
 
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
