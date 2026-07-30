@@ -268,6 +268,31 @@ export interface BusinessExpense {
   createdAt: string;
 }
 
+// ─── ACCESS RIGHTS MATRIX (Feature A — Granular Access Rights + Area Lock) ───
+// Module keys map 1:1 to Layout.tsx nav tab ids so nav gating stays a simple lookup.
+export type ModuleKey =
+  | 'dashboard' | 'users' | 'receipts' | 'recoveries' | 'expiries'
+  | 'reports' | 'systemlogs' | 'settings' | 'team' | 'expenses'
+  | 'analytics' | 'outage' | 'area' | 'equipment' | 'leads'
+  | 'reminders' | 'templates' | 'wabot';
+
+export interface AccessRights {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+  receipt?: boolean; // only relevant for receipts/recoveries modules
+}
+
+export const MODULE_LABELS: Record<ModuleKey, string> = {
+  dashboard: 'Dashboard', users: 'Customers', receipts: 'Receipts',
+  recoveries: 'Recoveries', expiries: 'Expiries', reports: 'AI Insights',
+  systemlogs: 'Sys Logs', settings: 'Settings', team: 'Team Hub',
+  expenses: 'Expenses', analytics: 'Analytics', outage: 'Outage',
+  area: 'Area', equipment: 'Equipment', leads: 'Leads',
+  reminders: 'Reminders', templates: 'Message Templates', wabot: 'WABot',
+};
+
 export interface SubManagerAccount {
   id: string;
   username: string;
@@ -287,6 +312,10 @@ export interface SubManagerAccount {
   commissionPercent?: number;  // Commission % on collections (e.g. 5 = 5%)
   complaintCommission?: number; // Fixed Rs. earned per complaint resolved
   salaryPayments?: SalaryPayment[]; // History of months marked as paid
+  // ── Feature A: Granular Access Rights Matrix + Area Lock ──
+  assignedAreas?: string[];    // empty/undefined = all areas (no lock)
+  accessRights?: Record<ModuleKey, AccessRights>; // undefined = unrestricted (legacy behavior, unaffected)
+  active?: boolean;            // false = suspended (reserved for future login block, not yet enforced)
 }
 
 export interface AttendanceLog {
