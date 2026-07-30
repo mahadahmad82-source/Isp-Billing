@@ -771,15 +771,15 @@ const App: React.FC = () => {
 
 
 
-  // ✅ Single-active-device enforcement — every ~45s (and on tab focus), ask
-  // Supabase whether THIS device still owns the session for activeManager.
-  // If another device logged in since (claim_device_session there overwrote
-  // the row), this device gets force-logged-out with a clear reason instead
-  // of silently continuing to write and racing/overwriting the other one.
+  // ✅ Single-active-device enforcement + live presence heartbeat — every ~45s
+  // (and on tab focus): (1) confirm this device still owns the session, and
+  // (2) ping last_seen_at so the admin panel's "online" status reflects
+  // actual open-app presence, not just "last time something was saved".
   useEffect(() => {
     if (!activeManager) return;
     const deviceId = getDeviceId();
     const checkDevice = () => {
+      supabase.rpc('heartbeat_manager_session', { p_username: activeManager }).then(() => {});
       supabase.rpc('check_device_session', { p_username: activeManager, p_device_id: deviceId })
         .then(({ data, error }) => {
           if (error) return; // network/RPC issue — don't force logout on a hiccup
@@ -789,6 +789,7 @@ const App: React.FC = () => {
           }
         });
     };
+    checkDevice(); // immediate heartbeat on mount, don't wait 45s
     const interval = setInterval(checkDevice, 45000);
     const onFocus = () => checkDevice();
     window.addEventListener('focus', onFocus);
