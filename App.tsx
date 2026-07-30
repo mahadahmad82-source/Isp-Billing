@@ -1509,6 +1509,7 @@ const App: React.FC = () => {
           lastSavedTime={lastSavedTime}
           isSyncing={isSyncing}
           syncStatus={syncStatus}
+          subManagerAccessRights={userRole === 'sub-manager' ? state.subManagers?.find(sm => sm.username === activeManager)?.accessRights : undefined}
           onNavigateCustomers={(filter) => {
             setCustomerStatusFilter(filter);
             // also sync userFilter: 'all' for all/expired views, 'current_month' only for active
@@ -1838,6 +1839,7 @@ const App: React.FC = () => {
               subManagers={state.subManagers || []}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
               managerId={activeManager || ''}
+              areas={currentSettings.areas || []}
               onVoidReceipt={handleVoidReceipt}
               onEditReceiptAmount={handleEditReceiptAmount}
               onViewLogs={(id) => console.log('Logs for', id)}
