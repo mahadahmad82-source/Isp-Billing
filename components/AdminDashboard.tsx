@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
+import { mergeById } from '../utils/supabaseSync';
 import WABotAdminClients from './WABotAdminClients';
 import {
   Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle,
@@ -159,6 +160,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     row_count: number; avg_row_size_bytes: number;
   } | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const storageComputed = useMemo(() => {
     if (!storageInfo) return null;
@@ -204,7 +206,25 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       if (error) throw error;
       setManagers(data || []);
       setLastRefresh(new Date());
-    } catch (err) { console.error('Admin stats load error:', err); }
+      setStatsError(null);
+    } catch (err) {
+      console.error('Admin stats load error:', err);
+      // #1 cause of this is a stale/expired auth session (auth.uid() no
+      // longer resolves for the SECURITY DEFINER RPC) — try one silent
+      // refresh + retry before telling the user something's wrong.
+      try {
+        await supabase.auth.refreshSession();
+        const { data: retryData, error: retryErr } = await supabase.rpc('get_admin_manager_stats');
+        if (!retryErr) {
+          setManagers(retryData || []);
+          setLastRefresh(new Date());
+          setStatsError(null);
+          setLoading(false);
+          return;
+        }
+      } catch { /* fall through to error banner below */ }
+      setStatsError('Session expire ho gaya — ye "0" real data nahi hai. Logout karke dobara login karein.');
+    }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { loadManagers(); }, [loadManagers]);
@@ -403,6 +423,19 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           <RefreshCcw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
+
+      {/* Session error banner — makes a broken session visible instead of a silent "0" */}
+      {statsError && !loading && (
+        <div className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-rose-400" />
+          <div className="flex-1">
+            <p className="text-rose-300 font-black text-[12px]">{statsError}</p>
+          </div>
+          <button onClick={loadManagers} className="flex-shrink-0 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 rounded-lg text-[11px] font-black uppercase tracking-wider">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Loading spinner */}
       {loading && (
@@ -820,11 +853,39 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                     reader.onload = async(ev)=>{
                       try {
                         const json = JSON.parse(ev.target?.result as string);
-                        if(json.databaseDump&&Array.isArray(json.databaseDump)){
-                          const{error}=await supabase.from('manager_data').upsert(json.databaseDump,{onConflict:'manager_id'});
-                          if(error) throw error;
-                          alert('✅ Restored!'); window.location.reload();
-                        } else alert('Invalid backup file.');
+                        if(!json.databaseDump || !Array.isArray(json.databaseDump)) { alert('Invalid backup file.'); return; }
+                        const ts = json.timestamp ? new Date(json.timestamp).toLocaleString('en-PK') : 'unknown time';
+                        const confirmed = confirm(
+                          `Restore backup from ${ts}?\n\n${json.databaseDump.length} manager(s) in this file.\n\n` +
+                          `This will MERGE the backup into current live data (no records will be deleted — ` +
+                          `both old and new users/receipts are kept for every manager). Continue?`
+                        );
+                        if (!confirmed) return;
+                        let restored = 0;
+                        for (const row of json.databaseDump) {
+                          if (!row?.manager_id) continue;
+                          const { data: liveRow } = await supabase.from('manager_data').select('data').eq('manager_id', row.manager_id).maybeSingle();
+                          const backupData = row.data || {};
+                          const liveData = liveRow?.data || {};
+                          const mergedData = {
+                            ...backupData, ...liveData,
+                            users:            mergeById(backupData.users,            liveData.users),
+                            receipts:         mergeById(backupData.receipts,         liveData.receipts),
+                            archives:         mergeById(backupData.archives,         liveData.archives),
+                            companies:        mergeById(backupData.companies,        liveData.companies),
+                            subManagers:      mergeById(backupData.subManagers,      liveData.subManagers),
+                            attendanceLogs:   mergeById(backupData.attendanceLogs,   liveData.attendanceLogs),
+                            complaintTickets: mergeById(backupData.complaintTickets, liveData.complaintTickets),
+                            businessExpenses: mergeById(backupData.businessExpenses, liveData.businessExpenses),
+                          };
+                          const { error } = await supabase.from('manager_data').upsert(
+                            { manager_id: row.manager_id, data: mergedData },
+                            { onConflict: 'manager_id' }
+                          );
+                          if (!error) restored++;
+                        }
+                        alert(`✅ Restored (merged): ${restored}/${json.databaseDump.length} manager(s). No existing data was deleted.`);
+                        window.location.reload();
                       } catch(e:any) { alert('Restore failed: '+e?.message); }
                     };
                     reader.readAsText(file);
