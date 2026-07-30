@@ -5,6 +5,7 @@ import RecruitAgentModal from './RecruitAgentModal';
 import AgentAttendance from './AgentAttendance';
 import ActivityLogs from './ActivityLogs';
 import AgentPerformanceReport from './AgentPerformanceReport';
+import EditGranularRights from './EditGranularRights';
 
 // Lazy load LiveTracking so map issues don't crash the whole Team Hub
 const LiveTracking = lazy(() => import('./LiveTracking'));
@@ -30,6 +31,7 @@ interface SubManagerManagementProps {
   onAddComplaint?: (t: Omit<ComplaintTicket, 'id' | 'createdAt'>) => void;
   onUpdateComplaint?: (id: string, updates: Partial<ComplaintTicket>) => void;
   onDeleteComplaint?: (id: string) => void;
+  areas?: string[]; // Feature A — Access Rights: service areas list for the area-lock picker
 }
 
 const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
@@ -38,13 +40,14 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   onAgentRecruited, onEditAgent, onDeleteAgent,
   onAddAttendanceLog, onUpdateAttendanceLog, onDeleteAttendanceLog, attendanceLogs,
   complaintTickets = [], onResolveComplaint, users = [],
-  onAddComplaint, onUpdateComplaint, onDeleteComplaint,
+  onAddComplaint, onUpdateComplaint, onDeleteComplaint, areas = [],
 }) => {
   const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const [performanceAgentId, setPerformanceAgentId] = useState<string | null>(null);
+  const [rightsAgentId, setRightsAgentId] = useState<string | null>(null);
 
   const selectedAgentForPerformance = subManagers.find(sm => sm.id === performanceAgentId || sm.username === performanceAgentId);
   const agentReceipts = recentReceipts.filter(r =>
@@ -476,6 +479,11 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                       className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-emerald-500 transition-all hover:scale-110">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                     </button>
+                    <button onClick={e => { e.stopPropagation(); setRightsAgentId(sm.id); }}
+                      title="Access Rights"
+                      className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-indigo-500 transition-all hover:scale-110">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                    </button>
                   </div>
                 </div>
 
@@ -683,6 +691,20 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
           />
         </Suspense>
       )}
+
+      {/* ── ACCESS RIGHTS MODAL (Feature A) ── */}
+      {rightsAgentId && (() => {
+        const rightsAgent = subManagers.find(sm => sm.id === rightsAgentId);
+        if (!rightsAgent) return null;
+        return (
+          <EditGranularRights
+            agent={rightsAgent}
+            areas={areas}
+            onClose={() => setRightsAgentId(null)}
+            onSave={onEditAgent}
+          />
+        );
+      })()}
 
       {/* ── DELETE CONFIRM MODAL ── */}
       {deletingAgentId && (
