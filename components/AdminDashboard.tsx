@@ -13,7 +13,7 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ManagerStat {
   username: string; business_name: string; email: string; phone: string | null;
-  role: string; joined_at: string; last_login: string; user_count: number;
+  role: string; joined_at: string; last_login: string; last_seen: string | null; user_count: number;
   receipt_count: number; active_count: number; expired_count: number;
   total_revenue: number; total_balance: number; data_updated_at: string | null;
 }
@@ -230,7 +230,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   useEffect(() => { loadManagers(); }, [loadManagers]);
   useEffect(() => {
     const map: Record<string, { status: OnlineStatus; updatedAt: string | null }> = {};
-    for (const m of managers) map[m.username] = { status: getOnlineStatus(m.data_updated_at), updatedAt: m.data_updated_at };
+    for (const m of managers) map[m.username] = { status: getOnlineStatus(m.last_seen), updatedAt: m.last_seen };
     setOnlineMap(map);
   }, [managers]);
 
@@ -240,10 +240,12 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manager_data' }, (payload) => {
         const row = payload.new as any;
         if (!row?.manager_id) return;
-        const username = row.manager_id; const updatedAt = row.updated_at || null;
-        setOnlineMap(prev => ({ ...prev, [username]: { status: getOnlineStatus(updatedAt), updatedAt } }));
+        const username = row.manager_id;
+        const updatedAt = row.updated_at || null;
+        const seenAt = row.last_seen_at || null;
+        setOnlineMap(prev => ({ ...prev, [username]: { status: getOnlineStatus(seenAt), updatedAt: seenAt } }));
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT')
-          setManagers(prev => prev.map(m => m.username !== username ? m : { ...m, data_updated_at: updatedAt }));
+          setManagers(prev => prev.map(m => m.username !== username ? m : { ...m, data_updated_at: updatedAt, last_seen: seenAt }));
         if (payload.eventType === 'DELETE') {
           const deletedId = (payload.old as any)?.manager_id;
           if (deletedId) setManagers(prev => prev.filter(m => m.username !== deletedId));
