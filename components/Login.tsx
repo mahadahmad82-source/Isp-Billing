@@ -92,15 +92,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
       if (localFound && localFound.role === 'admin') {
-        // Admin actions (delete/reset manager) require a live Supabase Auth
-        // session (auth.uid()) server-side — this shortcut used to skip real
-        // auth entirely, silently breaking those RPCs. Re-authenticate in the
-        // background; don't block the (already-trusted) local login on it.
+        // Admin actions (delete/reset manager, dashboard stats) require a live
+        // Supabase Auth session (auth.uid()) server-side. This shortcut used to
+        // swallow a failed re-auth and proceed anyway — leaving the UI "logged
+        // in" with zero real session, which is why the admin dashboard showed
+        // 0 managers / 0 customers with no error. Now we verify the session
+        // actually came up before trusting the shortcut; otherwise fall
+        // through to the full auth flow below (which retries properly).
+        const authEmail = localFound.username.includes('@') ? localFound.username : `${localFound.username}@myisp.local`;
+        let sessionOk = false;
         try {
-          const authEmail = localFound.username.includes('@') ? localFound.username : `${localFound.username}@myisp.local`;
-          await supabase.auth.signInWithPassword({ email: authEmail, password });
-        } catch { /* fall through — local session still proceeds */ }
-        setActiveSession(localFound.username); finishLogin(localFound.username); return true;
+          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+          sessionOk = !authErr && !!authData?.session;
+        } catch { sessionOk = false; }
+        if (sessionOk) { setActiveSession(localFound.username); finishLogin(localFound.username); return true; }
+        console.warn('[Auth] Admin quick-login session failed — falling back to full login flow');
       }
       let identifier = username;
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
