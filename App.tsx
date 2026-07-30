@@ -51,7 +51,22 @@ interface ConfirmationConfig {
   variant: 'danger' | 'warning' | 'info';
 }
 
-const INACTIVITY_LIMIT = 30 * 60 * 1000;
+const INACTIVITY_LIMIT = 15 * 60 * 1000;
+
+// Stable per-browser device id, persisted forever (not per-session) so the
+// single-device login check below can tell "same phone/browser" apart from
+// "a different one". Used for the single-active-device enforcement.
+const getDeviceId = (): string => {
+  const KEY = '__mahadnet_device_id__';
+  try {
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+      id = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(KEY, id);
+    }
+    return id;
+  } catch { return 'unknown-device'; }
+};
 
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
@@ -681,7 +696,13 @@ const App: React.FC = () => {
     supabase.rpc('track_manager_login', { p_username: username }).then(({ error }) => {
       if (error) console.error('[Login] track_manager_login failed:', error);
     });
-    
+    // Claim this device as the single active session for this account — any
+    // other device already logged in as the same username will be detected
+    // and logged out by the periodic check below within ~45s.
+    supabase.rpc('claim_device_session', { p_username: username, p_device_id: getDeviceId() }).then(({ error }) => {
+      if (error) console.error('[Login] claim_device_session failed:', error);
+    });
+
     // Welcome tour is triggered reactively by the Tour Guide v2 effect once activeManager updates.
     if (username === 'admin') {
       setActiveTab('admin-overview');
@@ -728,6 +749,9 @@ const App: React.FC = () => {
           supabase.rpc('track_manager_login', { p_username: existing?.username || derivedUsername }).then(({ error }) => {
             if (error) console.error('[Login] track_manager_login failed:', error);
           });
+          supabase.rpc('claim_device_session', { p_username: existing?.username || derivedUsername, p_device_id: getDeviceId() }).then(({ error }) => {
+            if (error) console.error('[Login] claim_device_session failed:', error);
+          });
         }
       }
     });
@@ -746,6 +770,35 @@ const App: React.FC = () => {
   }, []);
 
 
+
+  // ✅ Single-active-device enforcement — every ~45s (and on tab focus), ask
+  // Supabase whether THIS device still owns the session for activeManager.
+  // If another device logged in since (claim_device_session there overwrote
+  // the row), this device gets force-logged-out with a clear reason instead
+  // of silently continuing to write and racing/overwriting the other one.
+  useEffect(() => {
+    if (!activeManager) return;
+    const deviceId = getDeviceId();
+    const checkDevice = () => {
+      supabase.rpc('check_device_session', { p_username: activeManager, p_device_id: deviceId })
+        .then(({ data, error }) => {
+          if (error) return; // network/RPC issue — don't force logout on a hiccup
+          if (data === false) {
+            alert('Ye account kisi doosri device/browser par login ho chuka hai. Aap yahan se logout ho rahe hain.');
+            handleLogout();
+          }
+        });
+    };
+    const interval = setInterval(checkDevice, 45000);
+    const onFocus = () => checkDevice();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [activeManager, handleLogout]);
 
   useEffect(() => {
     if (!activeManager) return;
