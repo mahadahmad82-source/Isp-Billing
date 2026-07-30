@@ -120,8 +120,23 @@ export const flushPendingSync = async (): Promise<void> => {
 
   for (const item of q) {
     try {
-      const state = JSON.parse(item.stateJson) as AppState;
-      const ok = await upsertWithRetry(item.managerId, state, 2);
+      const staleState = JSON.parse(item.stateJson) as AppState;
+      // A queued item can sit for minutes/hours — merge with whatever is on
+      // Supabase NOW instead of blindly overwriting with this stale snapshot
+      // (same class of bug the smartLoadAndSync merge fix addresses).
+      const currentRemote = await loadStateFromSupabase(item.managerId);
+      const stateToPush: AppState = currentRemote ? {
+        ...currentRemote,
+        users:            mergeById(staleState.users,            currentRemote.users),
+        receipts:         mergeById(staleState.receipts,         currentRemote.receipts),
+        archives:         mergeById(staleState.archives,         currentRemote.archives),
+        companies:        mergeById(staleState.companies,        currentRemote.companies),
+        subManagers:      mergeById(staleState.subManagers,      currentRemote.subManagers),
+        attendanceLogs:   mergeById(staleState.attendanceLogs,   currentRemote.attendanceLogs),
+        complaintTickets: mergeById(staleState.complaintTickets, currentRemote.complaintTickets),
+        businessExpenses: mergeById(staleState.businessExpenses, currentRemote.businessExpenses),
+      } : staleState;
+      const ok = await upsertWithRetry(item.managerId, stateToPush, 2);
       if (!ok) console.warn('[Supabase] Flush failed for', item.managerId);
     } catch (e) {
       console.error('[Supabase] Flush parse error:', e);
@@ -157,7 +172,7 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
 // by `id`. Real deletions still work fine through normal delete handlers
 // (which save right after removing locally); this only protects against a
 // stale background save clobbering newer records.
-const mergeById = <T extends { id?: string }>(a: T[] = [], b: T[] = []): T[] => {
+export const mergeById = <T extends { id?: string }>(a: T[] = [], b: T[] = []): T[] => {
   const map = new Map<string, T>();
   [...(a || []), ...(b || [])].forEach((item) => {
     if (item && (item as any).id) map.set((item as any).id, item);
