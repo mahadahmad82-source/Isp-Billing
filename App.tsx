@@ -953,7 +953,9 @@ const App: React.FC = () => {
   };
 
   const handleAddReceipt = (receipt: Receipt) => {
-    setLoadingMessage("Generating Receipt...");
+    // Reduced delay from 600ms to 200ms. The UI will feel much more responsive 
+    // while still giving a brief "Saving" feedback.
+    setLoadingMessage("Saving Receipt...");
     setTimeout(() => {
       setState(prev => {
         const receiptLog = createLog('PAYMENT_COLLECTED', `Receipt: @${receipt.username} — Rs. ${(receipt.paidAmount || 0).toLocaleString()} for ${receipt.period}`, 'payment');
@@ -992,7 +994,7 @@ const App: React.FC = () => {
         };
       });
       setLoadingMessage(null);
-    }, 600);
+    }, 200);
   };
 
   const handleUpdateReceipt = (receipt: Receipt) => {

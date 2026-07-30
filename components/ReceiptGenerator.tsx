@@ -335,19 +335,26 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
   const captureAndDownload = async (receipt: Receipt) => {
     setIsDownloading(true);
-    setLoadingMessage('Capturing High-Resolution Digital Copy...');
-    await new Promise(r => setTimeout(r, 1000));
+    // Use local state if possible to avoid full app re-renders, but since setLoadingMessage 
+    // is passed from parent, we use it sparingly.
+    setLoadingMessage('Capturing Digital Receipt...');
+    
+    // Give more time for the UI to breathe and ensure the modal is fully settled
+    await new Promise(r => setTimeout(r, 800));
     
     const element = document.getElementById('receipt-download-area');
     if (!element) {
       setIsDownloading(false);
+      setLoadingMessage(null);
       return;
     }
 
     try {
       const isThermal = settings.receiptDesign === ReceiptDesign.THERMAL;
+      // Reduced scale from 4 to 2. Scale 4 is 16x pixels and extremely heavy on mobile/tablets.
+      // Scale 2 is plenty for high-quality printing and sharing.
       const canvas = await html2canvas(element, { 
-        scale: 4, 
+        scale: 2, 
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
@@ -637,21 +644,26 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         console.error("Receipt saved, but customer expiry update failed:", userUpdateError);
       }
       
-      // Auto-send via WhatsApp is disabled (Ayesha/WABA number paused — see below),
-      // so auto-download is back on as the fallback: customer's receipt still
-      // lands as a saved image even though it can't be auto-WhatsApp'd right now.
-      captureAndDownload(newReceipt);
-      // Always store the receipt PNG in Supabase Storage (independent of WABA send
-      // status) so WABot can instantly share it whenever the customer asks for it
-      // via chat — no regeneration needed at request time.
-      generateAndStoreReceiptImage(newReceipt);
-      // Fires the Meta-approved "Payment Success" template right after the receipt is
-      // generated — works even outside the 24h WhatsApp session window (unlike a plain
-      // image/caption message), auto-filled from the receipt's own computed amounts so
-      // nothing has to be typed in manually.
-      if (settings.autoSendPaymentConfirmation ?? true) {
-        autoSendPaymentTemplate(newReceipt, user);
-      }
+      // Sequence the heavy tasks to avoid CPU spikes.
+      // We wait for the view to switch, then download, then upload in the background.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(async () => {
+            // 1. First, trigger the user-visible download (Scale 2)
+            await captureAndDownload(newReceipt);
+            
+            // 2. Then, trigger the background storage upload (Scale 1.5)
+            // We don't 'await' this so the UI stays responsive for the next action,
+            // but the captureAndDownload being finished means the CPU is free.
+            generateAndStoreReceiptImage(newReceipt);
+            
+            // 3. Trigger the Meta WhatsApp Template send
+            if (settings.autoSendPaymentConfirmation ?? true) {
+              autoSendPaymentTemplate(newReceipt, user);
+            }
+          }, 200);
+        });
+      });
 
     } catch (error) {
       console.error("Critical System Failure:", error);
