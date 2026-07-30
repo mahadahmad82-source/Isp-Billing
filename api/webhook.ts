@@ -1270,26 +1270,37 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
 // Converts text to a voice-note MP3 and stores it in the public whatsapp-media
 // bucket, returning its public URL — or null on failure so the caller falls
 // back to a text reply. Routes by currentTtsProvider (set per-message from the
-// matched agent, or 'gemini' by default — zero behaviour change for existing
-// single-persona setups):
-//   'gemini' → Gemini TTS, understands Roman Urdu natively (unchanged from before).
-//   'azure'/'edge' → real Urdu-script voices (ur-PK-Uzma/AsadNeural), so the Roman
-//   Urdu reply text is transliterated to Urdu script first (see lib/ttsProviders.ts).
-//   'azure' auto-falls-back to 'edge' if no Azure key is configured yet or the
-//   call fails, so this never fully breaks even before Azure is set up.
+// matched agent, or 'gemini' by default):
+//   'gemini' → tried first (best Roman Urdu quality). If it fails for ANY reason
+//   (quota exhausted, API error, etc.) this automatically cascades to Azure, then
+//   Edge-TTS (free/unlimited) — full quota-chaining, so a Gemini quota hit no
+//   longer means "no voice reply", it just quietly drops one tier. No manual
+//   provider change ever needed for this.
+//   'azure'/'edge' (explicitly chosen per-agent) → real Urdu-script voices
+//   (ur-PK-Uzma/AsadNeural), Roman Urdu is transliterated to Urdu script first
+//   (see lib/ttsProviders.ts). 'azure' auto-falls-back to 'edge' the same way,
+//   and if both fail, Gemini is tried as the final fallback.
 async function textToSpeech(text: string): Promise<string | null> {
   if (!text) return null;
-  if (currentTtsProvider === 'azure' || currentTtsProvider === 'edge') {
-    const { synthesizeNonGemini } = await import('../lib/ttsProviders');
-    const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
-    if (!result) {
-      // Last-resort: try Gemini too before giving up entirely (only if it has a key).
-      return await textToSpeechGemini(text);
-    }
+  const { synthesizeNonGemini } = await import('../lib/ttsProviders');
+
+  if (currentTtsProvider === 'gemini') {
+    const geminiUrl = await textToSpeechGemini(text);
+    if (geminiUrl) return geminiUrl;
+    console.error('[textToSpeech] Gemini failed (quota/error) — cascading to Azure/Edge-TTS');
+    const result = await synthesizeNonGemini(text, 'azure', currentTtsGender); // internally falls to edge if azure has no key/fails
+    if (!result) return null; // everything failed -> caller falls back to plain text reply
     if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
     return await uploadTtsAudio(result.buffer, 'tts-replies');
   }
-  return await textToSpeechGemini(text);
+
+  const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
+  if (!result) {
+    // Last-resort: try Gemini too before giving up entirely (only if it has a key).
+    return await textToSpeechGemini(text);
+  }
+  if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
+  return await uploadTtsAudio(result.buffer, 'tts-replies');
 }
 
 // True live push notification (Web Push, works even with the app closed) — reuses
