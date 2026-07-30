@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ProfileDialog from './ProfileDialog';
 import NotificationCenter from './NotificationCenter';
-import { AppNotification } from '../types';
+import { AppNotification, AccessRights, ModuleKey } from '../types';
 import { logoBase64 } from '../utils/logoBase64';
 import { avatarBase64 } from '../utils/avatarBase64';
 import LanguageToggle from './LanguageToggle';
@@ -36,6 +36,7 @@ interface LayoutProps {
   currentAddress?: string;
   currentEmail?: string;
   onNavigateCustomers?: (filter: 'all' | 'active' | 'expired') => void;
+  subManagerAccessRights?: Record<ModuleKey, AccessRights>; // Feature A — hides nav tabs this agent has no view right for. Undefined = unrestricted (legacy behavior).
 }
 
 // ✅ Live DB Connection Status Indicator
@@ -164,6 +165,7 @@ const Layout: React.FC<LayoutProps> = ({
   currentAddress = '',
   currentEmail = '',
   onNavigateCustomers,
+  subManagerAccessRights,
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
   const [expensesExpanded, setExpensesExpanded] = useState(false);
@@ -223,6 +225,13 @@ const Layout: React.FC<LayoutProps> = ({
       { id: 'templates',  label: 'Message Templates',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> },
       { id: 'wabot',      label: 'WABot',      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.97-4.03 9-9 9a8.96 8.96 0 01-4.535-1.224L3 21l1.255-3.762A8.96 8.96 0 013 12c0-4.97 4.03-9 9-9s9 4.03 9 9z"/></svg> }
     );
+  }
+
+  // Feature A — Granular Access Rights: hide nav tabs this sub-manager has no view
+  // right for. Only applies when accessRights was explicitly configured for the agent;
+  // legacy/unconfigured agents keep seeing exactly what they saw before this feature.
+  if (userRole === 'sub-manager' && subManagerAccessRights) {
+    tabs = tabs.filter(tab => subManagerAccessRights[tab.id as ModuleKey]?.view !== false);
   }
 
   const isDark = theme === 'dark';
