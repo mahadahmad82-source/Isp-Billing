@@ -74,6 +74,8 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
   const [viewingLedgerUser, setViewingLedgerUser] = useState<UserRecord | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  useEffect(() => { setSelectedIds(new Set()); }, [selectedMonth]);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Recovery Ledger — column visibility (hide/unhide), persisted per device
@@ -331,6 +333,42 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size > 0 && selectedIds.size === detailedList.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(detailedList.map(item => item.id)));
+    }
+  };
+
+  const handleBulkDeleteFromRecovery = () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Are you sure you want to remove ${selectedIds.size} users from this month's recovery ledger?`)) return;
+
+    const usersToUpdate = Array.from(selectedIds).map(id => {
+      const user = users.find(u => u.id === id);
+      if (!user) return null;
+      return {
+        ...user,
+        activatedMonths: (user.activatedMonths || []).filter(m => m !== selectedMonth)
+      };
+    }).filter(Boolean) as UserRecord[];
+
+    if (onBulkUpdateUsers) {
+      onBulkUpdateUsers(usersToUpdate);
+    }
+    setSelectedIds(new Set());
   };
 
 
@@ -993,6 +1031,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                 <input type="text" placeholder="Search customer records..." className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-950 rounded-2xl font-bold text-sm border border-slate-200 dark:border-0 outline-none text-slate-900 dark:text-white shadow-sm" value={detailSearchTerm} onChange={e => setDetailSearchTerm(e.target.value)} />
               </div>
+              {selectedIds.size > 0 && (
+                <button 
+                  onClick={handleBulkDeleteFromRecovery} 
+                  className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-500/20 active:scale-95 transition-all flex items-center gap-2 animate-in zoom-in duration-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  Delete ({selectedIds.size})
+                </button>
+              )}
               <button onClick={() => { setAddUserSearch(''); setShowAddUserModal(true); }} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 whitespace-nowrap active:scale-95 transition-all">+ Add User</button>
               <button onClick={exportToExcel} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 whitespace-nowrap active:scale-95 transition-all">Export To Excel</button>
               <div className="relative">
@@ -1053,6 +1100,14 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
             <table className="w-full text-left min-w-[1200px]">
               <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] uppercase font-black text-slate-500 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
                 <tr>
+                  <th className="px-4 py-5 w-10">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                      checked={detailedList.length > 0 && selectedIds.size === detailedList.length}
+                      onChange={handleSelectAll}
+                    />
+                  </th>
                   {visibleColumns.serialNo && (
                   <th className="px-4 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('serialNo')}>
                     Sr.# {sortConfig?.key === 'serialNo' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
@@ -1113,7 +1168,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {detailedList.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                  <tr key={item.id} className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${selectedIds.has(item.id) ? 'bg-indigo-50/30 dark:bg-indigo-500/5' : ''}`}>
+                    <td className="px-4 py-5 w-10">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
                     {visibleColumns.serialNo && (
                     <td className="px-4 py-5"><span className="text-xs font-black text-slate-400 dark:text-slate-500">{(item as any).serialNo}</span></td>
                     )}
