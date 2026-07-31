@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
+import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus, loadStateFromSupabase } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
@@ -1348,9 +1349,24 @@ const App: React.FC = () => {
   }
 
   if (userRole === 'sub-manager') {
+    // Feature A — Access Rights: this is the ACTUAL render path real field agents use
+    // (SubManagerDashboard + the receipts-only screen below). Layout.tsx is never
+    // reached from here, so area-lock and permission checks belong in this branch.
+    const currentAgent = state.subManagers?.find(sm => sm.username === activeManager);
+    const agentAreas = currentAgent?.assignedAreas || [];
+    const areaLockedUsers = agentAreas.length > 0
+      ? filteredUsers.filter(u => agentAreas.includes(u.area || ''))
+      : filteredUsers;
+    const canLogReceipts = canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
     return (
       <ErrorBoundary>
         {activeTab === 'receipts' ? (
+          !canLogReceipts ? (
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] flex flex-col items-center justify-center p-8 text-center gap-4">
+              <p className="text-slate-500 dark:text-slate-400 font-semibold">Aapko receipts issue karne ki ijazat nahi hai.</p>
+              <button onClick={() => setActiveTab('team')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">Wapis jayein</button>
+            </div>
+          ) : (
           <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300 flex flex-col">
             <div className="p-4 bg-white/80 dark:bg-[#0b0f1a]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 sm:px-10">
               <div className="flex items-center gap-5">
@@ -1370,7 +1386,7 @@ const App: React.FC = () => {
             </div>
             <div className="flex-1 overflow-auto p-4 md:p-8">
               <ReceiptGenerator 
-                users={state.users}
+                users={agentAreas.length > 0 ? state.users.filter(u => agentAreas.includes(u.area || '')) : state.users}
                 settings={currentSettings}
                 subManagers={state.subManagers || []}
                 preSelectUser={preSelectReceiptUser || undefined}
@@ -1400,15 +1416,17 @@ const App: React.FC = () => {
               />
             </div>
           </div>
+          )
         ) : (
           <SubManagerDashboard 
             subManagerName={activeManager || 'Field Agent'}
             agent={state.subManagers?.find(sm => sm.username === activeManager)}
             agentId={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || ''}
             agentArea={agentArea}
-            users={filteredUsers}
+            users={areaLockedUsers}
             receipts={filteredReceipts}
             settings={currentSettings}
+            canLogReceipts={canLogReceipts}
             attendanceLogs={state.attendanceLogs || []}
             onLogout={handleLogout}
             onAddAttendanceLog={handleAddAttendanceLog}
