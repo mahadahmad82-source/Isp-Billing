@@ -636,7 +636,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           lastPaymentDate: receiptDate.toISOString(),
           expiryDate: resolvedExpiryDate,
           status: 'active',
-          balance: calculatedBalance || 0 
+          balance: calculatedBalance || 0,
+          persistentDiscount: discount || 0
         });
       } catch (userUpdateError) {
         // Receipt is already saved and on screen — a failure here must not
