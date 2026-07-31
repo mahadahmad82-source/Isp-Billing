@@ -37,6 +37,7 @@ interface LayoutProps {
   currentEmail?: string;
   onNavigateCustomers?: (filter: 'all' | 'active' | 'expired') => void;
   subManagerAccessRights?: Record<ModuleKey, AccessRights>; // Feature A — hides nav tabs this agent has no view right for. Undefined = unrestricted (legacy behavior).
+  onEmailChanged?: (newEmail: string) => void;
 }
 
 // ✅ Live DB Connection Status Indicator
@@ -166,6 +167,7 @@ const Layout: React.FC<LayoutProps> = ({
   currentEmail = '',
   onNavigateCustomers,
   subManagerAccessRights,
+  onEmailChanged,
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
   const [expensesExpanded, setExpensesExpanded] = useState(false);
@@ -605,6 +607,7 @@ const Layout: React.FC<LayoutProps> = ({
         theme={theme}
         initialTab={profileInitialTab}
         onUpdateProfile={onUpdateProfile}
+        onEmailChanged={onEmailChanged}
         currentPhone={currentPhone}
         currentAddress={currentAddress}
       />
