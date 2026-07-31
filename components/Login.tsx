@@ -14,7 +14,7 @@ interface LoginProps {
 }
 
 const ADMIN_USERNAME = 'admin';
-type ViewType = 'recent' | 'login' | 'signup' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
+type ViewType = 'recent' | 'login' | 'signup' | 'signup-otp' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
 
 // ── Icons (outside component to prevent re-render remounting) ──
 const EyeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>);
@@ -69,6 +69,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [forgotOtp, setForgotOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [signupOtp, setSignupOtp] = useState('');
+  const [pendingSignupEmail, setPendingSignupEmail] = useState('');
 
   useEffect(() => {
     const loadedAccounts = getAccounts();
@@ -193,16 +195,49 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) { showError(hasRealEmail ? 'This email is already registered.' : 'This Phone Number is already registered.'); return; }
       if (signUpErr) throw new Error(signUpErr.message);
       if (!signUpData.user) throw new Error('Signup failed. Try again.');
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
-      if (signInErr) throw new Error('Account created! Please login manually.');
-      // profiles.username is required for RLS-scoped manager_data access but is
-      // never set by the signup trigger — set it now so dual-save works immediately.
-      await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', signUpData.user.id);
-      const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
-      saveAccount(newAccount); setAccounts(getAccounts());
-      writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
-      onLogin(phone);
+      if (hasRealEmail) {
+        // Real email on file — Supabase already dispatched a signup-confirmation
+        // email (OTP-style, via the "Confirm signup" template). Don't try to log
+        // in yet; the account isn't confirmed until they enter that code.
+        setPendingSignupEmail(authEmail);
+        setView('signup-otp');
+        return;
+      }
+      // No real email was given — there's nowhere for a confirmation OTP to go
+      // (the synthetic {phone}@myisp.local address isn't a real inbox), so this
+      // account is auto-confirmed server-side instead of being stuck forever.
+      await supabase.rpc('auto_confirm_synthetic_signup', { p_user_id: signUpData.user.id });
+      await finishSignup(authEmail);
     } catch (err: any) { showError(`Registration Failed: ${err.message}`); }
+    finally { setIsLoading(false); }
+  };
+
+  // Shared tail-end of account creation, called either right after a synthetic-email
+  // signup (auto-confirmed above) or after a real-email signup's OTP is verified.
+  const finishSignup = async (authEmail: string) => {
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+    if (signInErr) throw new Error('Account created! Please login manually.');
+    // profiles.username is required for RLS-scoped manager_data access but is
+    // never set by the signup trigger — set it now so dual-save works immediately.
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', user.id);
+    const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
+    saveAccount(newAccount); setAccounts(getAccounts());
+    writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
+    onLogin(phone);
+  };
+
+  const handleSignupOtpVerify = async (e: React.FormEvent) => {
+    e.preventDefault(); setIsLoading(true); setLoadingText('Verifying OTP...'); setError('');
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: pendingSignupEmail, token: signupOtp, type: 'signup' });
+      if (error) throw new Error('Invalid OTP or it has expired.');
+      // verifyOtp(type: 'signup') already confirms + signs the user in; finishSignup's
+      // own signInWithPassword call below just re-establishes the session cleanly
+      // using the known-correct password, which is harmless and keeps this one
+      // code path in charge of profile-setup + local account save.
+      await finishSignup(pendingSignupEmail);
+    } catch (err: any) { showError(err.message); }
     finally { setIsLoading(false); }
   };
 
@@ -262,6 +297,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     setBusinessName(''); setUsername(''); setEmail(''); setPhone('');
     setPassword(''); setConfirmPassword(''); setRememberPassword(false); setError('');
     setForgotIdentifier(''); setForgotOtp(''); setNewPassword(''); setConfirmNewPassword('');
+    setSignupOtp(''); setPendingSignupEmail('');
   };
 
   const handleGoToSignup = () => { resetFields(); setView('signup'); };
@@ -281,6 +317,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   // ── Card heading based on view ──
   const getHeading = () => {
     if (view === 'signup') return { title: 'Create Account', sub: 'Register your new ISP node' };
+    if (view === 'signup-otp') return { title: 'Verify Email', sub: 'Enter the code sent to you' };
     if (view === 'recent') return { title: 'Welcome Back!', sub: 'Select your profile to continue' };
     if (view === 'forgot') return { title: 'Reset Password', sub: 'Enter your username or recovery email' };
     if (view === 'forgot-otp') return { title: 'Verify OTP', sub: 'Enter the code sent to you' };
@@ -425,6 +462,29 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                 <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
                   style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
                   {isLoading ? loadingText : 'Verify OTP'}
+                </button>
+              </form>
+            )}
+
+            {/* ── SIGNUP OTP (email confirmation) ── */}
+            {view === 'signup-otp' && (
+              <form onSubmit={handleSignupOtpVerify} className="space-y-5">
+                <div className="flex items-center justify-between mb-2">
+                  <button type="button" onClick={() => { resetFields(); setView('signup'); }} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-indigo-400 transition-colors">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>Back
+                  </button>
+                  <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Last Step</span>
+                </div>
+                <div className="p-3.5 rounded-xl text-[11px] font-bold text-center text-indigo-300" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  OTP sent to: <strong>{pendingSignupEmail}</strong>
+                </div>
+                <div>
+                  <label className={labelCls}>6-Digit OTP</label>
+                  <InputField icon={<LockIcon />} placeholder="Enter OTP" value={signupOtp} onChange={e => setSignupOtp(e.target.value)} />
+                </div>
+                <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
+                  {isLoading ? loadingText : 'Verify & Create Node'}
                 </button>
               </form>
             )}
