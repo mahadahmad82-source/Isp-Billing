@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { logoBase64 } from '../utils/logoBase64';
-import ThreeBackground from './landing/ThreeBackground';
+import VideoBackground from './landing/VideoBackground';
 import { 
   Zap, Smartphone, Lock, BarChart, Users, Globe, Cpu, Server, 
   Check, ArrowRight, Shield, ChevronDown, CheckCircle, Activity, 
@@ -1159,7 +1159,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         {/* ── SECTION 1: HERO ── */}
         <section className="hero" id="hero" ref={heroRef}>
           <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-            <ThreeBackground isDark={true} />
+            <VideoBackground />
             <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950/70" />
           </div>
           <div className="orb orb-1"></div>

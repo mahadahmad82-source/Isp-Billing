@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import ThreeBackground from './landing/ThreeBackground';
+import VideoBackground from './landing/VideoBackground';
 
 /* ── month helpers (same format as RecoverySummary) ── */
 const monthLabel = (offset = 0): string => {
@@ -134,7 +134,7 @@ const CustomerPortal: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', background: C.bg, color: C.text, position: 'relative' }}
       className="flex flex-col items-center justify-center p-4 py-8">
-      <div className="absolute inset-0 z-0"><ThreeBackground isDark={true} /></div>
+      <div className="absolute inset-0 z-0"><VideoBackground /></div>
       <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
 
         {/* Header */}

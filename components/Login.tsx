@@ -4,7 +4,7 @@ import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { logoBase64 } from '../utils/logoBase64';
-import ThreeBackground from './landing/ThreeBackground';
+import VideoBackground from './landing/VideoBackground';
 import LanguageToggle from './LanguageToggle';
 import { Language, getStoredLanguage, setStoredLanguage } from '../utils/i18n';
 
@@ -331,7 +331,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#020617]">
 
       {/* Three.js Background */}
-      <div className="absolute inset-0 z-0"><ThreeBackground isDark={true} /></div>
+      <div className="absolute inset-0 z-0"><VideoBackground /></div>
       <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(2,6,23,0.35) 100%)' }} />
 
       <div className="absolute top-4 right-4 z-[20]">
