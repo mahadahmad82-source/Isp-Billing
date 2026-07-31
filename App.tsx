@@ -182,6 +182,14 @@ const App: React.FC = () => {
     });
   };
 
+  // Keeps the locally-saved ManagerAccount record (used by the "Recent Accounts"
+  // login picker and by Forgot Password identifier lookup) in sync once a manager
+  // adds/changes their real recovery email via ProfileDialog → Security tab.
+  const handleEmailChanged = (newEmail: string) => {
+    const acc = getAccounts().find(a => a.username === activeManager);
+    if (acc) saveAccount({ ...acc, email: newEmail });
+  };
+
   // ── Tour Guide (v2) ────────────────────────────────────────────
   // Welcome tour — runs once, right after a manager's very first login.
   useEffect(() => {
@@ -1546,6 +1554,7 @@ const App: React.FC = () => {
           activeManager={activeManager || ''}
           onLogout={handleLogout}
           onUpdateProfile={handleUpdateProfile}
+          onEmailChanged={handleEmailChanged}
           currentPhone={currentSettings.businessPhone}
           currentAddress={currentSettings.businessAddress}
           currentEmail={currentSettings.businessEmail || ""}
