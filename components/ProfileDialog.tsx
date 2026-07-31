@@ -10,6 +10,7 @@ interface ProfileDialogProps {
   theme: 'light' | 'dark';
   initialTab?: 'profile' | 'security';
   onUpdateProfile: (updates: { businessPhone?: string; businessAddress?: string; businessEmail?: string }) => void;
+  onEmailChanged?: (newEmail: string) => void;
   currentPhone?: string;
   currentAddress?: string;
   currentEmail?: string;
@@ -17,7 +18,7 @@ interface ProfileDialogProps {
 
 const ProfileDialog: React.FC<ProfileDialogProps> = ({
   isOpen, onClose, businessName, username, onLogout, theme,
-  initialTab = 'profile', onUpdateProfile,
+  initialTab = 'profile', onUpdateProfile, onEmailChanged,
   currentPhone = '', currentAddress = '', currentEmail = ''
 }) => {
   const [tab, setTab] = useState<'profile' | 'security'>('profile');
@@ -33,6 +34,15 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
   const [pwdError, setPwdError] = useState('');
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  // ── Recovery Email (add/change the REAL Supabase Auth login email, OTP-verified) —
+  // distinct from the "Email" field on the Profile tab, which is just a display/business
+  // field. This one is what actually makes Forgot Password via OTP work. ──
+  const [recoveryEmailStep, setRecoveryEmailStep] = useState<'idle' | 'otp'>('idle');
+  const [newRecoveryEmail, setNewRecoveryEmail] = useState('');
+  const [recoveryOtp, setRecoveryOtp] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoverySuccess, setRecoverySuccess] = useState('');
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,6 +51,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
     setPwdError(''); setPwdSuccess('');
     setOldPwd(''); setNewPwd(''); setConfirmPwd('');
     setEditSuccess('');
+    setRecoveryEmailStep('idle'); setNewRecoveryEmail(''); setRecoveryOtp(''); setRecoveryError(''); setRecoverySuccess('');
     loadProfile();
   }, [isOpen]);
 
@@ -86,6 +97,43 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
       alert('Error: ' + e.message);
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const handleSendRecoveryOtp = async () => {
+    setRecoveryError(''); setRecoverySuccess('');
+    const trimmed = newRecoveryEmail.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@') || trimmed.endsWith('@myisp.local')) { setRecoveryError('Enter a valid email address.'); return; }
+    setRecoveryLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      if (error) throw error;
+      setRecoveryEmailStep('otp');
+      setRecoverySuccess(`Code sent to ${trimmed}`);
+    } catch (err: any) {
+      setRecoveryError(err.message || 'Could not send verification code.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  const handleVerifyRecoveryOtp = async () => {
+    setRecoveryError(''); setRecoverySuccess('');
+    if (!recoveryOtp.trim()) { setRecoveryError('Enter the code.'); return; }
+    setRecoveryLoading(true);
+    try {
+      const trimmed = newRecoveryEmail.trim().toLowerCase();
+      const { error } = await supabase.auth.verifyOtp({ email: trimmed, token: recoveryOtp.trim(), type: 'email_change' });
+      if (error) throw new Error('Invalid or expired code.');
+      setProfile(prev => prev ? { ...prev, email: trimmed } : prev);
+      onEmailChanged?.(trimmed);
+      setRecoveryEmailStep('idle'); setNewRecoveryEmail(''); setRecoveryOtp('');
+      setRecoverySuccess('Recovery email confirmed! Forgot Password will now work for this account.');
+      setTimeout(() => setRecoverySuccess(''), 5000);
+    } catch (err: any) {
+      setRecoveryError(err.message || 'Verification failed.');
+    } finally {
+      setRecoveryLoading(false);
     }
   };
 
@@ -250,6 +298,51 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
                 <p className={`text-[11px] font-bold leading-relaxed ${isDark ? 'text-sky-300' : 'text-sky-700'}`}>
                   Verify your current password to update security credentials.
                 </p>
+              </div>
+
+              {/* ── RECOVERY EMAIL ── */}
+              <div className={`p-3.5 rounded-2xl border space-y-3 ${isDark ? 'bg-slate-800/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'}`}>
+                <div>
+                  <p className={`text-[9px] font-black uppercase tracking-wider ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Recovery Email</p>
+                  {profile?.email?.endsWith('@myisp.local') ? (
+                    <p className={`text-[11px] font-bold mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Not set — Forgot Password won't work until you add one.</p>
+                  ) : (
+                    <p className={`text-[11px] font-bold mt-0.5 truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>{profile?.email}</p>
+                  )}
+                </div>
+
+                {recoveryEmailStep === 'idle' ? (
+                  <div className="flex gap-2">
+                    <input
+                      value={newRecoveryEmail}
+                      onChange={e => { setNewRecoveryEmail(e.target.value); setRecoveryError(''); }}
+                      placeholder="you@example.com"
+                      className={`flex-1 min-w-0 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-transparent outline-none border
+                        ${isDark ? 'text-white placeholder-slate-600 border-slate-700 focus:border-indigo-500/60' : 'text-slate-900 placeholder-slate-400 border-slate-200 focus:border-indigo-400'}`}
+                    />
+                    <button onClick={handleSendRecoveryOtp} disabled={recoveryLoading}
+                      className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex-shrink-0 transition-all active:scale-95">
+                      {recoveryLoading ? '...' : (profile?.email?.endsWith('@myisp.local') ? 'Add' : 'Change')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      value={recoveryOtp}
+                      onChange={e => { setRecoveryOtp(e.target.value); setRecoveryError(''); }}
+                      placeholder="6-digit code"
+                      className={`flex-1 min-w-0 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-transparent outline-none border
+                        ${isDark ? 'text-white placeholder-slate-600 border-slate-700 focus:border-indigo-500/60' : 'text-slate-900 placeholder-slate-400 border-slate-200 focus:border-indigo-400'}`}
+                    />
+                    <button onClick={handleVerifyRecoveryOtp} disabled={recoveryLoading}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex-shrink-0 transition-all active:scale-95">
+                      {recoveryLoading ? '...' : 'Verify'}
+                    </button>
+                  </div>
+                )}
+
+                {recoveryError && <p className="text-[10px] font-bold text-rose-500">{recoveryError}</p>}
+                {recoverySuccess && <p className="text-[10px] font-bold text-emerald-500">{recoverySuccess}</p>}
               </div>
 
               <div className="space-y-2.5">
