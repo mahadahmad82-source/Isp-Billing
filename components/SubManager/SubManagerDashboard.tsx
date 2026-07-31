@@ -18,6 +18,7 @@ interface SubManagerDashboardProps {
   onAddAttendanceLog: (log: Omit<AttendanceLog, 'id'>) => void;
   complaintTickets?: ComplaintTicket[];
   onResolveComplaint?: (ticketId: string) => void;
+  canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
 }
 
 const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
@@ -36,6 +37,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   attendanceLogs,
   complaintTickets = [],
   onResolveComplaint,
+  canLogReceipts = true,
 }) => {
   const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
@@ -530,8 +532,10 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                               </button>
                             )}
                             <button 
-                              disabled={user.displayStatus === 'clear'}
+                              disabled={user.displayStatus === 'clear' || !canLogReceipts}
+                              title={!canLogReceipts ? 'Receipts issue karne ki ijazat nahi hai' : undefined}
                               onClick={() => {
+                                if (!canLogReceipts) return;
                                 if (dutyStatus !== 'online') {
                                   setToastMsg('Access Denied: Please Check-In/Mark Attendance first to collect payments.');
                                   setTimeout(() => setToastMsg(''), 4000);
@@ -602,8 +606,9 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                       </button>
                     )}
                     <button 
-                      disabled={user.displayStatus === 'clear'}
+                      disabled={user.displayStatus === 'clear' || !canLogReceipts}
                       onClick={() => {
+                        if (!canLogReceipts) return;
                         if (dutyStatus !== 'online') {
                           setToastMsg('Access Denied: Please Check-In/Mark Attendance first to collect payments.');
                           setTimeout(() => setToastMsg(''), 4000);
