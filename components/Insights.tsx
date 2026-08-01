@@ -1,17 +1,21 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserRecord, Receipt, AppSettings, PaymentStatus } from '../types';
+import { UserRecord, Receipt, AppSettings, PaymentStatus, Transaction, BusinessExpense } from '../types';
 import { analyzeTrends } from '../services/geminiService';
+import { calcProfitSummary } from '../utils/profitCalc';
 
 interface InsightsProps {
   users: UserRecord[];
   receipts: Receipt[];
+  transactions?: Transaction[];
+  businessExpenses?: BusinessExpense[];
 }
 
-const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
+const Insights: React.FC<InsightsProps> = ({ users, receipts, transactions = [], businessExpenses = [] }) => {
   const [insight, setInsight] = useState('Generating strategic insights...');
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [plMonth, setPlMonth] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     const fetchInsight = async () => {
@@ -82,6 +86,29 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
       peakMonth
     };
   }, [receipts, selectedYear]);
+
+  // Feature B — Profit & Loss Summary (3-Way Ledger)
+  const plMonthOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let i = 12; i >= -1; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(d);
+      options.push({ value, label });
+    }
+    return options;
+  }, []);
+
+  const plPeriod = useMemo(() => {
+    const [yr, mo] = plMonth.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(yr, mo - 1, 1));
+  }, [plMonth]);
+
+  const plSummary = useMemo(
+    () => calcProfitSummary(transactions || [], businessExpenses || [], plPeriod, plMonth),
+    [transactions, businessExpenses, plPeriod, plMonth]
+  );
 
   return (
     <div className="space-y-6 md:space-y-10 pb-24 animate-in fade-in duration-700">
@@ -208,6 +235,50 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts }) => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Profit & Loss Summary — Feature B (3-Way Transaction Ledger) */}
+      <section className="bg-white dark:bg-[#0f172a] rounded-[2rem] md:rounded-[3.5rem] shadow-xl border border-slate-100 dark:border-white/5 overflow-hidden">
+        <div className="p-6 md:p-10 border-b border-slate-50 dark:border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center">
+              <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            </div>
+            <div>
+              <h4 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Profit & Loss Summary</h4>
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Recovery vs Vendor + ISP + Operating Costs</p>
+            </div>
+          </div>
+          <div className="w-full sm:w-auto flex items-center gap-3 bg-slate-50 dark:bg-[#030712] p-2 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
+            <select
+              value={plMonth}
+              onChange={(e) => setPlMonth(e.target.value)}
+              className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs outline-none cursor-pointer appearance-none text-center"
+            >
+              {plMonthOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label.toUpperCase()}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="p-6 md:p-10 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-slate-50 dark:bg-[#030712] p-5 md:p-6 rounded-[1.5rem] border border-slate-100 dark:border-white/5">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cash Recovered</p>
+            <p className="text-xl md:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">Rs. {plSummary.cashRecovered.toLocaleString()}</p>
+          </div>
+          <div className="bg-slate-50 dark:bg-[#030712] p-5 md:p-6 rounded-[1.5rem] border border-slate-100 dark:border-white/5">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Vendor + ISP Outflow</p>
+            <p className="text-xl md:text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tighter">Rs. {(plSummary.vendorOutflow + plSummary.ispOutflow).toLocaleString()}</p>
+          </div>
+          <div className="bg-slate-50 dark:bg-[#030712] p-5 md:p-6 rounded-[1.5rem] border border-slate-100 dark:border-white/5">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Operating Expenses</p>
+            <p className="text-xl md:text-2xl font-black text-orange-600 dark:text-orange-400 tracking-tighter">Rs. {plSummary.operatingExpenses.toLocaleString()}</p>
+          </div>
+          <div className={`p-5 md:p-6 rounded-[1.5rem] text-white shadow-xl ${plSummary.netProfit >= 0 ? 'bg-slate-800 dark:bg-indigo-600' : 'bg-rose-700'}`}>
+            <p className="text-[9px] font-black text-white/60 uppercase tracking-widest mb-1">Net Profit / Ratio</p>
+            <p className="text-xl md:text-2xl font-black tracking-tighter">Rs. {plSummary.netProfit.toLocaleString()}</p>
+            <p className="text-[10px] font-black mt-1 opacity-90">{plSummary.profitRatioPct.toFixed(1)}% margin</p>
           </div>
         </div>
       </section>
