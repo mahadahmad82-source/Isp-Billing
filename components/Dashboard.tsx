@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { UserRecord, Receipt, PaymentStatus, AppSettings } from '../types';
+import { UserRecord, Receipt, PaymentStatus, AppSettings, Transaction, BusinessExpense } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
+import { calcProfitSummary } from '../utils/profitCalc';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
@@ -17,6 +18,8 @@ interface DashboardProps {
   onLogout: () => void;
   isAdmin?: boolean;
   onUpdateUser?: (user: UserRecord) => void;
+  transactions?: Transaction[];
+  businessExpenses?: BusinessExpense[];
 }
 
 type ModalType = 'REVENUE' | 'BALANCE' | 'TODAY_EXPIRY' | 'TODAY_EXPIRED' | null;
@@ -35,7 +38,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false, onUpdateUser }) => {
+const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false, onUpdateUser, transactions = [], businessExpenses = [] }) => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
@@ -150,6 +153,12 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
 
   const priorityReminders = (users || []).filter(u => getDaysUntilExpiry(u.expiryDate) === 3);
 
+  const currentMonthYYYYMM = new Date().toISOString().slice(0, 7);
+  const ledgerSummary = useMemo(
+    () => calcProfitSummary(transactions || [], businessExpenses || [], currentMonthString, currentMonthYYYYMM),
+    [transactions, businessExpenses, currentMonthString, currentMonthYYYYMM]
+  );
+
   const stats = [
     {
       id: 'RECOVERED', label: 'Total Revenue',
@@ -191,6 +200,30 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>,
       gradient: 'from-orange-500 to-rose-600', color: 'text-orange-500 bg-orange-500/10', isMasked: false,
       onToggle: () => setActiveTab('expiries'), onViewDetails: () => setActiveTab('expiries'), footerLabel: 'Expiry Alerts'
+    },
+    {
+      id: 'CASH_RECOVERED', label: 'Cash Recovered', value: `Rs. ${ledgerSummary.cashRecovered.toLocaleString()}`,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a4 4 0 00-4-4H5a4 4 0 00-4 4v4a4 4 0 004 4h1m6 6a4 4 0 004-4v-4a4 4 0 00-4-4H9a4 4 0 00-4 4v4a4 4 0 004 4h8z"></path></svg>,
+      gradient: 'from-emerald-600 to-teal-600', color: 'text-emerald-500 bg-emerald-500/10', isMasked: false,
+      onToggle: () => setActiveTab('transactions'), onViewDetails: () => setActiveTab('transactions'), footerLabel: 'Ledger — This Month'
+    },
+    {
+      id: 'VENDOR_PAYMENTS', label: 'Vendor Payments', value: `Rs. ${ledgerSummary.vendorOutflow.toLocaleString()}`,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>,
+      gradient: 'from-indigo-600 to-purple-700', color: 'text-indigo-500 bg-indigo-500/10', isMasked: false,
+      onToggle: () => setActiveTab('transactions'), onViewDetails: () => setActiveTab('transactions'), footerLabel: 'Ledger — This Month'
+    },
+    {
+      id: 'ISP_PAYMENTS', label: 'ISP Payments', value: `Rs. ${ledgerSummary.ispOutflow.toLocaleString()}`,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"></path></svg>,
+      gradient: 'from-rose-600 to-orange-700', color: 'text-rose-500 bg-rose-500/10', isMasked: false,
+      onToggle: () => setActiveTab('transactions'), onViewDetails: () => setActiveTab('transactions'), footerLabel: 'Ledger — This Month'
+    },
+    {
+      id: 'PROFIT_RATIO', label: 'Profit Ratio', value: `${ledgerSummary.profitRatioPct.toFixed(1)}%`,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>,
+      gradient: 'from-slate-600 to-blue-800', color: 'text-blue-500 bg-blue-500/10', isMasked: false,
+      onToggle: () => setActiveTab('transactions'), onViewDetails: () => setActiveTab('transactions'), footerLabel: `Net: Rs. ${ledgerSummary.netProfit.toLocaleString()}`
     },
   ];
 
