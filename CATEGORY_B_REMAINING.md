@@ -18,7 +18,7 @@
 
 ## `components/Settings.tsx`
 
-- [ ] Not started
+- [x] DONE — Roman Urdu converted to English, all emoji replaced with SVG icons from UiIcons.tsx (commit 5d00acb)
 
 ### Roman Urdu lines to convert:
 ```
