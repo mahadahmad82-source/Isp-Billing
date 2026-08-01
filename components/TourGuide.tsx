@@ -126,8 +126,8 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
     id: 'analytics', icon: '📈',
     title: { en: 'Business Analytics', ur: 'بزنس اینالیٹکس' },
     description: {
-      en: 'Deep-dive into revenue trends, plan-wise breakdown, discounts, and now Daily Collection — all in one place.',
-      ur: 'ریونیو کے رجحانات، پلان کے حساب سے تفصیل، ڈسکاؤنٹس اور اب روزانہ کی وصولی — سب کچھ ایک ہی جگہ۔'
+      en: 'Deep-dive into revenue trends, plan-wise breakdown, discounts, and now Collection Chart — all in one place.',
+      ur: 'ریونیو کے رجحانات، پلان کے حساب سے تفصیل، ڈسکاؤنٹس اور اب کلیکشن چارٹ — سب کچھ ایک ہی جگہ۔'
     }
   }],
   settings: [{

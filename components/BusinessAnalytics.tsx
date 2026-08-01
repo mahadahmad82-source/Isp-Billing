@@ -28,7 +28,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, expenses, settings }) => {
   const [activeSection, setActiveSection] = useState<'overview' | 'revenue' | 'plans' | 'deductions' | 'daily'>('overview');
-  const [dailyDate, setDailyDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [dailyViewMode, setDailyViewMode] = useState<'day' | 'month' | 'range'>('day');
+  const [dailyStartDate, setDailyStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [dailyEndDate, setDailyEndDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
 
   // ── Active/Expired based on expiryDate (source of truth) ──
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
@@ -67,6 +70,39 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const currentMonthNameForPlans = new Date().toLocaleDateString('en-US', { month: 'long' });
   const currentYearForPlans = new Date().getFullYear();
+  // ── Month selector options (Android-safe) ──
+  const MONTH_OPTIONS = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let i = 24; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(d);
+      options.push({ value, label });
+    }
+    return options;
+  }, []);
+
+  const handleViewModeChange = (mode: 'day' | 'month' | 'range') => {
+    setDailyViewMode(mode);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (mode === 'day') {
+      setDailyStartDate(todayStr);
+      setDailyEndDate(todayStr);
+    } else if (mode === 'month') {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      setDailyStartDate(new Date(y, m - 1, 1).toISOString().slice(0, 10));
+      setDailyEndDate(new Date(y, m, 0).toISOString().slice(0, 10));
+    }
+  };
+
+  const handleMonthChange = (monthStr: string) => {
+    setSelectedMonth(monthStr);
+    const [y, m] = monthStr.split('-').map(Number);
+    setDailyStartDate(new Date(y, m - 1, 1).toISOString().slice(0, 10));
+    setDailyEndDate(new Date(y, m, 0).toISOString().slice(0, 10));
+  };
+
   const planStats = useMemo(() => {
     const map: Record<string, {
       activeCount: number; expiredCount: number;
@@ -140,26 +176,29 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return { fullPrice, discounted, totalLost, totalExpectedFull };
   }, [users, settings, today]);
 
-  // ── Daily Collection — payment method breakdown for a chosen date ──
+  // ── Collection Chart — payment method breakdown for a chosen period ──
   const dailyStats = useMemo(() => {
-    const dayReceipts = (receipts || []).filter(r => {
+    const periodReceipts = (receipts || []).filter(r => {
       if (r.status !== PaymentStatus.SUCCESS) return false;
-      try { return new Date(r.date).toISOString().slice(0, 10) === dailyDate; } catch { return false; }
+      try {
+        const rDate = new Date(r.date).toISOString().slice(0, 10);
+        return rDate >= dailyStartDate && rDate <= dailyEndDate;
+      } catch { return false; }
     });
     const methods: PaymentMethod[] = [PaymentMethod.CASH, PaymentMethod.TRANSFER, PaymentMethod.MOBILE_MONEY, PaymentMethod.CARD];
     const byMethod = methods.map(m => {
-      const list = dayReceipts.filter(r => r.paymentMethod === m);
+      const list = periodReceipts.filter(r => r.paymentMethod === m);
       const total = list.reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
       return { method: m, total, count: list.length };
-    }).filter(m => m.count > 0 || true); // keep all methods visible, even at zero
-    const totalCollected = dayReceipts.reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
+    });
+    const totalCollected = periodReceipts.reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
     return {
-      receipts: dayReceipts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      receipts: periodReceipts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       byMethod,
       totalCollected,
-      count: dayReceipts.length,
+      count: periodReceipts.length,
     };
-  }, [receipts, dailyDate]);
+  }, [receipts, dailyStartDate, dailyEndDate]);
 
   // ── KPI cards ──
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' });
@@ -182,7 +221,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     { id: 'revenue', label: 'Revenue Trend' },
     { id: 'plans', label: 'Plan Analytics' },
     { id: 'deductions', label: 'Discounts' },
-    { id: 'daily', label: 'Daily Collection' },
+    { id: 'daily', label: 'Collection Chart' },
   ] as const;
 
   return (
@@ -445,21 +484,53 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
         </div>
       )}
 
-      {/* ── DAILY COLLECTION ── */}
+      {/* ── COLLECTION CHART ── */}
       {activeSection === 'daily' && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collection Date</p>
-              <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">Payment-method wise breakdown</p>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collection Date</p>
+                <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">Payment-method wise breakdown</p>
+              </div>
+              <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/5 w-fit">
+                {[
+                  { id: 'day', label: 'Single Day' },
+                  { id: 'month', label: 'Month' },
+                  { id: 'range', label: 'Range' }
+                ].map(m => (
+                  <button key={m.id} onClick={() => handleViewModeChange(m.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${dailyViewMode === m.id ? 'bg-white dark:bg-indigo-600 dark:text-white shadow text-slate-900' : 'text-slate-500'}`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <input
-              type="date"
-              value={dailyDate}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={e => setDailyDate(e.target.value)}
-              className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
-            />
+
+            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-white/5">
+              {dailyViewMode === 'day' && (
+                <input type="date" value={dailyStartDate} max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => { setDailyStartDate(e.target.value); setDailyEndDate(e.target.value); }}
+                  className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" />
+              )}
+              {dailyViewMode === 'month' && (
+                <select value={selectedMonth} onChange={e => handleMonthChange(e.target.value)}
+                  className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500">
+                  {MONTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              )}
+              {dailyViewMode === 'range' && (
+                <>
+                  <input type="date" value={dailyStartDate} max={dailyEndDate}
+                    onChange={e => setDailyStartDate(e.target.value)}
+                    className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" />
+                  <span className="text-slate-400 text-xs font-bold">to</span>
+                  <input type="date" value={dailyEndDate} min={dailyStartDate} max={new Date().toISOString().slice(0, 10)}
+                    onChange={e => setDailyEndDate(e.target.value)}
+                    className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" />
+                </>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -475,7 +546,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
           <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">By Payment Method</p>
-            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-6">{new Date(dailyDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-6">
+              {dailyStartDate === dailyEndDate 
+                ? new Date(dailyStartDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
+                : `${new Date(dailyStartDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short' })} - ${new Date(dailyEndDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}`
+              }
+            </p>
             {dailyStats.totalCollected === 0 ? (
               <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-6">Is din koi collection nahi hui.</p>
             ) : (
@@ -533,7 +609,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
           {dailyStats.receipts.length > 0 && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Today's Receipts</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Period Receipts</p>
               </div>
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
