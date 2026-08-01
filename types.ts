@@ -268,13 +268,32 @@ export interface BusinessExpense {
   createdAt: string;
 }
 
+// ─── 3-WAY TRANSACTION LEDGER (Feature B — Recovery / Vendor / ISP Payment) ───
+export interface Transaction {
+  id: string;
+  type: 'recovery' | 'vendorPayment' | 'ispPayment';
+  date: string;              // ISO date
+  period: string;            // "Month Year" — matches Receipt period format (Rule #5) for monthly aggregation
+  amount: number;
+  discount?: number;         // recovery only
+  paymentMode: string;
+  refInfo?: string;
+  customerId?: string;       // recovery — links to UserRecord
+  vendorId?: string;         // vendorPayment — free-text vendor name for now (no Vendor registry yet)
+  ispProviderId?: string;    // ispPayment — free-text ISP/bandwidth provider name for now
+  notes?: string;
+  companyId?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
 // ─── ACCESS RIGHTS MATRIX (Feature A — Granular Access Rights + Area Lock) ───
 // Module keys map 1:1 to Layout.tsx nav tab ids so nav gating stays a simple lookup.
 export type ModuleKey =
   | 'dashboard' | 'users' | 'receipts' | 'recoveries' | 'expiries'
   | 'reports' | 'systemlogs' | 'settings' | 'team' | 'expenses'
   | 'analytics' | 'outage' | 'area' | 'equipment' | 'leads'
-  | 'reminders' | 'templates' | 'wabot';
+  | 'reminders' | 'templates' | 'wabot' | 'transactions';
 
 export interface AccessRights {
   view: boolean;
@@ -291,6 +310,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   expenses: 'Expenses', analytics: 'Analytics', outage: 'Outage',
   area: 'Area', equipment: 'Equipment', leads: 'Leads',
   reminders: 'Reminders', templates: 'Message Templates', wabot: 'WABot',
+  transactions: 'Transaction Ledger',
 };
 
 export interface SubManagerAccount {
@@ -455,6 +475,7 @@ export interface AppState {
   dismissedNotificationIds?: string[];
   complaintTickets?: ComplaintTicket[];
   businessExpenses?: BusinessExpense[];
+  transactions?: Transaction[];
   systemLogs?: SystemLog[];
   equipmentRecords?: EquipmentRecord[];
   leads?: LeadRecord[];
