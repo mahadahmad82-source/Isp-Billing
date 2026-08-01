@@ -6,6 +6,7 @@ import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
 import { logoBase64 } from '../utils/logoBase64';
 import { supabase } from '../lib/supabase';
+import { CheckCircleIcon, CrossCircleIcon, WarningIcon, BulbIcon, GraduationCapIcon, WrenchIcon, PlugIcon, RefreshIcon, ReceiptIcon, UserIcon, DotIcon, CalendarIcon, ArrowRightIcon, UndoIcon } from './icons/UiIcons';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -49,7 +50,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         const ok = await subscribeToPush(activeManager, 'billcollector');
         if (ok) {
           setPushEnabled(true);
-          await sendPushNotification(activeManager, '🔔 MYISP Notifications Active!', 'Aapko ab expiry aur payment alerts milenge!', 'test');
+          await sendPushNotification(activeManager, 'MYISP Notifications Active!', 'You will now receive expiry and payment alerts.', 'test');
         }
       }
     } finally {
@@ -93,7 +94,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
   const handleSendLinkOtp = async () => {
     if (!linkEmail.includes('@')) {
-      setLinkError('Valid email enter karein');
+      setLinkError('Please enter a valid email');
       return;
     }
     setLinkLoading(true);
@@ -160,7 +161,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       }
     }
 
-    setSaveStatus('Settings Saved! ✓');
+    setSaveStatus('Settings Saved!');
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
@@ -802,7 +803,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
             <div>
               <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Receipt Serial Number</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Apni marzi se serial number set karo — receipts yahan se start hongi</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Set a custom serial number — receipts will start from here</p>
             </div>
           </div>
 
@@ -861,8 +862,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
 
           <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
-            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">⚠️ Note</p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Yeh starting number save hone ke baad <strong>naye receipts</strong> pe apply hoga. Receipt generate karte waqt aap manually bhi number change kar sakte hain.</p>
+            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-1"><WarningIcon className="w-3 h-3" /> Note</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">This starting number will apply to <strong>new receipts</strong> after saving. You can still change the number manually when generating a receipt.</p>
           </div>
         </div>
 
@@ -874,7 +875,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
             <div>
               <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Ayesha WhatsApp Bot</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">WhatsApp support bot ka naam customize karo</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Customize your WhatsApp support bot's name</p>
             </div>
           </div>
 
@@ -903,7 +904,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                  Jab aap receipt generate karenge, customer ko automatic WhatsApp template send hoga.
+                  When you generate a receipt, an automatic WhatsApp template will be sent to the customer.
                 </p>
               </div>
               <button
@@ -1021,8 +1022,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               </div>
               <div>
                 <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Push Notifications</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                  {pushEnabled ? '✅ Is device pe notifications ON hain' : pushSupported ? '❌ Notifications OFF hain' : '⚠️ Aapka browser support nahi karta'}
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5 flex items-center gap-1.5">
+                  {pushEnabled ? (<><CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" /> Notifications are ON on this device</>) : pushSupported ? (<><CrossCircleIcon className="w-3.5 h-3.5 text-rose-500" /> Notifications are OFF</>) : (<><WarningIcon className="w-3.5 h-3.5 text-amber-500" /> Your browser doesn't support this</>)}
                 </p>
               </div>
             </div>
@@ -1039,27 +1040,33 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
           {pushEnabled && (
             <div className="mt-6 space-y-3">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aapko notifications milegi jab:</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">You'll get a notification when:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {[
-                  { icon: '⏰', text: 'Customer ka package aaj expire ho' },
-                  { icon: '🔴', text: '3 din mein expire hone wale customers' },
-                  { icon: '🧾', text: 'Receipt generate ho' },
-                  { icon: '👤', text: 'Naya customer add ho' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
-                    <span>{item.icon}</span>
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">{item.text}</span>
-                  </div>
-                ))}
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
+                  <CalendarIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">A customer's package expires today</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
+                  <DotIcon className="w-2.5 h-2.5" color="red" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Customers expiring within 3 days</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
+                  <ReceiptIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">A receipt is generated</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
+                  <UserIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">A new customer is added</span>
+                </div>
               </div>
             </div>
           )}
 
           {!pushEnabled && pushSupported && (
             <div className="mt-6 bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
-              <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                💡 Toggle ON karo — browser permission maangega. "Allow" karo aur phir notifications shuru ho jayengi!
+              <p className="text-xs text-amber-700 dark:text-amber-300 font-medium flex items-start gap-1.5">
+                <BulbIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>Turn the toggle ON — your browser will ask for permission. Tap "Allow" and notifications will start!</span>
               </p>
             </div>
           )}
@@ -1144,7 +1151,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         {/* Tour Guide */}
         <div className="bg-white/5 dark:bg-white/5 bg-slate-50 border border-white/10 dark:border-white/10 border-slate-200 rounded-[2.5rem] p-6 mb-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-xl">🎓</div>
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center"><GraduationCapIcon className="w-5 h-5 text-indigo-500" /></div>
             <div>
               <p className="font-black text-sm dark:text-white text-slate-900">Tour Guide</p>
               <p className="text-xs dark:text-white/40 text-slate-500">Replay the welcome walkthrough or re-show feature tips (English + Urdu)</p>
@@ -1155,13 +1162,13 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               onClick={() => onReplayWelcomeTour?.()}
               className="px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest text-center transition-all active:scale-95"
             >
-              ▶ Replay Welcome Tour
+              <span className="inline-flex items-center gap-1.5"><ArrowRightIcon className="w-3 h-3" /> Replay Welcome Tour</span>
             </button>
             <button
               onClick={() => onResetFeatureTips?.()}
               className="px-4 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-center transition-all active:scale-95"
             >
-              ↺ Reset Feature Tips
+              <span className="inline-flex items-center gap-1.5"><UndoIcon className="w-3 h-3" /> Reset Feature Tips</span>
             </button>
           </div>
         </div>
@@ -1169,7 +1176,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         {/* Mikrotik Integration */}
         <div className="bg-white/5 dark:bg-white/5 bg-slate-50 border border-white/10 dark:border-white/10 border-slate-200 rounded-[2.5rem] p-6 mb-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-orange-500/20 rounded-2xl flex items-center justify-center text-xl">🔧</div>
+            <div className="w-10 h-10 bg-orange-500/20 rounded-2xl flex items-center justify-center"><WrenchIcon className="w-5 h-5 text-orange-500" /></div>
             <div>
               <p className="font-black text-sm dark:text-white text-slate-900">Mikrotik / RouterOS</p>
               <p className="text-xs dark:text-white/40 text-slate-500">Auto-disconnect expired users via API</p>
@@ -1210,7 +1217,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   setMikrotikStatus(r.ok ? 'ok' : 'fail');
                 } catch { setMikrotikStatus('fail'); }
               }} className="flex-1 py-2.5 rounded-xl text-xs font-black border border-white/10 dark:text-white text-slate-700 transition-all hover:bg-white/5">
-                {mikrotikStatus === 'testing' ? '...' : mikrotikStatus === 'ok' ? '✅ Connected' : mikrotikStatus === 'fail' ? '❌ Failed' : '🔌 Test Connection'}
+                {mikrotikStatus === 'testing' ? '...' : mikrotikStatus === 'ok' ? (<span className="inline-flex items-center gap-1.5"><CheckCircleIcon className="w-3.5 h-3.5" /> Connected</span>) : mikrotikStatus === 'fail' ? (<span className="inline-flex items-center gap-1.5"><CrossCircleIcon className="w-3.5 h-3.5" /> Failed</span>) : (<span className="inline-flex items-center gap-1.5"><PlugIcon className="w-3.5 h-3.5" /> Test Connection</span>)}
               </button>
               <button onClick={async () => {
                 if (!mikrotikHost) return;
@@ -1223,10 +1230,10 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 } catch { setModalStatus({ title: 'Error', message: 'Could not reach router. Make sure app is on same network.', type: 'error' }); }
                 setMikrotikSyncing(false);
               }} className="flex-1 py-2.5 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-xl text-xs font-black transition-all hover:bg-orange-500/30">
-                {mikrotikSyncing ? '⏳ Syncing...' : '🔄 Sync Users'}
+                {mikrotikSyncing ? (<span className="inline-flex items-center gap-1.5"><RefreshIcon className="w-3.5 h-3.5 animate-spin" /> Syncing...</span>) : (<span className="inline-flex items-center gap-1.5"><RefreshIcon className="w-3.5 h-3.5" /> Sync Users</span>)}
               </button>
             </div>
-            <p className="text-[10px] dark:text-white/30 text-slate-400">⚠️ Router same network pe hona chahiye. RouterOS v7+ REST API required.</p>
+            <p className="text-[10px] dark:text-white/30 text-slate-400 flex items-start gap-1"><WarningIcon className="w-3 h-3 flex-shrink-0 mt-0.5" /> Router must be on the same network. RouterOS v7+ REST API required.</p>
           </div>
         </div>
 
