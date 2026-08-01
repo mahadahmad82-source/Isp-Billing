@@ -5,7 +5,7 @@
 ---
 
 ## ✅ Feature A — Granular Access Rights Matrix + Area Lock
-**Status: PARTIALLY DONE — client-side complete, server-side WABot enforcement MISSING**
+**Status: DONE — server-side WABot enforcement now in place (Aug 1 2026 session)**
 
 Done (found already in repo, built in an earlier session not covered by this tracker):
 - `types.ts` — `AccessRights`, `ModuleKey`, `MODULE_LABELS`
@@ -13,12 +13,19 @@ Done (found already in repo, built in an earlier session not covered by this tra
 - `components/SubManager/EditGranularRights.tsx` — rights editor modal exists
 - `Layout.tsx` — nav filtered by `subManagerAccessRights[tab.id]?.view`
 
-**NOT done — this was the critical part per spec ("fixes the WABot problem"):**
-- ❌ No `check_agent_permission(manager_id, sub_manager_id, module, action)` Supabase RPC exists (verified via GitHub code search — zero results)
-- ❌ WABot webhook (`api/webhook.ts`) does NOT call any permission check before answering billing/customer queries
-- **Risk still open:** a WABot session tied to a sub-manager can still theoretically fetch/message data outside its scope server-side, since only the UI hides buttons — nothing blocks it at the data layer.
+**Investigated this session — corrected understanding vs. old spec text:**
+- `check_agent_permission(p_manager_id, p_agent_username, p_module, p_action)` Supabase RPC **already existed** in the DB (built in a prior session, just never wired anywhere — the earlier "zero GitHub code search results" check only looked at repo code, not live DB functions).
+- `api/webhook.ts` was the WRONG wiring target: it's the single-tenant customer-facing AI reply endpoint (`BOUND_MANAGER_ID='mahadnet'`), never carries sub-manager identity, and `userRole==='sub-manager'` in `App.tsx` never even reaches `WABotInbox.tsx` in the web app (separate restricted render branch — receipts + `SubManagerDashboard` only).
+- **Real exposure was the `get_conversation_summaries` RPC** (SECURITY DEFINER) — used by BOTH the PWA (`WABotInbox.tsx`) and the Android app (`Wabot-Android`) for the conversation list. It correctly checked "does this sub-manager belong to this manager" but had ZERO module-level check, so any sub-manager account (once given Android login via `sub_managers.auth_user_id`) would get full conversation access regardless of `accessRights.wabot`.
+- Confirmed low current live risk: `sub_managers` table currently has 1 row (`mahad`/`mahadnet`) with `auth_user_id = NULL` — no sub-manager has actually completed Android/Supabase-Auth login yet — but the hole was live-armed for whenever that happens.
+- Direct-table access (`whatsapp_messages` etc.) is separately safe: RLS policy `manager_own_whatsapp_messages` requires `manager_id = profiles.username for auth.uid()`, which a sub-manager's own profile never satisfies — only the RPC bypassed this via SECURITY DEFINER.
 
-**Next step if resumed:** Add the RPC (Supabase migration) + wire it into `api/webhook.ts` before any customer/billing lookup.
+**Fix applied (migration `gate_conversation_summaries_by_agent_permission`):**
+- `get_conversation_summaries` now branches: manager-owner/admin path unchanged (unrestricted); sub-manager path resolves `username` from `sub_managers.auth_user_id = auth.uid()`, then calls `check_agent_permission(manager_id, username, 'wabot', 'view')` and raises/denies if false. Undefined `accessRights` (legacy agents) still defaults to unrestricted — no behavior change for existing agents.
+
+**Deliberately left out of this pass (flag if you want it next):**
+- `get_manager_state_snapshot` — loads the *entire* AppState blob (users, receipts, settings, wabot config, everything), not just WABot data, so a single 'wabot' gate doesn't fit it; would need its own scoping design, not a quick fix.
+- `api/wabot-send.ts` — has **no auth/identity check at all** (accepts any `managerId` in the request body, no JWT verification). Bigger issue than Feature A's original scope (missing auth entirely, not just missing module-check on top of existing auth). Worth a dedicated follow-up.
 
 ---
 
