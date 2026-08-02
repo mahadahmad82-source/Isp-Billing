@@ -147,7 +147,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
               const agent = match.agent;
               const agentUsername = agent.username;
               setActiveSession(agentUsername);
-              saveAccount({ username: agentUsername, password, businessName: agent.name, email: agent.email || '', phone: agent.phone || '', role: 'sub-manager', managerUsername: match.manager_id, createdAt: new Date().toISOString(), rememberPassword: true });
+              saveAccount({ username: agentUsername, password, businessName: agent.name, email: agent.email || '', phone: agent.phone || '', role: 'sub-manager', managerUsername: match.manager_id, createdAt: new Date().toISOString(), rememberPassword: true, agentToken: match.token });
               finishLogin(agentUsername); return true;
             }
           } catch (searchEx) { console.error('[Auth] Agent search failed:', searchEx); }
@@ -666,3 +666,4 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 };
 
 export default Login;
+
