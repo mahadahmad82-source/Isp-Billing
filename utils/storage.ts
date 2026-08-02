@@ -33,6 +33,16 @@ export const setActiveSession = (username: string | null) => {
   }
 };
 
+// Reads the agentToken saved for the currently active session (sub-managers
+// only — see find_sub_manager_login / check_agent_permission). Returns
+// undefined for managers/admins, who authorize WABot requests with their
+// real Supabase Auth JWT instead.
+export const getAgentToken = (): string | undefined => {
+  const active = getActiveSession();
+  if (!active) return undefined;
+  return getAccounts().find(a => a.username === active)?.agentToken;
+};
+
 export const removeAccount = (username: string) => {
   const accounts = getAccounts();
   const updated = accounts.filter(a => a.username !== username);
@@ -158,3 +168,4 @@ export const getLogs = (): ActivityLog[] => {
 export const clearLogs = () => {
   localStorage.removeItem(LOGS_KEY);
 };
+
