@@ -2,7 +2,21 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
+import { getAgentToken } from '../utils/storage';
 import * as lamejs from '@breezystack/lamejs';
+
+// wabot-send now requires auth (previously fully open — see api/wabot-send.ts).
+// Managers/admins have a real Supabase session; sub-managers instead carry an
+// agentToken (minted by find_sub_manager_login) saved on their local account.
+async function getWabotAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const jwt = data?.session?.access_token;
+    if (jwt) return { Authorization: `Bearer ${jwt}` };
+  } catch { /* fall through to agent token */ }
+  const agentToken = getAgentToken();
+  return agentToken ? { Authorization: `Bearer ${agentToken}` } : {};
+}
 
 // WhatsApp's own text formatting (*bold*, _italic_, ~strikethrough~) is stored
 // verbatim in message content (that's what actually gets sent to the customer's
@@ -257,7 +271,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     try {
       const resp = await fetch('/api/wabot-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({ action: 'previewVoice', voice, sampleText, provider, gender }),
       });
       const data = await resp.json();
@@ -735,7 +749,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     try {
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({ to: `92${selectedPhone}`, body, managerId }),
       });
       if (!res.ok) {
@@ -876,7 +890,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       };
       setThread(prev => [...prev, optimistic]);
       const res = await fetch('/api/wabot-send', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({ to: `92${selectedPhone}`, managerId, type: 'audio', mediaUrl }),
       });
       if (!res.ok) {
@@ -916,7 +930,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       };
       setThread(prev => [...prev, optimistic]);
       const res = await fetch('/api/wabot-send', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({ to: `92${selectedPhone}`, managerId, type: sendType, mediaUrl, filename: sendType === 'document' ? file.name : undefined }),
       });
       if (!res.ok) {
@@ -1859,3 +1873,4 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 };
 
 export default WABotInbox;
+
