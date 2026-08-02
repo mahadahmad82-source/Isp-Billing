@@ -46,6 +46,7 @@ export interface ManagerAccount {
   managerUsername?: string;
   createdAt: string;
   rememberPassword?: boolean;
+  agentToken?: string; // sub-manager only — server-issued session token (find_sub_manager_login), used to authorize WABot requests via check_agent_permission
 }
 
 // A WABot support agent — lets mahadnet run 2-3 named agents (e.g. Ayesha for billing,
@@ -486,3 +487,4 @@ export interface AppState {
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
 }
+
