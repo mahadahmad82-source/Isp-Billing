@@ -41,9 +41,9 @@ Found independently (this session didn't have the Aug 1 update above yet when it
 **Why two `check_agent_permission` functions instead of one:** the Aug 1 version identifies the caller via `sub_managers.auth_user_id = auth.uid()` — a real Supabase Auth link. But the *current* sub-manager login flow (`find_sub_manager_login`, used by the JSONB `subManagers[]` system) never creates a real Supabase Auth session for sub-managers at all — so that identity path is empty for every sub-manager today (`sub_managers` table has 1 row, `auth_user_id = NULL`, confirmed both Aug 1 and Aug 2). The token-based version works with the identity mechanism that's actually live today. Left both in place rather than redesigning sub-manager login to unify them.
 
 **Still open:**
-- `components/WABotStandalone.tsx` — no `accessRights.wabot` gate at all (unlike main `App.tsx`'s tab-level gate), and its sub-manager fast-path passes the wrong `managerId` into `WABotInbox` (separate pre-existing bug, not touched).
-- `Wabot-Android` needs an EAS rebuild to ship the JWT-auth fix to installed devices.
-- The two `check_agent_permission` overloads could be consolidated later if sub-manager login is ever redesigned to issue real Supabase Auth sessions (would let `wabot-send.ts` use the same `sub_managers.auth_user_id` pattern as `get_conversation_summaries`).
+- ~~`components/WABotStandalone.tsx` — no `accessRights.wabot` gate...~~ **FIXED, same Aug 2 session.** Added `checkWabotAccess()` (calls the Aug-1 `check_agent_permission(manager_id, agent_username, module, action)` RPC directly via anon key — fine since it's a pure boolean check, no `auth.uid()` dependency) before granting access; sub-manager fast-path also no longer passes the wrong `managerId` into `WABotInbox` (was using the sub-manager's own username, now uses `state.currentManager`, which `loadState()` already resolves correctly).
+- `Wabot-Android` needs an EAS rebuild to ship the JWT-auth fix to installed devices. **(Paused — Mahad wants remaining tasks done first, will trigger separately.)**
+- The two `check_agent_permission` overloads — kept both, not consolidated (see reasoning above); confirmed neither breaks the other since they're called from different, non-overlapping places.
 
 ---
 
@@ -110,4 +110,5 @@ Per spec, needs:
 2. Say which feature/phase to start (e.g. "Feature D shuru karo" or "pehle Feature A ka WABot RPC part complete karo").
 3. Suggested order per original spec: **Feature A's missing RPC piece** (security gap, quick) → **Feature D** → **Feature C**.
 4. All Critical Care Rules from Custom Instructions still apply — fresh SHA before every push, full file list before multi-file work, syntax check before push.
+
 
