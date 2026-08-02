@@ -79,6 +79,17 @@ export default function WABotStandalone() {
       try {
         const local = loadState(username);
         const merged = await smartLoadAndSync(username, local);
+
+        const account = getAccounts().find(a => a.username === username);
+        if (account?.role === 'sub-manager' && account.managerUsername) {
+          const allowed = await checkWabotAccess(account.managerUsername, account.username);
+          if (!allowed) {
+            setErrorMsg('Aapko WABot access nahi diya gaya. Apne manager se rabta karein.');
+            setPhase('error');
+            return;
+          }
+        }
+
         setState(merged);
         setPhase('ready');
         subscribeToPush(username, 'wabot').catch(() => {});
@@ -91,6 +102,26 @@ export default function WABotStandalone() {
   }, [phase, username]);
 
   const [loggingIn, setLoggingIn] = useState(false);
+
+  // This standalone /wabot route had NO permission gate at all — unlike the
+  // main App.tsx, which fully excludes sub-managers from the WABot tab. A
+  // sub-manager logging in here (via the local-cache fast path) got full,
+  // unrestricted WABot access regardless of their accessRights.wabot setting.
+  const checkWabotAccess = async (managerId: string, agentUsername: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.rpc('check_agent_permission', {
+        p_manager_id: managerId,
+        p_agent_username: agentUsername,
+        p_module: 'wabot',
+        p_action: 'view',
+      });
+      if (error) { console.error('[checkWabotAccess]', error.message); return false; }
+      return data === true;
+    } catch (e: any) {
+      console.error('[checkWabotAccess]', e?.message);
+      return false;
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,7 +308,7 @@ export default function WABotStandalone() {
       </div>
       <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <WABotInbox
-          managerId={username || 'mahadnet'}
+          managerId={state.currentManager || username || 'mahadnet'}
           customers={filteredUsers}
           onOpenReceiptGenerator={() => {}}
           botName={botName}
@@ -291,3 +322,4 @@ export default function WABotStandalone() {
     </div>
   );
 }
+
