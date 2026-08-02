@@ -144,7 +144,23 @@ export default function WABotStandalone() {
       // Real check — Supabase Auth, same as the main dashboard login. Works on
       // any device/origin since it isn't tied to this browser's localStorage.
       const authEmail = typed.includes('@') ? typed : `${typed}@myisp.local`;
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password: loginPass });
+      let { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password: loginPass });
+      if ((authError || !data?.user) && !typed.includes('@')) {
+        // BUG FIX: the manager's actual Supabase Auth account isn't always
+        // registered under the synthetic username@myisp.local pattern — some
+        // accounts (e.g. mahadnet's own login) were created with a real email
+        // instead. The main web Login.tsx already handles this via the
+        // resolve_login_email RPC; this standalone login never had that
+        // fallback, so a 100% correct username+password always failed with
+        // "incorrect" here even though the same credentials work fine on the
+        // main dashboard.
+        const { data: resolvedEmail } = await supabase.rpc('resolve_login_email', { p_identifier: typed });
+        if (resolvedEmail) {
+          const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPass });
+          data = retry.data;
+          authError = retry.error;
+        }
+      }
       if (authError || !data?.user) {
         setLoginError('Username ya password ghalat hai.');
         return;
