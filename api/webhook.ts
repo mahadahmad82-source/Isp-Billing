@@ -977,7 +977,7 @@ ${caption ? `Customer ka caption: "${caption}"` : 'Customer ne koi caption nahi 
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"category": "payment" | "complaint" | "other"}`;
     const response: any = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0, maxOutputTokens: 30, responseMimeType: 'application/json' },
     });
@@ -1015,7 +1015,7 @@ Agar koi field saaf na mile, uski value null rakho — andaza/guess mat lagao.
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"bank": "...", "trxId": "...", "amount": "...", "dateTime": "...", "senderName": "..."}`;
     const response: any = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0, maxOutputTokens: 200, responseMimeType: 'application/json' },
     });
@@ -1091,7 +1091,7 @@ async function transcribeWithGemini(buf: Buffer, mimeType: string): Promise<stri
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Yeh ek Pakistani WhatsApp customer ka voice message hai jo ek ISP (internet provider) ke support number par bheja gaya hai. Iska sirf aur sirf EXACT transcription likho — jis zaban/script mein bola gaya hai (Roman Urdu, Urdu script, English, ya mix), waisa hi likho. Tarjuma mat karo, koi tabsara/comment/prefix mat likho — sirf plain transcription text, kuch aur nahi.`;
     const response: any = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0 },
     });
@@ -1237,7 +1237,7 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
+      model: 'gemini-2.5-flash-tts',
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseModalities: ['AUDIO'],
