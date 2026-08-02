@@ -19,29 +19,48 @@ async function sendTemplate(to: string, name: string, plan: string, dateStr: str
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
   if (!token || !pid) { console.error('❌ WA env missing'); return { ok: false }; }
+  const payload: any = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'template',
+    template: {
+      name: TEMPLATE_NAME,
+      language: { code: TEMPLATE_LANG },
+      components: [{
+        type: 'body',
+        parameters: [
+          { type: 'text', text: name },
+          { type: 'text', text: plan || 'internet' },
+          { type: 'text', text: dateStr },
+        ],
+      }],
+    },
+  };
   try {
-    const r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+    let r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'template',
-        template: {
-          name: TEMPLATE_NAME,
-          language: { code: TEMPLATE_LANG },
-          components: [{
-            type: 'body',
-            parameters: [
-              { type: 'text', text: name },
-              { type: 'text', text: plan || 'internet' },
-              { type: 'text', text: dateStr },
-            ],
-          }],
-        },
-      }),
+      body: JSON.stringify(payload),
     });
-    const d = await r.json();
+    let d = await r.json();
+    // Same self-heal already proven in wabot-send.ts for payment_success_official:
+    // Meta rejects the generic "en" code with 132001 when the template was actually
+    // approved under a specific English locale. This cron never had the fallback,
+    // which is exactly why expiry_reminder_1day has been failing every run.
+    if (!r.ok && d?.error?.code === 132001) {
+      const tried = new Set([payload.template.language.code]);
+      const fallbacks = ['en_US', 'en_GB', 'en'].filter((l) => !tried.has(l));
+      for (const lang of fallbacks) {
+        payload.template.language.code = lang;
+        r = await fetch(`https://graph.facebook.com/v20.0/${pid}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        d = await r.json();
+        if (r.ok) { console.log(`✅ cron-expiry-reminders: template sent using fallback language "${lang}"`); break; }
+      }
+    }
     if (!r.ok) { console.error('❌ Meta template:', JSON.stringify(d).slice(0, 300)); return { ok: false }; }
     return { ok: true, wamid: d?.messages?.[0]?.id };
   } catch (e: any) { console.error('❌ sendTemplate:', e?.message); return { ok: false }; }
