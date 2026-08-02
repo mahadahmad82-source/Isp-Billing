@@ -610,6 +610,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
+    // BUG FIX: thread wasn't cleared here, so switching contacts briefly rendered
+    // the PREVIOUS conversation's messages (at whatever scroll position it was
+    // left at) before the async fetch below resolved — this is exactly what
+    // looked like "opens to the first message, then scrolls, then flashes and
+    // resets". Clearing immediately means the new thread only ever shows once
+    // its own real data has arrived.
+    setThread([]);
     setEditingContactName(false);
     try {
       // BUG FIX: ascending order + limit(150) was keeping the OLDEST 150 messages
@@ -722,8 +729,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     return () => { supabase.removeChannel(channel); };
   }, [managerId, loadOverview, openConversation]);
 
+  // BUG FIX: this always used `behavior: 'smooth'`, including the very first
+  // time a conversation's messages arrive — so opening a chat animated a slow
+  // scroll from top to bottom instead of just landing at the bottom instantly
+  // (WhatsApp-style). Now: instant jump the first time a conversation is
+  // opened, smooth animation only for new messages that arrive while already
+  // viewing the thread.
+  const isInitialThreadPaintRef = useRef(true);
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    isInitialThreadPaintRef.current = true;
+  }, [selectedPhone]);
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: isInitialThreadPaintRef.current ? 'auto' : 'smooth' });
+    isInitialThreadPaintRef.current = false;
   }, [thread]);
 
   const selectedConv = conversations.find(c => c.phone === selectedPhone);
