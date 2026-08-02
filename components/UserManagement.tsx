@@ -581,17 +581,27 @@ const UserManagement: React.FC<UserManagementProps> = ({
       const user = users.find(u => (u.username || '').toLowerCase() === username);
       if (!user) { notFound.push(parts[0]); return; }
 
-      // When "Activate" is on, this user must count in Recovery Ledger for the
-      // current month — Recovery Ledger only counts users whose activatedMonths
-      // includes the period, so status:'active' alone was NOT enough.
+      // FIX: only treat this as a fresh "recharge" if the user is NOT already
+      // active for the current month. Previously, when the toggle was ON, EVERY
+      // pasted user got re-activated for the current month — so pasting the
+      // full customer list (mix of already-active + newly-due users) wrongly
+      // re-recharged users who were already active, inflating activatedMonths
+      // counts. Now: already-active users only get their expiryDate updated;
+      // only genuinely new/inactive users get activated + counted in the
+      // Recovery Ledger (which counts users whose activatedMonths includes
+      // the period, so status:'active' alone was NOT enough).
+      const alreadyActiveThisMonth = (user.activatedMonths || []).includes(currentMonth);
+
       let activatedMonthsUpdate = {};
-      if (bulkExpiryActivate) {
+      let statusUpdate = {};
+      if (bulkExpiryActivate && !alreadyActiveThisMonth) {
         const months = new Set(user.activatedMonths || []);
         months.add(currentMonth);
         activatedMonthsUpdate = { activatedMonths: Array.from(months) };
+        statusUpdate = { status: 'active' };
       }
 
-      updatedUsers.push({ ...user, expiryDate: isoDate, ...activatedMonthsUpdate, ...(bulkExpiryActivate ? { status: 'active' } : {}) });
+      updatedUsers.push({ ...user, expiryDate: isoDate, ...activatedMonthsUpdate, ...statusUpdate });
       updated.push(parts[0]);
     });
 
@@ -1494,7 +1504,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     </div>
                     <div>
                       <div className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Status bhi Active karo</div>
-                      <div className="text-[10px] text-slate-400 dark:text-slate-500">{bulkExpiryActivate ? 'ON — expiry + status: active' : 'OFF — sirf expiry update hogi'}</div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500">{bulkExpiryActivate ? 'ON — naye/inactive users activate + expiry, already-active ki sirf expiry' : 'OFF — sirf expiry update hogi'}</div>
                     </div>
                   </label>
                   <textarea
