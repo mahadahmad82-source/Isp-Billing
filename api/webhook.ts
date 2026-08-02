@@ -1282,25 +1282,39 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
 //   and if both fail, Gemini is tried as the final fallback.
 async function textToSpeech(text: string): Promise<string | null> {
   if (!text) return null;
-  const { synthesizeNonGemini } = await import('../lib/ttsProviders');
+  try {
+    const { synthesizeNonGemini } = await import('../lib/ttsProviders');
 
-  if (currentTtsProvider === 'gemini') {
-    const geminiUrl = await textToSpeechGemini(text);
-    if (geminiUrl) return geminiUrl;
-    console.error('[textToSpeech] Gemini failed (quota/error) — cascading to Azure/Edge-TTS');
-    const result = await synthesizeNonGemini(text, 'azure', currentTtsGender); // internally falls to edge if azure has no key/fails
-    if (!result) return null; // everything failed -> caller falls back to plain text reply
+    if (currentTtsProvider === 'gemini') {
+      const geminiUrl = await textToSpeechGemini(text);
+      if (geminiUrl) return geminiUrl;
+      console.error('[textToSpeech] Gemini failed (quota/error) — cascading to Azure/Edge-TTS');
+      const result = await synthesizeNonGemini(text, 'azure', currentTtsGender); // internally falls to edge if azure has no key/fails
+      if (!result) return null; // everything failed -> caller falls back to plain text reply
+      if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
+      return await uploadTtsAudio(result.buffer, 'tts-replies');
+    }
+
+    const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
+    if (!result) {
+      // Last-resort: try Gemini too before giving up entirely (only if it has a key).
+      return await textToSpeechGemini(text);
+    }
     if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
     return await uploadTtsAudio(result.buffer, 'tts-replies');
+  } catch (e: any) {
+    // CRITICAL FIX (Aug 2): this whole body used to be unguarded. When the
+    // dynamic import of lib/ttsProviders failed to resolve in the deployed
+    // bundle ("Cannot find module '/var/task/lib/ttsProviders'" — seen live in
+    // production Jul 30–Aug 2), the exception propagated straight through
+    // sendText()'s unguarded `await textToSpeech(body)` call and killed the
+    // ENTIRE reply — not just the voice note. Customers who sent a voice note
+    // got silence, no text fallback either. Now any failure here (missing
+    // module, network error, whatever) degrades to "reply in text" like it
+    // was always supposed to.
+    console.error('[textToSpeech] hard failure, falling back to text-only reply:', e?.message);
+    return null;
   }
-
-  const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
-  if (!result) {
-    // Last-resort: try Gemini too before giving up entirely (only if it has a key).
-    return await textToSpeechGemini(text);
-  }
-  if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
-  return await uploadTtsAudio(result.buffer, 'tts-replies');
 }
 
 // True live push notification (Web Push, works even with the app closed) — reuses
