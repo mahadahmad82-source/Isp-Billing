@@ -25,7 +25,25 @@ Done (found already in repo, built in an earlier session not covered by this tra
 
 **Deliberately left out of this pass (flag if you want it next):**
 - `get_manager_state_snapshot` — loads the *entire* AppState blob (users, receipts, settings, wabot config, everything), not just WABot data, so a single 'wabot' gate doesn't fit it; would need its own scoping design, not a quick fix.
-- `api/wabot-send.ts` — has **no auth/identity check at all** (accepts any `managerId` in the request body, no JWT verification). Bigger issue than Feature A's original scope (missing auth entirely, not just missing module-check on top of existing auth). Worth a dedicated follow-up.
+- ~~`api/wabot-send.ts` — has no auth/identity check at all~~ **FIXED Aug 2 2026 session, see below.**
+
+---
+
+### Aug 2 2026 session — closed `api/wabot-send.ts` (was fully open, zero auth)
+
+Found independently (this session didn't have the Aug 1 update above yet when it started — file changed mid-conversation, looks like parallel work). Fixed:
+- New table `agent_sessions` (opaque, expiring, server-issued token) + `find_sub_manager_login` now mints one on successful login (additive `token` field, existing callers unaffected).
+- New `check_agent_permission(p_token uuid, p_module text, p_action text)` — **note: this is a SECOND overload**, distinct from the `(p_manager_id, p_agent_username, p_module, p_action)` version added Aug 1. Both are live, both work, kept separate on purpose (not consolidated — see below) rather than spending extra time merging them when nothing is currently broken.
+- `api/wabot-send.ts` — now requires `Authorization: Bearer <token>` (agent_sessions token OR real Supabase JWT), 401 otherwise. Was previously callable by anyone, no login required at all.
+- `components/WABotInbox.tsx`, `components/Login.tsx`, `utils/storage.ts`, `types.ts` — wired to attach/store the token.
+- `Wabot-Android/src/screens/ChatThreadScreen.tsx` — attaches Supabase JWT (this app is manager-only login, no sub-manager path there yet, so JWT always available).
+
+**Why two `check_agent_permission` functions instead of one:** the Aug 1 version identifies the caller via `sub_managers.auth_user_id = auth.uid()` — a real Supabase Auth link. But the *current* sub-manager login flow (`find_sub_manager_login`, used by the JSONB `subManagers[]` system) never creates a real Supabase Auth session for sub-managers at all — so that identity path is empty for every sub-manager today (`sub_managers` table has 1 row, `auth_user_id = NULL`, confirmed both Aug 1 and Aug 2). The token-based version works with the identity mechanism that's actually live today. Left both in place rather than redesigning sub-manager login to unify them.
+
+**Still open:**
+- `components/WABotStandalone.tsx` — no `accessRights.wabot` gate at all (unlike main `App.tsx`'s tab-level gate), and its sub-manager fast-path passes the wrong `managerId` into `WABotInbox` (separate pre-existing bug, not touched).
+- `Wabot-Android` needs an EAS rebuild to ship the JWT-auth fix to installed devices.
+- The two `check_agent_permission` overloads could be consolidated later if sub-manager login is ever redesigned to issue real Supabase Auth sessions (would let `wabot-send.ts` use the same `sub_managers.auth_user_id` pattern as `get_conversation_summaries`).
 
 ---
 
@@ -92,3 +110,4 @@ Per spec, needs:
 2. Say which feature/phase to start (e.g. "Feature D shuru karo" or "pehle Feature A ka WABot RPC part complete karo").
 3. Suggested order per original spec: **Feature A's missing RPC piece** (security gap, quick) → **Feature D** → **Feature C**.
 4. All Critical Care Rules from Custom Instructions still apply — fresh SHA before every push, full file list before multi-file work, syntax check before push.
+
