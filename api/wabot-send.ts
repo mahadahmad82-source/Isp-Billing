@@ -14,6 +14,45 @@ import * as lamejs from '@breezystack/lamejs';
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
 
+// ── Caller verification (security fix) ──────────────────────────────────
+// Previously this endpoint had ZERO auth — anyone with the URL could send
+// arbitrary WhatsApp messages (including official Meta templates) on
+// mahadnet's behalf. Now the caller must present either:
+//  (a) an agent_sessions token (sub-manager, minted by find_sub_manager_login)
+//      — checked against accessRights via the check_agent_permission RPC, or
+//  (b) a real Supabase Auth JWT (manager/admin) — verified against GoTrue.
+// A UUID-shaped bearer token is tried as (a) first since that's cheap and
+// local (no network call needed to tell it apart from a JWT).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function verifyCaller(req: any, action: 'view' | 'create'): Promise<{ ok: boolean; managerId?: string }> {
+  const auth = req.headers?.authorization || req.headers?.Authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!token) return { ok: false };
+
+  if (UUID_RE.test(token)) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_agent_permission`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_token: token, p_module: 'wabot', p_action: action }),
+      });
+      const d = await r.json();
+      if (d?.allowed) return { ok: true, managerId: d.manager_id };
+    } catch (e: any) { console.error('[wabot-send auth: agent token]', e?.message); }
+    return { ok: false };
+  }
+
+  // Not UUID-shaped — try as a real Supabase Auth JWT (manager/admin session).
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
+    });
+    if (r.ok) return { ok: true }; // managerId trusted from request body, as before
+  } catch (e: any) { console.error('[wabot-send auth: jwt]', e?.message); }
+  return { ok: false };
+}
+
 function normPhone(p: string): string {
   return (p || '').replace(/\D/g, '').slice(-10);
 }
@@ -65,10 +104,18 @@ export default async function handler(req: any, res: any) {
   // previously broke deployment (see git history), so new small endpoints reuse
   // an existing handler via an `action` discriminator instead of a new file.
   if (req.body?.action === 'previewVoice') {
+    const authCheck = await verifyCaller(req, 'view');
+    if (!authCheck.ok) return res.status(401).json({ error: 'Unauthorized' });
     return handlePreviewVoice(req, res);
   }
 
-  const { to, body, managerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
+  const authCheck = await verifyCaller(req, 'create');
+  if (!authCheck.ok) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { to, body, managerId: bodyManagerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
+  // Agent-token callers are locked to the manager_id their token was minted for —
+  // prevents a sub-manager token from being replayed against a different manager_id.
+  const managerId = authCheck.managerId || bodyManagerId;
   const sendType: SendType = (type as SendType) || 'text';
   if (!to) return res.status(400).json({ error: 'to is required' });
   if (sendType === 'text' && !body) return res.status(400).json({ error: 'body is required for text' });
@@ -289,4 +336,5 @@ async function handlePreviewVoice(req: any, res: any) {
     return res.status(500).json({ error: e?.message || 'Unknown error' });
   }
 }
+
 
