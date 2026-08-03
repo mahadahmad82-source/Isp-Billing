@@ -1325,7 +1325,12 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
 async function textToSpeech(text: string): Promise<string | null> {
   if (!text) return null;
   try {
-    const { synthesizeNonGemini } = await import('../lib/ttsProviders');
+    // package.json has "type":"module" -> Node's ESM loader requires an explicit
+    // extension on relative import specifiers (no auto-resolution like CJS/bundlers
+    // do). The missing ".js" here is exactly why this kept failing with "Cannot find
+    // module '/var/task/lib/ttsProviders'" both at runtime AND at Vercel's build-time
+    // file trace (which is why the file was silently absent from the deployed bundle).
+    const { synthesizeNonGemini } = await import('../lib/ttsProviders.js');
 
     if (currentTtsProvider === 'gemini') {
       const geminiUrl = await textToSpeechGemini(text);
