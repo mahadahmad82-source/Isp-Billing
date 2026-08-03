@@ -274,7 +274,10 @@ async function handlePreviewVoice(req: any, res: any) {
 
     // Azure/edge-tts preview — bypasses the Gemini-only path below entirely.
     if (provider === 'azure' || provider === 'edge') {
-      const { synthesizeNonGemini } = await import('../lib/ttsProviders');
+      // Same root cause as webhook.ts: package.json "type":"module" requires the
+      // explicit .js extension on relative ESM import specifiers, or Node (and
+      // Vercel's build-time file trace) can't resolve/bundle the file at all.
+      const { synthesizeNonGemini } = await import('../lib/ttsProviders.js');
       const result = await synthesizeNonGemini(text, provider, effectiveGender);
       if (!result) return res.status(502).json({ error: `${provider === 'azure' ? 'Azure' : 'Edge-TTS'} se audio generate nahi hua. Azure ke liye AZURE_SPEECH_KEY/AZURE_SPEECH_REGION set hain?` });
       const path = `tts-previews/${provider}-${effectiveGender}-${Date.now()}.mp3`;
