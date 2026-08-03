@@ -316,7 +316,7 @@ Pata nahi konsa lena hai? Bas bata dein kitne log/devices use karenge ya kis kaa
 3️⃣ *Konsa package chahiye*
 
 Yeh milte hi coverage check kar ke 1-2 ghante mein confirm kar dengi! 📍`,
-  connection_type_question: `Theek hai, pehle yeh batayein — aap ka connection kis tarah ka hai? 🔌
+  connection_type_question: `{ack_line}Theek hai, pehle yeh batayein — aap ka connection kis tarah ka hai? 🔌
 
 1️⃣ *Fiber Optic*
 2️⃣ *Local Area (UTP/Ethernet wire)*
@@ -1836,8 +1836,8 @@ function accountBillingBlockedReply(user: any): string | null {
   return tmpl('account_billing_blocked_reply', { name: user.name, pending_line: pendingLine, expired_line: expiredLine });
 }
 
-function connectionTypeQuestion(): string {
-  return tmpl('connection_type_question');
+function connectionTypeQuestion(ackLine?: string): string {
+  return tmpl('connection_type_question', { ack_line: ackLine ? `${ackLine}\n\n` : '' });
 }
 
 function detectConnectionType(text: string): 'fiber' | 'local' | null {
@@ -2127,6 +2127,42 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECEN
 
   result.reply = stripRepeatedGenericCloser(result.reply, recentHistory);
   return result;
+}
+
+// Semantic layer for the complaint triage flow (Phase 2 — "semantic complaint handling").
+// Previously the FIRST reply to a detailed complaint was always the generic
+// connectionTypeQuestion() ("Theek hai, pehle yeh batayein...") — completely ignoring
+// whatever specific issue the customer just explained, which felt robotic/irrelevant.
+// This generates a short (1 line) acknowledgment that reflects their SPECIFIC issue
+// before the existing fiber/local triage question — the triage flow itself (fiber vs
+// local branching, troubleshooting tips, ticket creation) is untouched, this only adds
+// a personalized opener. Same language/script matching rules as askGroq. Best-effort:
+// any failure here (Groq down, etc.) falls back to the exact previous behaviour (empty
+// ack_line), so the complaint flow can never break because of this extra layer.
+async function acknowledgeIssue(issueText: string, botName: string = 'Ayesha'): Promise<string> {
+  const replyInUrduScript = containsUrduScript(issueText);
+  const isFullEnglish = !replyInUrduScript && isEnglishText(issueText) && issueText.trim().split(/\s+/).length >= 3;
+  const scriptRule = replyInUrduScript
+    ? 'Jawab SIRF Urdu/Nastaliq script (اردو) mein likho.'
+    : isFullEnglish
+      ? 'Jawab SIRF professional English mein likho.'
+      : 'Jawab SIRF Roman Urdu mein likho, Urdu/Arabic (نستعلیق) script bilkul mat likho.';
+
+  const system = `Tu ${botName} hai — MahadNet ISP ki customer support executive. Customer ne apna internet/connection ka issue bataya hai — tumhara kaam sirf EK chota (max 1 line, informal, warm) jumla likhna hai jo unke SPECIFIC issue ko acknowledge kare, unke alfaz/mazmoon ka hawala de kar — generic mat ho. Koi solution, koi sawal, koi troubleshooting tip mat do — sirf acknowledgment.
+Khud ke baare mein first-person gendered verb (jese "dekhti hoon", "samajh gayi", "karti hoon") mat likho — is waqt agent ka gender pata nahi. Sirf event/issue-focused neutral phrase likho (jese "Yeh masla note ho gaya", "Router disconnect hona pareshan-kun hai", "Samajh aa gaya — connection baar baar drop ho raha hai").
+${scriptRule}
+OUTPUT: Sirf valid JSON, kuch aur nahi: {"onTopic": true, "reply": "acknowledgment yahan"}`;
+
+  try {
+    const result = await callGroqOnce(system, issueText);
+    let reply = result.reply.trim();
+    // Same leak guardrail as askGroq — never forward the wrong script to the customer.
+    if (!replyInUrduScript && containsUrduScript(reply)) reply = '';
+    return reply;
+  } catch (e: any) {
+    console.error('[acknowledgeIssue]', e?.message);
+    return '';
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -2716,7 +2752,8 @@ export default async function handler(req: any, res: any) {
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
           await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
-          await sendText(from, connectionTypeQuestion());
+          const ackLine1 = await acknowledgeIssue(text);
+          await sendText(from, connectionTypeQuestion(ackLine1));
           continue;
         }
 
@@ -2750,7 +2787,8 @@ export default async function handler(req: any, res: any) {
               const billingBlock2 = accountBillingBlockedReply(found2.user);
               if (billingBlock2) { await sendText(from, billingBlock2); continue; }
               await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found2.managerId, verifiedUserId: found2.user.id });
-              await sendText(from, connectionTypeQuestion());
+              const ackLine2 = await acknowledgeIssue(text);
+              await sendText(from, connectionTypeQuestion(ackLine2));
               continue;
             }
 
@@ -3004,7 +3042,8 @@ export default async function handler(req: any, res: any) {
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         await setSession(from, 'awaiting_connection_type', { issue: text });
-        await sendText(from, connectionTypeQuestion());
+        const ackLine3 = await acknowledgeIssue(text);
+        await sendText(from, connectionTypeQuestion(ackLine3));
         continue;
       }
 
