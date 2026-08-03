@@ -1009,7 +1009,11 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"cat
     const response: any = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
-      config: { temperature: 0, maxOutputTokens: 30, responseMimeType: 'application/json' },
+      // thinkingConfig disables gemini-3.5-flash's default "thinking" step — its hidden
+      // reasoning tokens otherwise eat the maxOutputTokens budget first, which was
+      // silently returning an EMPTY response (no error, just nothing) for a simple
+      // classification task that never needed multi-step reasoning in the first place.
+      config: { temperature: 0, maxOutputTokens: 100, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
     });
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     let category = '';
@@ -1047,7 +1051,10 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"ban
     const response: any = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
-      config: { temperature: 0, maxOutputTokens: 200, responseMimeType: 'application/json' },
+      // Same thinkingConfig fix as classifyWhatsAppImage above — this is plain field
+      // extraction, no reasoning needed, and low maxOutputTokens + default thinking
+      // was silently truncating the JSON to nothing.
+      config: { temperature: 0, maxOutputTokens: 500, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
     });
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     const parsed = JSON.parse(raw);
@@ -1123,7 +1130,12 @@ async function transcribeWithGemini(buf: Buffer, mimeType: string): Promise<stri
     const response: any = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
-      config: { temperature: 0 },
+      // Same thinkingConfig fix as the vision functions above — plain transcription
+      // doesn't need reasoning, and gemini-3.5-flash's default thinking could otherwise
+      // eat into the output budget on a longer voice note. maxOutputTokens raised well
+      // above any real transcript length as a safety ceiling (Groq Whisper fallback
+      // still covers this function returning null for any reason).
+      config: { temperature: 0, maxOutputTokens: 2000, thinkingConfig: { thinkingBudget: 0 } },
     });
     const out: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     return out || null;
