@@ -883,6 +883,34 @@ async function isFirstContactToday(phone: string): Promise<boolean> {
   }
 }
 
+// Resolves a customer-facing display name for push notification titles —
+// same priority order the Admin Inbox (WABotInbox.tsx) and Android app use
+// for the chat list: manual "contact_names" override (whatsapp_configs) >
+// matched customer record name (manager_data) > raw phone number. Without
+// this, every push notification just showed "+92XXXXXXXXXX" even when
+// mahadnet had already renamed/matched that contact in the app.
+async function resolveDisplayName(managerId: string, phone: string): Promise<string> {
+  const norm = normPhone(phone);
+  try {
+    const cfgRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=contact_names`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (cfgRes.ok) {
+      const rows: any[] = await cfgRes.json();
+      const override = rows?.[0]?.contact_names?.[norm];
+      if (override) return override;
+    }
+  } catch (e: any) { console.error('[resolveDisplayName: contact_names]', e?.message); }
+
+  try {
+    const found = await findCustomer(phone);
+    if (found?.user?.name) return found.user.name;
+  } catch (e: any) { console.error('[resolveDisplayName: customer]', e?.message); }
+
+  return `+92${norm}`;
+}
+
 // Looks up Expo push tokens registered by the mobile app (push_tokens table)
 // for this manager and sends a notification via Expo's push API. See
 // mahadahmad82-source/Wabot-Android for the app that registers these tokens.
@@ -907,10 +935,12 @@ async function notifyPushTokens(
     : type === 'document' ? '📄 Document'
     : 'New message';
 
+  const displayName = await resolveDisplayName(managerId, customerPhone);
+
   const messages = rows.map((r) => ({
     to: r.token,
     sound: 'default',
-    title: `+92${normPhone(customerPhone)}`,
+    title: displayName,
     body: preview,
     data: { phone: normPhone(customerPhone) },
   }));
