@@ -285,8 +285,8 @@ Yeh milte hi foran activate/renew kar diya jayega! 🙏
 📦 Aap ka package: *{plan}* — Rs. {amount}/month`,
   recharge_discount_note: `
 🎁 Aap ka special discount already is amount mein adjust hai.`,
-  payment_screenshot_received_named: `Shukriya {name}! 😊 Aap ka payment screenshot mil gaya hai — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`,
-  payment_screenshot_received_unnamed: `Shukriya! 😊 Screenshot mil gaya hai. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`,
+  payment_screenshot_received_named: `Shukriya {name}! 😊 Aap ka payment screenshot mil gaya hai{details} — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`,
+  payment_screenshot_received_unnamed: `Shukriya! 😊 Screenshot mil gaya hai{details}. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`,
   complaint_screenshot_received_named: `Ji {name}, tasveer mil gayi hai 📩 Lagta hai yeh kisi fault/issue ki hai — maine turant Mahad bhai ki team tak bhej di hai, jald hi dekh kar aap se rabta karenge. 🙏`,
   complaint_screenshot_received_unnamed: `Tasveer mil gayi hai 📩 Lagta hai yeh kisi fault/issue ki hai — team ko bhej di hai, jald hi check kar liya jayega. Apna *username* ya *address* bhi bhej dein taake jald identify ho sakein. 🙏`,
   new_conn_reply: `MahadNet mein khushamdeed! 🎉
@@ -1007,7 +1007,7 @@ ${caption ? `Customer ka caption: "${caption}"` : 'Customer ne koi caption nahi 
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"category": "payment" | "complaint" | "other"}`;
     const response: any = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0, maxOutputTokens: 30, responseMimeType: 'application/json' },
     });
@@ -1045,7 +1045,7 @@ Agar koi field saaf na mile, uski value null rakho — andaza/guess mat lagao.
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"bank": "...", "trxId": "...", "amount": "...", "dateTime": "...", "senderName": "..."}`;
     const response: any = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0, maxOutputTokens: 200, responseMimeType: 'application/json' },
     });
@@ -1121,7 +1121,7 @@ async function transcribeWithGemini(buf: Buffer, mimeType: string): Promise<stri
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Yeh ek Pakistani WhatsApp customer ka voice message hai jo ek ISP (internet provider) ke support number par bheja gaya hai. Iska sirf aur sirf EXACT transcription likho — jis zaban/script mein bola gaya hai (Roman Urdu, Urdu script, English, ya mix), waisa hi likho. Tarjuma mat karo, koi tabsara/comment/prefix mat likho — sirf plain transcription text, kuch aur nahi.`;
     const response: any = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0 },
     });
@@ -2470,9 +2470,20 @@ export default async function handler(req: any, res: any) {
             message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${detailsText}${mediaUrl ? `\n${mediaUrl}` : ''}`,
             priority: 'MEDIUM',
           });
+          // Instant readback of what the OCR actually saw (amount/bank/TRX ID) so the
+          // customer gets real confirmation their specific payment was received, not
+          // just a generic "verifying" line — this is a READ-BACK only, it does NOT
+          // credit the ledger automatically. Actual balance/activation still goes
+          // through Mahad bhai's manual review, same as before (fake/doctored payment
+          // screenshots are a known ISP scam pattern, so auto-crediting isn't safe
+          // without his confirmation). Falls back to empty string (old exact wording)
+          // when extraction found nothing usable.
+          const readback = receiptDetails && (receiptDetails.amount || receiptDetails.bank || receiptDetails.trxId)
+            ? ` (Rs. ${receiptDetails.amount || '?'}${receiptDetails.bank ? `, ${receiptDetails.bank}` : ''}${receiptDetails.trxId ? `, TRX: ${receiptDetails.trxId}` : ''})`
+            : '';
           await sendText(from, found?.user
-            ? tmpl('payment_screenshot_received_named', { name: found.user.name })
-            : tmpl('payment_screenshot_received_unnamed'));
+            ? tmpl('payment_screenshot_received_named', { name: found.user.name, details: readback })
+            : tmpl('payment_screenshot_received_unnamed', { details: readback }));
         }
         continue;
       }
