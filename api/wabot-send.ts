@@ -2,7 +2,7 @@
 // mahadnet's behalf (text, image, voice note, video, or document), logs it, and
 // auto-pauses Ayesha on that thread (so the bot doesn't collide with a human
 // reply mid-conversation).
-import { callGeminiWithFailover } from '../lib/geminiFailover.js';
+import { callGeminiWithFailover } from '../lib/geminiFailover';
 import * as lamejs from '@breezystack/lamejs';
 // NOTE: synthesizeNonGemini is imported lazily inside handlePreviewVoice() below,
 // NOT at top-level. A top-level import of lib/ttsProviders crashed this ENTIRE
@@ -302,7 +302,7 @@ async function handlePreviewVoice(req: any, res: any) {
           responseModalities: ['AUDIO'],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         },
-      }, ['gemini-3.5-flash-tts', 'gemini-1.5-flash']);
+      }, ['gemini-3.5-flash-tts']);
 
       const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
       b64 = inline?.data;
