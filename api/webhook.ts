@@ -477,7 +477,14 @@ let TEMPLATES: Record<string, string> = DEFAULT_TEMPLATES;
 // Supabase fetch failed or the key was never customized.
 function tmpl(key: string, vars: Record<string, string | number> = {}): string {
   const raw = TEMPLATES[key] ?? DEFAULT_TEMPLATES[key] ?? '';
-  return raw.replace(/\{(\w+)\}/g, (_m: string, k: string) => (k in vars ? String(vars[k]) : ''));
+  const filled = raw.replace(/\{(\w+)\}/g, (_m: string, k: string) => (k in vars ? String(vars[k]) : ''));
+  // Same deterministic Hindi->Urdu backstop applied to Groq replies (sanitizeHindiWords,
+  // defined below) — now also applied HERE, the single choke point every canned/fixed
+  // template goes through. Previously only Groq's freeform output was sanitized, so a
+  // hardcoded template with a Hindi-coded word slipped through untouched (e.g.
+  // "turant" in account_billing_blocked_reply/complaint_screenshot_received_named).
+  // Also future-proofs any template edited via the WABot UI without a code review.
+  return sanitizeHindiWords(filled);
 }
 
 // For randomized reply pools stored as one variant per line (e.g. thanks/closing replies)
@@ -485,7 +492,7 @@ function tmpl(key: string, vars: Record<string, string | number> = {}): string {
 function pickFromList(key: string): string {
   const raw = TEMPLATES[key] ?? DEFAULT_TEMPLATES[key] ?? '';
   const lines = raw.split('\n').map((s: string) => s.trim()).filter(Boolean);
-  return lines.length ? lines[Math.floor(Math.random() * lines.length)] : '';
+  return lines.length ? sanitizeHindiWords(lines[Math.floor(Math.random() * lines.length)]) : '';
 }
 
 function renderPackageList(planPrices: Record<string, number>): string {
@@ -1272,9 +1279,10 @@ async function uploadTtsAudio(mp3Buf: Buffer, prefix: string): Promise<string | 
 
 async function textToSpeechGemini(text: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || !text) return null;
+  if (!apiKey || !text) { console.error('[textToSpeechGemini] skipped — apiKey present:', !!apiKey, 'text present:', !!text); return null; }
   // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
   const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Kore';
+  console.log('[textToSpeechGemini] calling gemini-2.5-flash-tts, voice=', voiceName);
   try {
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
@@ -1313,36 +1321,34 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
 // bucket, returning its public URL — or null on failure so the caller falls
 // back to a text reply. Routes by currentTtsProvider (set per-message from the
 // matched agent, or 'gemini' by default):
-//   'gemini' → tried first (best Roman Urdu quality). If it fails for ANY reason
-//   (quota exhausted, API error, etc.) this automatically cascades to Azure, then
-//   Edge-TTS (free/unlimited) — full quota-chaining, so a Gemini quota hit no
-//   longer means "no voice reply", it just quietly drops one tier. No manual
-//   provider change ever needed for this.
-//   'azure'/'edge' (explicitly chosen per-agent) → real Urdu-script voices
-//   (ur-PK-Uzma/AsadNeural), Roman Urdu is transliterated to Urdu script first
-//   (see lib/ttsProviders.ts). 'azure' auto-falls-back to 'edge' the same way,
-//   and if both fail, Gemini is tried as the final fallback.
+//   'gemini' (the default, and now the ONLY automatic path) → if it fails for
+//   any reason, the caller just falls back to a TEXT reply. Previously this
+//   cascaded Gemini -> Azure -> Edge-TTS automatically, but Edge-TTS's voice
+//   quality was unacceptable for real customers (mahadnet's explicit call,
+//   Aug 3 2026, after hearing it live) — a bad-quality voice note is worse
+//   than a clean text reply, so that silent downgrade is removed.
+//   'azure'/'edge' (still only reachable if mahadnet deliberately sets a
+//   SPECIFIC agent's voice provider to one of these in the Agents screen —
+//   nothing does this automatically anymore) → real Urdu-script voices via
+//   lib/ttsProviders.ts, with Gemini tried as a last resort if that fails.
 async function textToSpeech(text: string): Promise<string | null> {
   if (!text) return null;
+  console.log('[textToSpeech] start, provider=', currentTtsProvider, 'gender=', currentTtsGender, 'len=', text.length);
   try {
+    if (currentTtsProvider === 'gemini') {
+      const geminiUrl = await textToSpeechGemini(text);
+      console.log('[textToSpeech] gemini result:', geminiUrl ? 'URL ok' : 'null');
+      return geminiUrl; // no Azure/Edge cascade — caller falls back to text on null
+    }
+
     // package.json has "type":"module" -> Node's ESM loader requires an explicit
     // extension on relative import specifiers (no auto-resolution like CJS/bundlers
     // do). The missing ".js" here is exactly why this kept failing with "Cannot find
     // module '/var/task/lib/ttsProviders'" both at runtime AND at Vercel's build-time
     // file trace (which is why the file was silently absent from the deployed bundle).
     const { synthesizeNonGemini } = await import('../lib/ttsProviders.js');
-
-    if (currentTtsProvider === 'gemini') {
-      const geminiUrl = await textToSpeechGemini(text);
-      if (geminiUrl) return geminiUrl;
-      console.error('[textToSpeech] Gemini failed (quota/error) — cascading to Azure/Edge-TTS');
-      const result = await synthesizeNonGemini(text, 'azure', currentTtsGender); // internally falls to edge if azure has no key/fails
-      if (!result) return null; // everything failed -> caller falls back to plain text reply
-      if (result.azureError) console.error('[textToSpeech] azure fell back to edge:', result.azureError);
-      return await uploadTtsAudio(result.buffer, 'tts-replies');
-    }
-
     const result = await synthesizeNonGemini(text, currentTtsProvider, currentTtsGender);
+    console.log('[textToSpeech] synthesizeNonGemini result:', result ? `providerUsed=${result.providerUsed} bytes=${result.buffer?.length}` : 'null');
     if (!result) {
       // Last-resort: try Gemini too before giving up entirely (only if it has a key).
       return await textToSpeechGemini(text);
