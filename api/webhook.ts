@@ -1271,7 +1271,7 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
         responseModalities: ['AUDIO'],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
       },
-    }, ['gemini-3.5-flash-tts']);
+    }, ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts']);
 
     const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
     const b64 = inline?.data;
