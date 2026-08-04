@@ -302,7 +302,7 @@ async function handlePreviewVoice(req: any, res: any) {
           responseModalities: ['AUDIO'],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         },
-      }, ['gemini-3.5-flash-tts']);
+      }, ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts']);
 
       const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
       b64 = inline?.data;
