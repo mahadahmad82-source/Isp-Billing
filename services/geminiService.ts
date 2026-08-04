@@ -1,5 +1,5 @@
 
-import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from "../lib/geminiFailover.js";
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from "../lib/geminiFailover";
 import { AppSettings, Receipt } from "../types";
 import { getMessageTemplate, renderTemplate } from "../utils/messageTemplates";
 
@@ -33,7 +33,7 @@ export const generateProfessionalMessage = async (
 
     const response = await callGeminiWithFailover({
       contents: prompt,
-    }, ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]);
+    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
 
     // Access text property directly (not as a method)
     return response.text || parsedMessage;
@@ -54,7 +54,7 @@ export const analyzeTrends = async (receipts: Receipt[]) => {
     const summary = JSON.stringify(receipts.slice(-10));
     const response = await callGeminiWithFailover({
       contents: `Analyze these recent internet subscription payments and provide a 2-sentence summary of revenue trends: ${summary}`,
-    }, ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]);
+    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
     // Access text property directly
     return response.text || defaultAnalysis;
   } catch (error) {
