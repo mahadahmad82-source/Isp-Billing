@@ -5,11 +5,12 @@ import { GoogleGenAI } from '@google/genai';
  * Gemini models prioritized for failover.
  * Multimodal models supporting audio/image input.
  */
+// gemini-1.5-* family is retired (404 NOT_FOUND as of Aug 2026) -- do not
+// reintroduce those model names here, they will hard-fail every call that
+// reaches them in the fallback chain.
 export const GEMINI_FALLBACK_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro'
+  'gemini-3.5-flash',
+  'gemini-2.0-flash'
 ] as const;
 
 export type GeminiModel = typeof GEMINI_FALLBACK_MODELS[number] | 'gemini-3.5-flash' | 'gemini-3.5-flash-tts' | string;
