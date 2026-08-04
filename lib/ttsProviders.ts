@@ -4,7 +4,7 @@
 // Gemini stays the DEFAULT (native Roman Urdu understanding — no script
 // conversion needed, best quality). Azure and edge-tts are overflow providers
 // for when an agent's Gemini TTS quota (free tier: 10 req/day on
-// gemini-2.5-flash-tts) is exhausted:
+// gemini-3.5-flash-tts) is exhausted:
 //   - 'edge'  → free, unlimited, no API key (unofficial MS Edge Read Aloud service)
 //   - 'azure' → Azure Speech F0 free tier (500,000 neural chars/month, permanent
 //               free) — needs AZURE_SPEECH_KEY + AZURE_SPEECH_REGION env vars from

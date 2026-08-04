@@ -39,7 +39,7 @@ export const generateProfessionalMessage = async (
       : `Generate a polite firm SMS reminder for ${userName}. Amount due: ${amount}. Expiry: ${expiryDate}. Business: ${businessName}. Keep it under 160 characters.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.5-flash',
       contents: prompt,
     });
 
@@ -63,7 +63,7 @@ export const analyzeTrends = async (receipts: Receipt[]) => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const summary = JSON.stringify(receipts.slice(-10));
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.5-flash',
       contents: `Analyze these recent internet subscription payments and provide a 2-sentence summary of revenue trends: ${summary}`,
     });
     // Access text property directly

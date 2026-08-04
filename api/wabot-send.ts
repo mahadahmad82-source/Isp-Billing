@@ -299,7 +299,7 @@ async function handlePreviewVoice(req: any, res: any) {
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-tts',
+      model: 'gemini-3.5-flash-tts',
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseModalities: ['AUDIO'],

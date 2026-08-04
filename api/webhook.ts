@@ -1282,12 +1282,12 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
   if (!apiKey || !text) { console.error('[textToSpeechGemini] skipped — apiKey present:', !!apiKey, 'text present:', !!text); return null; }
   // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
   const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Kore';
-  console.log('[textToSpeechGemini] calling gemini-2.5-flash-tts, voice=', voiceName);
+  console.log('[textToSpeechGemini] calling gemini-3.5-flash-tts, voice=', voiceName);
   try {
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-tts',
+      model: 'gemini-3.5-flash-tts',
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseModalities: ['AUDIO'],
