@@ -293,6 +293,7 @@ async function handlePreviewVoice(req: any, res: any) {
     if (!voice || !GEMINI_VALID_VOICES.has(voice)) {
       return res.status(400).json({ error: 'Invalid or missing voice name' });
     }
+    let b64: string | undefined;
     try {
       const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
       const response = await callGeminiWithFailover({
@@ -304,8 +305,8 @@ async function handlePreviewVoice(req: any, res: any) {
       }, ['gemini-3.5-flash-tts', 'gemini-1.5-flash']);
 
       const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
-    const b64 = inline?.data;
-    if (!b64) return res.status(502).json({ error: 'No audio returned from Gemini' });
+      b64 = inline?.data;
+      if (!b64) return res.status(502).json({ error: 'No audio returned from Gemini' });
     } catch (e: any) {
       console.error('[gemini-tts] Failover exhausted:', e?.message);
       return res.status(502).json({ error: `Gemini TTS failover exhausted: ${e?.message}` });
