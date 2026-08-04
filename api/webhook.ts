@@ -1123,7 +1123,7 @@ const voiceReplyTargets = new Set<string>();
 // auto-detects language, so Urdu/Hindi speech sometimes comes back in Devanagari
 // or Urdu/Nastaliq script — that's handled by transliterateToRoman() in the caller,
 // not here, so the raw transcript stays intact for display/translation purposes.
-// Transcribes a WhatsApp voice note via Gemini 2.5 Flash's native audio understanding
+// Transcribes a WhatsApp voice note via Gemini 3.5 Flash's native audio understanding
 // first (noticeably more accurate on Pakistani-accented Roman Urdu/English than Whisper —
 // this is the engine Mahad bhai specifically asked to switch to). Falls back to Groq
 // Whisper automatically if Gemini has no key, errors, or returns nothing, so a single
@@ -1258,7 +1258,7 @@ Output: Assalam o alaikum, internet kaam nahi kar raha`,
   } catch (e: any) { console.error('[transliterateToRoman]', e?.message); return text; }
 }
 
-// Converts text to a female-voice MP3 via Gemini 2.5 Flash TTS (Google GenAI),
+// Converts text to a female-voice MP3 via Gemini 3.5 Flash TTS (Google GenAI),
 // stores it in the public whatsapp-media bucket, and returns its public URL.
 // Gemini's TTS is LLM-based — it understands Roman Urdu directly (no script
 // conversion step needed, unlike Azure's locale-bound voices) and follows a
