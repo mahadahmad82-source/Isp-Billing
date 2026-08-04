@@ -1,7 +1,7 @@
 // api/webhook.ts — Ayesha Bot v6 | MahadNet WhatsApp Support
 // Dynamic packages from Supabase + Router catalog with images + session state
 
-import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover';
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
 import * as lamejs from '@breezystack/lamejs';
 // Type-only import — erased at compile time, never becomes a runtime module
 // resolution. synthesizeNonGemini itself is imported lazily inside
