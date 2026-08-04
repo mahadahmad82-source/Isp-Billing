@@ -13,7 +13,7 @@ export const GEMINI_FALLBACK_MODELS = [
   'gemini-2.0-flash'
 ] as const;
 
-export type GeminiModel = typeof GEMINI_FALLBACK_MODELS[number] | 'gemini-3.5-flash' | 'gemini-3.5-flash-tts' | string;
+export type GeminiModel = typeof GEMINI_FALLBACK_MODELS[number] | 'gemini-3.5-flash' | 'gemini-3.1-flash-tts-preview' | 'gemini-2.5-flash-preview-tts' | string;
 
 export interface GeminiRequest {
   contents: any;
