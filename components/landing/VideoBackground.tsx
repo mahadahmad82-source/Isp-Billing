@@ -5,25 +5,24 @@ const VideoBackground: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll();
   
-  // Smooth out the scroll progress
+  // Ultra-smooth scroll response
   const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 60,
-    damping: 25,
+    stiffness: 40,
+    damping: 20,
     restDelta: 0.001
   });
 
-  // Parallax and movement effects
-  // Increased movement range for a more "scroll animated" feel
-  const y = useTransform(smoothProgress, [0, 1], ['-10%', '10%']);
-  const rotate = useTransform(smoothProgress, [0, 1], [0, 30]);
-  const scale = useTransform(smoothProgress, [0, 0.5, 1], [1.1, 1.3, 1.1]);
-  const opacity = useTransform(smoothProgress, [0, 0.1, 0.9, 1], [0.5, 0.7, 0.7, 0.4]);
+  // Dynamic parallax values
+  const y = useTransform(smoothProgress, [0, 1], ['-15%', '15%']);
+  const rotate = useTransform(smoothProgress, [0, 1], [0, 25]);
+  const scale = useTransform(smoothProgress, [0, 0.5, 1], [1.2, 1.4, 1.2]);
+  const opacity = useTransform(smoothProgress, [0, 0.2, 0.8, 1], [0.4, 0.7, 0.7, 0.3]);
+  const blur = useTransform(smoothProgress, [0, 0.1, 0.9, 1], ['blur(0px)', 'blur(0px)', 'blur(0px)', 'blur(4px)']);
 
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 w-full h-full pointer-events-none overflow-hidden z-0 flex items-center justify-center"
-      style={{ background: 'transparent' }}
+      className="fixed inset-0 w-full h-full pointer-events-none overflow-hidden z-0 flex items-center justify-center bg-[#020617]"
     >
       <motion.div
         style={{
@@ -31,6 +30,7 @@ const VideoBackground: React.FC = () => {
           rotate,
           scale,
           opacity,
+          filter: blur,
           width: '100%',
           height: '100%',
           display: 'flex',
@@ -38,7 +38,8 @@ const VideoBackground: React.FC = () => {
           justifyContent: 'center',
         }}
       >
-        <div className="relative w-full h-full flex items-center justify-center">
+        <div className="relative w-[120vh] h-[120vh] flex items-center justify-center">
+          {/* The Globe Video */}
           <video
             autoPlay
             loop
@@ -46,39 +47,35 @@ const VideoBackground: React.FC = () => {
             playsInline
             className="w-full h-full object-contain"
             style={{
-              // Professional dark theme adjustments:
-              // 1. Invert colors (White background -> Black)
-              // 2. Hue-rotate to keep blue tones
-              // 3. Contrast boost to ensure the black is pure black
-              filter: 'invert(1) hue-rotate(180deg) contrast(1.8) brightness(0.9) saturate(1.5)',
+              // Enhanced filters for deep integration
+              filter: 'invert(1) hue-rotate(190deg) contrast(2) brightness(0.85) saturate(1.8)',
               mixBlendMode: 'screen',
-              maxWidth: '100vh',
-              maxHeight: '100vh',
-              // CRITICAL: Radial mask to remove the square box edges
-              WebkitMaskImage: 'radial-gradient(circle, black 35%, transparent 65%)',
-              maskImage: 'radial-gradient(circle, black 35%, transparent 65%)',
+              // Ultra-smooth radial mask to eliminate any edge artifacts
+              WebkitMaskImage: 'radial-gradient(circle at center, rgba(0,0,0,1) 20%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0) 70%)',
+              maskImage: 'radial-gradient(circle at center, rgba(0,0,0,1) 20%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0) 70%)',
             }}
           >
             <source src="/globe_bg.mp4" type="video/mp4" />
           </video>
           
-          {/* Extra glow layer to make it feel 3D and integrated */}
+          {/* Atmospheric Glow - makes it look like it belongs in the dark theme */}
           <div 
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: 'radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 60%)',
-              mixBlendMode: 'plus-lighter'
+              background: 'radial-gradient(circle at center, rgba(79, 70, 229, 0.2) 0%, rgba(99, 102, 241, 0.05) 40%, transparent 70%)',
+              mixBlendMode: 'plus-lighter',
+              transform: 'scale(1.2)'
             }}
           />
         </div>
       </motion.div>
       
-      {/* Background Vignette to merge with the page */}
+      {/* Global Vignette to ensure seamless transition to the rest of the page */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, transparent 20%, #020617 85%)',
-          opacity: 0.8
+          background: 'radial-gradient(circle at center, transparent 30%, #020617 90%)',
+          opacity: 0.9
         }}
       />
     </div>
