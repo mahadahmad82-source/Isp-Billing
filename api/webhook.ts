@@ -1,7 +1,7 @@
 // api/webhook.ts — Ayesha Bot v6 | MahadNet WhatsApp Support
 // Dynamic packages from Supabase + Router catalog with images + session state
 
-import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover';
 import * as lamejs from '@breezystack/lamejs';
 // Type-only import — erased at compile time, never becomes a runtime module
 // resolution. synthesizeNonGemini itself is imported lazily inside
@@ -1014,7 +1014,7 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"cat
     const response = await callGeminiWithFailover({
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0, maxOutputTokens: 100, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
-    }, ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]);
+    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     let category = '';
     try { category = JSON.parse(raw)?.category; } catch { category = /complaint/i.test(raw) ? 'complaint' : /payment/i.test(raw) ? 'payment' : 'other'; }
@@ -1049,7 +1049,7 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"ban
     const response = await callGeminiWithFailover({
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
       config: { temperature: 0, maxOutputTokens: 500, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
-    }, ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]);
+    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     const parsed = JSON.parse(raw);
     return {
@@ -1271,7 +1271,7 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
         responseModalities: ['AUDIO'],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
       },
-    }, ['gemini-3.5-flash-tts', 'gemini-1.5-flash']);
+    }, ['gemini-3.5-flash-tts']);
 
     const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
     const b64 = inline?.data;
