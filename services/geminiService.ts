@@ -1,5 +1,5 @@
 
-import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from "../lib/geminiFailover";
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from "../lib/geminiFailover.js";
 import { AppSettings, Receipt } from "../types";
 import { getMessageTemplate, renderTemplate } from "../utils/messageTemplates";
 
