@@ -1,7 +1,7 @@
 // api/webhook.ts — Ayesha Bot v6 | MahadNet WhatsApp Support
 // Dynamic packages from Supabase + Router catalog with images + session state
 
-import { GoogleGenAI } from '@google/genai';
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover';
 import * as lamejs from '@breezystack/lamejs';
 // Type-only import — erased at compile time, never becomes a runtime module
 // resolution. synthesizeNonGemini itself is imported lazily inside
@@ -998,10 +998,7 @@ async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; bu
 // intentional — previously it fell back to 'payment' on any failure, which caused
 // random/unrelated images to get the "payment verify ho rahi hai" reply.
 async function classifyWhatsAppImage(buffer: Buffer, mimeType: string, caption: string): Promise<'payment' | 'complaint' | 'other'> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return 'other';
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `Yeh image ek Pakistani ISP (internet provider) ke WhatsApp customer-support number par ek customer ne bheji hai. Ghor se dekh kar STRICT criteria se category tay karo:
 
 - "payment": SIRF tab jab image mein saaf tor par ek bank/EasyPaisa/JazzCash/SadaPay/NayaPay transaction slip ya receipt dikhe — jisme amount (Rs./PKR), transaction/reference ID, date/time, aur "successful"/"paid"/"transfer complete" jaisa status ya bank/wallet app ka logo/naam saaf nazar aaye. Sirf paison ka zikar hona ya rasid "jaisi" lagna kaafi nahi — clear, unmistakable financial transaction proof hona chahiye.
@@ -1013,22 +1010,18 @@ STRICT RULE: Agar image blurry/unclear hai, ya "payment" hone mein zara bhi shaq
 ${caption ? `Customer ka caption: "${caption}"` : 'Customer ne koi caption nahi likha.'}
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"category": "payment" | "complaint" | "other"}`;
-    const response: any = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+    
+    const response = await callGeminiWithFailover({
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
-      // thinkingConfig disables gemini-3.5-flash's default "thinking" step — its hidden
-      // reasoning tokens otherwise eat the maxOutputTokens budget first, which was
-      // silently returning an EMPTY response (no error, just nothing) for a simple
-      // classification task that never needed multi-step reasoning in the first place.
       config: { temperature: 0, maxOutputTokens: 100, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
-    });
+    }, ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]);
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     let category = '';
     try { category = JSON.parse(raw)?.category; } catch { category = /complaint/i.test(raw) ? 'complaint' : /payment/i.test(raw) ? 'payment' : 'other'; }
     if (category === 'payment' || category === 'complaint' || category === 'other') return category;
     return 'other';
   } catch (e: any) {
-    console.error('[classifyWhatsAppImage]', e?.message);
+    console.error('[classifyWhatsAppImage] Failover exhausted:', e?.message);
     return 'other';
   }
 }
@@ -1040,10 +1033,7 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"cat
 async function extractReceiptDetails(buffer: Buffer, mimeType: string): Promise<{
   bank: string | null; trxId: string | null; amount: string | null; dateTime: string | null; senderName: string | null;
 } | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `Yeh ek Pakistani bank/wallet (Easypaisa, JazzCash, SadaPay, NayaPay, HBL, Meezan, Bank Alfalah, UBL, MCB, NBP, etc.) ki payment/transaction receipt image hai. Ismein se yeh details nikaalo:
 
 - bank: Bank/wallet ka naam (e.g. "Easypaisa", "JazzCash", "HBL")
@@ -1055,14 +1045,11 @@ async function extractReceiptDetails(buffer: Buffer, mimeType: string): Promise<
 Agar koi field saaf na mile, uski value null rakho — andaza/guess mat lagao.
 
 SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"bank": "...", "trxId": "...", "amount": "...", "dateTime": "...", "senderName": "..."}`;
-    const response: any = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+    
+    const response = await callGeminiWithFailover({
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }] }],
-      // Same thinkingConfig fix as classifyWhatsAppImage above — this is plain field
-      // extraction, no reasoning needed, and low maxOutputTokens + default thinking
-      // was silently truncating the JSON to nothing.
       config: { temperature: 0, maxOutputTokens: 500, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
-    });
+    }, ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]);
     const raw: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     const parsed = JSON.parse(raw);
     return {
@@ -1072,10 +1059,7 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"ban
       dateTime: parsed?.dateTime || null,
       senderName: parsed?.senderName || null,
     };
-  } catch (e: any) {
-    console.error('[extractReceiptDetails]', e?.message);
-    return null;
-  }
+    } catch (e: any) { console.error('[extractReceiptDetails] Failover exhausted:', e?.message); return null; }
 }
 
 // Per-invocation TTS voice override — set once per webhook call after the matched
@@ -1129,24 +1113,20 @@ const voiceReplyTargets = new Set<string>();
 // Whisper automatically if Gemini has no key, errors, or returns nothing, so a single
 // provider hiccup never leaves a voice note untranscribed.
 async function transcribeWithGemini(buf: Buffer, mimeType: string): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `Yeh ek Pakistani WhatsApp customer ka voice message hai jo ek ISP (internet provider) ke support number par bheja gaya hai. Iska sirf aur sirf EXACT transcription likho — jis zaban/script mein bola gaya hai (Roman Urdu, Urdu script, English, ya mix), waisa hi likho. Tarjuma mat karo, koi tabsara/comment/prefix mat likho — sirf plain transcription text, kuch aur nahi.`;
-    const response: any = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+    
+    const response = await callGeminiWithFailover({
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
-      // Same thinkingConfig fix as the vision functions above — plain transcription
-      // doesn't need reasoning, and gemini-3.5-flash's default thinking could otherwise
-      // eat into the output budget on a longer voice note. maxOutputTokens raised well
-      // above any real transcript length as a safety ceiling (Groq Whisper fallback
-      // still covers this function returning null for any reason).
       config: { temperature: 0, maxOutputTokens: 2000, thinkingConfig: { thinkingBudget: 0 } },
-    });
+    }, GEMINI_FALLBACK_MODELS as any);
+
     const out: string = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     return out || null;
-  } catch (e: any) { console.error('[transcribeWithGemini]', e?.message); return null; }
+  } catch (e: any) { 
+    console.error('[transcribeWithGemini] All Gemini fallbacks exhausted:', e?.message); 
+    return null; 
+  }
 }
 
 async function transcribeAudio(mediaId: string): Promise<{ transcript: string | null; mediaUrl: string | null }> {
@@ -1278,22 +1258,21 @@ async function uploadTtsAudio(mp3Buf: Buffer, prefix: string): Promise<string | 
 }
 
 async function textToSpeechGemini(text: string): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || !text) { console.error('[textToSpeechGemini] skipped — apiKey present:', !!apiKey, 'text present:', !!text); return null; }
+  if (!text) return null;
   // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
   const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Kore';
-  console.log('[textToSpeechGemini] calling gemini-3.5-flash-tts, voice=', voiceName);
+  console.log('[textToSpeechGemini] calling gemini-3.5-flash-tts with failover, voice=', voiceName);
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash-tts',
+    
+    const response = await callGeminiWithFailover({
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
       },
-    } as any);
+    }, ['gemini-3.5-flash-tts', 'gemini-1.5-flash']);
+
     const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
     const b64 = inline?.data;
     if (!b64) { console.error('[textToSpeechGemini] no audio data in Gemini response'); return null; }

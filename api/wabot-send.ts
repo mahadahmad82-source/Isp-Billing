@@ -2,7 +2,7 @@
 // mahadnet's behalf (text, image, voice note, video, or document), logs it, and
 // auto-pauses Ayesha on that thread (so the bot doesn't collide with a human
 // reply mid-conversation).
-import { GoogleGenAI } from '@google/genai';
+import { callGeminiWithFailover } from '../lib/geminiFailover';
 import * as lamejs from '@breezystack/lamejs';
 // NOTE: synthesizeNonGemini is imported lazily inside handlePreviewVoice() below,
 // NOT at top-level. A top-level import of lib/ttsProviders crashed this ENTIRE
@@ -293,23 +293,23 @@ async function handlePreviewVoice(req: any, res: any) {
     if (!voice || !GEMINI_VALID_VOICES.has(voice)) {
       return res.status(400).json({ error: 'Invalid or missing voice name' });
     }
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+    try {
+      const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
+      const response = await callGeminiWithFailover({
+        contents: [{ parts: [{ text: prompt }] }],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+        },
+      }, ['gemini-3.5-flash-tts', 'gemini-1.5-flash']);
 
-    const ai = new GoogleGenAI({ apiKey });
-    const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash-tts',
-      contents: [{ parts: [{ text: prompt }] }],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-      },
-    } as any);
-
-    const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      const inline: any = (response as any).candidates?.[0]?.content?.parts?.[0]?.inlineData;
     const b64 = inline?.data;
     if (!b64) return res.status(502).json({ error: 'No audio returned from Gemini' });
+    } catch (e: any) {
+      console.error('[gemini-tts] Failover exhausted:', e?.message);
+      return res.status(502).json({ error: `Gemini TTS failover exhausted: ${e?.message}` });
+    }
 
     const pcm = Buffer.from(b64, 'base64');
     const samples = new Int16Array(pcm.buffer, pcm.byteOffset, pcm.length / 2);
