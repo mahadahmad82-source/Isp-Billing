@@ -1261,7 +1261,7 @@ async function textToSpeechGemini(text: string): Promise<string | null> {
   if (!text) return null;
   // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
   const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Kore';
-  console.log('[textToSpeechGemini] calling gemini-3.5-flash-tts with failover, voice=', voiceName);
+  console.log('[textToSpeechGemini] calling gemini-3.1-flash-tts-preview with failover, voice=', voiceName);
   try {
     const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
     
