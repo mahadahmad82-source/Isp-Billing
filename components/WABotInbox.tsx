@@ -265,6 +265,10 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   // ── Training (Confused Replies) tab state ──
   const [view, setView] = useState<'inbox' | 'training' | 'catalog' | 'templates' | 'agents'>('inbox');
+  // Settings/navigation dropdown — Android's WABot app tucks Catalog/Templates/
+  // Agents/Training behind a single ⋮ menu (HeaderMenu.tsx) instead of always-
+  // visible tab buttons; this mirrors that so the PWA header matches.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // ── Agents & Voice tab state ──
   const [selectedVoice, setSelectedVoice] = useState<string>(ttsVoice || 'Kore');
@@ -1016,108 +1020,130 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       className="flex flex-col h-full min-h-0 gap-3 p-3 rounded-2xl"
       style={{ background: wabotDark ? '#000000' : 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)' }}
     >
-      {/* ── Tab toggle + Receipt/Pause + Bot Name setting ── */}
-      <div className="flex gap-2 flex-shrink-0 items-center flex-wrap">
-        <button
-          onClick={() => setView('inbox')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'inbox' ? 'bg-[#00A884] text-white' : 'bg-white dark:bg-[#000000] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-          Inbox
-        </button>
-        <button
-          onClick={() => setView('training')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all relative ${view === 'training' ? 'bg-[#00A884] text-white' : 'bg-white dark:bg-[#000000] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21 12.083 12.083 0 015.84 10.578L12 14zm0 0v7" /></svg>
-          Training
-          {unreviewedCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setView('catalog')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'catalog' ? 'bg-[#00A884] text-white' : 'bg-white dark:bg-[#000000] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
-          Catalog
-        </button>
-
-        <button
-          onClick={() => setView('templates')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'templates' ? 'bg-[#00A884] text-white' : 'bg-white dark:bg-[#000000] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          Templates
-        </button>
-
-        <button
-          onClick={() => setView('agents')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${view === 'agents' ? 'bg-[#00A884] text-white' : 'bg-white dark:bg-[#000000] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5'}`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
-          Agents &amp; Voice
-        </button>
-
-        <button
-          onClick={toggleWabotTheme}
-          title={wabotDark ? 'Light mode' : 'Dark mode (eye comfort)'}
-          className="ml-auto w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#000000] text-slate-500 dark:text-amber-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
-        >
-          {wabotDark ? (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 1020.354 15.354z" /></svg>
-          )}
-        </button>
-
-        {view === 'inbox' && selectedConv && (
-          <>
-            <button
-              onClick={() => onOpenReceiptGenerator?.(selectedConv.userId)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-[#000000] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Receipt
-            </button>
-            <button
-              onClick={togglePause}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
-            >
-              {selectedConv.paused ? (
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" /></svg>
-              )}
-              {selectedConv.paused ? 'Resume' : 'Pause'}
-            </button>
-          </>
-        )}
-
-        {!selectedConv && (
-          <div className="ml-auto flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-white/5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bot Name</span>
-            {editingBotName ? (
+      {/* ── Header — single line like Android's "Wabot BillCollector" bar, with
+          Training/Catalog/Templates/Agents & Voice + Bot Name tucked behind a
+          ⋮ menu instead of always-visible tab buttons (matches Wabot-Android's
+          HeaderMenu.tsx) — a back button replaces it on non-inbox screens. ── */}
+      {view === 'inbox' ? (
+        <div className="flex gap-2 flex-shrink-0 items-center justify-between relative">
+          <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight truncate">MahadNet WABot</h3>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {selectedConv && (
               <>
-                <input
-                  autoFocus
-                  value={botNameInput}
-                  onChange={e => setBotNameInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveBotName()}
-                  className="w-28 px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
-                />
-                <button onClick={saveBotName} className="px-3 py-1 bg-[#00A884] text-white rounded-lg font-black text-[10px] uppercase tracking-widest">Save</button>
+                <button
+                  onClick={() => onOpenReceiptGenerator?.(selectedConv.userId)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-[#000000] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Receipt
+                </button>
+                <button
+                  onClick={togglePause}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
+                >
+                  {selectedConv.paused ? (
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" /></svg>
+                  )}
+                  {selectedConv.paused ? 'Resume' : 'Pause'}
+                </button>
               </>
-            ) : (
-              <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-slate-900 dark:text-white">
-                {botNameInput}
-                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              </button>
             )}
+            <button
+              onClick={toggleWabotTheme}
+              title={wabotDark ? 'Light mode' : 'Dark mode (eye comfort)'}
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#000000] text-slate-500 dark:text-amber-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
+            >
+              {wabotDark ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 1020.354 15.354z" /></svg>
+              )}
+            </button>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              title="Settings"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#000000] text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all relative"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z" /></svg>
+              {unreviewedCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">{unreviewedCount}</span>
+              )}
+            </button>
           </div>
-        )}
-      </div>
+
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+              <div className="absolute top-11 right-0 z-50 w-64 bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 rounded-xl shadow-lg py-2 overflow-hidden">
+                <button
+                  onClick={() => { setView('training'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21 12.083 12.083 0 015.84 10.578L12 14zm0 0v7" /></svg>
+                  Training
+                  {unreviewedCount > 0 && <span className="ml-auto bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>}
+                </button>
+                <button
+                  onClick={() => { setView('catalog'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
+                  Router Catalog
+                </button>
+                <button
+                  onClick={() => { setView('templates'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Bot Templates
+                </button>
+                <button
+                  onClick={() => { setView('agents'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+                  Voice &amp; Agents
+                </button>
+                <div className="h-px bg-slate-100 dark:bg-white/10 my-2" />
+                <div className="px-4 py-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Bot Name</span>
+                  {editingBotName ? (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <input
+                        autoFocus
+                        value={botNameInput}
+                        onChange={e => setBotNameInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && saveBotName()}
+                        className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white"
+                      />
+                      <button onClick={saveBotName} className="px-3 py-1.5 bg-[#00A884] text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-slate-900 dark:text-white mt-1">
+                      {botNameInput}
+                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <button
+            onClick={() => setView('inbox')}
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#000000] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/5 active:scale-95 transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
+            {view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : 'Voice & Agents'}
+          </h3>
+        </div>
+      )}
 
       {view === 'training' ? (
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
@@ -1684,18 +1710,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
       <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[340px] flex-shrink-0 bg-white dark:bg-black rounded-2xl border border-slate-100 dark:border-white/5 flex-col overflow-hidden`}>
         <div className="p-5 border-b border-slate-100 dark:border-white/5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">MYISP WABot</h3>
+          <div className="flex items-center gap-2">
+            <input
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="flex-1 min-w-0 p-3 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/5 text-sm font-bold outline-none text-slate-900 dark:text-white"
+            />
             {totalUnread > 0 && (
-              <span className="bg-[#00A884] text-white text-[10px] font-black px-2.5 py-1 rounded-full">{totalUnread}</span>
+              <span className="flex-shrink-0 bg-[#00A884] text-white text-[10px] font-black px-2.5 py-1 rounded-full">{totalUnread}</span>
             )}
           </div>
-          <input
-            placeholder="Search..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/5 text-sm font-bold outline-none text-slate-900 dark:text-white"
-          />
         </div>
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
