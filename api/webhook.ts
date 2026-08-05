@@ -1259,11 +1259,13 @@ async function uploadTtsAudio(mp3Buf: Buffer, prefix: string): Promise<string | 
 
 async function textToSpeechGemini(text: string): Promise<string | null> {
   if (!text) return null;
-  // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Kore'.
-  const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Kore';
+  // Priority: per-message agent/settings voice (currentTtsVoice) → GEMINI_TTS_VOICE env → 'Sulafat'.
+  // 'Sulafat' = Google's official "warm/welcoming" female voice (was 'Kore' = "firm",
+  // which is why greetings/salam were coming out sounding stiff/robotic).
+  const voiceName = currentTtsVoice || process.env.GEMINI_TTS_VOICE || 'Sulafat';
   console.log('[textToSpeechGemini] calling gemini-3.1-flash-tts-preview with failover, voice=', voiceName);
   try {
-    const prompt = `Garmjoshi aur tassali se, ek friendly Pakistani customer support agent ke andaaz mein Roman Urdu mein bolo: ${text}`;
+    const prompt = `Ek soft-spoken, warm Pakistani female customer-care agent ki tarah bolo — jaise kisi apne customer se dil se baat kar rahi ho, bilkul robotic ya scripted mat lago. Agar yeh salam/greeting hai to especially gentle aur khush-aamdeedi wale lehje mein bolna. Yeh bolo: ${text}`;
     
     const response = await callGeminiWithFailover({
       contents: [{ parts: [{ text: prompt }] }],
@@ -1440,6 +1442,45 @@ async function setSession(phone: string, state: string | null, data?: any) {
       });
     }
   } catch (e: any) { console.error('[setSession]', e?.message); }
+}
+
+// ── Repeated-template tracker: separate from _bot_sessions (never touches the
+// slot-filling flows above) — just remembers the last "canned info" intent we
+// answered for a phone, so a same-topic follow-up can be detected further below.
+async function getLastAutoIntent(phone: string): Promise<{ intent: string; ts: number } | null> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_intent_track&select=data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    const track = rows?.[0]?.data?.track || {};
+    return track[phone] || null;
+  } catch (e: any) { console.error('[getLastAutoIntent]', e?.message); return null; }
+}
+
+async function setLastAutoIntent(phone: string, intent: string) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_intent_track&select=data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = await res.json();
+    const existing = rows?.[0]?.data || { track: {} };
+    const track = existing.track || {};
+    track[phone] = { intent, ts: Date.now() };
+    if (rows?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_intent_track`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ data: { ...existing, track } }),
+      });
+    } else {
+      await fetch(`${SUPABASE_URL}/rest/v1/manager_data`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ manager_id: '_bot_intent_track', data: { track } }),
+      });
+    }
+  } catch (e: any) { console.error('[setLastAutoIntent]', e?.message); }
 }
 
 async function hasGreetedBefore(phone: string): Promise<boolean> {
@@ -2521,7 +2562,7 @@ export default async function handler(req: any, res: any) {
       if (combinedText === null) continue; // a newer fragment arrived — that invocation handles the reply
       text = combinedText;
 
-      const intent = detectIntent(text);
+      let intent = detectIntent(text);
       console.log(`💬 intent=${intent}`);
 
       // ── Send the daily first-contact greeting now (see note above), but SKIP it when
@@ -2833,6 +2874,31 @@ export default async function handler(req: any, res: any) {
           const tid = await saveComplaint(found.managerId, found.rowData, found.user, combinedIssue);
           await sendTextAndVoice(from, complaintAckReply(found.user, tid, combinedIssue));
           continue;
+        }
+      }
+
+      // ── Repeated-template guard ──────────────────────────────────────────────
+      // If this message maps to the SAME "canned info" intent as the customer's
+      // last message (within 20 min), the first template clearly didn't actually
+      // answer what they meant — resending the identical text again just feels
+      // robotic/broken-record. Reroute THIS turn to Groq (same grounded custData/
+      // bank/package facts used for off-topic replies further below) so Ayesha
+      // reads the follow-up and replies to it specifically instead of looping.
+      // Payment/bank-account intents are deliberately excluded — those must always
+      // stay on the fixed deterministic template (see SAFETY-CRITICAL note above,
+      // real-money risk if Groq ever improvised an account number).
+      const REPEATABLE_INFO_INTENTS = new Set([
+        'packages', 'menu_packages', 'recharge_request', 'router_info', 'fiber_info',
+        'coverage', 'password_change', 'new_conn', 'menu_new_conn', 'bill', 'menu_bill',
+        'expiry', 'menu_expiry', 'payment_history', 'router_pon_compat', 'panel_issue',
+        'router_recommend',
+      ]);
+      if (REPEATABLE_INFO_INTENTS.has(intent)) {
+        const lastAuto = await getLastAutoIntent(from);
+        if (lastAuto && lastAuto.intent === intent && (Date.now() - lastAuto.ts) < 20 * 60 * 1000) {
+          intent = 'personal'; // falls through to the Groq fallback further below
+        } else {
+          setLastAutoIntent(from, intent).catch(() => {});
         }
       }
 
