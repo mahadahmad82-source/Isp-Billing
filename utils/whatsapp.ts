@@ -1,3 +1,25 @@
+import { supabase } from '../lib/supabase';
+import { getAgentToken } from './storage';
+
+/**
+ * Builds the Authorization headers required by api/wabot-send.ts (which has
+ * required auth since Aug 2 2026). Managers/admins carry a real Supabase
+ * session; sub-managers carry an agentToken minted by find_sub_manager_login.
+ * Every caller of /api/wabot-send must spread these headers or the endpoint
+ * returns 401 Unauthorized.
+ */
+export async function getWabotAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const jwt = data?.session?.access_token;
+    if (jwt) return { Authorization: `Bearer ${jwt}` };
+  } catch {
+    /* fall through to agent token */
+  }
+  const agentToken = getAgentToken();
+  return agentToken ? { Authorization: `Bearer ${agentToken}` } : {};
+}
+
 /**
  * Formats a phone number for WhatsApp (International format without +)
  * Assumes Pakistan (92) if it starts with 0 or 3
@@ -53,7 +75,7 @@ export const sendWhatsAppDirect = async (
   try {
     const res = await fetch('/api/wabot-send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
       body: JSON.stringify({ to: formatWhatsAppPhone(phone), managerId, type: 'text', body: message }),
     });
     if (!res.ok) {
@@ -106,7 +128,7 @@ export const sendReceiptViaWABot = async (
 
     const sendRes = await fetch('/api/wabot-send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
       body: JSON.stringify({
         to: formattedPhone,
         managerId,

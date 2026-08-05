@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useDeferredValue } from 'react';
 import { UserRecord, Receipt, AppSettings, PaymentStatus, PaymentMethod, ReceiptDesign, SubManagerAccount } from '../types';
-import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
+import { shareToWhatsApp, sendWhatsAppDirect, getWabotAuthHeaders } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
@@ -168,7 +168,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     try {
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({
           to: normalizePhoneForWa(u.phone),
           managerId,

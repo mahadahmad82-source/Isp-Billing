@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign, SubManagerAccount } from '../types';
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
-import { shareToWhatsApp } from '../utils/whatsapp';
+import { shareToWhatsApp, getWabotAuthHeaders } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
 import { supabase } from '../lib/supabase';
 
@@ -473,7 +473,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         : '';
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({
           to: normalizePhoneForWa(custUser.phone),
           managerId,
@@ -542,7 +542,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           const caption = `*${settings.businessName} RECEIPT*\nRef: ${receipt.transactionRef}\n${advanceLine}Amount Paid: Rs. ${(receipt.paidAmount || 0).toLocaleString()}\nRemaining Balance: Rs. ${balance.toLocaleString()}\n\nShukriya! ✅`;
           await fetch('/api/wabot-send', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
             body: JSON.stringify({ to: normalizePhoneForWa(receipt.userPhone), managerId, type: 'image', mediaUrl: pub.publicUrl, caption }),
           });
           setAutoSendStatus('sent');
@@ -831,7 +831,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         : '';
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({
           to: normalizePhoneForWa(activeReceipt.userPhone),
           managerId: managerId || 'mahadnet',
