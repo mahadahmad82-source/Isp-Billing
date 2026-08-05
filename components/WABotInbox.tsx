@@ -2,21 +2,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
-import { getAgentToken } from '../utils/storage';
+import { getWabotAuthHeaders } from '../utils/whatsapp';
 import * as lamejs from '@breezystack/lamejs';
-
-// wabot-send now requires auth (previously fully open — see api/wabot-send.ts).
-// Managers/admins have a real Supabase session; sub-managers instead carry an
-// agentToken (minted by find_sub_manager_login) saved on their local account.
-async function getWabotAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    const { data } = await supabase.auth.getSession();
-    const jwt = data?.session?.access_token;
-    if (jwt) return { Authorization: `Bearer ${jwt}` };
-  } catch { /* fall through to agent token */ }
-  const agentToken = getAgentToken();
-  return agentToken ? { Authorization: `Bearer ${agentToken}` } : {};
-}
 
 // WhatsApp's own text formatting (*bold*, _italic_, ~strikethrough~) is stored
 // verbatim in message content (that's what actually gets sent to the customer's
