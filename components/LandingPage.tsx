@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { logoBase64 } from '../utils/logoBase64';
+import { supabase } from '../lib/supabase';
 import VideoBackground from './landing/VideoBackground';
 import { 
   Zap, Smartphone, Lock, BarChart, Users, Globe, Cpu, Server, 
@@ -14,6 +15,36 @@ interface LandingPageProps {
   onGetStarted: () => void;
 }
 
+interface PricingPlan {
+  name: string;
+  price: string;
+  period: string;
+  color: string;
+  features: string[];
+  cta: string;
+  highlight: boolean;
+}
+
+// Fallback plans — used until (or unless) admin-edited plans load from Supabase,
+// and whenever that fetch fails, so the pricing section never breaks/goes blank.
+const DEFAULT_PRICING_PLANS: PricingPlan[] = [
+  {
+    name: 'Starter', price: 'Free', period: '3 months', color: '#6366f1',
+    features: ['Up to 50 customers', 'Core billing features', 'Receipts & Recovery', 'Basic Reports', 'WhatsApp reminders', 'Cloud sync'],
+    cta: 'Start Free', highlight: false,
+  },
+  {
+    name: 'Business', price: 'Contact', period: 'per month', color: '#8b5cf6',
+    features: ['Unlimited customers', 'Equipment Tracker', 'Leads Pipeline', 'Aging Reports', 'Area Dashboard', 'Team Management', 'Suspension & Outage Log', 'Priority Support'],
+    cta: 'WhatsApp Us', highlight: true,
+  },
+  {
+    name: 'Enterprise', price: 'Custom', period: '', color: '#06b6d4',
+    features: ['Multiple branches', 'Custom branding', 'Admin Panel', 'Dedicated support', 'Custom features', 'Data migration'],
+    cta: 'Contact Us', highlight: false,
+  },
+];
+
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -22,6 +53,30 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+
+  // Pricing plans — admin-editable via AdminDashboard, stored in Supabase
+  // `site_settings.pricing_plans`. Starts with the known-good defaults so the
+  // section always renders correctly even before the fetch resolves.
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>(DEFAULT_PRICING_PLANS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('site_settings')
+          .select('pricing_plans')
+          .eq('id', 'default')
+          .maybeSingle();
+        if (!cancelled && !error && Array.isArray(data?.pricing_plans) && data.pricing_plans.length > 0) {
+          setPricingPlans(data.pricing_plans as PricingPlan[]);
+        }
+      } catch {
+        // Silently keep DEFAULT_PRICING_PLANS on any network/parse failure.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Card Progress and Onsite Support Form States
   const [activeCardIdx, setActiveCardIdx] = useState(0);
@@ -455,24 +510,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       q: "Is my data safe? What if my phone breaks?", 
       a: "Your data is perfectly safe. Everything is securely stored using enterprise-grade AES-256 encryption and synchronized with secure, redundant cloud databases (Supabase). If your phone gets lost or broken, simply log in from another device to retrieve your complete database instantly." 
     }
-  ];
-
-  const pricingPlans = [
-    {
-      name: 'Starter', price: 'Free', period: '3 months', color: '#6366f1',
-      features: ['Up to 50 customers', 'Core billing features', 'Receipts & Recovery', 'Basic Reports', 'WhatsApp reminders', 'Cloud sync'],
-      cta: 'Start Free', highlight: false,
-    },
-    {
-      name: 'Business', price: 'Contact', period: 'per month', color: '#8b5cf6',
-      features: ['Unlimited customers', 'Equipment Tracker', 'Leads Pipeline', 'Aging Reports', 'Area Dashboard', 'Team Management', 'Suspension & Outage Log', 'Priority Support'],
-      cta: 'WhatsApp Us', highlight: true,
-    },
-    {
-      name: 'Enterprise', price: 'Custom', period: '', color: '#06b6d4',
-      features: ['Multiple branches', 'Custom branding', 'Admin Panel', 'Dedicated support', 'Custom features', 'Data migration'],
-      cta: 'Contact Us', highlight: false,
-    },
   ];
 
   const navLinks = [
