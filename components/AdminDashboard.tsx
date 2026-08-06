@@ -7,7 +7,7 @@ import {
   Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle,
   Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key,
   ChevronUp, ChevronDown, Activity, LogIn, Shield, TrendingUp,
-  Download, Upload, Eye, Clock, BarChart2, Wifi
+  Download, Upload, Eye, Clock, BarChart2, Wifi, Plus, Save, Star
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,6 +27,10 @@ interface ActivityEntry {
   managerUsername: string; managerBusiness: string; action: string;
   details?: string; timestamp: string;
   type: 'login' | 'receipt' | 'customer' | 'update' | 'system' | 'other';
+}
+interface PricingPlan {
+  name: string; price: string; period: string; color: string;
+  features: string[]; cta: string; highlight: boolean;
 }
 interface Props {
   activeTab?: string;
@@ -162,6 +166,12 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [storageLoading, setStorageLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
+  // ── Pricing Plans (landing page, admin-editable) ─────────────────────────────
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[] | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingMsg, setPricingMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const storageComputed = useMemo(() => {
     if (!storageInfo) return null;
     const FREE_LIMIT_BYTES = 500 * 1024 * 1024;
@@ -182,6 +192,64 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     setStorageLoading(false);
   }, []);
   useEffect(() => { if (tab === 'system') loadStorageInfo(); }, [tab, loadStorageInfo]);
+
+  // ── Pricing Plans ────────────────────────────────────────────────────────────
+  const loadPricingPlans = useCallback(async () => {
+    setPricingLoading(true);
+    setPricingMsg(null);
+    const { data, error } = await supabase.from('site_settings').select('pricing_plans').eq('id', 'default').maybeSingle();
+    if (!error && Array.isArray(data?.pricing_plans)) {
+      setPricingPlans(data.pricing_plans as PricingPlan[]);
+    } else if (error) {
+      setPricingMsg({ ok: false, text: 'Load error: ' + error.message });
+      setPricingPlans([]);
+    } else {
+      setPricingPlans([]);
+    }
+    setPricingLoading(false);
+  }, []);
+  useEffect(() => { if (tab === 'pricing' && pricingPlans === null) loadPricingPlans(); }, [tab, pricingPlans, loadPricingPlans]);
+
+  const savePricingPlans = async () => {
+    if (!pricingPlans) return;
+    setPricingSaving(true);
+    setPricingMsg(null);
+    const { error } = await supabase.from('site_settings').upsert(
+      { id: 'default', pricing_plans: pricingPlans, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    );
+    setPricingSaving(false);
+    if (error) setPricingMsg({ ok: false, text: 'Save error: ' + error.message });
+    else setPricingMsg({ ok: true, text: '✅ Pricing plans updated — live on landing page.' });
+  };
+
+  const updatePlan = (idx: number, patch: Partial<PricingPlan>) => {
+    setPricingPlans(prev => prev ? prev.map((p, i) => i === idx ? { ...p, ...patch } : p) : prev);
+  };
+  const updatePlanFeatures = (idx: number, raw: string) => {
+    const features = raw.split('\n').map(f => f.trim()).filter(Boolean);
+    updatePlan(idx, { features });
+  };
+  const addPlan = () => {
+    setPricingPlans(prev => [...(prev || []), {
+      name: 'New Plan', price: 'PKR 0', period: 'per month', color: '#6366f1',
+      features: ['Feature one', 'Feature two'], cta: 'Get Started', highlight: false,
+    }]);
+  };
+  const removePlan = (idx: number) => {
+    setPricingPlans(prev => prev ? prev.filter((_, i) => i !== idx) : prev);
+  };
+  const movePlan = (idx: number, dir: -1 | 1) => {
+    setPricingPlans(prev => {
+      if (!prev) return prev;
+      const next = [...prev];
+      const swapIdx = idx + dir;
+      if (swapIdx < 0 || swapIdx >= next.length) return prev;
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
+    });
+  };
+  const PLAN_COLOR_PRESETS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#f43f5e'];
 
   // ── Subscriptions ───────────────────────────────────────────────────────────
   const loadSubscriptions = useCallback(async () => {
@@ -1048,6 +1116,114 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════ PRICING PLANS (landing page, admin-editable) ══════════ */}
+      {tab === 'pricing' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-lg font-black text-white flex items-center gap-2"><Banknote className="w-5 h-5 text-indigo-400" />Pricing Plans</h2>
+              <p className="text-[11px] text-slate-500">Landing page ke pricing cards yahan se edit/add/delete honge — code touch karne ki zaroorat nahi.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={loadPricingPlans} disabled={pricingLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-slate-300 hover:text-white text-[11px] font-bold transition-colors disabled:opacity-40">
+                <RefreshCcw className={`w-3.5 h-3.5 ${pricingLoading ? 'animate-spin' : ''}`} /> Reload
+              </button>
+              <button onClick={addPlan}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all active:scale-95">
+                <Plus className="w-3.5 h-3.5" /> New Plan
+              </button>
+            </div>
+          </div>
+
+          {pricingMsg && (
+            <p className={`text-[11px] font-bold flex items-center gap-1.5 px-3 py-2 rounded-xl ${pricingMsg.ok ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+              {pricingMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}{pricingMsg.text}
+            </p>
+          )}
+
+          {pricingLoading && !pricingPlans?.length && (
+            <p className="text-center text-slate-500 text-xs py-10">Loading pricing plans…</p>
+          )}
+
+          {pricingPlans && pricingPlans.length === 0 && !pricingLoading && (
+            <p className="text-center text-slate-500 text-xs py-10">Koi pricing plan nahi mila. "New Plan" se shuru karein.</p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(pricingPlans || []).map((plan, idx) => (
+              <div key={idx} className="rounded-3xl border border-white/[0.08] bg-slate-900/60 p-5 space-y-3 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Plan #{idx + 1}</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => movePlan(idx, -1)} disabled={idx === 0} className="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 transition-colors"><ChevronUp className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => movePlan(idx, 1)} disabled={idx === (pricingPlans?.length || 0) - 1} className="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 transition-colors"><ChevronDown className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => removePlan(idx)} className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Name</label>
+                    <input type="text" value={plan.name} onChange={e => updatePlan(idx, { name: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">CTA Button Text</label>
+                    <input type="text" value={plan.cta} onChange={e => updatePlan(idx, { cta: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Price</label>
+                    <input type="text" value={plan.price} onChange={e => updatePlan(idx, { price: e.target.value })}
+                      placeholder="Free / Contact / PKR 999"
+                      className="w-full mt-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Period (optional)</label>
+                    <input type="text" value={plan.period} onChange={e => updatePlan(idx, { period: e.target.value })}
+                      placeholder="per month"
+                      className="w-full mt-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Accent Color</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    {PLAN_COLOR_PRESETS.map(c => (
+                      <button key={c} onClick={() => updatePlan(idx, { color: c })}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${plan.color === c ? 'border-white scale-110' : 'border-transparent'}`}
+                        style={{ background: c }} />
+                    ))}
+                    <input type="text" value={plan.color} onChange={e => updatePlan(idx, { color: e.target.value })}
+                      className="flex-1 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[11px] text-slate-300 font-mono outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Features (ek line mein ek feature)</label>
+                  <textarea value={plan.features.join('\n')} onChange={e => updatePlanFeatures(idx, e.target.value)} rows={5}
+                    className="w-full mt-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={plan.highlight} onChange={e => updatePlan(idx, { highlight: e.target.checked })}
+                    className="w-4 h-4 rounded accent-indigo-500" />
+                  <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1"><Star className="w-3.5 h-3.5 text-amber-400" /> "Most Popular" highlight</span>
+                </label>
+              </div>
+            ))}
+          </div>
+
+          {!!pricingPlans?.length && (
+            <button onClick={savePricingPlans} disabled={pricingSaving}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40">
+              <Save className="w-4 h-4" /> {pricingSaving ? 'Saving…' : 'Save Pricing Plans'}
+            </button>
           )}
         </div>
       )}
