@@ -127,6 +127,7 @@ const PAGE_TITLES: Record<string, string> = {
   'admin-system':        'Admin — System',
   'admin-subscriptions': 'Admin — Subscriptions',
   'admin-wabot-saas':    'Admin — WABot Clients',
+  'admin-pricing':       'Admin — Pricing Plans',
   team:       'Team Hub',
   expenses:   'Expenses',
   analytics:  'Analytics',
@@ -211,6 +212,7 @@ const Layout: React.FC<LayoutProps> = ({
       { id: 'admin-system',         label: 'System',         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg> },
       { id: 'admin-subscriptions',  label: 'Subscriptions',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> },
       { id: 'admin-wabot-saas',     label: 'WABot Clients',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.5 0-2.9-.32-4.13-.89L3 20l1.05-3.15C3.38 15.6 3 14.34 3 13c0-4.418 4.03-8 9-8s9 3.582 9 7z"/></svg> },
+      { id: 'admin-pricing',        label: 'Pricing Plans',  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 2v8m0 0v2m0-2c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
     ];
   }
 
