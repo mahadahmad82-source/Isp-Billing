@@ -8,9 +8,12 @@ import { GoogleGenAI } from '@google/genai';
 // gemini-1.5-* family is retired (404 NOT_FOUND as of Aug 2026) -- do not
 // reintroduce those model names here, they will hard-fail every call that
 // reaches them in the fallback chain.
+// gemini-2.5-flash is now also returning 404 NOT_FOUND ("no longer available
+// to new users") for newly-created API keys as of Aug 2026 -- dropped from
+// the default chain. Older keys that still have access can pass it in via
+// overrideModels if needed.
 export const GEMINI_FALLBACK_MODELS = [
   'gemini-3.5-flash',
-  'gemini-2.5-flash',
   'gemini-2.0-flash'
 ] as const;
 
@@ -38,6 +41,32 @@ function getApiKeys(): string[] {
   
   // Return unique keys only
   return Array.from(new Set(keys));
+}
+
+/**
+ * Classifies whether an error is worth retrying against the next
+ * model/key, or is a fatal problem with the request itself (bad input)
+ * that will fail identically no matter which key or model handles it.
+ *
+ * Retryable (continue failover): quota/rate-limit, model unavailable for
+ * this key (404/NOT_FOUND), server overloaded (503/UNAVAILABLE), transient
+ * server errors (500/INTERNAL), and permission issues tied to a specific
+ * key (403/PERMISSION_DENIED) -- another key may well have access.
+ *
+ * Fatal (throw immediately): 400/INVALID_ARGUMENT -- malformed request
+ * (e.g. corrupt audio/image, bad payload shape). Every key and model will
+ * reject it the same way, so there's no point burning through the chain.
+ */
+function isRetryableError(error: any): boolean {
+  const status = error?.status || error?.response?.status;
+  const statusText = String(status ?? '');
+  const message = error?.message || '';
+
+  const isFatal = status === 400 ||
+                   statusText === 'INVALID_ARGUMENT' ||
+                   /invalid[_ ]argument/i.test(message);
+
+  return !isFatal;
 }
 
 /**
@@ -94,11 +123,21 @@ export async function callGeminiWithFailover(
         if (isQuotaError) {
           console.warn(`[WARN] Quota exhausted for model ${model} on key ${maskedKey}. Falling back...`);
           lastError = error;
-          continue; 
+          continue;
         }
 
-        // Non-quota errors (malformed request, invalid audio, etc.) throw immediately
-        console.error(`[ERROR] Non-quota Gemini error (model=${model}):`, message);
+        // Non-quota errors: only abort the entire chain for genuinely fatal,
+        // request-is-bad errors (400/INVALID_ARGUMENT). Everything else
+        // (model unavailable for this key, server overload, transient 5xx,
+        // per-key permission issues) is worth retrying on the next
+        // model/key — a different key or model may well succeed.
+        if (isRetryableError(error)) {
+          console.warn(`[WARN] Non-fatal Gemini error (model=${model}, key=${maskedKey}): ${message}. Falling back...`);
+          lastError = error;
+          continue;
+        }
+
+        console.error(`[ERROR] Fatal Gemini error (model=${model}):`, message);
         throw error;
       }
     }
