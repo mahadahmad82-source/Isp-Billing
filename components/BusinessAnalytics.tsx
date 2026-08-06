@@ -44,6 +44,20 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     return exp >= today;
   };
 
+  // Company price (wholesale cost) for the users active in a period.
+  // Matches the monthly recovery ledger: a user counts if they were activated
+  // for that month OR they have a receipt (any status) for that month.
+  const companyPriceForPeriod = (period: string, userList: UserRecord[], receiptList: Receipt[]) => {
+    const periodReceipts = (receiptList || []).filter(r => r.period === period);
+    return (userList || []).reduce((sum, u) => {
+      if (u.status === 'deleted') return sum;
+      const activeInPeriod = (u.activatedMonths || []).includes(period) ||
+        periodReceipts.some(r => r.userId === u.id || r.username === u.username);
+      if (!activeInPeriod) return sum;
+      return sum + (Number(settings?.planCompanyPrices?.[u.plan]) || 0);
+    }, 0);
+  };
+
   // ── Last 6 months revenue vs expenses ──
   const last6Months = useMemo(() => {
     const months = [];
@@ -60,10 +74,11 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
           (r.period || '').includes(String(year)))
         .reduce((s, r) => s + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
       const exp = expenses.filter(e => e.date?.startsWith(key)).reduce((s, e) => s + (e.amount || 0), 0);
-      months.push({ label, 'Rs. Revenue': rev, 'Rs. Expenses': exp, 'Rs. Profit': rev - exp });
+      const companyPrice = companyPriceForPeriod(`${monthName} ${year}`, users, receipts);
+      months.push({ label, 'Rs. Revenue': rev, 'Rs. Expenses': exp, 'Rs. Company Price': companyPrice, 'Rs. Profit': rev - exp - companyPrice });
     }
     return months;
-  }, [receipts, expenses]);
+  }, [receipts, expenses, users, settings]);
 
   // ── Plan stats — Revenue = actually collected this month (from receipts).
   // Expected = standard plan price summed across ALL non-deleted users on that plan. ──
@@ -106,11 +121,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   const planStats = useMemo(() => {
     const map: Record<string, {
       activeCount: number; expiredCount: number;
-      revenue: number; discounted: number; expectedFull: number;
+      revenue: number; discounted: number; expectedFull: number; companyPrice: number;
     }> = {};
+    const periodReceipts = (receipts || []).filter(r => r.period === currentMonthLabel);
     users.forEach(u => {
       if (u.status === 'deleted') return;
-      if (!map[u.plan]) map[u.plan] = { activeCount: 0, expiredCount: 0, revenue: 0, discounted: 0, expectedFull: 0 };
+      if (!map[u.plan]) map[u.plan] = { activeCount: 0, expiredCount: 0, revenue: 0, discounted: 0, expectedFull: 0, companyPrice: 0 };
       const activatedThisMonth = (u.activatedMonths || []).includes(currentMonthLabel);
       const actual = Number(u.monthlyFee) || 0;
       const standard = Number(settings?.planPrices?.[u.plan]) || actual;
@@ -121,6 +137,12 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
         if (actual < standard && standard > 0) map[u.plan].discounted++;
       } else if (!isActiveUser(u)) {
         map[u.plan].expiredCount++;
+      }
+      // Company price: only for users active this month (same logic as monthly recovery ledger)
+      const activeInPeriod = activatedThisMonth ||
+        periodReceipts.some(r => r.userId === u.id || r.username === u.username);
+      if (activeInPeriod) {
+        map[u.plan].companyPrice += Number(settings?.planCompanyPrices?.[u.plan]) || 0;
       }
     });
     // Revenue: only what has actually been collected this month, straight from receipts
@@ -140,6 +162,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
         'Active': d.activeCount,
         'Expired': d.expiredCount,
         'Monthly Revenue': d.revenue,
+        'Company Price': d.companyPrice,
         'Expected Full': d.expectedFull,
         Discounted: d.discounted,
       }));
@@ -296,7 +319,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
       {activeSection === 'revenue' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Revenue vs Expenses — Last 6 Months</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Revenue vs Expenses vs Company Price — Last 6 Months</p>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={last6Months} barCategoryGap="25%">
                 <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
@@ -305,12 +328,13 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
                 <Bar dataKey="Rs. Revenue" radius={[6,6,0,0]} fill="#6366f1" />
                 <Bar dataKey="Rs. Expenses" radius={[6,6,0,0]} fill="#ef4444" />
+                <Bar dataKey="Rs. Company Price" radius={[6,6,0,0]} fill="#f59e0b" />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
           <div className="bg-white dark:bg-[#12162a] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Profit Trend</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Profit Trend (after Expenses & Company Price)</p>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={last6Months}>
                 <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
@@ -348,7 +372,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
               <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{currentPeriodStr}</span>
             </div>
             <div className="overflow-x-auto" style={{WebkitOverflowScrolling:'touch'}}>
-              <table className="w-full text-sm min-w-[480px]">
+              <table className="w-full text-sm min-w-[560px]">
                 <thead className="bg-slate-50 dark:bg-white/[0.02] text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-white/5">
                   <tr>
                     <th className="px-3 py-3 text-left">Plan</th>
@@ -356,6 +380,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                     <th className="px-2 py-3 text-right text-rose-400">Expired</th>
                     <th className="px-2 py-3 text-right text-amber-400">Disc.</th>
                     <th className="px-2 py-3 text-right text-emerald-400">Revenue</th>
+                    <th className="px-2 py-3 text-right text-amber-500">Company Price</th>
                     <th className="px-2 py-3 text-right text-slate-400">Expected</th>
                   </tr>
                 </thead>
@@ -373,6 +398,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                           : <span className="text-slate-400 text-xs">—</span>}
                       </td>
                       <td className="px-2 py-3 text-right font-bold text-emerald-500 text-xs whitespace-nowrap">Rs. {(Number(row['Monthly Revenue'])||0).toLocaleString()}</td>
+                      <td className="px-2 py-3 text-right font-bold text-amber-500 text-xs whitespace-nowrap">Rs. {(Number(row['Company Price'])||0).toLocaleString()}</td>
                       <td className="px-2 py-3 text-right text-slate-400 text-xs whitespace-nowrap">Rs. {(Number(row['Expected Full'])||0).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -384,6 +410,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                     <td className="px-2 py-3 text-right font-black text-rose-400">{planStats.reduce((s,r) => s + r['Expired'], 0)}</td>
                     <td className="px-2 py-3 text-right font-black text-amber-400">{planStats.reduce((s,r) => s + r.Discounted, 0)}</td>
                     <td className="px-2 py-3 text-right font-black text-emerald-500 text-xs whitespace-nowrap">Rs. {planStats.reduce((s,r) => s + r['Monthly Revenue'], 0).toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-black text-amber-500 text-xs whitespace-nowrap">Rs. {planStats.reduce((s,r) => s + r['Company Price'], 0).toLocaleString()}</td>
                     <td className="px-2 py-3 text-right font-black text-slate-400 text-xs whitespace-nowrap">Rs. {planStats.reduce((s,r) => s + r['Expected Full'], 0).toLocaleString()}</td>
                   </tr>
                 </tfoot>

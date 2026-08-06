@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { BusinessExpense } from '../types';
+import { BusinessExpense, UserRecord, AppSettings } from '../types';
 
 interface BusinessExpensesProps {
   expenses: BusinessExpense[];
-  receipts: Array<{ date: string; paidAmount: number; period?: string }>;
+  receipts: Array<{ date: string; paidAmount: number; period?: string; status?: string; userId?: string; username?: string }>;
+  users?: UserRecord[];
+  settings?: AppSettings;
   onAdd: (e: Omit<BusinessExpense, 'id' | 'createdAt'>) => void;
   onDelete: (id: string) => void;
 }
@@ -35,7 +37,7 @@ const generateMonthOptions = () => {
 };
 const MONTH_OPTIONS = generateMonthOptions();
 
-const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts, onAdd, onDelete }) => {
+const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts, users = [], settings, onAdd, onDelete }) => {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blankForm);
@@ -54,13 +56,27 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
       .reduce((s, r) => s + (Number(r.paidAmount) || 0), 0),
     [receipts, selectedPeriod]);
 
+  // ✅ Total Company Price — wholesale cost of plans for users active this month.
+  // Matches the monthly recovery ledger: user counts if activated for the month
+  // OR has a receipt (any status) that month.
+  const totalCompanyPrice = useMemo(() => {
+    const periodReceipts = (receipts || []).filter(r => r.period === selectedPeriod);
+    return (users || []).reduce((sum, u) => {
+      if (u.status === 'deleted') return sum;
+      const activeInPeriod = (u.activatedMonths || []).includes(selectedPeriod) ||
+        periodReceipts.some(r => r.userId === u.id || r.username === u.username);
+      if (!activeInPeriod) return sum;
+      return sum + (Number(settings?.planCompanyPrices?.[u.plan]) || 0);
+    }, 0);
+  }, [users, receipts, settings, selectedPeriod]);
+
   const monthExpenses = useMemo(() =>
     expenses.filter(e => e.date.startsWith(month))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [expenses, month]);
 
   const totalExpenses = monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const grossProfit = (Number(monthlyRevenue) || 0) - (Number(totalExpenses) || 0);
+  const grossProfit = (Number(monthlyRevenue) || 0) - (Number(totalExpenses) || 0) - (Number(totalCompanyPrice) || 0);
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
@@ -100,7 +116,7 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
       </div>
 
       {/* P&L Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-xl shadow-indigo-600/20">
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Total Revenue</p>
           <p className="text-3xl font-black">Rs. {(Number(monthlyRevenue) || 0).toLocaleString()}</p>
@@ -110,6 +126,11 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
           <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500/60 mb-1">Total Expenses</p>
           <p className="text-3xl font-black text-rose-500">Rs. {(Number(totalExpenses) || 0).toLocaleString()}</p>
           <p className="text-[9px] font-bold uppercase tracking-widest text-rose-400/50 mt-2">{monthExpenses.length} entries</p>
+        </div>
+        <div className="bg-amber-500/5 border border-amber-500/10 p-6 rounded-[2rem]">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/60 mb-1">Total Company Price</p>
+          <p className="text-3xl font-black text-amber-500">Rs. {(Number(totalCompanyPrice) || 0).toLocaleString()}</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-amber-400/50 mt-2">Active users' wholesale cost</p>
         </div>
         <div className={`p-6 rounded-[2rem] border ${grossProfit >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/20'}`}>
           <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${grossProfit >= 0 ? 'text-emerald-500/60' : 'text-rose-500/60'}`}>Gross Profit</p>

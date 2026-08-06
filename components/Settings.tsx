@@ -64,9 +64,11 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
   
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanPrice, setNewPlanPrice] = useState<number | ''>('');
+  const [newPlanCompanyPrice, setNewPlanCompanyPrice] = useState<number | ''>('');
   
   const [editingPlanName, setEditingPlanName] = useState<string | null>(null);
   const [editingPriceValue, setEditingPriceValue] = useState<number | ''>('');
+  const [editingCompanyPriceValue, setEditingCompanyPriceValue] = useState<number | ''>('');
 
   const personalLogs = React.useMemo(() => {
     return (fullState.receipts || [])
@@ -274,7 +276,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         XLSX.utils.book_append_sheet(wb, wsCompanies, "Companies");
       }
 
-      const { planPrices, ...otherSettings } = localSettings;
+      const { planPrices, planCompanyPrices, ...otherSettings } = localSettings;
       const configData = [
         { Category: 'General', Key: 'BusinessName', Value: otherSettings.businessName },
         { Category: 'General', Key: 'BusinessPhone', Value: otherSettings.businessPhone },
@@ -288,6 +290,11 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         { Category: 'Auth', Key: 'AdminPassword', Value: otherSettings.adminPassword || '' },
         ...Object.entries(planPrices).map(([name, price]) => ({
           Category: 'PlanPricing',
+          Key: name,
+          Value: price
+        })),
+        ...Object.entries(planCompanyPrices || {}).map(([name, price]) => ({
+          Category: 'PlanCompanyPricing',
           Key: name,
           Value: price
         }))
@@ -434,15 +441,19 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
         if (configEntries.length > 0) {
           const planPrices: Record<string, number> = { ...DefaultPlanPricing };
+          const planCompanyPrices: Record<string, number> = {};
           configEntries.forEach(entry => {
             if (entry.Category === 'General' || entry.Category === 'Auth') {
               const key = entry.Key.charAt(0).toLowerCase() + entry.Key.slice(1);
               (restoredSettings as any)[key] = entry.Value;
             } else if (entry.Category === 'PlanPricing') {
               planPrices[entry.Key] = Number(entry.Value);
+            } else if (entry.Category === 'PlanCompanyPricing') {
+              planCompanyPrices[entry.Key] = Number(entry.Value);
             }
           });
           restoredSettings.planPrices = planPrices;
+          if (Object.keys(planCompanyPrices).length > 0) restoredSettings.planCompanyPrices = planCompanyPrices;
         }
 
         onRestoreState({
@@ -488,7 +499,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     if (!newPlanName.trim() || newPlanPrice === '') {
       setModalStatus({
         title: 'Missing Information',
-        message: 'Please enter both a Plan Name and a Monthly Price to continue.',
+        message: 'Please enter a Plan Name and a Monthly Price to continue.',
         type: 'info'
       });
       return;
@@ -499,15 +510,21 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       planPrices: {
         ...prev.planPrices,
         [newPlanName.trim()]: Number(newPlanPrice)
+      },
+      planCompanyPrices: {
+        ...(prev.planCompanyPrices || {}),
+        [newPlanName.trim()]: newPlanCompanyPrice === '' ? 0 : Number(newPlanCompanyPrice)
       }
     }));
     setNewPlanName('');
     setNewPlanPrice('');
+    setNewPlanCompanyPrice('');
   };
 
   const startEditingPlan = (name: string, price: number) => {
     setEditingPlanName(name);
     setEditingPriceValue(price);
+    setEditingCompanyPriceValue((localSettings.planCompanyPrices || {})[name] ?? '');
   };
 
   const saveEditedPlan = () => {
@@ -517,10 +534,15 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         planPrices: {
           ...prev.planPrices,
           [editingPlanName]: Number(editingPriceValue)
+        },
+        planCompanyPrices: {
+          ...(prev.planCompanyPrices || {}),
+          [editingPlanName]: editingCompanyPriceValue === '' ? 0 : Number(editingCompanyPriceValue)
         }
       }));
       setEditingPlanName(null);
       setEditingPriceValue('');
+      setEditingCompanyPriceValue('');
     }
   };
 
@@ -532,9 +554,12 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     if (!pendingDeletePlan) return;
     setLocalSettings(prev => {
       const { [pendingDeletePlan]: removed, ...remainingPlanPrices } = prev.planPrices;
+      const remainingCompanyPrices = { ...(prev.planCompanyPrices || {}) };
+      delete remainingCompanyPrices[pendingDeletePlan];
       return {
         ...prev,
-        planPrices: remainingPlanPrices
+        planPrices: remainingPlanPrices,
+        planCompanyPrices: remainingCompanyPrices
       };
     });
     setPendingDeletePlan(null);
@@ -1079,7 +1104,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Register New Subscription Plan</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                <div className="space-y-1">
                  <input 
                    type="text" 
@@ -1098,6 +1123,15 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                    onChange={e => setNewPlanPrice(e.target.value === '' ? '' : Number(e.target.value))}
                  />
                </div>
+               <div className="space-y-1">
+                 <input 
+                   type="number" 
+                   placeholder="Company Price (Rs.)" 
+                   className="w-full p-4 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
+                   value={newPlanCompanyPrice}
+                   onChange={e => setNewPlanCompanyPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                 />
+               </div>
             </div>
             <button 
               onClick={handleAddPlanConfirm}
@@ -1109,7 +1143,9 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
           {/* PLANS LIST */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {planEntries.map(([name, price]) => (
+            {planEntries.map(([name, price]) => {
+              const companyPrice = (localSettings.planCompanyPrices || {})[name];
+              return (
               <div key={name} className="flex flex-col bg-slate-50 dark:bg-[#030712] p-6 rounded-[2.5rem] border border-slate-100 dark:border-white/5 transition-all hover:border-indigo-500/50">
                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">{name}</span>
                 
@@ -1117,10 +1153,18 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   <div className="space-y-3 mt-2">
                     <input 
                       type="number" 
+                      placeholder="Monthly Price (Rs.)" 
                       className="w-full p-3 rounded-xl bg-white dark:bg-[#0f172a] border border-indigo-500 text-sm font-black text-slate-900 dark:text-white outline-none"
                       value={editingPriceValue}
                       autoFocus
                       onChange={e => setEditingPriceValue(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                    <input 
+                      type="number" 
+                      placeholder="Company Price (Rs.)" 
+                      className="w-full p-3 rounded-xl bg-white dark:bg-[#0f172a] border border-indigo-500 text-sm font-black text-slate-900 dark:text-white outline-none"
+                      value={editingCompanyPriceValue}
+                      onChange={e => setEditingCompanyPriceValue(e.target.value === '' ? '' : Number(e.target.value))}
                     />
                     <div className="flex gap-2">
                       <button onClick={saveEditedPlan} className="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-[9px] font-black uppercase tracking-widest">Save</button>
@@ -1130,6 +1174,9 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 ) : (
                   <>
                     <span className="text-2xl font-black text-slate-900 dark:text-white">Rs. {(price || 0).toLocaleString()}</span>
+                    <span className="text-[10px] font-black text-slate-400 mt-1">
+                      Company: Rs. {(Number(companyPrice) || 0).toLocaleString()}
+                    </span>
                     <div className="flex gap-4 mt-6">
                        <button className="px-4 py-2 text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 dark:border-white/10 rounded-lg" onClick={() => startEditingPlan(name, price)}>Edit</button>
                        <button className="px-4 py-2 text-[10px] font-black uppercase text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 dark:border-white/10 rounded-lg" onClick={() => handleDeletePlan(name)}>Delete</button>
@@ -1137,7 +1184,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   </>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
