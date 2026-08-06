@@ -9,9 +9,10 @@ interface InsightsProps {
   receipts: Receipt[];
   transactions?: Transaction[];
   businessExpenses?: BusinessExpense[];
+  settings?: AppSettings;
 }
 
-const Insights: React.FC<InsightsProps> = ({ users, receipts, transactions = [], businessExpenses = [] }) => {
+const Insights: React.FC<InsightsProps> = ({ users, receipts, transactions = [], businessExpenses = [], settings }) => {
   const [insight, setInsight] = useState('Generating strategic insights...');
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -67,10 +68,24 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, transactions = [],
         sum + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
       const count = filtered.length;
 
+      // Total company price (wholesale cost) for users active this month.
+      // Matches the monthly recovery ledger: user counts if activated for the
+      // month OR has a receipt (any status) that month.
+      const period = `${month} ${selectedYear}`;
+      const periodReceipts = (receipts || []).filter(r => r.period === period);
+      const companyPrice = (users || []).reduce((sum, u) => {
+        if (u.status === 'deleted') return sum;
+        const activeInPeriod = (u.activatedMonths || []).includes(period) ||
+          periodReceipts.some(r => r.userId === u.id || r.username === u.username);
+        if (!activeInPeriod) return sum;
+        return sum + (Number(settings?.planCompanyPrices?.[u.plan]) || 0);
+      }, 0);
+
       return {
         month,
         collected,
-        count
+        count,
+        companyPrice
       };
     });
 
@@ -85,7 +100,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, transactions = [],
       avgMonthly,
       peakMonth
     };
-  }, [receipts, selectedYear]);
+  }, [receipts, selectedYear, users, settings]);
 
   // Feature B — Profit & Loss Summary (3-Way Ledger)
   const plMonthOptions = useMemo(() => {
@@ -227,6 +242,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, transactions = [],
                           <div className="flex flex-col items-end">
                             <span className="text-xs font-black text-slate-900 dark:text-slate-100">Rs. {data.collected.toLocaleString()}</span>
                             <span className="text-[8px] font-bold text-slate-400">{data.count} Payments</span>
+                            <span className="text-[8px] font-black text-amber-500 mt-0.5">Company: Rs. {(data.companyPrice || 0).toLocaleString()}</span>
                           </div>
                         </td>
                       </tr>

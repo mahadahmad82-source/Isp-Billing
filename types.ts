@@ -77,6 +77,7 @@ export interface AppSettings {
   billAds?: string;
   billAdsImage?: string; // Base64 string for the promotional image
   planPrices: Record<string, number>;
+  planCompanyPrices?: Record<string, number>; // Wholesale price per plan charged to the dealer by the internet company (used for gross profit)
   receiptDesign: ReceiptDesign;
   adminUsername?: string;
   adminPassword?: string;
