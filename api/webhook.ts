@@ -2806,7 +2806,7 @@ export default async function handler(req: any, res: any) {
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
           await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
-          const ackLine1 = await acknowledgeIssue(text);
+          const ackLine1 = await acknowledgeIssue(text, found.rowData?.settings?.ayeshaBotName);
           await sendText(from, connectionTypeQuestion(ackLine1));
           continue;
         }
@@ -2841,7 +2841,7 @@ export default async function handler(req: any, res: any) {
               const billingBlock2 = accountBillingBlockedReply(found2.user);
               if (billingBlock2) { await sendText(from, billingBlock2); continue; }
               await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found2.managerId, verifiedUserId: found2.user.id });
-              const ackLine2 = await acknowledgeIssue(text);
+              const ackLine2 = await acknowledgeIssue(text, found2.rowData?.settings?.ayeshaBotName);
               await sendText(from, connectionTypeQuestion(ackLine2));
               continue;
             }
@@ -3121,7 +3121,7 @@ export default async function handler(req: any, res: any) {
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         await setSession(from, 'awaiting_connection_type', { issue: text });
-        const ackLine3 = await acknowledgeIssue(text);
+        const ackLine3 = await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName);
         await sendText(from, connectionTypeQuestion(ackLine3));
         continue;
       }
