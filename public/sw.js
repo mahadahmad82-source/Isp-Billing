@@ -5,12 +5,47 @@
 // meant push notifications could never reliably arrive (this is the root cause of the
 // "notifications sometimes don't come" issue).
 
+const MEDIA_CACHE = 'wabot-media-cache-v1';
+// Matches every WhatsApp chat media file (images/voice/video, incoming or outgoing)
+// stored in the public whatsapp-media bucket — same URL shape the WABot Inbox/
+// Standalone PWA and the Android app both read from.
+const MEDIA_URL_MARKER = '/storage/v1/object/public/whatsapp-media/';
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
+});
+
+// Cache-first for WhatsApp media — first view fetches from Supabase Storage and
+// caches it; every view after that (same device, any tab, offline included) is
+// served straight from the Cache Storage API with zero network/egress. Previously
+// there was no fetch handler at all here, so every single scroll-past or thread
+// reopen re-downloaded the same image/voice-note/video from Supabase again — this
+// is what was driving Supabase egress up despite total stored media being small.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || !req.url.includes(MEDIA_URL_MARKER)) return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(MEDIA_CACHE);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+      try {
+        const response = await fetch(req);
+        if (response && response.ok) {
+          cache.put(req, response.clone());
+        }
+        return response;
+      } catch (e) {
+        // Offline / network failure with nothing cached yet — nothing more we can do.
+        return cached || Response.error();
+      }
+    })()
+  );
 });
 
 // Real, live push notification — fires even if the app/tab is closed.
