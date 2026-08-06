@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey, Transaction } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus, loadStateFromSupabase } from './utils/supabaseSync';
@@ -23,7 +23,6 @@ import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
 import SubManagerManagement from './components/SubManager/SubManagerManagement';
 import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
-import TransactionLedger from './components/TransactionLedger';
 import BusinessAnalytics from './components/BusinessAnalytics';
 
 import OutageTracker from './components/OutageTracker';
@@ -86,7 +85,6 @@ const App: React.FC = () => {
       activeCompanyId: loaded.activeCompanyId || '',
       complaintTickets: loaded.complaintTickets || [],
       businessExpenses: loaded.businessExpenses || [],
-      transactions: loaded.transactions || [],
       systemLogs: loaded.systemLogs || [],
       equipmentRecords: loaded.equipmentRecords || [],
       leads: loaded.leads || [],
@@ -1594,8 +1592,6 @@ const App: React.FC = () => {
               onLogout={handleLogout}
               isAdmin={isAdmin}
               onUpdateUser={handleFullUpdateUser}
-              transactions={state.transactions || []}
-              businessExpenses={state.businessExpenses || []}
             />
           )}
           {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} />}
@@ -1631,7 +1627,7 @@ const App: React.FC = () => {
               onClearLogs={() => setState(prev => ({ ...prev, systemLogs: [] }))}
             />
           )}
-          {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} transactions={state.transactions || []} businessExpenses={state.businessExpenses || []} settings={currentSettings} />}
+          {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} />}
           {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
           {!tabLoading && activeTab === 'complaints' && userRole !== 'sub-manager' && (
@@ -1715,27 +1711,6 @@ const App: React.FC = () => {
               onDelete={(id) => {
                 setState(prev => {
                   const newState = { ...prev, businessExpenses: (prev.businessExpenses || []).filter(e => e.id !== id) };
-                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
-                });
-              }}
-            />
-          )}
-          {!tabLoading && activeTab === 'transactions' && userRole !== 'sub-manager' && (
-            <TransactionLedger
-              transactions={state.transactions || []}
-              expenses={state.businessExpenses || []}
-              users={filteredUsers}
-              companyId={state.activeCompanyId}
-              createdBy={activeManager || 'admin'}
-              onAdd={(t) => {
-                setState(prev => {
-                  const newState = { ...prev, transactions: [...(prev.transactions || []), { ...t, id: generateId(), createdAt: new Date().toISOString() }] };
-                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
-                });
-              }}
-              onDelete={(id) => {
-                setState(prev => {
-                  const newState = { ...prev, transactions: (prev.transactions || []).filter(t => t.id !== id) };
                   saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
                 });
               }}

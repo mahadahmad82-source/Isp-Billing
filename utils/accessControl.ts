@@ -5,7 +5,7 @@ export const ALL_MODULE_KEYS: ModuleKey[] = [
   'dashboard', 'users', 'receipts', 'recoveries', 'expiries',
   'reports', 'systemlogs', 'settings', 'team', 'expenses',
   'analytics', 'outage', 'area', 'equipment', 'leads',
-  'reminders', 'templates', 'wabot', 'transactions',
+  'reminders', 'templates', 'wabot',
 ];
 
 // grantAll=true → everything checked (used as starting point when a manager first
