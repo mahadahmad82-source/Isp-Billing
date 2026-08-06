@@ -3,6 +3,7 @@
 
 import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
 import * as lamejs from '@breezystack/lamejs';
+import { Jimp, JimpMime } from 'jimp';
 // Type-only import — erased at compile time, never becomes a runtime module
 // resolution. synthesizeNonGemini itself is imported lazily inside
 // textToSpeech() below, NOT here at top-level: a top-level value import of
@@ -977,15 +978,42 @@ async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; bu
     if (!mediaRes.ok) { console.error('[media download]', mediaRes.status); return null; }
     const buf = Buffer.from(await mediaRes.arrayBuffer());
     const mimeType = meta.mime_type || 'image/jpeg';
-    const ext = mimeType.split('/')[1]?.split(';')[0] || 'jpg';
+    // Incoming photos from phone cameras are routinely 2-8MB at full resolution —
+    // every single view of that photo (this app, the Android app, any future
+    // device) re-serves that full size from Supabase Storage. Resizing to a
+    // sensible viewing size + re-encoding at quality 70 cuts both stored size AND
+    // every future egress hit by roughly 80-95% for typical phone photos, with no
+    // visible quality loss at chat/viewer sizes. Wrapped so ANY failure (corrupt
+    // image, unsupported format, etc.) falls straight back to the original raw
+    // buffer — this must never be the reason a payment-proof screenshot fails to
+    // save.
+    let storedBuf = buf;
+    let storedMimeType = mimeType;
+    if (mimeType.startsWith('image/')) {
+      try {
+        const img = await Jimp.read(buf);
+        const MAX_DIM = 1280;
+        if (img.bitmap.width > MAX_DIM || img.bitmap.height > MAX_DIM) {
+          if (img.bitmap.width >= img.bitmap.height) img.resize({ w: MAX_DIM });
+          else img.resize({ h: MAX_DIM });
+        }
+        storedBuf = await img.getBuffer(JimpMime.jpeg, { quality: 70 });
+        storedMimeType = 'image/jpeg';
+      } catch (e: any) {
+        console.error('[downloadAndStoreMedia] compression failed, storing original', e?.message);
+        storedBuf = buf;
+        storedMimeType = mimeType;
+      }
+    }
+    const ext = storedMimeType.split('/')[1]?.split(';')[0] || 'jpg';
     const path = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType, 'Cache-Control': 'max-age=604800' },
-      body: buf,
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': storedMimeType, 'Cache-Control': 'max-age=604800' },
+      body: storedBuf,
     });
     if (!upRes.ok) { console.error('[media upload]', upRes.status, await upRes.text()); return null; }
-    return { url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, buffer: buf, mimeType };
+    return { url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, buffer: storedBuf, mimeType: storedMimeType };
   } catch (e: any) { console.error('[downloadAndStoreMedia]', e?.message); return null; }
 }
 
