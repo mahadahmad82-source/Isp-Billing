@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
-import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus, loadStateFromSupabase } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
@@ -628,9 +628,16 @@ const App: React.FC = () => {
 
     const pollNotifications = async () => {
       try {
-        const remoteState = await loadStateFromSupabase(activeManager);
-        if (!remoteState) return;
-        const remotePending: AppNotification[] = remoteState.pendingManagerNotifications || [];
+        // Egress fix: this used to pull the ENTIRE manager_data JSONB blob
+        // (users, receipts, archives, everything — can be 500KB-1MB+) every
+        // 30s just to read two small notification fields. That alone was
+        // burning several GB/month in Supabase egress. Now uses a lightweight
+        // RPC that extracts only the needed fields server-side.
+        const { data: remoteNotifs, error: notifErr } = await supabase.rpc('get_pending_notifications', {
+          p_manager_id: activeManager,
+        });
+        if (notifErr || !remoteNotifs) return;
+        const remotePending: AppNotification[] = remoteNotifs.pendingManagerNotifications || [];
         const alreadyShown: string[] = (stateRef.current.shownManagerNotificationIds || []);
         
         // Find new notifications not yet shown
@@ -666,7 +673,7 @@ const App: React.FC = () => {
         if (stateRef.current.currentManager && stateRef.current.subManagers) {
           const agentInfo = stateRef.current.subManagers.find(sm => sm.username === activeManager);
           if (agentInfo) {
-            const remoteAgentPending = (remoteState.agentPendingNotifications || {})[agentInfo.id] || [];
+            const remoteAgentPending = (remoteNotifs.agentPendingNotifications || {})[agentInfo.id] || [];
             const agentShown = stateRef.current.shownManagerNotificationIds || [];
             const newAgentNotifs = remoteAgentPending.filter(n => !agentShown.includes(n.id));
             
