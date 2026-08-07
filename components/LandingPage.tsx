@@ -519,10 +519,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <div className="min-h-screen font-sans relative bg-[#020617] text-white overflow-x-clip select-none">
+    <div className="landing-page min-h-screen font-sans relative bg-[#040814] text-white overflow-x-clip select-none">
 
       {/* ── STYLES ── */}
       <style>{`
+        .landing-page h1,
+        .landing-page h2,
+        .landing-page h3 {
+          font-family: var(--font-display);
+          letter-spacing: -0.02em;
+        }
         .figma-progress-bar {
           position: fixed; top: 0; left: 0;
           height: 3px;
@@ -661,7 +667,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .glass-section {
           padding: 120px 24px;
-          background: #020617;
+          background: #040814;
           position: relative;
         }
         .glass-grid {
@@ -672,10 +678,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           margin: 0 auto;
         }
         .glass-card {
-          background: rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(16px) saturate(160%);
+          -webkit-backdrop-filter: blur(16px) saturate(160%);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 32px;
           padding: 40px;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -689,7 +695,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           transform: translateY(0);
         }
         .glass-card:hover {
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(255, 255, 255, 0.09);
           border-color: rgba(255, 255, 255, 0.2);
           transform: translateY(-10px);
           box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
@@ -826,7 +832,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .reveal-section {
           padding: 160px 24px;
-          background: #0f172a;
+          background: #0a1228;
           position: relative;
           overflow: hidden;
         }
@@ -971,7 +977,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .marquee-section {
           padding: 128px 0;
-          background: #0f172a;
+          background: #0a1228;
           border-top: 1px solid rgba(255,255,255,0.05);
           border-bottom: 1px solid rgba(255,255,255,0.05);
           overflow: hidden;
@@ -1136,7 +1142,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── NAVBAR ── */}
         <div className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[100]">
-          <nav className="w-full border border-white/10 bg-slate-950/80 backdrop-blur-xl rounded-full px-5 sm:px-7 py-2.5 shadow-2xl shadow-slate-950/50 transition-all duration-300">
+          <nav className="w-full border border-white/10 bg-[#040814]/80 backdrop-blur-xl rounded-full px-5 sm:px-7 py-2.5 shadow-2xl shadow-slate-950/50 transition-all duration-300">
             <div className="flex justify-between items-center">
               <Link to="/" className="flex items-center gap-3 pl-1 sm:pl-2">
                 {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[110px] sm:w-[130px] h-auto object-contain" />}
@@ -1178,7 +1184,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* Mobile Menu */}
         {menuOpen && (
-          <div className="fixed top-[76px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[99] bg-slate-950/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
+          <div className="fixed top-[76px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[99] bg-[#040814]/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
             {navLinks.map(link => (
               <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)}
                 className={`px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link ${location.pathname === link.path ? 'active' : ''}`}>
@@ -1197,7 +1203,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <section className="hero" id="hero" ref={heroRef}>
           <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
             <VideoBackground />
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950/70" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#040814]/30 via-[#040814]/50 to-[#040814]/70" />
           </div>
           <div className="orb orb-1"></div>
           <div className="orb orb-2"></div>
@@ -1257,7 +1263,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 1.5: TRUST STRIP ── */}
-        <section className="py-12 px-6 border-y border-white/5 bg-slate-950/30" ref={trustSectionRef}>
+        <section className="py-12 px-6 border-y border-white/5 bg-[#040814]/30" ref={trustSectionRef}>
           <div className="max-w-6xl mx-auto">
             <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-8">
               Why Pakistani ISPs Trust Bill Collector
@@ -1336,7 +1342,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 3.5: HOW IT WORKS ── */}
-        <section className="py-24 px-6 border-t border-white/5 bg-[#070b19] scroll-reveal" id="how-it-works" ref={howItWorksRef}>
+        <section className="py-24 px-6 border-t border-white/5 bg-[#0a1228] scroll-reveal" id="how-it-works" ref={howItWorksRef}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">03.5 / Getting Started</span>
@@ -1396,7 +1402,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 4.5: COMPETITIVE COMPARISON ── */}
-        <section className="py-24 px-6 border-t border-white/5 bg-[#020617] scroll-reveal">
+        <section className="py-24 px-6 border-t border-white/5 bg-[#040814] scroll-reveal">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">04.5 / Comparison</span>
@@ -1516,7 +1522,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="lg:col-span-7 space-y-4 flex flex-col justify-between">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Karachi Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-indigo-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-indigo-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase text-indigo-400 tracking-widest">Sindh Province</span>
@@ -1542,7 +1548,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
 
                   {/* Lahore Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-purple-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-purple-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-[9px] font-black uppercase text-purple-400 tracking-widest">Punjab Province</span>
@@ -1568,7 +1574,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
 
                   {/* Faisalabad Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-cyan-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-cyan-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-[9px] font-black uppercase text-cyan-400 tracking-widest">Textile City Hub</span>
@@ -1594,7 +1600,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
 
                   {/* Islamabad & Northern Areas Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-emerald-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-emerald-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase text-emerald-400 tracking-widest">Capital Hub</span>
@@ -1632,7 +1638,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               {/* Right Column: Interactive Setup Form (lg:col-span-5) */}
               <div className="lg:col-span-5">
-                <div className="p-8 rounded-3xl border border-white/10 bg-[#070b19]/80 backdrop-blur-md shadow-2xl h-full flex flex-col justify-center relative overflow-hidden">
+                <div className="p-8 rounded-3xl border border-white/10 bg-[#0a1228]/80 backdrop-blur-md shadow-2xl h-full flex flex-col justify-center relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
                   
                   {!onsiteSubmitted ? (
@@ -1807,7 +1813,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 8.5: TESTIMONIAL SLIDER ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 bg-slate-950 overflow-hidden" id="testimonials">
+        <section className="relative py-24 px-6 border-t border-white/5 bg-[#040814] overflow-hidden" id="testimonials">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-indigo-500 rounded-full blur-[120px]" />
             <div className="absolute bottom-1/2 right-1/4 w-[400px] h-[400px] bg-purple-500 rounded-full blur-[120px]" />
@@ -1883,7 +1889,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 9: PRICING PLANS ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 bg-[#070b19] scroll-reveal" id="pricing">
+        <section className="relative py-24 px-6 border-t border-white/5 bg-[#0a1228] scroll-reveal" id="pricing">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4">Simple Pricing</p>
@@ -1979,7 +1985,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── FOOTER ── */}
-        <footer className="pt-20 pb-10 px-6 border-t border-white/10 bg-slate-950/40 backdrop-blur-md">
+        <footer className="pt-20 pb-10 px-6 border-t border-white/10 bg-[#040814]/40 backdrop-blur-md">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
               <div className="col-span-2">
@@ -2037,9 +2043,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── DEMO MODAL ── */}
         {showDemoModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#040814]/80 backdrop-blur-md animate-fade-in"
             onClick={() => setShowDemoModal(false)}>
-            <div className="w-full max-w-3xl rounded-3xl border border-white/20 bg-slate-900 overflow-hidden animate-scale-in"
+            <div className="w-full max-w-3xl rounded-3xl border border-white/20 bg-[#0a1228] overflow-hidden animate-scale-in"
               onClick={e => e.stopPropagation()}>
               <div className="p-6 border-b border-white/10 flex items-center justify-between">
                 <div>
@@ -2072,9 +2078,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SPECS MODAL ── */}
         {showSpecs && (
-          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-[#040814]/80 backdrop-blur-md animate-fade-in"
             onClick={() => setShowSpecs(false)}>
-            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 bg-slate-900 max-h-[90vh] overflow-y-auto animate-scale-in"
+            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 bg-[#0a1228] max-h-[90vh] overflow-y-auto animate-scale-in"
               onClick={e => e.stopPropagation()}>
               <div className="p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}>
                 <div className="absolute inset-0 opacity-20">

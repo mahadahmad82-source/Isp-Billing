@@ -328,11 +328,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const heading = getHeading();
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#020617]">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#040814]">
 
       {/* Three.js Background */}
       <div className="absolute inset-0 z-0"><VideoBackground /></div>
-      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(2,6,23,0.35) 100%)' }} />
+      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(4,8,20,0.35) 100%)' }} />
 
       <div className="absolute top-4 right-4 z-[20]">
         <LanguageToggle language={language} onChange={handleLanguageChange} variant="pill" />
@@ -373,7 +373,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
             {/* Card Header */}
             <div className="text-center mb-7">
-              <h2 className="text-2xl font-black text-white tracking-tight mb-1">{heading.title}</h2>
+              <h2 className="font-display text-2xl font-black text-white tracking-tight mb-1">{heading.title}</h2>
               <p className="text-xs text-slate-400 font-medium">{heading.sub}</p>
             </div>
 
@@ -626,8 +626,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       {/* Support Modal */}
       {showSupportModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#040814]/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-[#0a1228] border-white/5">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
               <h4 className="text-xl font-black uppercase tracking-tight text-white">Support Needed</h4>
@@ -647,8 +647,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       {/* Clear Confirm Modal */}
       {showClearConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#040814]/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-[#0a1228] border-white/5">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">⚠️</div>
               <h4 className="text-xl font-black uppercase tracking-tight text-white">Purge All Data?</h4>
