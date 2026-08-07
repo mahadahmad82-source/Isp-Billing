@@ -129,15 +129,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       const progress = docHeight > 0 ? scrollTop / docHeight : 0;
       setScrollProgress(progress);
 
-      // Hero Parallax
-      if (heroRef.current && heroContentRef.current) {
-        if (scrollTop < window.innerHeight) {
-          const p = scrollTop / window.innerHeight;
-          heroContentRef.current.style.transform = `translateY(${scrollTop * 0.3}px) scale(${1 + p * 0.15})`;
-          heroContentRef.current.style.opacity = `${1 - p * 1.5}`;
-        }
-      }
-
       // Horizontal Scroll (High-fidelity smooth card reveal with continuous parallax and center-highlighting)
       if (horizontalSectionRef.current && cardsContainerRef.current) {
         const section = horizontalSectionRef.current;
@@ -419,15 +410,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   const infraFeatures = [
-    { title: 'Customer Management', desc: 'Manage thousands of customer profiles with ease. Track sub-nets, assigned IP addresses, package plans, expiration dates, and physical home coordinates.', icon: <Users className="w-6 h-6" />, borderColor: '#6366f120', bg: 'linear-gradient(145deg, #6366f108, transparent)' },
-    { title: 'Digital Receipts', desc: 'Generate beautifully styled, brand-customized digital PDF invoice receipts automatically. Instantly share directly with customers via WhatsApp with zero setup.', icon: <FileText className="w-6 h-6" />, borderColor: '#8b5cf620', bg: 'linear-gradient(145deg, #8b5cf608, transparent)' },
-    { title: 'Recovery Ledger', desc: "An interactive master grid of your month's finances. Track pending dues, collected cash, outstanding balances, and daily recovery performance in one dashboard.", icon: <BarChart3 className="w-6 h-6" />, borderColor: '#06b6d420', bg: 'linear-gradient(145deg, #06b6d408, transparent)' },
-    { title: 'Equipment Tracker', desc: 'Keep a real-time count of your GPON/EPON ONUs, media converters, and TP-Link routers assigned to customers. Never lose track of expensive hardware inventory.', icon: <Server className="w-6 h-6" />, borderColor: '#10b98120', bg: 'linear-gradient(145deg, #10b98108, transparent)' },
-    { title: 'Leads Pipeline', desc: 'Convert prospective customers into subscribers. Track inquiries from initial phone calls to active fiber splicing and connection testing with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b20', bg: 'linear-gradient(145deg, #f59e0b08, transparent)' },
-    { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend lines.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489920', bg: 'linear-gradient(145deg, #ec489908, transparent)' },
-    { title: 'Area Dashboard', desc: 'Get deep business insight into your active network areas. Identify highly profitable neighborhoods, pending cash-flow zones, and localized user count growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f120', bg: 'linear-gradient(145deg, #6366f108, transparent)' },
-    { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <Lock className="w-6 h-6" />, borderColor: '#8b5cf620', bg: 'linear-gradient(145deg, #8b5cf608, transparent)' },
-    { title: 'Outage Tracker', desc: 'Log critical fiber cuts, power failures, or upstream bandwidth drops. Inform affected areas promptly and log down-time duration for upstream rebate claims.', icon: <Radio className="w-6 h-6" />, borderColor: '#06b6d420', bg: 'linear-gradient(145deg, #06b6d408, transparent)' },
+    { title: 'Customer Management', desc: 'Manage thousands of customer profiles with ease. Track sub-nets, assigned IP addresses, package plans, expiration dates, and physical home coordinates.', icon: <Users className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
+    { title: 'Digital Receipts', desc: 'Generate beautifully styled, brand-customized digital PDF invoice receipts automatically. Instantly share directly with customers via WhatsApp with zero setup.', icon: <FileText className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
+    { title: 'Recovery Ledger', desc: "An interactive master grid of your month's finances. Track pending dues, collected cash, outstanding balances, and daily recovery performance in one dashboard.", icon: <BarChart3 className="w-6 h-6" />, borderColor: '#06b6d455', bg: 'linear-gradient(145deg, #06b6d415, #06b6d408 60%, transparent)' },
+    { title: 'Equipment Tracker', desc: 'Keep a real-time count of your GPON/EPON ONUs, media converters, and TP-Link routers assigned to customers. Never lose track of expensive hardware inventory.', icon: <Server className="w-6 h-6" />, borderColor: '#10b98155', bg: 'linear-gradient(145deg, #10b98115, #10b98108 60%, transparent)' },
+    { title: 'Leads Pipeline', desc: 'Convert prospective customers into subscribers. Track inquiries from initial phone calls to active fiber splicing and connection testing with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b55', bg: 'linear-gradient(145deg, #f59e0b15, #f59e0b08 60%, transparent)' },
+    { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend lines.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489955', bg: 'linear-gradient(145deg, #ec489915, #ec489908 60%, transparent)' },
+    { title: 'Area Dashboard', desc: 'Get deep business insight into your active network areas. Identify highly profitable neighborhoods, pending cash-flow zones, and localized user count growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
+    { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <Lock className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
+    { title: 'Outage Tracker', desc: 'Log critical fiber cuts, power failures, or upstream bandwidth drops. Inform affected areas promptly and log down-time duration for upstream rebate claims.', icon: <Radio className="w-6 h-6" />, borderColor: '#06b6d455', bg: 'linear-gradient(145deg, #06b6d415, #06b6d408 60%, transparent)' },
   ];
 
   const howItWorksSteps = [
@@ -519,7 +510,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <div className="min-h-screen font-sans relative bg-[#020617] text-white overflow-x-clip select-none">
+    <div className="landing-page min-h-screen font-sans relative bg-[#040814] text-white overflow-x-clip select-none">
 
       {/* ── STYLES ── */}
       <style>{`
@@ -556,8 +547,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .hero {
           min-height: 100vh;
-          padding-top: 120px;
-          padding-bottom: 60px;
+          padding: 150px 20px 100px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -572,8 +562,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           pointer-events: none;
         }
         .hero .orb-1 { width: 500px; height: 500px; background: #6366f1; top: -100px; left: -100px; }
-        .hero .orb-2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -100px; right: -100px; }
-        .hero .orb-3 { width: 300px; height: 300px; background: #06b6d4; top: 30%; left: 60%; }
+        .hero .orb-2 { width: 400px; height: 400px; background: #a855f7; bottom: -100px; right: -100px; }
+        .hero .orb-3 { width: 300px; height: 300px; background: #22d3ee; top: 30%; left: 60%; }
         .hero .grid-bg {
           position: absolute;
           inset: 0;
@@ -597,35 +587,44 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           gap: 8px;
           padding: 8px 20px;
           border-radius: 50px;
-          border: 1px solid rgba(99,102,241,0.3);
-          background: rgba(99,102,241,0.1);
+          background: rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(16px) saturate(160%);
+          -webkit-backdrop-filter: blur(16px) saturate(160%);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
           margin-bottom: 24px;
         }
         .badge .dot {
           width: 8px; height: 8px;
-          background: #34d399;
+          background: #22d3ee;
           border-radius: 50%;
-          animation: pulse 2s infinite;
+          box-shadow: 0 0 0 0 rgba(34,211,238,0.7);
+          animation: pulseRing 2s infinite;
+        }
+        @keyframes pulseRing {
+          0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.7); }
+          70% { box-shadow: 0 0 0 12px rgba(34,211,238,0); }
+          100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); }
         }
         .badge span {
           font-size: 10px;
           font-weight: 900;
           text-transform: uppercase;
           letter-spacing: 0.25em;
-          color: #818cf8;
+          color: rgba(255,255,255,0.8);
         }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
         .hero h1 {
-          font-size: clamp(2.5rem, 6.5vw, 5.5rem);
+          font-size: clamp(2.1rem, 5.2vw, 4.75rem);
           font-weight: 900;
           line-height: 1.1;
-          margin-bottom: 20px;
+          margin-bottom: 18px;
         }
         .hero h1 .gradient {
-          background: linear-gradient(90deg, #818cf8, #c084fc, #22d3ee);
+          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -659,23 +658,50 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(8px); }
         }
+        @keyframes floatA {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(25px,-35px) rotate(8deg) scale(1.05); }
+        }
+        @keyframes floatB {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(-35px,25px) rotate(-8deg) scale(0.95); }
+        }
+        @keyframes floatC {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(20px,25px) rotate(6deg) scale(1.08); }
+        }
+        @keyframes floatD {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(-25px,-30px) rotate(-10deg) scale(1.03); }
+        }
+        @keyframes floatE {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(30px,-20px) rotate(12deg) scale(0.97); }
+        }
+        .hero-float-icon {
+          position: absolute;
+          border-radius: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 15px rgba(34,211,238,0.12);
+        }
         .glass-section {
           padding: 120px 24px;
-          background: #020617;
           position: relative;
         }
         .glass-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
           gap: 32px;
           max-width: 1200px;
           margin: 0 auto;
         }
         .glass-card {
-          background: rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: linear-gradient(145deg, rgba(34,211,238,0.07) 0%, rgba(99,102,241,0.08) 45%, rgba(168,85,247,0.06) 100%);
+          backdrop-filter: blur(16px) saturate(160%);
+          -webkit-backdrop-filter: blur(16px) saturate(160%);
+          border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 32px;
           padding: 40px;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -689,10 +715,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           transform: translateY(0);
         }
         .glass-card:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(255, 255, 255, 0.2);
+          background: linear-gradient(145deg, rgba(34,211,238,0.14) 0%, rgba(99,102,241,0.16) 45%, rgba(168,85,247,0.12) 100%);
+          border-color: rgba(34, 211, 238, 0.4);
           transform: translateY(-10px);
-          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(34, 211, 238, 0.08);
         }
         .glass-card .icon-box {
           width: 64px;
@@ -704,10 +730,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           align-items: center;
           justify-content: center;
           margin-bottom: 32px;
-          transition: transform 0.3s;
+          transition: transform 0.3s, box-shadow 0.3s;
         }
         .glass-card:hover .icon-box {
           transform: scale(1.1) rotate(5deg);
+          box-shadow: 0 0 30px rgba(34, 211, 238, 0.18);
         }
         .glass-card h3 {
           color: #ffffff;
@@ -725,7 +752,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         .glass-card .glow {
           position: absolute;
           top: 0; left: 0; width: 100%; height: 100%;
-          background: radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 70%);
+          background: radial-gradient(circle at top right, rgba(34,211,238,0.08), transparent 70%);
           pointer-events: none;
         }
         .card-top-row {
@@ -776,8 +803,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           word-break: break-word;
           margin: 0;
           flex: 1;
-          overflow-y: auto;
-          padding-right: 4px;
         }
         .card .glow-line {
           position: absolute;
@@ -826,7 +851,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .reveal-section {
           padding: 160px 24px;
-          background: #0f172a;
           position: relative;
           overflow: hidden;
         }
@@ -959,9 +983,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           line-height: 1;
         }
         .parallax-content h2 .gradient {
-          background: linear-gradient(90deg, #818cf8, #22d3ee);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
         }
         .parallax-content p {
           color: #94a3b8;
@@ -971,7 +993,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .marquee-section {
           padding: 128px 0;
-          background: #0f172a;
           border-top: 1px solid rgba(255,255,255,0.05);
           border-bottom: 1px solid rgba(255,255,255,0.05);
           overflow: hidden;
@@ -1043,7 +1064,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           line-height: 1.1;
         }
         .section-header h2 .gradient {
-          background: linear-gradient(90deg, #818cf8, #22d3ee);
+          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -1132,12 +1153,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       {/* Progress Bar */}
       <div className="figma-progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} />
 
+      {/* Global Mahadnet mesh background (fixed, behind all sections) */}
+      <VideoBackground />
+
       <div className="relative z-10 flex flex-col min-h-screen">
 
         {/* ── NAVBAR ── */}
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[100]">
-          <nav className="w-full border border-white/10 bg-slate-950/80 backdrop-blur-xl rounded-full px-5 sm:px-7 py-2.5 shadow-2xl shadow-slate-950/50 transition-all duration-300">
-            <div className="flex justify-between items-center">
+        <div className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 pt-4">
+          <nav className="glass-strong rounded-2xl px-5 sm:px-7 py-3 flex items-center justify-between max-w-7xl mx-auto shadow-2xl shadow-black/40">
+            <div className="flex justify-between items-center w-full">
               <Link to="/" className="flex items-center gap-3 pl-1 sm:pl-2">
                 {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[110px] sm:w-[130px] h-auto object-contain" />}
               </Link>
@@ -1155,15 +1179,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               <div className="flex items-center gap-2 pr-1">
                 <a href="/portal"
-                  className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                  className="glass hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
                   style={{ color: '#ffffff' }}
                 >
-                  <Users className="w-3.5 h-3.5 text-indigo-400" /> User Portal
+                  <Users className="w-3.5 h-3.5 text-cyan-400" /> User Portal
                 </a>
                 <button onClick={onGetStarted}
-                  className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-indigo-600/20"
+                  className="cta-glow px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2"
                 >
-                  Manager Login
+                  <LockKeyhole className="w-3.5 h-3.5" /> Manager Login
                 </button>
                 <button onClick={() => setMenuOpen(o => !o)}
                   className="md:hidden flex flex-col gap-1.5 p-2 rounded-full hover:bg-white/5 ml-1">
@@ -1178,7 +1202,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* Mobile Menu */}
         {menuOpen && (
-          <div className="fixed top-[76px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[99] bg-slate-950/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
+          <div className="fixed top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-[99] bg-[#040814]/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
             {navLinks.map(link => (
               <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)}
                 className={`px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link ${location.pathname === link.path ? 'active' : ''}`}>
@@ -1195,14 +1219,41 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SECTION 1: HERO ── */}
         <section className="hero" id="hero" ref={heroRef}>
-          <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-            <VideoBackground />
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950/70" />
-          </div>
           <div className="orb orb-1"></div>
           <div className="orb orb-2"></div>
           <div className="orb orb-3"></div>
           <div className="grid-bg"></div>
+
+          {/* Floating glass icon cards — Mahadnet hero signature */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]">
+              <Wifi className="w-6 h-6 md:w-8 md:h-8 text-cyan-300" />
+            </div>
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]">
+              <Cpu className="w-5 h-5 md:w-7 md:h-7 text-purple-300" />
+            </div>
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]">
+              <Zap className="w-5 h-5 md:w-7 md:h-7 text-yellow-300" />
+            </div>
+            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]">
+              <Activity className="w-6 h-6 md:w-8 md:h-8 text-indigo-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex">
+              <Database className="w-6 h-6 text-teal-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex">
+              <Globe className="w-6 h-6 text-emerald-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex">
+              <Server className="w-6 h-6 text-pink-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%]">
+              <Receipt className="w-6 h-6 text-blue-300" />
+            </div>
+            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%]">
+              <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-green-300" />
+            </div>
+          </div>
 
           <div className="hero-content" ref={heroContentRef}>
             <div className="badge scroll-reveal">
@@ -1214,34 +1265,34 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <span className="gradient">ISP BILLING</span><br/>
               IN PAKISTAN
             </h1>
-            <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed scroll-reveal max-w-2xl mx-auto">
+            <p className="mt-3 text-slate-300 text-sm sm:text-base leading-relaxed scroll-reveal max-w-2xl mx-auto">
               Automate invoices, send WhatsApp payment reminders, track equipment, and manage your entire subscriber network — all from one secure, cloud-synced dashboard built exclusively for Pakistani Internet Service Providers.
             </p>
 
             {/* Trust Badges Row */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
               {trustBadges.slice(0, 4).map((badge, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300">
-                  <span className="text-indigo-400">{badge.icon}</span>
+                <div key={i} className="glass flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-bold text-white/80">
+                  <span className="text-cyan-300">{badge.icon}</span>
                   {badge.label}
                 </div>
               ))}
             </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
               <button onClick={onGetStarted}
-                className="w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center justify-center gap-3 text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 hover:brightness-110"
+                className="cta-glow w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white"
               >
                 Start Free Trial <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => setShowDemoModal(true)}
-                className="w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] backdrop-blur-md border border-white/10 bg-white/5 flex items-center justify-center gap-3 text-white hover:text-indigo-400 hover:border-indigo-500/30 transition-all active:scale-95"
+                className="glass w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white hover:bg-white/10 transition-all active:scale-95"
               >
-                <Play className="w-4 h-4 text-indigo-400" /> Watch Demo
+                <Play className="w-4 h-4 text-cyan-300" /> Watch Demo
               </button>
             </div>
 
-            <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest scroll-reveal">
+            <p className="mt-3 text-[10px] text-slate-500 font-bold uppercase tracking-widest scroll-reveal">
               No credit card required · Free for 50 customers · Setup in 2 minutes
             </p>
           </div>
@@ -1257,21 +1308,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 1.5: TRUST STRIP ── */}
-        <section className="py-12 px-6 border-y border-white/5 bg-slate-950/30" ref={trustSectionRef}>
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-8">
-              Why Pakistani ISPs Trust Bill Collector
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {trustBadges.map((badge, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/20 transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
-                    {badge.icon}
+        <section className="py-6 px-6 border-y border-white/5" ref={trustSectionRef}>
+          <div className="relative overflow-hidden">
+            <div className="marquee-row py-2">
+              <div className="marquee-content whitespace-nowrap flex items-center">
+                {[0, 1].map(dup => (
+                  <div key={dup} className="inline-flex items-center">
+                    {trustBadges.map((badge, i) => (
+                      <span key={i} className="inline-flex items-center gap-2.5 mx-8 text-white/55 text-xs font-bold uppercase tracking-[0.2em]">
+                        <span className="text-cyan-300">{badge.icon}</span>
+                        {badge.label}
+                      </span>
+                    ))}
                   </div>
-                  <span className="text-[11px] font-bold text-white text-center">{badge.label}</span>
-                  <span className="text-[9px] text-slate-500 uppercase tracking-wider">{badge.desc}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1279,9 +1330,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         {/* ── SECTION 2: GLASSMORPHISM CAPABILITIES ── */}
         <section className="glass-section" id="features">
           <div className="max-w-4xl mx-auto text-center mb-20 scroll-reveal">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">02 / Core Modules</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">02 / Core Modules</span>
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-4">
-              Premium <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Capabilities</span>
+              Premium <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Capabilities</span>
             </h2>
             <p className="text-slate-400 text-lg max-w-2xl mx-auto mt-6">
               Everything you need to automate your ISP billing, recovery, and network management in one powerful platform.
@@ -1292,7 +1343,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             {featuresList.map((feat, i) => (
               <div key={i} className="glass-card scroll-reveal" data-index={i}>
                 <div className="glow"></div>
-                <div className="icon-box" style={{ color: feat.color }}>
+                <div className="icon-box" style={{ color: feat.color, background: `${feat.color}14`, border: `1px solid ${feat.color}40` }}>
                   {feat.icon}
                 </div>
                 <h3>{feat.title}</h3>
@@ -1317,31 +1368,31 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
           <div className="counter-grid" ref={countersContainerRef}>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#6366f1' }} data-target="150" data-suffix="+">0</div>
+              <div className="number counter-number grad-text" data-target="150" data-suffix="+">0</div>
               <div className="label">Active ISPs</div>
             </div>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#8b5cf6' }} data-target="99.9" data-suffix="%">0</div>
+              <div className="number counter-number grad-text" data-target="99.9" data-suffix="%">0</div>
               <div className="label">Uptime SLA</div>
             </div>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#06b6d4' }} data-target="50000" data-suffix="+">0</div>
+              <div className="number counter-number grad-text" data-target="50000" data-suffix="+">0</div>
               <div className="label">Subscribers Managed</div>
             </div>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#10b981' }} data-target="95" data-suffix="%">0</div>
+              <div className="number counter-number grad-text" data-target="95" data-suffix="%">0</div>
               <div className="label">Recovery Rate</div>
             </div>
           </div>
         </section>
 
         {/* ── SECTION 3.5: HOW IT WORKS ── */}
-        <section className="py-24 px-6 border-t border-white/5 bg-[#070b19] scroll-reveal" id="how-it-works" ref={howItWorksRef}>
+        <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="how-it-works" ref={howItWorksRef}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">03.5 / Getting Started</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
-                How It <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Works</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">03.5 / Getting Started</span>
+              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-4">
+                How It <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Works</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
                 From spreadsheet to fully automated billing in 4 simple steps. No technical expertise required.
@@ -1350,7 +1401,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {howItWorksSteps.map((step) => (
-                <div key={step.step} data-step={step.step - 1} className="how-step relative p-6 rounded-3xl bg-white/5 border border-white/10 hover:border-indigo-500/30 transition-all group">
+                <div key={step.step} data-step={step.step - 1} className="how-step relative p-6 rounded-3xl glass hover:bg-white/10 transition-all group">
                   <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white"
                     style={{ background: step.color }}>
                     {step.step}
@@ -1396,27 +1447,27 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 4.5: COMPETITIVE COMPARISON ── */}
-        <section className="py-24 px-6 border-t border-white/5 bg-[#020617] scroll-reveal">
+        <section className="py-24 px-6 border-t border-white/5 scroll-reveal">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">04.5 / Comparison</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">04.5 / Comparison</span>
               <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
-                Why Choose <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Bill Collector?</span>
+                Why Choose <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Bill Collector?</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
                 See how we stack up against other ISP billing platforms in Pakistan.
               </p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden">
-              <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/10 bg-white/5">
+            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md overflow-x-auto">
+              <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/10 bg-white/5 min-w-[520px]">
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Feature</div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 text-center">Bill Collector</div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Others</div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Others</div>
               </div>
               {comparisonData.map((row, i) => (
-                <div key={i} className="comparison-row grid grid-cols-4 gap-4 p-4 border-b border-white/5 items-center">
+                <div key={i} className="comparison-row grid grid-cols-4 gap-4 p-4 border-b border-white/5 items-center min-w-[520px]">
                   <div className="text-sm font-bold text-white">{row.feature}</div>
                   <div className="flex justify-center">
                     {row.billcollector ? (
@@ -1516,7 +1567,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="lg:col-span-7 space-y-4 flex flex-col justify-between">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Karachi Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-indigo-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-indigo-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase text-indigo-400 tracking-widest">Sindh Province</span>
@@ -1542,7 +1593,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
 
                   {/* Lahore Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-purple-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-purple-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-[9px] font-black uppercase text-purple-400 tracking-widest">Punjab Province</span>
@@ -1568,7 +1619,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
 
                   {/* Faisalabad Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-cyan-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-cyan-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-[9px] font-black uppercase text-cyan-400 tracking-widest">Textile City Hub</span>
@@ -1594,7 +1645,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
 
                   {/* Islamabad & Northern Areas Hub */}
-                  <div className="p-6 rounded-2xl bg-slate-950/50 border border-white/5 hover:border-emerald-500/20 transition-all flex flex-col justify-between group">
+                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-emerald-500/20 transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase text-emerald-400 tracking-widest">Capital Hub</span>
@@ -1632,7 +1683,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               {/* Right Column: Interactive Setup Form (lg:col-span-5) */}
               <div className="lg:col-span-5">
-                <div className="p-8 rounded-3xl border border-white/10 bg-[#070b19]/80 backdrop-blur-md shadow-2xl h-full flex flex-col justify-center relative overflow-hidden">
+                <div className="p-8 rounded-3xl border border-white/10 bg-[#0a1228]/80 backdrop-blur-md shadow-2xl h-full flex flex-col justify-center relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
                   
                   {!onsiteSubmitted ? (
@@ -1701,7 +1752,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
                       <button 
                         type="submit"
-                        className="w-full h-12 rounded-xl font-black text-xs uppercase tracking-[0.2em] bg-gradient-to-r from-indigo-600 to-cyan-500 text-white flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-indigo-500/20 active:scale-98"
+                        className="cta-glow w-full h-12 rounded-xl font-black text-xs uppercase tracking-[0.2em] text-white flex items-center justify-center gap-2 active:scale-98"
                       >
                         Schedule Free Onsite Setup <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -1807,7 +1858,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 8.5: TESTIMONIAL SLIDER ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 bg-slate-950 overflow-hidden" id="testimonials">
+        <section className="relative py-24 px-6 border-t border-white/5 overflow-hidden" id="testimonials">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-indigo-500 rounded-full blur-[120px]" />
             <div className="absolute bottom-1/2 right-1/4 w-[400px] h-[400px] bg-purple-500 rounded-full blur-[120px]" />
@@ -1883,13 +1934,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 9: PRICING PLANS ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 bg-[#070b19] scroll-reveal" id="pricing">
+        <section className="relative py-24 px-6 border-t border-white/5 scroll-reveal" id="pricing">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4">Simple Pricing</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Simple Pricing</p>
               <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mb-4">
                 Choose Your<br />
-                <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Plan</span>
+                <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Plan</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-xl mx-auto">Flexible billing subscription plans for Pakistani ISPs of every size. No hidden charges.</p>
             </div>
@@ -1959,7 +2010,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button onClick={onGetStarted}
-                className="w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center justify-center gap-3 text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 hover:brightness-110">
+                className="cta-glow w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white">
                 Get Started Free <ArrowRight className="w-4 h-4" />
               </button>
               <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
@@ -1979,7 +2030,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── FOOTER ── */}
-        <footer className="pt-20 pb-10 px-6 border-t border-white/10 bg-slate-950/40 backdrop-blur-md">
+        <footer className="pt-20 pb-10 px-6 border-t border-white/10 bg-[#040814]/40 backdrop-blur-md">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
               <div className="col-span-2">
@@ -1995,7 +2046,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <span>WhatsApp: 0304-2773453</span>
                   </a>
                   <a href="mailto:support@billcollector.online"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold hover:bg-indigo-600/30 transition-all">
+                    className="glass inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-white/10 transition-all text-cyan-300">
                     <Mail className="w-3.5 h-3.5" />
                     <span>support@billcollector.online</span>
                   </a>
@@ -2037,9 +2088,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── DEMO MODAL ── */}
         {showDemoModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#040814]/80 backdrop-blur-md animate-fade-in"
             onClick={() => setShowDemoModal(false)}>
-            <div className="w-full max-w-3xl rounded-3xl border border-white/20 bg-slate-900 overflow-hidden animate-scale-in"
+            <div className="w-full max-w-3xl rounded-3xl border border-white/20 bg-[#0a1228] overflow-hidden animate-scale-in"
               onClick={e => e.stopPropagation()}>
               <div className="p-6 border-b border-white/10 flex items-center justify-between">
                 <div>
@@ -2072,9 +2123,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SPECS MODAL ── */}
         {showSpecs && (
-          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-[#040814]/80 backdrop-blur-md animate-fade-in"
             onClick={() => setShowSpecs(false)}>
-            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 bg-slate-900 max-h-[90vh] overflow-y-auto animate-scale-in"
+            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 bg-[#0a1228] max-h-[90vh] overflow-y-auto animate-scale-in"
               onClick={e => e.stopPropagation()}>
               <div className="p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}>
                 <div className="absolute inset-0 opacity-20">
@@ -2109,7 +2160,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
                 </div>
                 <button onClick={() => { setShowSpecs(false); onGetStarted(); }}
-                  className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 transition-all hover:brightness-110 active:scale-95">
+                  className="cta-glow w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 active:scale-95">
                   Get Started Free <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

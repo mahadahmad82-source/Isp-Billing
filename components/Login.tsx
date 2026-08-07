@@ -25,6 +25,14 @@ const PhoneIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentCol
 const BriefcaseIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
 const MailIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
 
+// ── Floating decoration icons (Mahadnet midnight glass aesthetic) ──
+const WifiIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 13a10 10 0 0 1 14 0" /><path d="M8.5 16.5a5 5 0 0 1 7 0" /><path d="M2 8.82a15 15 0 0 1 20 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></svg>);
+const ReceiptIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 17.5v-11" /></svg>);
+const WhatsAppIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>);
+const ZapIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>);
+const GlobeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>);
+const CpuIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" /></svg>);
+
 // ── Input with left icon (outside component to prevent keyboard dismiss on re-render) ──
 const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode }) => (
   <div className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all duration-300 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
@@ -328,11 +336,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const heading = getHeading();
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#020617]">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#040814]">
 
       {/* Three.js Background */}
       <div className="absolute inset-0 z-0"><VideoBackground /></div>
-      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(2,6,23,0.35) 100%)' }} />
+      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(4,8,20,0.35) 100%)' }} />
+
+      {/* Floating glass icon cards — Mahadnet hero signature */}
+      <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden hidden md:block" aria-hidden="true">
+        <div className="glass absolute top-[16%] left-[8%] w-16 h-16 rounded-2xl flex items-center justify-center text-cyan-300 shadow-[0_0_25px_rgba(34,211,238,0.15)]"><WifiIcon /></div>
+        <div className="glass absolute top-[24%] right-[10%] w-14 h-14 rounded-2xl flex items-center justify-center text-purple-300 shadow-[0_0_25px_rgba(168,85,247,0.15)]"><CpuIcon /></div>
+        <div className="glass absolute bottom-[22%] left-[10%] w-14 h-14 rounded-2xl flex items-center justify-center text-green-300 shadow-[0_0_25px_rgba(74,222,128,0.15)]"><WhatsAppIcon /></div>
+        <div className="glass absolute bottom-[16%] right-[8%] w-16 h-16 rounded-2xl flex items-center justify-center text-blue-300 shadow-[0_0_25px_rgba(59,130,246,0.15)]"><ReceiptIcon /></div>
+        <div className="glass absolute top-[52%] left-[4%] w-12 h-12 rounded-2xl flex items-center justify-center text-yellow-300 shadow-[0_0_25px_rgba(250,204,21,0.15)]"><ZapIcon /></div>
+        <div className="glass absolute top-[48%] right-[4%] w-12 h-12 rounded-2xl flex items-center justify-center text-emerald-300 shadow-[0_0_25px_rgba(52,211,153,0.15)]"><GlobeIcon /></div>
+      </div>
 
       <div className="absolute top-4 right-4 z-[20]">
         <LanguageToggle language={language} onChange={handleLanguageChange} variant="pill" />
@@ -626,8 +644,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       {/* Support Modal */}
       {showSupportModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#040814]/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-[#0a1228] border-white/5">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
               <h4 className="text-xl font-black uppercase tracking-tight text-white">Support Needed</h4>
@@ -647,8 +665,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       {/* Clear Confirm Modal */}
       {showClearConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#040814]/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-[#0a1228] border-white/5">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">⚠️</div>
               <h4 className="text-xl font-black uppercase tracking-tight text-white">Purge All Data?</h4>
