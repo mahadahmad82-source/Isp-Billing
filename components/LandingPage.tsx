@@ -578,8 +578,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           pointer-events: none;
         }
         .hero .orb-1 { width: 500px; height: 500px; background: #6366f1; top: -100px; left: -100px; }
-        .hero .orb-2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -100px; right: -100px; }
-        .hero .orb-3 { width: 300px; height: 300px; background: #06b6d4; top: 30%; left: 60%; }
+        .hero .orb-2 { width: 400px; height: 400px; background: #a855f7; bottom: -100px; right: -100px; }
+        .hero .orb-3 { width: 300px; height: 300px; background: #22d3ee; top: 30%; left: 60%; }
         .hero .grid-bg {
           position: absolute;
           inset: 0;
@@ -603,22 +603,31 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           gap: 8px;
           padding: 8px 20px;
           border-radius: 50px;
-          border: 1px solid rgba(99,102,241,0.3);
-          background: rgba(99,102,241,0.1);
+          background: rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(16px) saturate(160%);
+          -webkit-backdrop-filter: blur(16px) saturate(160%);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
           margin-bottom: 24px;
         }
         .badge .dot {
           width: 8px; height: 8px;
-          background: #34d399;
+          background: #22d3ee;
           border-radius: 50%;
-          animation: pulse 2s infinite;
+          box-shadow: 0 0 0 0 rgba(34,211,238,0.7);
+          animation: pulseRing 2s infinite;
+        }
+        @keyframes pulseRing {
+          0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.7); }
+          70% { box-shadow: 0 0 0 12px rgba(34,211,238,0); }
+          100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); }
         }
         .badge span {
           font-size: 10px;
           font-weight: 900;
           text-transform: uppercase;
           letter-spacing: 0.25em;
-          color: #818cf8;
+          color: rgba(255,255,255,0.8);
         }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
@@ -631,7 +640,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           margin-bottom: 20px;
         }
         .hero h1 .gradient {
-          background: linear-gradient(90deg, #818cf8, #c084fc, #22d3ee);
+          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -664,6 +673,34 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(8px); }
+        }
+        @keyframes floatA {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(25px,-35px) rotate(8deg) scale(1.05); }
+        }
+        @keyframes floatB {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(-35px,25px) rotate(-8deg) scale(0.95); }
+        }
+        @keyframes floatC {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(20px,25px) rotate(6deg) scale(1.08); }
+        }
+        @keyframes floatD {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(-25px,-30px) rotate(-10deg) scale(1.03); }
+        }
+        @keyframes floatE {
+          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+          50% { transform: translate(30px,-20px) rotate(12deg) scale(0.97); }
+        }
+        .hero-float-icon {
+          position: absolute;
+          border-radius: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 15px rgba(34,211,238,0.12);
         }
         .glass-section {
           padding: 120px 24px;
@@ -965,9 +1002,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           line-height: 1;
         }
         .parallax-content h2 .gradient {
-          background: linear-gradient(90deg, #818cf8, #22d3ee);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
         }
         .parallax-content p {
           color: #94a3b8;
@@ -1049,7 +1084,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           line-height: 1.1;
         }
         .section-header h2 .gradient {
-          background: linear-gradient(90deg, #818cf8, #22d3ee);
+          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -1141,9 +1176,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <div className="relative z-10 flex flex-col min-h-screen">
 
         {/* ── NAVBAR ── */}
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[100]">
-          <nav className="w-full border border-white/10 bg-[#040814]/80 backdrop-blur-xl rounded-full px-5 sm:px-7 py-2.5 shadow-2xl shadow-slate-950/50 transition-all duration-300">
-            <div className="flex justify-between items-center">
+        <div className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 pt-4">
+          <nav className="glass-strong rounded-2xl px-5 sm:px-7 py-3 flex items-center justify-between max-w-7xl mx-auto shadow-2xl shadow-black/40">
+            <div className="flex justify-between items-center w-full">
               <Link to="/" className="flex items-center gap-3 pl-1 sm:pl-2">
                 {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[110px] sm:w-[130px] h-auto object-contain" />}
               </Link>
@@ -1161,15 +1196,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               <div className="flex items-center gap-2 pr-1">
                 <a href="/portal"
-                  className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                  className="glass hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
                   style={{ color: '#ffffff' }}
                 >
-                  <Users className="w-3.5 h-3.5 text-indigo-400" /> User Portal
+                  <Users className="w-3.5 h-3.5 text-cyan-400" /> User Portal
                 </a>
                 <button onClick={onGetStarted}
-                  className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-indigo-600/20"
+                  className="cta-glow px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2"
                 >
-                  Manager Login
+                  <LockKeyhole className="w-3.5 h-3.5" /> Manager Login
                 </button>
                 <button onClick={() => setMenuOpen(o => !o)}
                   className="md:hidden flex flex-col gap-1.5 p-2 rounded-full hover:bg-white/5 ml-1">
@@ -1184,7 +1219,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* Mobile Menu */}
         {menuOpen && (
-          <div className="fixed top-[76px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-[99] bg-[#040814]/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
+          <div className="fixed top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-[99] bg-[#040814]/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
             {navLinks.map(link => (
               <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)}
                 className={`px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link ${location.pathname === link.path ? 'active' : ''}`}>
@@ -1210,6 +1245,34 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="orb orb-3"></div>
           <div className="grid-bg"></div>
 
+          {/* Floating glass icon cards — Mahadnet hero signature */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]" style={{ animation: 'floatA 11s ease-in-out infinite' }}>
+              <Wifi className="w-6 h-6 md:w-8 md:h-8 text-cyan-300" />
+            </div>
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]" style={{ animation: 'floatB 13s ease-in-out infinite' }}>
+              <Cpu className="w-5 h-5 md:w-7 md:h-7 text-purple-300" />
+            </div>
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]" style={{ animation: 'floatC 9s ease-in-out infinite' }}>
+              <Zap className="w-5 h-5 md:w-7 md:h-7 text-yellow-300" />
+            </div>
+            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]" style={{ animation: 'floatD 15s ease-in-out infinite' }}>
+              <Activity className="w-6 h-6 md:w-8 md:h-8 text-indigo-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex" style={{ animation: 'floatE 14s ease-in-out infinite' }}>
+              <Database className="w-6 h-6 text-teal-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex" style={{ animation: 'floatB 16s ease-in-out infinite' }}>
+              <Globe className="w-6 h-6 text-emerald-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex" style={{ animation: 'floatC 10s ease-in-out infinite' }}>
+              <Server className="w-6 h-6 text-pink-300" />
+            </div>
+            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%] hidden md:flex" style={{ animation: 'floatD 12s ease-in-out infinite' }}>
+              <Receipt className="w-6 h-6 text-blue-300" />
+            </div>
+          </div>
+
           <div className="hero-content" ref={heroContentRef}>
             <div className="badge scroll-reveal">
               <div className="dot"></div>
@@ -1227,8 +1290,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             {/* Trust Badges Row */}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
               {trustBadges.slice(0, 4).map((badge, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300">
-                  <span className="text-indigo-400">{badge.icon}</span>
+                <div key={i} className="glass flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-bold text-white/80">
+                  <span className="text-cyan-300">{badge.icon}</span>
                   {badge.label}
                 </div>
               ))}
@@ -1236,14 +1299,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
               <button onClick={onGetStarted}
-                className="w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center justify-center gap-3 text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 hover:brightness-110"
+                className="cta-glow w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white"
               >
                 Start Free Trial <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => setShowDemoModal(true)}
-                className="w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] backdrop-blur-md border border-white/10 bg-white/5 flex items-center justify-center gap-3 text-white hover:text-indigo-400 hover:border-indigo-500/30 transition-all active:scale-95"
+                className="glass w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white hover:bg-white/10 transition-all active:scale-95"
               >
-                <Play className="w-4 h-4 text-indigo-400" /> Watch Demo
+                <Play className="w-4 h-4 text-cyan-300" /> Watch Demo
               </button>
             </div>
 
@@ -1263,21 +1326,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 1.5: TRUST STRIP ── */}
-        <section className="py-12 px-6 border-y border-white/5 bg-[#040814]/30" ref={trustSectionRef}>
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-8">
-              Why Pakistani ISPs Trust Bill Collector
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {trustBadges.map((badge, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/20 transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
-                    {badge.icon}
+        <section className="py-6 px-6 border-y border-white/5 bg-[#040814]/40" ref={trustSectionRef}>
+          <div className="relative overflow-hidden">
+            <div className="marquee-row py-2">
+              <div className="marquee-content whitespace-nowrap flex items-center">
+                {[0, 1].map(dup => (
+                  <div key={dup} className="inline-flex items-center">
+                    {trustBadges.map((badge, i) => (
+                      <span key={i} className="inline-flex items-center gap-2.5 mx-8 text-white/55 text-xs font-bold uppercase tracking-[0.2em]">
+                        <span className="text-cyan-300">{badge.icon}</span>
+                        {badge.label}
+                      </span>
+                    ))}
                   </div>
-                  <span className="text-[11px] font-bold text-white text-center">{badge.label}</span>
-                  <span className="text-[9px] text-slate-500 uppercase tracking-wider">{badge.desc}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1285,9 +1348,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         {/* ── SECTION 2: GLASSMORPHISM CAPABILITIES ── */}
         <section className="glass-section" id="features">
           <div className="max-w-4xl mx-auto text-center mb-20 scroll-reveal">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">02 / Core Modules</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">02 / Core Modules</span>
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-4">
-              Premium <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Capabilities</span>
+              Premium <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Capabilities</span>
             </h2>
             <p className="text-slate-400 text-lg max-w-2xl mx-auto mt-6">
               Everything you need to automate your ISP billing, recovery, and network management in one powerful platform.
@@ -1323,19 +1386,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
           <div className="counter-grid" ref={countersContainerRef}>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#6366f1' }} data-target="150" data-suffix="+">0</div>
+              <div className="number counter-number grad-text" data-target="150" data-suffix="+">0</div>
               <div className="label">Active ISPs</div>
             </div>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#8b5cf6' }} data-target="99.9" data-suffix="%">0</div>
+              <div className="number counter-number grad-text" data-target="99.9" data-suffix="%">0</div>
               <div className="label">Uptime SLA</div>
             </div>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#06b6d4' }} data-target="50000" data-suffix="+">0</div>
+              <div className="number counter-number grad-text" data-target="50000" data-suffix="+">0</div>
               <div className="label">Subscribers Managed</div>
             </div>
             <div className="counter-item">
-              <div className="number counter-number" style={{ color: '#10b981' }} data-target="95" data-suffix="%">0</div>
+              <div className="number counter-number grad-text" data-target="95" data-suffix="%">0</div>
               <div className="label">Recovery Rate</div>
             </div>
           </div>
@@ -1345,9 +1408,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <section className="py-24 px-6 border-t border-white/5 bg-[#0a1228] scroll-reveal" id="how-it-works" ref={howItWorksRef}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">03.5 / Getting Started</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
-                How It <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Works</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">03.5 / Getting Started</span>
+              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-4">
+                How It <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Works</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
                 From spreadsheet to fully automated billing in 4 simple steps. No technical expertise required.
@@ -1356,7 +1419,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {howItWorksSteps.map((step) => (
-                <div key={step.step} data-step={step.step - 1} className="how-step relative p-6 rounded-3xl bg-white/5 border border-white/10 hover:border-indigo-500/30 transition-all group">
+                <div key={step.step} data-step={step.step - 1} className="how-step relative p-6 rounded-3xl glass hover:bg-white/10 transition-all group">
                   <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white"
                     style={{ background: step.color }}>
                     {step.step}
@@ -1405,9 +1468,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <section className="py-24 px-6 border-t border-white/5 bg-[#040814] scroll-reveal">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">04.5 / Comparison</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">04.5 / Comparison</span>
               <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
-                Why Choose <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Bill Collector?</span>
+                Why Choose <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Bill Collector?</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
                 See how we stack up against other ISP billing platforms in Pakistan.
@@ -1707,7 +1770,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
                       <button 
                         type="submit"
-                        className="w-full h-12 rounded-xl font-black text-xs uppercase tracking-[0.2em] bg-gradient-to-r from-indigo-600 to-cyan-500 text-white flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-indigo-500/20 active:scale-98"
+                        className="cta-glow w-full h-12 rounded-xl font-black text-xs uppercase tracking-[0.2em] text-white flex items-center justify-center gap-2 active:scale-98"
                       >
                         Schedule Free Onsite Setup <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -1892,10 +1955,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <section className="relative py-24 px-6 border-t border-white/5 bg-[#0a1228] scroll-reveal" id="pricing">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4">Simple Pricing</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Simple Pricing</p>
               <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mb-4">
                 Choose Your<br />
-                <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Plan</span>
+                <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Plan</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-xl mx-auto">Flexible billing subscription plans for Pakistani ISPs of every size. No hidden charges.</p>
             </div>
@@ -1965,7 +2028,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button onClick={onGetStarted}
-                className="w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 flex items-center justify-center gap-3 text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 hover:brightness-110">
+                className="cta-glow w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white">
                 Get Started Free <ArrowRight className="w-4 h-4" />
               </button>
               <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
@@ -2001,7 +2064,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <span>WhatsApp: 0304-2773453</span>
                   </a>
                   <a href="mailto:support@billcollector.online"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold hover:bg-indigo-600/30 transition-all">
+                    className="glass inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-white/10 transition-all text-cyan-300">
                     <Mail className="w-3.5 h-3.5" />
                     <span>support@billcollector.online</span>
                   </a>
@@ -2115,7 +2178,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
                 </div>
                 <button onClick={() => { setShowSpecs(false); onGetStarted(); }}
-                  className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 transition-all hover:brightness-110 active:scale-95">
+                  className="cta-glow w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 active:scale-95">
                   Get Started Free <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
