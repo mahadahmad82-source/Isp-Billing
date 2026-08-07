@@ -129,15 +129,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       const progress = docHeight > 0 ? scrollTop / docHeight : 0;
       setScrollProgress(progress);
 
-      // Hero Parallax
-      if (heroRef.current && heroContentRef.current) {
-        if (scrollTop < window.innerHeight) {
-          const p = scrollTop / window.innerHeight;
-          heroContentRef.current.style.transform = `translateY(${scrollTop * 0.3}px) scale(${1 + p * 0.15})`;
-          heroContentRef.current.style.opacity = `${1 - p * 1.5}`;
-        }
-      }
-
       // Horizontal Scroll (High-fidelity smooth card reveal with continuous parallax and center-highlighting)
       if (horizontalSectionRef.current && cardsContainerRef.current) {
         const section = horizontalSectionRef.current;
@@ -419,15 +410,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   const infraFeatures = [
-    { title: 'Customer Management', desc: 'Manage thousands of customer profiles with ease. Track sub-nets, assigned IP addresses, package plans, expiration dates, and physical home coordinates.', icon: <Users className="w-6 h-6" />, borderColor: '#6366f120', bg: 'linear-gradient(145deg, #6366f108, transparent)' },
-    { title: 'Digital Receipts', desc: 'Generate beautifully styled, brand-customized digital PDF invoice receipts automatically. Instantly share directly with customers via WhatsApp with zero setup.', icon: <FileText className="w-6 h-6" />, borderColor: '#8b5cf620', bg: 'linear-gradient(145deg, #8b5cf608, transparent)' },
-    { title: 'Recovery Ledger', desc: "An interactive master grid of your month's finances. Track pending dues, collected cash, outstanding balances, and daily recovery performance in one dashboard.", icon: <BarChart3 className="w-6 h-6" />, borderColor: '#06b6d420', bg: 'linear-gradient(145deg, #06b6d408, transparent)' },
-    { title: 'Equipment Tracker', desc: 'Keep a real-time count of your GPON/EPON ONUs, media converters, and TP-Link routers assigned to customers. Never lose track of expensive hardware inventory.', icon: <Server className="w-6 h-6" />, borderColor: '#10b98120', bg: 'linear-gradient(145deg, #10b98108, transparent)' },
-    { title: 'Leads Pipeline', desc: 'Convert prospective customers into subscribers. Track inquiries from initial phone calls to active fiber splicing and connection testing with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b20', bg: 'linear-gradient(145deg, #f59e0b08, transparent)' },
-    { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend lines.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489920', bg: 'linear-gradient(145deg, #ec489908, transparent)' },
-    { title: 'Area Dashboard', desc: 'Get deep business insight into your active network areas. Identify highly profitable neighborhoods, pending cash-flow zones, and localized user count growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f120', bg: 'linear-gradient(145deg, #6366f108, transparent)' },
-    { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <Lock className="w-6 h-6" />, borderColor: '#8b5cf620', bg: 'linear-gradient(145deg, #8b5cf608, transparent)' },
-    { title: 'Outage Tracker', desc: 'Log critical fiber cuts, power failures, or upstream bandwidth drops. Inform affected areas promptly and log down-time duration for upstream rebate claims.', icon: <Radio className="w-6 h-6" />, borderColor: '#06b6d420', bg: 'linear-gradient(145deg, #06b6d408, transparent)' },
+    { title: 'Customer Management', desc: 'Manage thousands of customer profiles with ease. Track sub-nets, assigned IP addresses, package plans, expiration dates, and physical home coordinates.', icon: <Users className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
+    { title: 'Digital Receipts', desc: 'Generate beautifully styled, brand-customized digital PDF invoice receipts automatically. Instantly share directly with customers via WhatsApp with zero setup.', icon: <FileText className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
+    { title: 'Recovery Ledger', desc: "An interactive master grid of your month's finances. Track pending dues, collected cash, outstanding balances, and daily recovery performance in one dashboard.", icon: <BarChart3 className="w-6 h-6" />, borderColor: '#06b6d455', bg: 'linear-gradient(145deg, #06b6d415, #06b6d408 60%, transparent)' },
+    { title: 'Equipment Tracker', desc: 'Keep a real-time count of your GPON/EPON ONUs, media converters, and TP-Link routers assigned to customers. Never lose track of expensive hardware inventory.', icon: <Server className="w-6 h-6" />, borderColor: '#10b98155', bg: 'linear-gradient(145deg, #10b98115, #10b98108 60%, transparent)' },
+    { title: 'Leads Pipeline', desc: 'Convert prospective customers into subscribers. Track inquiries from initial phone calls to active fiber splicing and connection testing with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b55', bg: 'linear-gradient(145deg, #f59e0b15, #f59e0b08 60%, transparent)' },
+    { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend lines.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489955', bg: 'linear-gradient(145deg, #ec489915, #ec489908 60%, transparent)' },
+    { title: 'Area Dashboard', desc: 'Get deep business insight into your active network areas. Identify highly profitable neighborhoods, pending cash-flow zones, and localized user count growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
+    { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <Lock className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
+    { title: 'Outage Tracker', desc: 'Log critical fiber cuts, power failures, or upstream bandwidth drops. Inform affected areas promptly and log down-time duration for upstream rebate claims.', icon: <Radio className="w-6 h-6" />, borderColor: '#06b6d455', bg: 'linear-gradient(145deg, #06b6d415, #06b6d408 60%, transparent)' },
   ];
 
   const howItWorksSteps = [
@@ -523,12 +514,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
       {/* ── STYLES ── */}
       <style>{`
-        .landing-page h1,
-        .landing-page h2,
-        .landing-page h3 {
-          font-family: var(--font-display);
-          letter-spacing: -0.02em;
-        }
         .figma-progress-bar {
           position: fixed; top: 0; left: 0;
           height: 3px;
@@ -562,8 +547,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .hero {
           min-height: 100vh;
-          padding-top: 120px;
-          padding-bottom: 60px;
+          padding: 150px 20px 100px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -634,10 +618,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           50% { opacity: 0.5; }
         }
         .hero h1 {
-          font-size: clamp(2.5rem, 6.5vw, 5.5rem);
+          font-size: clamp(2.1rem, 5.2vw, 4.75rem);
           font-weight: 900;
           line-height: 1.1;
-          margin-bottom: 20px;
+          margin-bottom: 18px;
         }
         .hero h1 .gradient {
           background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
@@ -704,21 +688,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .glass-section {
           padding: 120px 24px;
-          background: #040814;
           position: relative;
         }
         .glass-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
           gap: 32px;
           max-width: 1200px;
           margin: 0 auto;
         }
         .glass-card {
-          background: rgba(255, 255, 255, 0.06);
+          background: linear-gradient(145deg, rgba(34,211,238,0.07) 0%, rgba(99,102,241,0.08) 45%, rgba(168,85,247,0.06) 100%);
           backdrop-filter: blur(16px) saturate(160%);
           -webkit-backdrop-filter: blur(16px) saturate(160%);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 32px;
           padding: 40px;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -732,10 +715,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           transform: translateY(0);
         }
         .glass-card:hover {
-          background: rgba(255, 255, 255, 0.09);
-          border-color: rgba(255, 255, 255, 0.2);
+          background: linear-gradient(145deg, rgba(34,211,238,0.14) 0%, rgba(99,102,241,0.16) 45%, rgba(168,85,247,0.12) 100%);
+          border-color: rgba(34, 211, 238, 0.4);
           transform: translateY(-10px);
-          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(34, 211, 238, 0.08);
         }
         .glass-card .icon-box {
           width: 64px;
@@ -747,10 +730,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           align-items: center;
           justify-content: center;
           margin-bottom: 32px;
-          transition: transform 0.3s;
+          transition: transform 0.3s, box-shadow 0.3s;
         }
         .glass-card:hover .icon-box {
           transform: scale(1.1) rotate(5deg);
+          box-shadow: 0 0 30px rgba(34, 211, 238, 0.18);
         }
         .glass-card h3 {
           color: #ffffff;
@@ -768,7 +752,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         .glass-card .glow {
           position: absolute;
           top: 0; left: 0; width: 100%; height: 100%;
-          background: radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 70%);
+          background: radial-gradient(circle at top right, rgba(34,211,238,0.08), transparent 70%);
           pointer-events: none;
         }
         .card-top-row {
@@ -819,8 +803,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           word-break: break-word;
           margin: 0;
           flex: 1;
-          overflow-y: auto;
-          padding-right: 4px;
         }
         .card .glow-line {
           position: absolute;
@@ -869,7 +851,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .reveal-section {
           padding: 160px 24px;
-          background: #0a1228;
           position: relative;
           overflow: hidden;
         }
@@ -1012,7 +993,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
         .marquee-section {
           padding: 128px 0;
-          background: #0a1228;
           border-top: 1px solid rgba(255,255,255,0.05);
           border-bottom: 1px solid rgba(255,255,255,0.05);
           overflow: hidden;
@@ -1173,6 +1153,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       {/* Progress Bar */}
       <div className="figma-progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} />
 
+      {/* Global Mahadnet mesh background (fixed, behind all sections) */}
+      <VideoBackground />
+
       <div className="relative z-10 flex flex-col min-h-screen">
 
         {/* ── NAVBAR ── */}
@@ -1236,10 +1219,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SECTION 1: HERO ── */}
         <section className="hero" id="hero" ref={heroRef}>
-          <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-            <VideoBackground />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#040814]/30 via-[#040814]/50 to-[#040814]/70" />
-          </div>
           <div className="orb orb-1"></div>
           <div className="orb orb-2"></div>
           <div className="orb orb-3"></div>
@@ -1247,29 +1226,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
           {/* Floating glass icon cards — Mahadnet hero signature */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]" style={{ animation: 'floatA 11s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]">
               <Wifi className="w-6 h-6 md:w-8 md:h-8 text-cyan-300" />
             </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]" style={{ animation: 'floatB 13s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]">
               <Cpu className="w-5 h-5 md:w-7 md:h-7 text-purple-300" />
             </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]" style={{ animation: 'floatC 9s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]">
               <Zap className="w-5 h-5 md:w-7 md:h-7 text-yellow-300" />
             </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]" style={{ animation: 'floatD 15s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]">
               <Activity className="w-6 h-6 md:w-8 md:h-8 text-indigo-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex" style={{ animation: 'floatE 14s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex">
               <Database className="w-6 h-6 text-teal-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex" style={{ animation: 'floatB 16s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex">
               <Globe className="w-6 h-6 text-emerald-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex" style={{ animation: 'floatC 10s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex">
               <Server className="w-6 h-6 text-pink-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%] hidden md:flex" style={{ animation: 'floatD 12s ease-in-out infinite' }}>
+            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%]">
               <Receipt className="w-6 h-6 text-blue-300" />
+            </div>
+            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%]">
+              <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-green-300" />
             </div>
           </div>
 
@@ -1283,12 +1265,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <span className="gradient">ISP BILLING</span><br/>
               IN PAKISTAN
             </h1>
-            <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed scroll-reveal max-w-2xl mx-auto">
+            <p className="mt-3 text-slate-300 text-sm sm:text-base leading-relaxed scroll-reveal max-w-2xl mx-auto">
               Automate invoices, send WhatsApp payment reminders, track equipment, and manage your entire subscriber network — all from one secure, cloud-synced dashboard built exclusively for Pakistani Internet Service Providers.
             </p>
 
             {/* Trust Badges Row */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
               {trustBadges.slice(0, 4).map((badge, i) => (
                 <div key={i} className="glass flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-bold text-white/80">
                   <span className="text-cyan-300">{badge.icon}</span>
@@ -1297,7 +1279,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               ))}
             </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
               <button onClick={onGetStarted}
                 className="cta-glow w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white"
               >
@@ -1310,7 +1292,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </button>
             </div>
 
-            <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest scroll-reveal">
+            <p className="mt-3 text-[10px] text-slate-500 font-bold uppercase tracking-widest scroll-reveal">
               No credit card required · Free for 50 customers · Setup in 2 minutes
             </p>
           </div>
@@ -1326,7 +1308,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 1.5: TRUST STRIP ── */}
-        <section className="py-6 px-6 border-y border-white/5 bg-[#040814]/40" ref={trustSectionRef}>
+        <section className="py-6 px-6 border-y border-white/5" ref={trustSectionRef}>
           <div className="relative overflow-hidden">
             <div className="marquee-row py-2">
               <div className="marquee-content whitespace-nowrap flex items-center">
@@ -1361,7 +1343,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             {featuresList.map((feat, i) => (
               <div key={i} className="glass-card scroll-reveal" data-index={i}>
                 <div className="glow"></div>
-                <div className="icon-box" style={{ color: feat.color }}>
+                <div className="icon-box" style={{ color: feat.color, background: `${feat.color}14`, border: `1px solid ${feat.color}40` }}>
                   {feat.icon}
                 </div>
                 <h3>{feat.title}</h3>
@@ -1405,7 +1387,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 3.5: HOW IT WORKS ── */}
-        <section className="py-24 px-6 border-t border-white/5 bg-[#0a1228] scroll-reveal" id="how-it-works" ref={howItWorksRef}>
+        <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="how-it-works" ref={howItWorksRef}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">03.5 / Getting Started</span>
@@ -1465,7 +1447,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 4.5: COMPETITIVE COMPARISON ── */}
-        <section className="py-24 px-6 border-t border-white/5 bg-[#040814] scroll-reveal">
+        <section className="py-24 px-6 border-t border-white/5 scroll-reveal">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">04.5 / Comparison</span>
@@ -1477,15 +1459,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden">
-              <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/10 bg-white/5">
+            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md overflow-x-auto">
+              <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/10 bg-white/5 min-w-[520px]">
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Feature</div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 text-center">Bill Collector</div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Others</div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Others</div>
               </div>
               {comparisonData.map((row, i) => (
-                <div key={i} className="comparison-row grid grid-cols-4 gap-4 p-4 border-b border-white/5 items-center">
+                <div key={i} className="comparison-row grid grid-cols-4 gap-4 p-4 border-b border-white/5 items-center min-w-[520px]">
                   <div className="text-sm font-bold text-white">{row.feature}</div>
                   <div className="flex justify-center">
                     {row.billcollector ? (
@@ -1876,7 +1858,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 8.5: TESTIMONIAL SLIDER ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 bg-[#040814] overflow-hidden" id="testimonials">
+        <section className="relative py-24 px-6 border-t border-white/5 overflow-hidden" id="testimonials">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-indigo-500 rounded-full blur-[120px]" />
             <div className="absolute bottom-1/2 right-1/4 w-[400px] h-[400px] bg-purple-500 rounded-full blur-[120px]" />
@@ -1952,7 +1934,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </section>
 
         {/* ── SECTION 9: PRICING PLANS ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 bg-[#0a1228] scroll-reveal" id="pricing">
+        <section className="relative py-24 px-6 border-t border-white/5 scroll-reveal" id="pricing">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Simple Pricing</p>
