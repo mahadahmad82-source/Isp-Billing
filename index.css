@@ -312,3 +312,80 @@ html:not(.dark) .bg-\[\#0b1120\] textarea {
   color: #0f172a !important;
   border-color: #e2e8f0 !important;
 }
+
+/* ============================================
+   LANDING + LOGIN LIGHT THEME (Mahadnet light)
+   Scoped to the marketing landing page and the
+   login/portal entry page only. Dark dashboards
+   are untouched.
+   ============================================ */
+
+/* ── Dark hex surfaces → light ── */
+.landing-page .bg-\[\#040814\]     { background-color: #f4f7fc !important; }
+.landing-page .bg-\[\#0a1228\]     { background-color: #eef3fb !important; }
+.landing-page .bg-\[\#040814\]\/40 { background-color: rgba(244,247,252,0.6) !important; }
+.landing-page .bg-\[\#040814\]\/50 { background-color: rgba(244,247,252,0.7) !important; }
+.landing-page .bg-\[\#040814\]\/80 { background-color: rgba(244,247,252,0.92) !important; }
+.landing-page .bg-\[\#040814\]\/98 { background-color: rgba(244,247,252,0.98) !important; }
+.landing-page .bg-\[\#0a1228\]\/80 { background-color: rgba(238,243,251,0.92) !important; }
+
+/* ── Glass surfaces → light glass ── */
+.landing-page .glass {
+  background: rgba(255,255,255,0.72) !important;
+  border-color: rgba(15,23,42,0.08) !important;
+  box-shadow: 0 8px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+.landing-page .glass-strong {
+  background: rgba(255,255,255,0.82) !important;
+  border-color: rgba(15,23,42,0.1) !important;
+  box-shadow: 0 10px 40px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+}
+
+/* ── White-tinted utilities → dark tinted ── */
+.landing-page [class*="text-white/"]  { color: rgba(15,23,42,0.65) !important; }
+.landing-page .text-slate-300         { color: #475569 !important; }
+.landing-page .text-slate-400         { color: #64748b !important; }
+.landing-page .text-slate-500         { color: #94a3b8 !important; }
+.landing-page .text-slate-600         { color: #64748b !important; }
+.landing-page .bg-white\/5            { background-color: rgba(15,23,42,0.05) !important; }
+.landing-page .bg-white\/10           { background-color: rgba(15,23,42,0.08) !important; }
+.landing-page .bg-white\/20           { background-color: rgba(15,23,42,0.12) !important; }
+.landing-page .border-white\/5        { border-color: rgba(15,23,42,0.08) !important; }
+.landing-page .border-white\/10       { border-color: rgba(15,23,42,0.12) !important; }
+.landing-page .border-white\/20       { border-color: rgba(15,23,42,0.16) !important; }
+.landing-page .hover\:text-white:hover { color: #0f172a !important; }
+.landing-page .hover\:bg-white\/5:hover  { background-color: rgba(15,23,42,0.05) !important; }
+.landing-page .hover\:bg-white\/10:hover { background-color: rgba(15,23,42,0.08) !important; }
+.landing-page .hover\:bg-white\/20:hover { background-color: rgba(15,23,42,0.12) !important; }
+.landing-page .hover\:bg-white\/40:hover { background-color: rgba(15,23,42,0.2) !important; }
+.landing-page .placeholder-slate-600::placeholder { color: #94a3b8 !important; }
+
+/* ── Light-invisible accent tints → darker equivalents ── */
+.landing-page .gradient,
+.landing-page .grad-text {
+  background: linear-gradient(135deg, #06b6d4 0%, #6366f1 40%, #a855f7 80%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+.landing-page .text-cyan-300    { color: #0891b2 !important; }
+.landing-page .text-cyan-400    { color: #0891b2 !important; }
+.landing-page .text-purple-300  { color: #9333ea !important; }
+.landing-page .text-purple-400  { color: #9333ea !important; }
+.landing-page .text-indigo-300  { color: #4f46e5 !important; }
+.landing-page .text-indigo-400  { color: #4f46e5 !important; }
+.landing-page .text-teal-300    { color: #0f766e !important; }
+.landing-page .text-emerald-300 { color: #047857 !important; }
+.landing-page .text-emerald-400 { color: #059669 !important; }
+.landing-page .text-pink-300    { color: #be185d !important; }
+.landing-page .text-blue-300    { color: #2563eb !important; }
+.landing-page .text-green-300   { color: #15803d !important; }
+.landing-page .text-yellow-300  { color: #b45309 !important; }
+
+/* ── Login page glass chips → light glass ── */
+.login-page .glass {
+  background: rgba(255,255,255,0.75) !important;
+  border-color: rgba(15,23,42,0.08) !important;
+  box-shadow: 0 8px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}

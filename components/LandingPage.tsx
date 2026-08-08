@@ -510,7 +510,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <div className="landing-page min-h-screen font-sans relative bg-[#040814] text-white overflow-x-clip select-none">
+    <div className="landing-page min-h-screen font-sans relative bg-[#f4f7fc] text-slate-900 overflow-x-clip select-none">
 
       {/* ── STYLES ── */}
       <style>{`
@@ -1148,13 +1148,65 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           .card p { font-size: 0.775rem; line-height: 1.5; }
           .section-label { left: 20px; top: 20px; }
         }
+
+        /* ── LIGHT MODE (Mahadnet midnight → light glass) ── */
+        .landing-nav-link { color: rgba(15,23,42,0.7) !important; }
+        .landing-nav-link:hover { color: #111827 !important; }
+        .landing-nav-link.active { color: #4f46e5 !important; }
+        .landing-mobile-link { color: rgba(15,23,42,0.7) !important; }
+        .landing-mobile-link:hover { color: #111827 !important; background: rgba(15,23,42,0.05) !important; }
+        .landing-mobile-link.active { color: #4f46e5 !important; background: rgba(79,70,229,0.1) !important; }
+        .hero .orb { opacity: 0.2; }
+        .hero .grid-bg {
+          background-image:
+            linear-gradient(rgba(15,23,42,0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15,23,42,0.06) 1px, transparent 1px);
+        }
+        .badge {
+          background: rgba(255,255,255,0.8);
+          border-color: rgba(15,23,42,0.08);
+          box-shadow: 0 8px 32px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+        .hero h1 .gradient,
+        .section-header h2 .gradient,
+        .parallax-content h2 .gradient {
+          background: linear-gradient(135deg, #06b6d4 0%, #6366f1 40%, #a855f7 80%);
+        }
+        .hero p { color: #475569; }
+        .glass-card {
+          background: rgba(255,255,255,0.78);
+          border-color: rgba(15,23,42,0.08);
+          box-shadow: 0 8px 32px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+        .glass-card:hover {
+          background: rgba(255,255,255,0.95);
+          border-color: rgba(99,102,241,0.4);
+          box-shadow: 0 30px 60px -12px rgba(15,23,42,0.18), 0 0 40px rgba(99,102,241,0.08);
+        }
+        .glass-card h3 { color: #0f172a; }
+        .glass-card p { color: #475569; }
+        .glass-card .glow { background: radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 70%); }
+        .counter-item .label { color: #64748b; }
+        .section-header .num { color: #4f46e5; }
+        .section-header h2 { color: #0f172a; }
+        .section-header p { color: #475569; }
+        .reveal-card h3 { color: #0f172a; }
+        .reveal-card p { color: #475569; }
+        .text-content h2 { color: #0f172a; }
+        .parallax-bg { background: linear-gradient(180deg, rgba(99,102,241,0.12), transparent, rgba(168,85,247,0.12)); }
+        .parallax-content h2 { color: #0f172a; }
+        .parallax-content p { color: #475569; }
+        .marquee-text { color: rgba(15,23,42,0.12); }
+        .comparison-row:nth-child(even) { background: rgba(15,23,42,0.02); }
+        .counter-section .bg-glow,
+        .text-reveal-section .bg-glow { background: rgba(99,102,241,0.06); }
       `}</style>
 
       {/* Progress Bar */}
       <div className="figma-progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} />
 
       {/* Global Mahadnet mesh background (fixed, behind all sections) */}
-      <VideoBackground />
+      <VideoBackground variant="light" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
 
@@ -1179,7 +1231,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               <div className="flex items-center gap-2 pr-1">
                 <a href="/portal"
-                  className="glass hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                  className="glass hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white/60 transition-all"
                   style={{ color: '#ffffff' }}
                 >
                   <Users className="w-3.5 h-3.5 text-cyan-400" /> User Portal
@@ -1286,7 +1338,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 Start Free Trial <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => setShowDemoModal(true)}
-                className="glass w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white hover:bg-white/10 transition-all active:scale-95"
+                className="glass w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-slate-900 hover:bg-white/60 transition-all active:scale-95"
               >
                 <Play className="w-4 h-4 text-cyan-300" /> Watch Demo
               </button>
@@ -1331,8 +1383,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <section className="glass-section" id="features">
           <div className="max-w-4xl mx-auto text-center mb-20 scroll-reveal">
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">02 / Core Modules</span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-4">
-              Premium <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Capabilities</span>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mt-4">
+              Premium <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Capabilities</span>
             </h2>
             <p className="text-slate-400 text-lg max-w-2xl mx-auto mt-6">
               Everything you need to automate your ISP billing, recovery, and network management in one powerful platform.
@@ -1391,8 +1443,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">03.5 / Getting Started</span>
-              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-4">
-                How It <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Works</span>
+              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mt-4">
+                How It <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Works</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
                 From spreadsheet to fully automated billing in 4 simple steps. No technical expertise required.
@@ -1409,7 +1461,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: `${step.color}15`, color: step.color }}>
                     {step.icon}
                   </div>
-                  <h3 className="text-lg font-black text-white mb-2">{step.title}</h3>
+                  <h3 className="text-lg font-black text-slate-900 mb-2">{step.title}</h3>
                   <p className="text-slate-400 text-sm leading-relaxed">{step.desc}</p>
                 </div>
               ))}
@@ -1451,8 +1503,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">04.5 / Comparison</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
-                Why Choose <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Bill Collector?</span>
+              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
+                Why Choose <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Bill Collector?</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
                 See how we stack up against other ISP billing platforms in Pakistan.
@@ -1468,7 +1520,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
               {comparisonData.map((row, i) => (
                 <div key={i} className="comparison-row grid grid-cols-4 gap-4 p-4 border-b border-white/5 items-center min-w-[520px]">
-                  <div className="text-sm font-bold text-white">{row.feature}</div>
+                  <div className="text-sm font-bold text-slate-900">{row.feature}</div>
                   <div className="flex justify-center">
                     {row.billcollector ? (
                       <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
@@ -1516,7 +1568,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               05 / Our Mission
             </div>
             <div ref={wordRevealContainerRef} className="max-w-4xl mx-auto text-left leading-relaxed">
-              <h2 className="text-xl sm:text-4xl font-black text-white leading-tight flex flex-wrap justify-center">
+              <h2 className="text-xl sm:text-4xl font-black text-slate-900 leading-tight flex flex-wrap justify-center">
                 {words.map((word, i) => (
                   <span key={i} className="word inline-block mr-2" style={{ transitionDelay: `${i * 35}ms` }}>
                     {word}
@@ -1554,7 +1606,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             {/* Header */}
             <div className="text-center mb-16 scroll-reveal">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">06 / Live Support & Onsite Deployment</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
+              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
                 Pakistan <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Support Hub</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-2xl mx-auto mt-4 leading-relaxed font-semibold">
@@ -1573,7 +1625,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                         <span className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase text-indigo-400 tracking-widest">Sindh Province</span>
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       </div>
-                      <h3 className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors">Karachi Regional HQ</h3>
+                      <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">Karachi Regional HQ</h3>
                       <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
                         Office 402, Block 6, PECHS, Main Shahrah-e-Faisal, Karachi.
                       </p>
@@ -1599,7 +1651,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                         <span className="px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-[9px] font-black uppercase text-purple-400 tracking-widest">Punjab Province</span>
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       </div>
-                      <h3 className="text-lg font-black text-white group-hover:text-purple-400 transition-colors">Lahore Operations Desk</h3>
+                      <h3 className="text-lg font-black text-slate-900 group-hover:text-purple-600 transition-colors">Lahore Operations Desk</h3>
                       <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
                         3rd Floor, Software Technology Park, Main Ferozepur Road, Lahore.
                       </p>
@@ -1625,7 +1677,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                         <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-[9px] font-black uppercase text-cyan-400 tracking-widest">Textile City Hub</span>
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       </div>
-                      <h3 className="text-lg font-black text-white group-hover:text-cyan-400 transition-colors">Faisalabad Field Office</h3>
+                      <h3 className="text-lg font-black text-slate-900 group-hover:text-cyan-600 transition-colors">Faisalabad Field Office</h3>
                       <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
                         Bilal Plaza, Jaranwala Road, Near Kohinoor City, Faisalabad.
                       </p>
@@ -1651,7 +1703,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                         <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase text-emerald-400 tracking-widest">Capital Hub</span>
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       </div>
-                      <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors">Islamabad Support Desk</h3>
+                      <h3 className="text-lg font-black text-slate-900 group-hover:text-emerald-600 transition-colors">Islamabad Support Desk</h3>
                       <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
                         Ground Floor, Evacuee Trust Complex, F-5/1, Islamabad.
                       </p>
@@ -1676,7 +1728,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <HeadphonesIcon className="w-4 h-4" />
                   </div>
                   <p className="font-semibold">
-                    <strong>Urgent Outage or Emergency?</strong> Call our 24/7 direct national helpline: <a href="tel:+923042773453" className="text-white font-black hover:underline">+92 304 2773453</a>.
+                    <strong>Urgent Outage or Emergency?</strong> Call our 24/7 direct national helpline: <a href="tel:+923042773453" className="text-slate-900 font-black hover:underline">+92 304 2773453</a>.
                   </p>
                 </div>
               </div>
@@ -1694,7 +1746,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     }} className="space-y-4">
                       <div>
                         <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block mb-1">Interactive Form</span>
-                        <h3 className="text-xl font-black text-white uppercase tracking-tight">Onsite Integration</h3>
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Onsite Integration</h3>
                         <p className="text-xs text-slate-400 mt-1 font-semibold">
                           Our engineering team will visit your office to import data and connect MikroTik routers for free.
                         </p>
@@ -1709,7 +1761,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                             placeholder="e.g. Faisalabad Broadband Network"
                             value={onsiteIspName}
                             onChange={(e) => setOnsiteIspName(e.target.value)}
-                            className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                            className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
                           />
                         </div>
 
@@ -1722,7 +1774,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                               placeholder="e.g. Faisalabad"
                               value={onsiteCity}
                               onChange={(e) => setOnsiteCity(e.target.value)}
-                              className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                              className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
                             />
                           </div>
                           <div>
@@ -1732,7 +1784,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                               placeholder="e.g. 350 users"
                               value={onsiteSubscribers}
                               onChange={(e) => setOnsiteSubscribers(e.target.value)}
-                              className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                              className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
                             />
                           </div>
                         </div>
@@ -1745,7 +1797,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                             placeholder="e.g. 03042773453"
                             value={onsitePhone}
                             onChange={(e) => setOnsitePhone(e.target.value)}
-                            className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                            className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
                           />
                         </div>
                       </div>
@@ -1763,7 +1815,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                         <CheckCircle className="w-8 h-8" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-black text-white uppercase tracking-wider">Request Confirmed!</h3>
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-wider">Request Confirmed!</h3>
                         <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
                           Thank you! We have received your request for <strong>{onsiteIspName}</strong> in <strong>{onsiteCity}</strong>. 
                         </p>
@@ -1840,10 +1892,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div key={idx} className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden shadow-sm hover:border-indigo-500/30 transition-all">
                 <button className="w-full p-6 text-left flex justify-between items-center group"
                   onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}>
-                  <span className="text-sm sm:text-base font-black uppercase tracking-wider group-hover:text-indigo-400 transition-colors text-white pr-4">
+                  <span className="text-sm sm:text-base font-black uppercase tracking-wider group-hover:text-indigo-600 transition-colors text-slate-900 pr-4">
                     {faq.q}
                   </span>
-                  <div className={`w-8 h-8 rounded-lg bg-slate-800/80 flex items-center justify-center flex-shrink-0 transition-all ${activeFaq === idx ? 'rotate-180 bg-indigo-600 text-white' : 'text-slate-400'}`}>
+                  <div className={`w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 transition-all ${activeFaq === idx ? 'rotate-180 bg-indigo-600 text-white' : 'text-slate-500'}`}>
                     <ChevronDown className="w-4 h-4" />
                   </div>
                 </button>
@@ -1866,7 +1918,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="max-w-4xl mx-auto relative z-10 scroll-reveal">
             <div className="text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">08.5 / Customer Stories</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mt-4">
+              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
                 TRUSTED BY <br className="sm:hidden" />
                 <span className="bg-gradient-to-r from-[#6366f1] via-[#8b5cf6] to-[#06b6d4] bg-clip-text text-transparent">
                   PAKISTANI ISPs
@@ -1889,7 +1941,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     </svg>
                   ))}
                 </div>
-                <p className="text-white text-base sm:text-lg md:text-xl font-medium leading-relaxed italic mb-8">
+                <p className="text-slate-800 text-base sm:text-lg md:text-xl font-medium leading-relaxed italic mb-8">
                   "{testimonials[currentSlide].text}"
                 </p>
               </div>
@@ -1900,7 +1952,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     {testimonials[currentSlide].name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-white uppercase tracking-wider">{testimonials[currentSlide].name}</h4>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{testimonials[currentSlide].name}</h4>
                     <p className="text-[11px] font-mono text-slate-400 mt-0.5">{testimonials[currentSlide].role}</p>
                   </div>
                 </div>
@@ -1921,11 +1973,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setCurrentSlide((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors active:scale-95">
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-white/60 transition-colors active:scale-95">
                   <ArrowRight className="w-4 h-4 rotate-180" />
                 </button>
                 <button onClick={() => setCurrentSlide((prev) => (prev + 1) % testimonials.length)}
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors active:scale-95">
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-white/60 transition-colors active:scale-95">
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1938,9 +1990,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Simple Pricing</p>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mb-4">
+              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mb-4">
                 Choose Your<br />
-                <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Plan</span>
+                <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Plan</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-xl mx-auto">Flexible billing subscription plans for Pakistani ISPs of every size. No hidden charges.</p>
             </div>
@@ -1963,7 +2015,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   )}
                   <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: plan.color }}>{plan.name}</p>
                   <div className="mb-6">
-                    <span className="text-4xl font-black text-white">{plan.price}</span>
+                    <span className="text-4xl font-black text-slate-900">{plan.price}</span>
                     {plan.period && <span className="text-slate-400 text-sm ml-2">/{plan.period}</span>}
                   </div>
                   <ul className="space-y-3 mb-8">
@@ -1978,7 +2030,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${
                       plan.highlight 
                         ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/35' 
-                        : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                        : 'bg-white/70 hover:bg-white text-slate-900 border border-slate-200'
                     }`}>
                     {plan.cta}
                   </button>
@@ -2015,7 +2067,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </button>
               <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
                 target="_blank" rel="noreferrer"
-                className="w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] backdrop-blur-md border border-white/10 bg-white/5 flex items-center justify-center gap-3 text-white hover:text-emerald-400 hover:border-emerald-500/30 transition-all active:scale-95">
+                className="w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] backdrop-blur-md border border-white/10 bg-white/5 flex items-center justify-center gap-3 text-slate-900 hover:text-emerald-600 hover:border-emerald-500/30 transition-all active:scale-95">
                 <MessageCircle className="w-4 h-4 text-emerald-400" /> WhatsApp Us
               </a>
             </div>
@@ -2094,15 +2146,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               onClick={e => e.stopPropagation()}>
               <div className="p-6 border-b border-white/10 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-wider">Product Demo</h3>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-wider">Product Demo</h3>
                   <p className="text-slate-400 text-xs mt-1">See Bill Collector in action</p>
                 </div>
-                <button onClick={() => setShowDemoModal(false)} className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setShowDemoModal(false)} className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="p-6">
-                <div className="aspect-video rounded-2xl bg-slate-800 flex items-center justify-center border border-white/10">
+                <div className="aspect-video rounded-2xl bg-slate-200 flex items-center justify-center border border-white/10">
                   <div className="text-center">
                     <Play className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
                     <p className="text-slate-400 text-sm font-medium">Demo video coming soon</p>
@@ -2137,10 +2189,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                       <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
                     </div>
-                    <h2 className="text-2xl font-black text-white uppercase tracking-tight">Bill Collector Platform Features</h2>
+                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Bill Collector Platform Features</h2>
                     <p className="text-indigo-300 text-sm mt-1">Everything your ISP needs</p>
                   </div>
-                  <button onClick={() => setShowSpecs(false)} className="text-white/60 hover:text-white text-2xl transition-colors">✕</button>
+                  <button onClick={() => setShowSpecs(false)} className="text-slate-500 hover:text-slate-900 text-2xl transition-colors">✕</button>
                 </div>
               </div>
               <div className="p-6 space-y-4">
