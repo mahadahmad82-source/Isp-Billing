@@ -92,6 +92,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   // Refs
   const heroRef = useRef<HTMLDivElement>(null);
   const heroContentRef = useRef<HTMLDivElement>(null);
+  const heroIconsRef = useRef<HTMLDivElement>(null);
   const horizontalSectionRef = useRef<HTMLDivElement>(null);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
   const countersContainerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
       const progress = docHeight > 0 ? scrollTop / docHeight : 0;
       setScrollProgress(progress);
+
+      // Hero Parallax (scroll animation)
+      if (heroRef.current && heroContentRef.current) {
+        if (scrollTop < window.innerHeight) {
+          const p = scrollTop / window.innerHeight;
+          heroContentRef.current.style.transform = `translateY(${scrollTop * 0.25}px) scale(${1 + p * 0.08})`;
+          heroContentRef.current.style.opacity = `${Math.max(1 - p * 1.2, 0)}`;
+        }
+      }
+
+      // Hero floating icons — Mahadnet-style scroll parallax (each icon moves at its own speed)
+      if (heroIconsRef.current) {
+        const icons = heroIconsRef.current.querySelectorAll<HTMLElement>('.hero-float-icon');
+        icons.forEach((el) => {
+          const speed = parseFloat(el.getAttribute('data-speed') || '0.2');
+          if (scrollTop < window.innerHeight * 1.5) {
+            el.style.transform = `translateY(${-scrollTop * speed}px)`;
+          } else {
+            el.style.transform = '';
+          }
+        });
+      }
 
       // Horizontal Scroll (High-fidelity smooth card reveal with continuous parallax and center-highlighting)
       if (horizontalSectionRef.current && cardsContainerRef.current) {
@@ -1167,6 +1190,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           border-color: rgba(15,23,42,0.08);
           box-shadow: 0 8px 32px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
         }
+        .badge span { color: #334155; }
         .hero h1 .gradient,
         .section-header h2 .gradient,
         .parallax-content h2 .gradient {
@@ -1231,10 +1255,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               <div className="flex items-center gap-2 pr-1">
                 <a href="/portal"
-                  className="glass hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white/60 transition-all"
-                  style={{ color: '#ffffff' }}
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-indigo-600 text-[10px] font-black uppercase tracking-widest border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-all"
                 >
-                  <Users className="w-3.5 h-3.5 text-cyan-400" /> User Portal
+                  <Users className="w-3.5 h-3.5 text-indigo-500" /> User Portal
                 </a>
                 <button onClick={onGetStarted}
                   className="cta-glow px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2"
@@ -1243,9 +1266,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 </button>
                 <button onClick={() => setMenuOpen(o => !o)}
                   className="md:hidden flex flex-col gap-1.5 p-2 rounded-full hover:bg-white/5 ml-1">
-                  <span className={`block w-5 h-0.5 bg-white transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`}/>
-                  <span className={`block w-5 h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : ''}`}/>
-                  <span className={`block w-5 h-0.5 bg-white transition-all ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`}/>
+                  <span className={`block w-5 h-0.5 bg-slate-900 transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`}/>
+                  <span className={`block w-5 h-0.5 bg-slate-900 transition-all ${menuOpen ? 'opacity-0' : ''}`}/>
+                  <span className={`block w-5 h-0.5 bg-slate-900 transition-all ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`}/>
                 </button>
               </div>
             </div>
@@ -1277,32 +1300,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="grid-bg"></div>
 
           {/* Floating glass icon cards — Mahadnet hero signature */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]">
+          <div ref={heroIconsRef} className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]" data-speed="0.35">
               <Wifi className="w-6 h-6 md:w-8 md:h-8 text-cyan-300" />
             </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]">
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]" data-speed="0.2">
               <Cpu className="w-5 h-5 md:w-7 md:h-7 text-purple-300" />
             </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]">
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]" data-speed="-0.3">
               <Zap className="w-5 h-5 md:w-7 md:h-7 text-yellow-300" />
             </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]">
+            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]" data-speed="0.28">
               <Activity className="w-6 h-6 md:w-8 md:h-8 text-indigo-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex">
+            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex" data-speed="-0.18">
               <Database className="w-6 h-6 text-teal-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex">
+            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex" data-speed="0.24">
               <Globe className="w-6 h-6 text-emerald-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex">
+            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex" data-speed="-0.35">
               <Server className="w-6 h-6 text-pink-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%]">
+            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%]" data-speed="0.4">
               <Receipt className="w-6 h-6 text-blue-300" />
             </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%]">
+            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%]" data-speed="-0.22">
               <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-green-300" />
             </div>
           </div>
@@ -1323,12 +1346,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             {/* Trust Badges Row */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
-              {trustBadges.slice(0, 4).map((badge, i) => (
-                <div key={i} className="glass flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-bold text-white/80">
-                  <span className="text-cyan-300">{badge.icon}</span>
-                  {badge.label}
-                </div>
-              ))}
+              {trustBadges.slice(0, 4).map((badge, i) => {
+                const c = ['#0891b2', '#4f46e5', '#9333ea', '#059669'][i];
+                return (
+                  <div key={i} className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-bold text-slate-800"
+                    style={{ background: `${c}14`, border: `1px solid ${c}40` }}>
+                    <span style={{ color: c }}>{badge.icon}</span>
+                    {badge.label}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
@@ -1367,8 +1394,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 {[0, 1].map(dup => (
                   <div key={dup} className="inline-flex items-center">
                     {trustBadges.map((badge, i) => (
-                      <span key={i} className="inline-flex items-center gap-2.5 mx-8 text-white/55 text-xs font-bold uppercase tracking-[0.2em]">
-                        <span className="text-cyan-300">{badge.icon}</span>
+                      <span key={i} className="inline-flex items-center gap-2.5 mx-8 text-slate-500 text-xs font-bold uppercase tracking-[0.2em]">
+                        <span className="text-indigo-400">{badge.icon}</span>
                         {badge.label}
                       </span>
                     ))}
