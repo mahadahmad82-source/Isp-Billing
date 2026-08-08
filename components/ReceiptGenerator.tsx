@@ -577,20 +577,19 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         receiptDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
       }
 
-      // Compute the resulting expiry date up-front so it can be stamped onto
-      // the receipt itself (historical record of "paid until" at the time of
-      // this payment), not just applied silently to the user record later.
-      const currentExpiry = new Date(user.expiryDate || new Date());
-      const safeCurrentExpiry = isNaN(currentExpiry.getTime()) ? new Date() : currentExpiry;
-      const newExpiry = new Date(safeCurrentExpiry);
-      if (paymentStatus === PaymentStatus.SUCCESS && ((amountPaid || 0) + (advanceAmount || 0)) >= (monthlyFee - discount)) {
-        newExpiry.setMonth(newExpiry.getMonth() + 1);
-      }
-      const resolvedExpiryDate = isNaN(newExpiry.getTime()) ? new Date().toISOString() : newExpiry.toISOString();
-      // Recharge Date = start of this billing cycle (the previous expiry), NOT
-      // the payment date. Monthly activation always runs cycle-start -> +1
-      // month, regardless of which day the customer actually pays.
-      const resolvedRechargeDate = safeCurrentExpiry.toISOString();
+      // The receipt and Meta payment template must use the exact expiry date
+      // configured on the customer. Do not calculate or add another month here.
+      const configuredExpiryDate = user.expiryDate;
+      const parsedExpiryDate = configuredExpiryDate ? new Date(configuredExpiryDate) : null;
+      const hasValidConfiguredExpiry = !!parsedExpiryDate && !isNaN(parsedExpiryDate.getTime());
+      const resolvedExpiryDate = hasValidConfiguredExpiry
+        ? configuredExpiryDate!
+        : new Date().toISOString();
+      // Recharge Date = the configured expiry at the start of this billing
+      // cycle, not the payment date.
+      const resolvedRechargeDate = hasValidConfiguredExpiry
+        ? parsedExpiryDate!.toISOString()
+        : new Date().toISOString();
 
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
