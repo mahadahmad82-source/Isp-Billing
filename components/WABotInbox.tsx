@@ -91,7 +91,7 @@ const GEMINI_VOICES: { name: string; style: string }[] = [
   { name: 'Sadachbia', style: 'Lively' }, { name: 'Sadaltager', style: 'Knowledgeable' }, { name: 'Sulafat', style: 'Warm' },
 ];
 
-const POLL_MS = 15000;
+const POLL_MS = 60000; // fallback poll only — realtime channel + instant reconnect-refresh is the primary path (see subscribe() below)
 
 // Seed defaults — mirrors the built-in catalog the WhatsApp bot falls back to until
 // these are customized here. Editing/saving below overrides this for the live bot.
