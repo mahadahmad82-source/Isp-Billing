@@ -1691,6 +1691,13 @@ function detectIntent(text: string): Intent {
   // "which package speed do you want" response. Checked before the generic router_info
   // catch-all since "onu" would otherwise match that first.
   if (/\b(epon|xpon|gpon)\b/.test(t) && /chal|support|compatible|kya|hai\s*kya|hoga|works?|work/.test(t)) return 'router_pon_compat';
+  // Router/device/modem/light mentioned WITH fault language (e.g. "router ki light nahi
+  // jal rahi", "modem kaam nahi kar raha", "router band pada hai") — very common in voice
+  // notes, since customers naturally describe a fault via the hardware, not just the word
+  // "internet". Checked BEFORE the generic router_info catch-all below so this is treated
+  // as an actual complaint (acknowledge + connection-type question) instead of always
+  // getting the "router ke 2 types available" sales pitch no matter what was actually said.
+  if (/(router|device|modem|onu|light)\w*.{0,20}(nahi\s*(chal|jal|ho|hai)|band\s*(hai|pada|ho)|kharab|off\s*hai|kaam\s*nahi|chal\s*nahi|nahi\s*chal|down\s*hai)|(nahi|band|kharab).{0,20}(router|device|modem|onu|light)/.test(t)) return 'complaint';
   if (/router|device|modem|equipment|hardware|onu/.test(t)) return 'router_info';
   // Checked before the generic 'packages' catch-all below: "package khtm/khatam
   // honay ki detail" is an expiry question, not a request for the price list —
