@@ -91,7 +91,7 @@ const GEMINI_VOICES: { name: string; style: string }[] = [
   { name: 'Sadachbia', style: 'Lively' }, { name: 'Sadaltager', style: 'Knowledgeable' }, { name: 'Sulafat', style: 'Warm' },
 ];
 
-const POLL_MS = 15000;
+const POLL_MS = 60000;
 
 // Seed defaults — mirrors the built-in catalog the WhatsApp bot falls back to until
 // these are customized here. Editing/saving below overrides this for the live bot.
@@ -546,20 +546,20 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const loadOverview = useCallback(async () => {
     try {
-      const { data: msgs } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .eq('manager_id', managerId)
-        .order('created_at', { ascending: false })
-        .limit(500);
-      setAllMessages(msgs || []);
+      // Egress fix: this used to also .select('*') up to 500 whatsapp_messages
+      // rows (~168KB) here every poll tick — but `allMessages` was never read
+      // anywhere for rendering (chat list comes from conversationSummaries
+      // below, unread badges from unread_count in there too). Realtime
+      // INSERT/UPDATE still keeps allMessages in sync for the handlers that
+      // reference it, so nothing else changes — just removed the redundant fetch.
 
-      // The chat LIST must never depend on the 500-row cap above — once daily
-      // message volume passes 500 (very easy with cron reminders + bot replies),
-      // any customer who hadn't messaged very recently silently vanished from
-      // the list entirely. This RPC aggregates per-phone directly in Postgres
-      // with no row limit, so every conversation always shows up (same fix
-      // already applied on the Android app side).
+      // The chat LIST must never depend on a row-limited messages fetch —
+      // once daily message volume passes any cap (very easy with cron
+      // reminders + bot replies), any customer who hadn't messaged very
+      // recently would silently vanish from the list entirely. This RPC
+      // aggregates per-phone directly in Postgres with no row limit, so every
+      // conversation always shows up (same fix already applied on the
+      // Android app side).
       const { data: summaries, error: summErr } = await supabase.rpc('get_conversation_summaries', {
         p_manager_id: managerId,
       });
