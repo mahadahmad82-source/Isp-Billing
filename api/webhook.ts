@@ -39,6 +39,18 @@ const CONFIG = {
   // the bot replying to each word separately. Raise/lower if replies feel too slow/fast.
   messageDebounceMs: 6000,
 
+  // Any row in whatsapp_message_buffer older than this (ms) is treated as orphaned, not
+  // a genuine in-flight fragment, and is purged/ignored. Rows only survive this long when
+  // an invocation dies between INSERT and DELETE (Vercel maxDuration hit, cold-start crash,
+  // network blip mid-transcription) — voice notes are the most exposed path since download+
+  // transcription can eat many seconds of the 60s budget before the debounce wait even
+  // starts. Without this, an orphaned fragment from a totally unrelated, days-old exchange
+  // silently glues onto the customer's next message and drags the bot's reply onto that old
+  // topic — confirmed live in production (a 13-day-old stray complaint row was found sitting
+  // in the table). Generous margin above messageDebounceMs so genuinely slow-but-real bursts
+  // (slow transcription + full debounce wait) are never mistaken for stale.
+  bufferStaleMs: 45000,
+
   routers: {
     '2.4g': [
       {
@@ -1557,6 +1569,20 @@ async function markGreetedBefore(phone: string) {
 // fragment — gather everything buffered for this phone, combine into one message, clear the
 // buffer, and proceed with that combined text.
 async function debounceAndCombineFragments(phone: string, fragment: string, fragmentId: string): Promise<string | null> {
+  // Self-heal FIRST: purge any orphaned rows for this phone before adding the new
+  // fragment. See CONFIG.bufferStaleMs comment — this is what stops an old, unrelated,
+  // never-cleared fragment (e.g. from a crashed voice-note invocation) from silently
+  // gluing onto this brand-new message.
+  const staleCutoffIso = new Date(Date.now() - CONFIG.bufferStaleMs).toISOString();
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer?phone=eq.${encodeURIComponent(phone)}&created_at=lt.${encodeURIComponent(staleCutoffIso)}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+  } catch (e: any) {
+    console.error('[msgBuffer stale-purge]', e?.message); // non-fatal — proceed either way
+  }
+
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer`, {
       method: 'POST',
@@ -1582,7 +1608,11 @@ async function debounceAndCombineFragments(phone: string, fragment: string, frag
       return null;
     }
 
-    const allRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer?phone=eq.${encodeURIComponent(phone)}&select=message&order=created_at.asc`, {
+    // Defense in depth: even though we purged stale rows before inserting above, a
+    // concurrent invocation for the same phone could still race a stale row in between
+    // — so re-apply the same freshness window here when selecting what to combine,
+    // never blindly join every row for this phone regardless of age.
+    const allRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_message_buffer?phone=eq.${encodeURIComponent(phone)}&created_at=gte.${encodeURIComponent(staleCutoffIso)}&select=message&order=created_at.asc`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     const allRows: any[] = await allRes.json();
