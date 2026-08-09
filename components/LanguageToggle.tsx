@@ -46,7 +46,7 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({ language, onChange, var
       onClick={() => onChange(next)}
       title={t('lang.switchTo', language)}
       className="flex items-center gap-1.5 rounded-full border overflow-hidden text-[10px] font-black tracking-wide"
-      style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'rgba(255,255,255,0.04)' }}
+      style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'rgba(255,255,255,0.7)' }}
     >
       <span className="pl-2.5 text-indigo-400"><GlobeIcon className="w-3.5 h-3.5" /></span>
       <span className={`px-2 py-1.5 transition-colors ${language === 'en' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>EN</span>

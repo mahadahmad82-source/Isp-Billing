@@ -42,7 +42,7 @@ import TermsAndPolicy from './components/TermsAndPolicy';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import TourGuide, { WELCOME_STEPS, TAB_STEPS } from './components/TourGuide';
-import { useSubscription, canAccess } from './hooks/useSubscription';
+import { useSubscription, canAccess as canAccessFeature } from './hooks/useSubscription';
 import UpgradeGate from './components/UpgradeGate';
 
 interface ConfirmationConfig {
@@ -1724,7 +1724,7 @@ const App: React.FC = () => {
             />
           )}
           {!tabLoading && activeTab === 'analytics' && userRole !== 'sub-manager' && (
-            canAccess(subscription, 'analytics') ? (
+            canAccessFeature(subscription, 'analytics') ? (
               <BusinessAnalytics
                 users={filteredUsers}
                 receipts={filteredReceipts}
@@ -1816,7 +1816,7 @@ const App: React.FC = () => {
             />
           )}
           {!tabLoading && activeTab === 'area' && userRole !== 'sub-manager' && (
-            canAccess(subscription, 'area') ? (
+            canAccessFeature(subscription, 'area') ? (
               <AreaDashboard
                 users={filteredUsers}
                 receipts={filteredReceipts}

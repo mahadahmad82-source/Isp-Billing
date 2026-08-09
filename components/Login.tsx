@@ -25,10 +25,18 @@ const PhoneIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentCol
 const BriefcaseIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
 const MailIcon = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>);
 
+// ── Floating decoration icons (Mahadnet midnight glass aesthetic) ──
+const WifiIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 13a10 10 0 0 1 14 0" /><path d="M8.5 16.5a5 5 0 0 1 7 0" /><path d="M2 8.82a15 15 0 0 1 20 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></svg>);
+const ReceiptIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 17.5v-11" /></svg>);
+const WhatsAppIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>);
+const ZapIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>);
+const GlobeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>);
+const CpuIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" /></svg>);
+
 // ── Input with left icon (outside component to prevent keyboard dismiss on re-render) ──
 const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode }) => (
   <div className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all duration-300 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(99,102,241,0.18)' }}>
+    style={{ background: 'rgba(255,255,255,0.75)', borderColor: 'rgba(99,102,241,0.18)' }}>
     <span className="text-indigo-400 flex-shrink-0">{icon}</span>
     <input
       type={type}
@@ -36,7 +44,7 @@ const InputField = ({ icon, type = 'text', placeholder, value, onChange, disable
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className="flex-1 bg-transparent text-white text-sm font-medium placeholder:text-slate-500 outline-none min-w-0"
+      className="flex-1 bg-transparent text-slate-900 text-sm font-medium placeholder:text-slate-400 outline-none min-w-0"
       style={{ caretColor: '#818cf8' }}
     />
     {rightElement && <span className="flex-shrink-0 text-slate-400">{rightElement}</span>}
@@ -328,11 +336,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const heading = getHeading();
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#020617]">
+    <div className="login-page min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#f4f7fc]">
 
       {/* Three.js Background */}
-      <div className="absolute inset-0 z-0"><VideoBackground /></div>
-      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(2,6,23,0.35) 100%)' }} />
+      <div className="absolute inset-0 z-0"><VideoBackground variant="light" /></div>
+      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, rgba(15,23,42,0.06) 100%)' }} />
+
+      {/* Floating glass icon cards — Mahadnet hero signature */}
+      <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden hidden md:block" aria-hidden="true">
+        <div className="glass absolute top-[16%] left-[8%] w-16 h-16 rounded-2xl flex items-center justify-center text-cyan-600 shadow-[0_0_25px_rgba(8,145,178,0.15)]"><WifiIcon /></div>
+        <div className="glass absolute top-[24%] right-[10%] w-14 h-14 rounded-2xl flex items-center justify-center text-purple-600 shadow-[0_0_25px_rgba(147,51,234,0.15)]"><CpuIcon /></div>
+        <div className="glass absolute bottom-[22%] left-[10%] w-14 h-14 rounded-2xl flex items-center justify-center text-green-600 shadow-[0_0_25px_rgba(22,101,52,0.15)]"><WhatsAppIcon /></div>
+        <div className="glass absolute bottom-[16%] right-[8%] w-16 h-16 rounded-2xl flex items-center justify-center text-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.15)]"><ReceiptIcon /></div>
+        <div className="glass absolute top-[52%] left-[4%] w-12 h-12 rounded-2xl flex items-center justify-center text-amber-600 shadow-[0_0_25px_rgba(180,83,9,0.15)]"><ZapIcon /></div>
+        <div className="glass absolute top-[48%] right-[4%] w-12 h-12 rounded-2xl flex items-center justify-center text-emerald-600 shadow-[0_0_25px_rgba(5,150,105,0.15)]"><GlobeIcon /></div>
+      </div>
 
       <div className="absolute top-4 right-4 z-[20]">
         <LanguageToggle language={language} onChange={handleLanguageChange} variant="pill" />
@@ -354,11 +372,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <div
           className="relative rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000"
           style={{
-            background: 'rgba(255,255,255,0.04)',
+            background: 'rgba(255,255,255,0.85)',
             backdropFilter: 'blur(28px) saturate(180%)',
             WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)',
+            border: '1px solid rgba(15,23,42,0.08)',
+            boxShadow: '0 24px 64px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)',
           }}
         >
 
@@ -373,7 +391,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
             {/* Card Header */}
             <div className="text-center mb-7">
-              <h2 className="text-2xl font-black text-white tracking-tight mb-1">{heading.title}</h2>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-1">{heading.title}</h2>
               <p className="text-xs text-slate-400 font-medium">{heading.sub}</p>
             </div>
 
@@ -396,7 +414,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                     <div key={acc.username} className="relative group/wrapper">
                       <button onClick={() => handleSelectAccount(acc)}
                         className="w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left pr-10"
-                        style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(99,102,241,0.18)' }}
+                        style={{ background: 'rgba(255,255,255,0.75)', borderColor: 'rgba(99,102,241,0.18)' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.5)'; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.18)'; }}>
                         <div className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-black text-indigo-300 flex-shrink-0"
@@ -404,7 +422,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                           {(acc.businessName || acc.username).charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-white truncate">{acc.businessName || acc.username}</p>
+                          <p className="text-sm font-bold text-slate-900 truncate">{acc.businessName || acc.username}</p>
                           <p className="text-[10px] text-slate-400 font-medium">@{acc.username}</p>
                         </div>
                         <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
@@ -594,9 +612,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
                 {/* Divider */}
                 <div className="flex items-center gap-3 my-1">
-                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }}></div>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(15,23,42,0.1)' }}></div>
                   <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">{view === 'signup' ? 'already have a node?' : "don't have an account?"}</span>
-                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }}></div>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(15,23,42,0.1)' }}></div>
                 </div>
 
                 {view === 'login' ? (
@@ -626,11 +644,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       {/* Support Modal */}
       {showSupportModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-white border-slate-200">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-white">Support Needed</h4>
+              <h4 className="text-xl font-black uppercase tracking-tight text-slate-900">Support Needed</h4>
               <p className="text-xs font-bold text-slate-400">No recovery email is on file for this account, so we can't send an OTP. Please contact our support team to manually reset your password.</p>
               <div className="pt-2 flex flex-col gap-3">
                 <a href="https://wa.me/923042773453?text=Hello,%20I%20need%20help%20resetting%20my%20password%20for%20myISP." target="_blank" rel="noopener noreferrer"
@@ -638,7 +656,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0a12 12 0 00-10.19 18.25L.037 24l5.962-1.55A11.942 11.942 0 0011.944 24c6.627 0 12-5.373 12-12s-5.373-12-12-12zm6.342 17.202c-.288.814-1.42 1.488-2.203 1.583-.783.095-1.558.28-4.385-1.01-3.418-1.562-5.63-5.068-5.8-5.297-.17-.229-1.385-1.848-1.385-3.52 0-1.673.86-2.502 1.168-2.846.308-.344.67-.43.89-.43s.44 0 .633.01c.192.01.448-.076.7.534.252.61 1.092 2.65 1.188 2.846.095.196.16.425.02.653-.14.229-.21.37-.425.62-.215.25-.448.514-.64.715-.192.196-.394.412-.17.795.22.383.985 1.63 2.115 2.64 1.458 1.305 2.68 1.708 3.064 1.88.384.172.61.152.84-.112.23-.264.985-1.144 1.25-1.538.264-.394.528-.328.878-.196.35.132 2.215 1.042 2.59 1.232.375.19.625.286.715.446.09.16.09.936-.198 1.75z" /></svg>
                   WhatsApp Support
                 </a>
-                <button onClick={() => setShowSupportModal(false)} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700">Close</button>
+                <button onClick={() => setShowSupportModal(false)} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200">Close</button>
               </div>
             </div>
           </div>
@@ -647,15 +665,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       {/* Clear Confirm Modal */}
       {showClearConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-slate-900 border-white/5">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-white border-slate-200">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">⚠️</div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-white">Purge All Data?</h4>
+              <h4 className="text-xl font-black uppercase tracking-tight text-slate-900">Purge All Data?</h4>
               <p className="text-xs font-bold text-slate-400">This will permanently remove all saved profiles from this device. This action cannot be undone.</p>
               <div className="pt-4 flex flex-col gap-3">
                 <button onClick={handleClearAllAccounts} className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">Confirm Purge</button>
-                <button onClick={() => setShowClearConfirm(false)} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700">Keep Data</button>
+                <button onClick={() => setShowClearConfirm(false)} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border transition-all active:scale-95 bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200">Keep Data</button>
               </div>
             </div>
           </div>
