@@ -1224,6 +1224,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         .comparison-row:nth-child(even) { background: rgba(15,23,42,0.02); }
         .counter-section .bg-glow,
         .text-reveal-section .bg-glow { background: rgba(99,102,241,0.06); }
+        section[id] { scroll-margin-top: 100px; }
       `}</style>
 
       {/* Progress Bar */}
@@ -1243,12 +1244,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </Link>
 
               <div className="hidden md:flex items-center gap-6 lg:gap-8 text-[11px] font-bold uppercase tracking-widest">
-                {navLinks.map(link => (
-                  <Link key={link.path} to={link.path}
-                    className={`landing-nav-link ${location.pathname === link.path ? 'active' : ''}`}>
-                    {link.label}
-                  </Link>
-                ))}
+                {navLinks.map(link =>
+                  link.path === '/features' ? (
+                    <a key={link.path} href="#features" className="landing-nav-link">{link.label}</a>
+                  ) : (
+                    <Link key={link.path} to={link.path}
+                      className={`landing-nav-link ${location.pathname === link.path ? 'active' : ''}`}>
+                      {link.label}
+                    </Link>
+                  )
+                )}
                 <a href="#how-it-works" className="landing-nav-link">How It Works</a>
                 <a href="#pricing" className="landing-nav-link">Pricing</a>
               </div>
@@ -1278,12 +1283,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         {/* Mobile Menu */}
         {menuOpen && (
           <div className="fixed top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-[99] bg-[#040814]/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
-            {navLinks.map(link => (
-              <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)}
-                className={`px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link ${location.pathname === link.path ? 'active' : ''}`}>
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map(link =>
+              link.path === '/features' ? (
+                <a key={link.path} href="#features" onClick={() => setMenuOpen(false)}
+                  className="px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link">
+                  {link.label}
+                </a>
+              ) : (
+                <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)}
+                  className={`px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link ${location.pathname === link.path ? 'active' : ''}`}>
+                  {link.label}
+                </Link>
+              )
+            )}
             <a href="#how-it-works" onClick={() => setMenuOpen(false)} className="px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link">How It Works</a>
             <a href="#pricing" onClick={() => setMenuOpen(false)} className="px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link">Pricing</a>
             <a href="/portal" onClick={() => setMenuOpen(false)} className="px-6 py-4 text-xs font-bold text-indigo-400 flex items-center gap-2">
