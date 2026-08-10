@@ -372,11 +372,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <div
           className="relative rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000"
           style={{
-            background: 'rgba(255,255,255,0.85)',
+            background: 'rgba(255,255,255,0.12)',
             backdropFilter: 'blur(28px) saturate(180%)',
             WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-            border: '1px solid rgba(15,23,42,0.08)',
-            boxShadow: '0 24px 64px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)',
+            border: '1px solid rgba(255,255,255,0.35)',
+            boxShadow: '0 24px 64px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.35)',
           }}
         >
 
