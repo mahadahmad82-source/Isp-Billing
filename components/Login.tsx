@@ -326,11 +326,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const getHeading = () => {
     if (view === 'signup') return { title: 'Create Account', sub: 'Register your new ISP node' };
     if (view === 'signup-otp') return { title: 'Verify Email', sub: 'Enter the code sent to you' };
-    if (view === 'recent') return { title: 'Welcome Back!', sub: 'Select your profile to continue' };
+    if (view === 'recent') return { title: 'Continue As', sub: 'Select your profile to sign in' };
     if (view === 'forgot') return { title: 'Reset Password', sub: 'Enter your username or recovery email' };
     if (view === 'forgot-otp') return { title: 'Verify OTP', sub: 'Enter the code sent to you' };
     if (view === 'forgot-newpass') return { title: 'New Password', sub: 'Set a strong new password' };
-    return { title: 'Welcome Back!', sub: 'Login to continue to your account' };
+    return { title: 'Sign In', sub: 'Access your ISP billing dashboard securely' };
   };
 
   const heading = getHeading();
@@ -391,8 +391,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
             {/* Card Header */}
             <div className="text-center mb-7">
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-1">{heading.title}</h2>
-              <p className="text-xs text-slate-400 font-medium">{heading.sub}</p>
+              <h2 className="text-2xl font-black tracking-tight mb-1">
+                <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">{heading.title}</span>
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">{heading.sub}</p>
+              <div className="w-12 h-1 rounded-full mx-auto mt-3 bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500" />
             </div>
 
             {/* Error */}
