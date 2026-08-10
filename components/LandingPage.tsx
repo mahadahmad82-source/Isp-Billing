@@ -1171,6 +1171,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           .card p { font-size: 0.775rem; line-height: 1.5; }
           .section-label { left: 20px; top: 20px; }
         }
+        @media (max-width: 768px) {
+          .parallax-section {
+            height: auto;
+            min-height: 100vh;
+          }
+          .parallax-section .parallax-grid { display: none; }
+        }
+        @media (max-width: 640px) {
+          .glass-section, .counter-section, .reveal-section,
+          .text-reveal-section, .interactive-section, .marquee-section {
+            padding-top: 80px;
+            padding-bottom: 80px;
+          }
+          .counter-grid { gap: 24px; }
+          .counter-item .number { font-size: clamp(2rem, 8.5vw, 4rem); }
+          .section-header { margin-bottom: 48px; }
+        }
 
         /* ── LIGHT MODE (Mahadnet midnight → light glass) ── */
         .landing-nav-link { color: rgba(15,23,42,0.7) !important; }
@@ -1237,10 +1254,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── NAVBAR ── */}
         <div className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 pt-4">
-          <nav className="glass-strong rounded-2xl px-5 sm:px-7 py-3 flex items-center justify-between max-w-7xl mx-auto shadow-2xl shadow-black/40">
+          <nav className="glass-strong rounded-2xl px-4 sm:px-7 py-3 flex items-center justify-between max-w-7xl mx-auto shadow-xl shadow-slate-300/50">
             <div className="flex justify-between items-center w-full">
               <Link to="/" className="flex items-center gap-3 pl-1 sm:pl-2">
-                {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[110px] sm:w-[130px] h-auto object-contain" />}
+                {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[95px] sm:w-[130px] h-auto object-contain" />}
               </Link>
 
               <div className="hidden md:flex items-center gap-6 lg:gap-8 text-[11px] font-bold uppercase tracking-widest">
@@ -1265,7 +1282,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   <Users className="w-3.5 h-3.5 text-indigo-500" /> User Portal
                 </a>
                 <button onClick={onGetStarted}
-                  className="cta-glow px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2"
+                  className="cta-glow px-3.5 sm:px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2"
                 >
                   <LockKeyhole className="w-3.5 h-3.5" /> Manager Login
                 </button>
@@ -1313,16 +1330,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
           {/* Floating glass icon cards — Mahadnet hero signature */}
           <div ref={heroIconsRef} className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[10%] left-[4%] md:left-[8%]" data-speed="0.35">
+            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[24%] left-[3%] md:top-[10%] md:left-[8%]" data-speed="0.35">
               <Wifi className="w-6 h-6 md:w-8 md:h-8 text-cyan-300" />
             </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%]" data-speed="0.2">
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%] hidden sm:flex" data-speed="0.2">
               <Cpu className="w-5 h-5 md:w-7 md:h-7 text-purple-300" />
             </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%]" data-speed="-0.3">
+            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%] hidden sm:flex" data-speed="-0.3">
               <Zap className="w-5 h-5 md:w-7 md:h-7 text-yellow-300" />
             </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%]" data-speed="0.28">
+            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%] hidden sm:flex" data-speed="0.28">
               <Activity className="w-6 h-6 md:w-8 md:h-8 text-indigo-300" />
             </div>
             <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex" data-speed="-0.18">
@@ -1334,10 +1351,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex" data-speed="-0.35">
               <Server className="w-6 h-6 text-pink-300" />
             </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[34%] right-[20%]" data-speed="0.4">
+            <div className="hero-float-icon glass w-16 h-16 bottom-[24%] right-[4%] md:bottom-[34%] md:right-[20%]" data-speed="0.4">
               <Receipt className="w-6 h-6 text-blue-300" />
             </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%]" data-speed="-0.22">
+            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%] hidden sm:flex" data-speed="-0.22">
               <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-green-300" />
             </div>
           </div>
@@ -1641,7 +1658,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
           </div>
           
-          <div className="w-full max-w-6xl mx-auto relative z-10">
+          <div className="w-full max-w-6xl mx-auto relative z-10 px-4 sm:px-6">
             {/* Header */}
             <div className="text-center mb-16 scroll-reveal">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">06 / Live Support & Onsite Deployment</span>
@@ -1804,7 +1821,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Your City</label>
                             <input 
@@ -2218,7 +2235,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             onClick={() => setShowSpecs(false)}>
             <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 bg-[#0a1228] max-h-[90vh] overflow-y-auto animate-scale-in"
               onClick={e => e.stopPropagation()}>
-              <div className="p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}>
+              <div className="p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #e0e7ff, #eef3fb)' }}>
                 <div className="absolute inset-0 opacity-20">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-3xl -mr-32 -mt-32" />
                 </div>
