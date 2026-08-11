@@ -519,14 +519,39 @@ function renderPackageList(planPrices: Record<string, number>): string {
 // ══════════════════════════════════════════════════════
 const normPhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
 
+// ── Egress fix (Aug 2026): findCustomer / findCustomerByUsernameOrName / getAnyPlanPrices /
+// getRouterCatalog / getTemplates / getManagerRow were EACH independently re-fetching the full
+// manager_data JSONB blob (~900KB+ for 'mahadnet') from Supabase — often 3-5x per single
+// WhatsApp message. This shared, short-TTL cache collapses those into one network fetch per
+// window. Always invalidate the relevant key right after any PATCH write to manager_data.
+const _managerDataCache: Record<string, { rows: any[]; ts: number }> = {};
+const MANAGER_DATA_CACHE_TTL_MS = 20_000;
+
+async function fetchManagerDataCached(managerIdFilter: string): Promise<any[]> {
+  const cached = _managerDataCache[managerIdFilter];
+  if (cached && (Date.now() - cached.ts) < MANAGER_DATA_CACHE_TTL_MS) return cached.rows;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${managerIdFilter}`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    if (!res.ok) { console.error('[Supabase] fetch failed:', res.status); return cached?.rows || []; }
+    const rows: any[] = await res.json();
+    _managerDataCache[managerIdFilter] = { rows, ts: Date.now() };
+    return rows;
+  } catch (e: any) {
+    console.error('[fetchManagerDataCached]', e?.message);
+    return cached?.rows || [];
+  }
+}
+
+function invalidateManagerDataCache(managerId: string) {
+  delete _managerDataCache[managerId];
+}
+
 async function findCustomer(from: string) {
   const norm = normPhone(from);
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${BOUND_MANAGER_ID}`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    if (!res.ok) { console.error('[Supabase] fetch failed:', res.status); return null; }
-    const rows: any[] = await res.json();
+    const rows = await fetchManagerDataCached(BOUND_MANAGER_ID);
 
     for (const row of rows) {
       if (row.manager_id === '_bot_sessions') continue;
@@ -557,10 +582,7 @@ async function findCustomerByUsernameOrName(query: string) {
   const q = query.trim().toLowerCase();
   if (!q || q.length < 3) return null;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${BOUND_MANAGER_ID}`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows: any[] = await res.json();
+    const rows = await fetchManagerDataCached(BOUND_MANAGER_ID);
     for (const row of rows) {
       if (row.manager_id === '_bot_sessions') continue;
       const users: any[] = row.data?.users || [];
@@ -608,10 +630,7 @@ async function findCustomerByManagerAndId(managerId: string, userId: string) {
 // Get planPrices from ANY manager (used when sender isn't a known customer yet)
 async function getAnyPlanPrices(): Promise<Record<string, number>> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.mahadnet`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
+    const rows = await fetchManagerDataCached('mahadnet');
     if (rows?.[0]?.data?.settings?.planPrices) return rows[0].data.settings.planPrices;
   } catch (e: any) { console.error('[getAnyPlanPrices]', e?.message); }
   return {};
@@ -622,10 +641,7 @@ async function getAnyPlanPrices(): Promise<Record<string, number>> {
 // This lets models/specs/prices be updated from the UI without touching code.
 async function getRouterCatalog(): Promise<Record<string, Array<{ model: string; company: string; band: string; price: number; image: string; specs: string }>>> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.mahadnet`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
+    const rows = await fetchManagerDataCached('mahadnet');
     const catalog = rows?.[0]?.data?.settings?.routerCatalog;
     if (catalog && ((catalog['2.4g']?.length || 0) + (catalog['5g']?.length || 0) > 0)) return catalog;
   } catch (e: any) { console.error('[getRouterCatalog]', e?.message); }
@@ -637,10 +653,7 @@ async function getRouterCatalog(): Promise<Record<string, Array<{ model: string;
 // yet — or any NEW key added in a future code update — still has a working default.
 async function getTemplates(): Promise<Record<string, string>> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.mahadnet`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
+    const rows = await fetchManagerDataCached('mahadnet');
     const stored = rows?.[0]?.data?.settings?.botTemplates || {};
     const merged: Record<string, string> = { ...DEFAULT_TEMPLATES };
     for (const key of Object.keys(stored)) {
@@ -671,6 +684,7 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ data: { ...rowData, complaintTickets } }),
     });
+    invalidateManagerDataCache(managerId);
     console.log(`✅ Complaint saved: ${ticketId} (${priority})`);
     await notifyManager(managerId, { ...rowData, complaintTickets }, {
       title: '🛠️ Nayi Complaint (WhatsApp)',
@@ -683,10 +697,7 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
 
 async function getManagerRow(managerId: string): Promise<any | null> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.${managerId}`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
+    const rows = await fetchManagerDataCached(managerId);
     return rows?.[0]?.data || null;
   } catch (e: any) { console.error('[getManagerRow]', e?.message); return null; }
 }
@@ -757,6 +768,7 @@ async function saveLead(managerId: string, rowData: any, lead: { name: string; p
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ data: { ...rowData, leads } }),
     });
+    invalidateManagerDataCache(managerId);
   } catch (e: any) { console.error('[saveLead]', e?.message); }
   return newLead.id;
 }
@@ -3002,6 +3014,7 @@ export default async function handler(req: any, res: any) {
               headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify({ data: { ...found.rowData, users } }),
             });
+            invalidateManagerDataCache(found.managerId);
           } catch (e: any) { console.error('[marketing_optout]', e?.message); }
         }
         await sendText(from, tmpl(isEnglishText(text) ? 'marketing_optout_confirm_en' : 'marketing_optout_confirm_ur'));
