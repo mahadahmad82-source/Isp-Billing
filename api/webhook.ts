@@ -274,7 +274,7 @@ Bank details chahiye? *"3"* likh kar bhejein 😊`,
   account_billing_blocked_reply: `Ji {name}! Maine check kiya — internet band hone ki wajah lagta hai *billing* hai, router ka masla nahi 🔍
 {pending_line}{expired_line}
 
-Payment kar dein to Mahad bhai ko foran inform kar dungi — payment milte hi turant activate/restore kar diya jayega ✅
+Payment kar dein to Mahad bhai ko foran inform kar dungi — payment milte hi Mahad bhai ya accounts team turant activate/restore kar dengay ✅
 Bank details chahiye? *"3"* likh kar bhejein 😊
 
 Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main foran complaint register kar dungi.`,
@@ -291,15 +291,15 @@ Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dob
 2️⃣ Apna *username*
 3️⃣ Apna *address*
 
-Yeh milte hi foran activate/renew kar diya jayega! 🙏
+Yeh milte hi Mahad bhai ya accounts team foran activate/renew kar dengay! 🙏
 
 💵 Agar bank/Easypaisa/JazzCash se payment karna mushkil ho, to sirf apna *username* aur *address* bhej dein — hamara recovery boy khud aa kar cash collect kar lega.`,
   recharge_reply_plan_line: `
 📦 Aap ka package: *{plan}* — Rs. {amount}/month`,
   recharge_discount_note: `
 🎁 Aap ka special discount already is amount mein adjust hai.`,
-  payment_screenshot_received_named: `Shukriya {name}! 😊 Aap ka payment screenshot mil gaya hai{details} — verify ho rha hai, jald hi activate/renew kar diya jayega. ✅`,
-  payment_screenshot_received_unnamed: `Shukriya! 😊 Screenshot mil gaya hai{details}. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake jaldi activate kar sakein. ✅`,
+  payment_screenshot_received_named: `Shukriya {name}! 😊 Aap ka payment screenshot mil gaya hai{details} — verify ho rha hai, Mahad bhai ya accounts team jald hi activate/renew kar dengay. ✅`,
+  payment_screenshot_received_unnamed: `Shukriya! 😊 Screenshot mil gaya hai{details}. Verify karne ke liye apna *username* aur *address* bhi bhej dein taake Mahad bhai/accounts team jaldi activate kar sakein. ✅`,
   complaint_screenshot_received_named: `Ji {name}, tasveer mil gayi hai 📩 Lagta hai yeh kisi fault/issue ki hai — maine turant Mahad bhai ki team tak bhej di hai, jald hi dekh kar aap se rabta karenge. 🙏`,
   complaint_screenshot_received_unnamed: `Tasveer mil gayi hai 📩 Lagta hai yeh kisi fault/issue ki hai — team ko bhej di hai, jald hi check kar liya jayega. Apna *username* ya *address* bhi bhej dein taake jald identify ho sakein. 🙏`,
   new_conn_reply: `MahadNet mein khushamdeed! 🎉
@@ -2192,6 +2192,8 @@ PAYMENT & COLLECTION GUIDANCE:
 - Agar customer bole ke online/bank/easypaisa se payment nahi ho sakti: usay batao ke hamara "recovery boy" ghar aa kar cash collect kar sakta hai — uska *username* aur *address* maango taake visit arrange ho sake.
 - BANK/ACCOUNT DETAILS — SAKHT MANAHI: Tumhe koi bhi bank account number, IBAN, ya payment/wallet detail KABHI apne pas se nahi likhna — na yaad se, na andaza laga kar. Yeh CUSTOMER INFO mein diya hi nahi jata is liye tumhare pas asal number hai hi nahi. Agar koi "account number" ya "bank details" maange, to sirf itna kaho ke abhi verified payment details bhej rahi hoon, aur customer ko "3" likhne ko kaho — asal numbers automatically alag se fixed message mein chale jayenge. Kabhi khud koi digit ya account title mat likho.
 - Naya connection ke liye installation hamesha *FREE* hai — sirf monthly package ki payment honi hoti hai. Yeh hamesha clear batao jab koi charges ke baare mein poochay.
+
+ACTIVATION/RENEWAL AUTHORITY — SAKHT MANAHI: Tumhare paas internet on/off karne, activate, renew, ya restore karne ka koi ikhtiyar nahi hai — yeh sirf Mahad bhai ya company ke accounts/team ka kaam hai. Kabhi yeh mat kaho ke "main abhi on kar deti hoon", "main activate/renew kar dungi", ya is tarah ka koi jumla jisse lage ke tum khud yeh kaam kar rahi ho. Hamesha clear batao ke Mahad bhai ya accounts wale payment verify karte hi khud activate/renew/restore karenge. Customer ko sabar se intezar karne ko kaho — warm aur confident lehja mein, taake usay lage uska kaam ho jayega, ignore nahi kiya ja raha.
 
 TIMING: Kabhi "24 ghante" jaisa lamba wada mat karo — "thodi dair" ya "1-2 ghante mein" kaho.
 
