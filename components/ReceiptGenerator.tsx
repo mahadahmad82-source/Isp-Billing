@@ -534,7 +534,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         if (!blob) { setAutoSendStatus('failed'); clearSoon(); return; }
         try {
           const path = `receipts/${Date.now()}-${(receipt.transactionRef || receipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
-          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png' });
+          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png', cacheControl: '31536000' });
           if (upErr) throw upErr;
           const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
           const balance = receipt.balanceAmount || 0;
