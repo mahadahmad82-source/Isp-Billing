@@ -737,13 +737,43 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   // opened, smooth animation only for new messages that arrive while already
   // viewing the thread.
   const isInitialThreadPaintRef = useRef(true);
+  const threadContainerRef = useRef<HTMLDivElement>(null);
+  // BUG FIX: images/voice-notes/videos inside messages finish loading AFTER
+  // the DOM first paints, so a single scrollIntoView on `thread` change lands
+  // short — the container keeps growing as attachments load in, leaving the
+  // newest message below the fold until the user scrolls down manually. A
+  // ResizeObserver re-anchors to the bottom every time the container's height
+  // changes (i.e. an attachment just finished loading), but only while the
+  // user hasn't manually scrolled away from the bottom — same "stick to
+  // bottom unless reading history" behavior WhatsApp itself uses.
+  const isPinnedToBottomRef = useRef(true);
   useEffect(() => {
     isInitialThreadPaintRef.current = true;
+    isPinnedToBottomRef.current = true;
   }, [selectedPhone]);
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: isInitialThreadPaintRef.current ? 'auto' : 'smooth' });
     isInitialThreadPaintRef.current = false;
   }, [thread]);
+  useEffect(() => {
+    const container = threadContainerRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      isPinnedToBottomRef.current = distanceFromBottom < 120;
+    };
+    container.addEventListener('scroll', onScroll, { passive: true });
+    const observer = new ResizeObserver(() => {
+      if (isPinnedToBottomRef.current) {
+        threadEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }
+    });
+    observer.observe(container);
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      observer.disconnect();
+    };
+  }, [selectedPhone]);
 
   const selectedConv = conversations.find(c => c.phone === selectedPhone);
 
