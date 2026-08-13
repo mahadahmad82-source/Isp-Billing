@@ -1302,7 +1302,7 @@ async function uploadTtsAudio(mp3Buf: Buffer, prefix: string): Promise<string | 
   const path = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
   const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
     method: 'POST',
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=31536000' },
     body: mp3Buf,
   });
   if (!upRes.ok) { console.error('[uploadTtsAudio]', upRes.status, await upRes.text()); return null; }
