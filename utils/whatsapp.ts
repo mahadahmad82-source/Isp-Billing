@@ -113,6 +113,7 @@ export const sendReceiptViaWABot = async (
         headers: {
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type': 'image/png',
+          'cache-control': '31536000',
         },
         body: pngBlob,
       }
