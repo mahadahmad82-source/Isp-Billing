@@ -1033,7 +1033,7 @@ async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; bu
     const path = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': storedMimeType, 'Cache-Control': 'max-age=604800' },
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': storedMimeType, 'Cache-Control': 'max-age=31536000' },
       body: storedBuf,
     });
     if (!upRes.ok) { console.error('[media upload]', upRes.status, await upRes.text()); return null; }
