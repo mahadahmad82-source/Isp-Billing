@@ -1822,7 +1822,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               <div className="flex items-center gap-2 flex-shrink-0" />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50/50 dark:bg-black">
+            <div ref={threadContainerRef} className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50/50 dark:bg-black">
               {thread.map(m => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
