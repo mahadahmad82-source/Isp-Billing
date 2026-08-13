@@ -183,9 +183,28 @@ export const mergeById = <T extends { id?: string }>(a: T[] = [], b: T[] = []): 
 // ─── Public: smart sync on login ─────────────────────────────────────────────
 export const smartLoadAndSync = async (
   managerId: string,
-  localState: AppState
+  localState: AppState,
+  options?: { forceRemote?: boolean }
 ): Promise<AppState> => {
   const supabaseState = await loadStateFromSupabase(managerId);
+
+  // BUG FIX: manager_data is ONE shared blob per manager, read by the manager
+  // AND every one of their sub-managers, each from their own device with
+  // their own local cache. The merge-by-id + "newer local wins" logic below
+  // is correct for a single owner syncing their own device across sessions,
+  // but for a shared blob it means any one agent's stale/offline local cache
+  // gets merged back into — and even pushed onto — the data everyone else
+  // reads. That's the "sub-managers see cached data instead of real-time
+  // records" bug. Callers for shared-blob sessions (sub-managers) should
+  // pass forceRemote: true to skip all merge/push-back and get the exact
+  // current Supabase state, full stop. Local is only used as a last-resort
+  // fallback if Supabase is unreachable, and is never written back in that
+  // case.
+  if (options?.forceRemote) {
+    if (supabaseState) return supabaseState;
+    console.warn('[Sync] forceRemote: Supabase unreachable, showing local cache read-only (not pushed back)');
+    return localState;
+  }
 
   const localUsers     = localState?.users?.length     || 0;
   const localReceipts  = localState?.receipts?.length  || 0;
