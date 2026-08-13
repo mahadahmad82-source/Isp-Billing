@@ -77,10 +77,20 @@ export default function WABotStandalone() {
     if (phase !== 'loading' || !username) return;
     (async () => {
       try {
-        const local = loadState(username);
-        const merged = await smartLoadAndSync(username, local);
-
         const account = getAccounts().find(a => a.username === username);
+        // BUG FIX: this used to call smartLoadAndSync(username, ...) directly
+        // — for a sub-manager, `username` is their own agent login (e.g.
+        // "agent_xyz"), which has NO manager_data row of its own. Sub-manager
+        // data lives under their manager's row. That meant the "remote"
+        // fetch found nothing and this silently fell back to whatever stale
+        // local cache happened to be on that device — the exact "sub-manager
+        // sees cached data" bug. Resolve the real data owner first, and force
+        // a real-time-only pull (no local merge/push-back) for sub-managers,
+        // same fix as the main App.tsx login path.
+        const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : username;
+        const local = loadState(username);
+        const merged = await smartLoadAndSync(dataOwner, local, { forceRemote: account?.role === 'sub-manager' });
+
         if (account?.role === 'sub-manager' && account.managerUsername) {
           const allowed = await checkWabotAccess(account.managerUsername, account.username);
           if (!allowed) {
