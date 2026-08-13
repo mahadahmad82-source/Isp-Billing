@@ -938,7 +938,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       const folder = isImage ? 'admin-images' : isVideo ? 'admin-videos' : 'admin-documents';
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${folder}/${Date.now()}-${safeName}`;
-      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, file, { contentType: file.type || 'application/octet-stream' });
+      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, file, { contentType: file.type || 'application/octet-stream', cacheControl: '31536000' });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
       const mediaUrl = pub.publicUrl;
