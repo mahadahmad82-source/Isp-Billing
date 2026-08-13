@@ -1200,7 +1200,7 @@ async function transcribeAudio(mediaId: string): Promise<{ transcript: string | 
       const path = `voice-notes/${Date.now()}-${mediaId}.${ext}`;
       const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
         method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType, 'Cache-Control': 'max-age=604800' },
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType, 'Cache-Control': 'max-age=31536000' },
         body: buf,
       });
       if (upRes.ok) mediaUrl = `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
