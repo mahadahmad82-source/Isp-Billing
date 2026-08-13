@@ -395,10 +395,13 @@ const App: React.FC = () => {
       const account = getAccounts().find(a => a.username === activeManager);
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Smart sync: compare localStorage vs Supabase, use richer data
+      // Smart sync: compare localStorage vs Supabase, use richer data.
+      // Sub-managers share the manager's single data blob across many
+      // devices/agents — force a real-time Supabase pull for them instead
+      // of merging in their own device's local cache (see supabaseSync.ts).
       const localState = loadState(activeManager);
       setIsSyncing(true);
-      smartLoadAndSync(dataOwner, localState).then(finalState => {
+      smartLoadAndSync(dataOwner, localState, { forceRemote: account?.role === 'sub-manager' }).then(finalState => {
         setState({
           ...finalState,
           archives: finalState.archives || [],
