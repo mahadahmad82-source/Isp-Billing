@@ -675,6 +675,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2 mb-1">
                       <p className="font-black text-white text-[15px]">{m.business_name}</p>
+                      {!m.is_active && <Badge color="bg-amber-500/15 text-amber-400">SUSPENDED</Badge>}
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
                       <span className="font-black text-indigo-400">@{m.username}</span>
