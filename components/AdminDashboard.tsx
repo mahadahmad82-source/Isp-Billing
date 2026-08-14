@@ -440,6 +440,34 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     setTimeout(() => { setShowResetModal(null); setNewPassword(''); setResetMsg(null); }, 1500);
   };
 
+  // ── Suspend / Reactivate — non-destructive admin override (unlike Delete,
+  // this keeps all data intact and can be reversed with one tap) ───────────
+  const handleToggleActive = async (username: string, nextActive: boolean) => {
+    setSuspendBusy(username);
+    try {
+      const { data, error } = await supabase.rpc('admin_set_manager_active', { p_username: username, p_active: nextActive });
+      if (error || (data && !data.success)) {
+        alert(error?.message || data?.error || 'Action failed');
+        return;
+      }
+      setManagers(prev => prev.map(m => m.username !== username ? m : { ...m, is_active: nextActive }));
+    } catch (e: any) {
+      alert(e?.message || 'Action failed');
+    } finally {
+      setSuspendBusy(null);
+    }
+  };
+
+  const loadAdminLogs = useCallback(async () => {
+    setAdminLogsLoading(true);
+    try {
+      const { data, error } = await supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false }).limit(100);
+      if (!error) setAdminLogs(data || []);
+    } finally {
+      setAdminLogsLoading(false);
+    }
+  }, []);
+
   // ── Totals ──────────────────────────────────────────────────────────────────
   const totals = useMemo(() => ({
     managers: managers.length,
