@@ -1408,6 +1408,103 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           </div>
         </div>
       )}
+
+      {/* ══════════ RECORD PAYMENT MODAL ══════════ */}
+      {paymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>!payBusy && setPaymentModal(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-slate-900 rounded-3xl shadow-2xl border border-white/[0.08] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 flex items-center justify-center"><Banknote className="w-5 h-5 text-indigo-400" /></div>
+              <div><h2 className="text-lg font-black text-white">Record Payment</h2><p className="text-[11px] text-slate-500">@{paymentModal}</p></div>
+            </div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Amount (PKR)</label>
+            <input type="number" placeholder="e.g. 5000" value={payAmount} onChange={e=>setPayAmount(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-white/10 bg-black/30 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 mb-3" />
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Period (months)</label>
+            <input type="number" min="1" placeholder="1" value={payMonths} onChange={e=>setPayMonths(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-white/10 bg-black/30 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 mb-3" />
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Method</label>
+            <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-white/10 bg-black/30 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 mb-3 cursor-pointer">
+              <option value="cash">Cash</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="easypaisa">Easypaisa</option>
+              <option value="other">Other</option>
+            </select>
+            <input type="text" placeholder="Notes (optional)" value={payNotes} onChange={e=>setPayNotes(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-white/10 bg-black/30 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
+            <div className="flex gap-2">
+              <button onClick={()=>setPaymentModal(null)} disabled={payBusy} className="flex-1 py-3 rounded-2xl bg-white/5 text-slate-400 hover:text-white text-xs font-bold transition-colors">Cancel</button>
+              <button onClick={submitPayment} disabled={payBusy}
+                className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-500 disabled:opacity-50 active:scale-95 transition-all">
+                {payBusy ? 'Saving...' : 'Record & Extend'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ LEDGER MODAL ══════════ */}
+      {ledgerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setLedgerModal(null)} />
+          <div className="relative z-10 w-full max-w-lg max-h-[80vh] bg-slate-900 rounded-3xl shadow-2xl border border-white/[0.08] p-6 overflow-y-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center"><ClipboardList className="w-5 h-5 text-slate-300" /></div>
+              <div><h2 className="text-lg font-black text-white">Payment Ledger</h2><p className="text-[11px] text-slate-500">@{ledgerModal}</p></div>
+            </div>
+            {ledgerLoading ? (
+              <div className="flex items-center justify-center py-12"><div className="w-5 h-5 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
+            ) : ledgerRows.length === 0 ? (
+              <p className="text-center py-10 text-slate-600 text-xs font-bold">Koi payment record nahi hai abhi.</p>
+            ) : (
+              <div className="space-y-2">
+                {ledgerRows.map((row) => (
+                  <div key={row.id} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-black text-indigo-400">{row.receipt_number}</p>
+                      <p className="text-[13px] font-black text-white">Rs. {Number(row.amount_pkr).toLocaleString()} — {row.plan} ({row.period_months}mo)</p>
+                      <p className="text-[10px] text-slate-500">{fmtDate(row.paid_at)} · {row.method || 'N/A'}</p>
+                    </div>
+                    <button onClick={()=>setReceiptView(row)} className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-black hover:bg-indigo-500/20 transition-all flex-shrink-0">Receipt</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ RECEIPT VIEW MODAL ══════════ */}
+      {receiptView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setReceiptView(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-white rounded-3xl shadow-2xl p-7 text-slate-900">
+            <div className="text-center mb-5 pb-5 border-b border-dashed border-slate-300">
+              <p className="font-black text-lg">Bill Collector</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Subscription Payment Receipt</p>
+            </div>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between"><span className="text-slate-500">Receipt #</span><span className="font-black">{receiptView.receipt_number}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Manager</span><span className="font-black">@{receiptView.manager_id}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Plan</span><span className="font-black capitalize">{receiptView.plan}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Period</span><span className="font-black">{receiptView.period_months} month{receiptView.period_months>1?'s':''}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Covers</span><span className="font-black text-[11px]">{fmtDate(receiptView.period_start)} – {fmtDate(receiptView.period_end)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Method</span><span className="font-black capitalize">{(receiptView.method||'').replace('_',' ')}</span></div>
+              {receiptView.notes && <div className="flex justify-between"><span className="text-slate-500">Notes</span><span className="font-black text-right">{receiptView.notes}</span></div>}
+              <div className="flex justify-between pt-3 mt-1 border-t border-dashed border-slate-300"><span className="text-slate-500 font-bold">Amount Paid</span><span className="font-black text-lg text-emerald-600">Rs. {Number(receiptView.amount_pkr).toLocaleString()}</span></div>
+              <div className="flex justify-between text-[10px] text-slate-400"><span>Paid on</span><span>{fmtDate(receiptView.paid_at)}</span></div>
+              <div className="flex justify-between text-[10px] text-slate-400"><span>Recorded by</span><span>@{receiptView.recorded_by_admin}</span></div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={()=>setReceiptView(null)} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 text-xs font-bold">Close</button>
+              <button onClick={()=>window.print()} className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black active:scale-95 transition-all">Print</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
