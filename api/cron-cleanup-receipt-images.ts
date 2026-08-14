@@ -7,12 +7,81 @@
 // get their receipt via WABot's text-summary fallback (see webhook.ts receipt_request →
 // receipt_not_available), just not as an image.
 //
+// ALSO cleans up old whatsapp_messages chat media (photos/voice-notes/videos/admin-voice)
+// the same way — this file was extended rather than adding a new api/ endpoint because
+// Vercel Hobby caps us at 12 serverless functions and we're already at that cap. Devices
+// that already viewed the media keep a local cached copy (see Wabot-Android's
+// lib/mediaCache.ts) even after the cloud copy is deleted, so this only affects media
+// nobody has opened in a long time. The message row + its text content is kept either
+// way; only the now-stale media_url reference is cleared so old chat history doesn't
+// show a broken image icon.
+//
 // Triggered weekly by Vercel Cron (see vercel.json).
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only
 const RETENTION_DAYS = 60; // keep receipt images for 2 months; adjust as needed
+const CHAT_MEDIA_RETENTION_DAYS = 60; // regular chat photos/voice-notes/videos
+const PAYMENT_PROOF_RETENTION_DAYS = 180; // longer — needed for dispute/accounting lookback
 const BUCKET = 'whatsapp-media';
+
+// Deletes a batch of storage objects given their full public URLs, by extracting
+// the path after /storage/v1/object/public/{BUCKET}/ from each one.
+async function deleteByPublicUrls(urls: string[]): Promise<number> {
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const paths = urls
+    .map((u) => {
+      const idx = u.indexOf(marker);
+      return idx === -1 ? null : u.slice(idx + marker.length);
+    })
+    .filter((p): p is string => !!p);
+  if (paths.length === 0) return 0;
+  try {
+    const delResp = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefixes: paths }),
+    });
+    if (delResp.ok) return paths.length;
+    console.error('❌ Storage delete failed:', delResp.status, await delResp.text().catch(() => ''));
+    return 0;
+  } catch (e: any) {
+    console.error('❌ Storage delete error:', e?.message);
+    return 0;
+  }
+}
+
+async function cleanupChatMedia(): Promise<{ checked: number; deleted: number }> {
+  let checked = 0;
+  let deleted = 0;
+
+  for (const { cutoffDays, flagFilter } of [
+    { cutoffDays: PAYMENT_PROOF_RETENTION_DAYS, flagFilter: 'flagged_payment_proof=eq.true' },
+    { cutoffDays: CHAT_MEDIA_RETENTION_DAYS, flagFilter: 'flagged_payment_proof=eq.false' },
+  ]) {
+    const cutoffIso = new Date(Date.now() - cutoffDays * 86400000).toISOString();
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/whatsapp_messages?select=id,media_url&media_url=not.is.null&created_at=lt.${cutoffIso}&${flagFilter}&limit=500`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows: { id: string; media_url: string }[] = await resp.json();
+    checked += rows.length;
+    if (rows.length === 0) continue;
+
+    deleted += await deleteByPublicUrls(rows.map((r) => r.media_url));
+
+    // Clear the stale media_url on each row (keep the row + text content).
+    for (const r of rows) {
+      await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages?id=eq.${r.id}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ media_url: null }),
+      });
+    }
+  }
+
+  return { checked, deleted };
+}
 
 export default async function handler(req: any, res: any) {
   const auth = req.headers?.authorization;
