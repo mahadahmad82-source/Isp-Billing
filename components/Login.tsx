@@ -570,7 +570,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                 {/* Username / Phone */}
                 {view === 'login' ? (
                   <div>
-                    <label className={labelCls}>Login ID (Email, Phone, or Username)</label>
+                    <label className={labelCls}>Login ID (Email, Phone, Username, or CNIC)</label>
                     <InputField icon={<UserIcon />} placeholder="Enter your ID" value={username} onChange={e => setUsername(e.target.value.toLowerCase().trim())} disabled={!!selectedAccount} />
                   </div>
                 ) : (
