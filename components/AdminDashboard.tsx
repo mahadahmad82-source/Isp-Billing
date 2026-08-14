@@ -147,6 +147,9 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [expandedMgr, setExpandedMgr] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showResetModal, setShowResetModal] = useState<string | null>(null);
+  const [suspendBusy, setSuspendBusy] = useState<string | null>(null);
+  const [adminLogs, setAdminLogs] = useState<{ id: string; admin_username: string; action: string; target_username: string | null; details: any; created_at: string }[]>([]);
+  const [adminLogsLoading, setAdminLogsLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
