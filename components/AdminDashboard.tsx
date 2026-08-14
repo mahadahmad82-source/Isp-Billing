@@ -143,6 +143,22 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [ledgerModal, setLedgerModal] = useState<string | null>(null); // manager_id
   const [ledgerRows, setLedgerRows] = useState<any[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [selectedLedgerMonth, setSelectedLedgerMonth] = useState<string | null>(null);
+
+  // Same period-wise grouping pattern as the manager-side Recovery Ledger
+  // (RecoverySummary.tsx) — group payments by "Month Year" using the
+  // project's standard period format, so admin sees the same month-card →
+  // detail-table drill-down UX they're already used to.
+  const monthlyLedger = useMemo(() => {
+    const groups: Record<string, { period: string; rows: any[]; total: number }> = {};
+    ledgerRows.forEach((row) => {
+      const period = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(row.paid_at));
+      if (!groups[period]) groups[period] = { period, rows: [], total: 0 };
+      groups[period].rows.push(row);
+      groups[period].total += Number(row.amount_pkr) || 0;
+    });
+    return Object.values(groups).sort((a, b) => new Date(b.rows[0].paid_at).getTime() - new Date(a.rows[0].paid_at).getTime());
+  }, [ledgerRows]);
   const [receiptView, setReceiptView] = useState<any | null>(null); // payment row
   const [subLoading, setSubLoading] = useState(false);
   const [subToast, setSubToast] = useState<string | null>(null);
