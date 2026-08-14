@@ -2097,7 +2097,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                       </li>
                     ))}
                   </ul>
-                  <button onClick={plan.name === 'Starter' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the Bill Collector ' + plan.name + ' plan', '_blank')}
+                  <button onClick={plan.name === 'Free' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the Bill Collector ' + plan.name + ' plan', '_blank')}
                     className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${
                       plan.highlight 
                         ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/35' 
