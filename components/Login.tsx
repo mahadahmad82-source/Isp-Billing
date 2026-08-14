@@ -60,6 +60,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
+  const [cnic, setCnic] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
