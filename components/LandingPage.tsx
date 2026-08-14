@@ -29,18 +29,33 @@ interface PricingPlan {
 // and whenever that fetch fails, so the pricing section never breaks/goes blank.
 const DEFAULT_PRICING_PLANS: PricingPlan[] = [
   {
-    name: 'Starter', price: 'Free', period: '3 months', color: '#6366f1',
-    features: ['Up to 50 customers', 'Core billing features', 'Receipts & Recovery', 'Basic Reports', 'WhatsApp reminders', 'Cloud sync'],
+    name: 'Free', price: 'Free', period: '', color: '#64748b',
+    features: ['Up to 75 customers', 'Core billing, receipts & recovery ledger', 'Manual WhatsApp reminders', 'Cloud sync', 'NetBot available as paid add-on'],
     cta: 'Start Free', highlight: false,
   },
   {
-    name: 'Business', price: 'Contact', period: 'per month', color: '#8b5cf6',
-    features: ['Unlimited customers', 'Equipment Tracker', 'Leads Pipeline', 'Aging Reports', 'Area Dashboard', 'Team Management', 'Suspension & Outage Log', 'Priority Support'],
-    cta: 'WhatsApp Us', highlight: true,
+    name: 'Starter', price: 'Rs. 1,500', period: 'month', color: '#6366f1',
+    features: ['Up to 256 customers', '1 sub-manager account', 'Area Dashboard & Equipment Tracker', 'Leads Pipeline & Analytics', 'NetBot available as paid add-on'],
+    cta: 'Get Starter', highlight: false,
   },
   {
-    name: 'Enterprise', price: 'Custom', period: '', color: '#06b6d4',
-    features: ['Multiple branches', 'Custom branding', 'Admin Panel', 'Dedicated support', 'Custom features', 'Data migration'],
+    name: 'Growth', price: 'Rs. 2,500', period: 'month', color: '#8b5cf6',
+    features: ['Up to 512 customers', '2 sub-manager accounts', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics', 'NetBot Customer Support Bot — Text tier included'],
+    cta: 'Get Growth', highlight: false,
+  },
+  {
+    name: 'Business', price: 'Rs. 4,000', period: 'month', color: '#4f46e5',
+    features: ['Up to 750 customers', '3 sub-manager accounts', 'Full manager toolset included', 'NetBot — Basic tier included (text + voice replies)'],
+    cta: 'Get Business', highlight: true,
+  },
+  {
+    name: 'Enterprise', price: 'Rs. 6,000', period: 'month', color: '#06b6d4',
+    features: ['Up to 1,056 customers', '5 sub-manager accounts', 'Full manager toolset included', 'NetBot — Pro tier (3 voice agents)', 'Meta message templates built for you'],
+    cta: 'Get Enterprise', highlight: false,
+  },
+  {
+    name: 'Custom', price: 'Custom', period: '', color: '#f59e0b',
+    features: ['Unlimited customers', 'Unlimited sub-manager accounts', 'NetBot — Unlimited tier (7 voice agents)', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
     cta: 'Contact Us', highlight: false,
   },
 ];
