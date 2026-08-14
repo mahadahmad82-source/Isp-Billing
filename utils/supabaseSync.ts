@@ -157,9 +157,18 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
     const { data: snapshot, error: rpcErr } = await supabase.rpc('get_manager_state_snapshot', {
       p_manager_id: managerId,
     });
-    if (rpcErr) { console.error('[Supabase] Load error:', rpcErr.message); return null; }
+    if (rpcErr) {
+      // Admin suspended this account (see AdminDashboard.tsx suspend toggle) —
+      // surface this distinctly so the caller can log the person out with a
+      // clear message, instead of silently showing their last cached data
+      // and leaving them confused about why nothing updates.
+      if (rpcErr.message?.includes('ACCOUNT_SUSPENDED')) throw new Error('ACCOUNT_SUSPENDED');
+      console.error('[Supabase] Load error:', rpcErr.message);
+      return null;
+    }
     return (snapshot as AppState) || null;
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.message === 'ACCOUNT_SUSPENDED') throw err;
     console.error('[Supabase] Load exception:', err);
     return null;
   }
