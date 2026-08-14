@@ -134,6 +134,16 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
 
   const [managers, setManagers] = useState<ManagerStat[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [paymentModal, setPaymentModal] = useState<string | null>(null); // manager_id
+  const [payAmount, setPayAmount] = useState('');
+  const [payMonths, setPayMonths] = useState('1');
+  const [payMethod, setPayMethod] = useState('cash');
+  const [payNotes, setPayNotes] = useState('');
+  const [payBusy, setPayBusy] = useState(false);
+  const [ledgerModal, setLedgerModal] = useState<string | null>(null); // manager_id
+  const [ledgerRows, setLedgerRows] = useState<any[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [receiptView, setReceiptView] = useState<any | null>(null); // payment row
   const [subLoading, setSubLoading] = useState(false);
   const [subToast, setSubToast] = useState<string | null>(null);
   const showSubToast = (m: string) => { setSubToast(m); setTimeout(() => setSubToast(null), 3000); };
