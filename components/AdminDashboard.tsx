@@ -869,6 +869,44 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
               </div>
             </div>
           )}
+
+          {/* ── Admin Actions Log — WHO in the admin panel deleted/reset/suspended
+               a manager and WHEN. This is a separate, tamper-evident trail from the
+               manager activity above — only written by SECURITY DEFINER RPCs, never
+               directly writable, so it can't be edited after the fact. ── */}
+          <div className="bg-slate-800/60 rounded-3xl border border-white/[0.06] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/[0.05] flex items-center justify-between">
+              <h3 className="font-black text-white text-[13px] flex items-center gap-2"><Shield className="w-4 h-4 text-amber-400" /> Admin Actions Log</h3>
+              {adminLogs.length === 0 && !adminLogsLoading ? (
+                <button onClick={loadAdminLogs} className="px-4 py-2 rounded-xl bg-amber-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-amber-500 transition-all active:scale-95">Load Logs</button>
+              ) : (
+                <p className="text-[10px] text-slate-500 font-black uppercase">{adminLogs.length} actions</p>
+              )}
+            </div>
+            {adminLogsLoading ? (
+              <div className="flex items-center justify-center py-12 gap-3"><div className="w-5 h-5 border-[3px] border-amber-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Load ho raha hai...</span></div>
+            ) : (
+              <div className="max-h-[40vh] overflow-y-auto divide-y divide-white/[0.03]">
+                {adminLogs.length === 0 ? (
+                  <div className="text-center py-10 text-slate-600 flex flex-col items-center gap-2"><Shield className="w-8 h-8" /><p className="font-bold text-xs">Click "Load Logs"</p></div>
+                ) : adminLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors">
+                    <div className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5"><Shield className="w-3.5 h-3.5" /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[13px] font-bold text-slate-200">
+                          <span className="text-amber-400">@{log.admin_username}</span> {log.action.replace(/_/g, ' ')}
+                          {log.target_username && <> — <span className="text-indigo-400">@{log.target_username}</span></>}
+                        </p>
+                        <p className="text-[10px] text-slate-600 flex-shrink-0">{timeAgo(log.created_at)}</p>
+                      </div>
+                      <span className="text-[10px] text-slate-600">{fmtTime(log.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
