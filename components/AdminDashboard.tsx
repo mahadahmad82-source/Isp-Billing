@@ -1226,6 +1226,14 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                         className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black hover:bg-emerald-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Unlock
                       </button>}
+                      <button onClick={()=>openPaymentModal(sub.manager_id, sub.plan, sub.amount_pkr)}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[11px] font-black hover:bg-indigo-500/20 transition-all flex items-center gap-1 active:scale-95">
+                        <Banknote className="w-3.5 h-3.5" /> Record Payment
+                      </button>
+                      <button onClick={()=>openLedger(sub.manager_id)}
+                        className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[11px] font-black hover:bg-white/10 transition-all flex items-center gap-1 active:scale-95">
+                        <ClipboardList className="w-3.5 h-3.5" /> Ledger
+                      </button>
                       <div className="flex items-center gap-1 ml-auto">
                         <span className="text-[10px] text-slate-600 font-bold">Rs.</span>
                         <input type="number" placeholder="Amount/mo" defaultValue={sub.amount_pkr||''}
