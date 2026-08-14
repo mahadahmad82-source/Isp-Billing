@@ -147,7 +147,15 @@ export default async function handler(req: any, res: any) {
     }
 
     console.log(`✅ Receipt image cleanup: checked=${totalChecked} deleted=${totalDeleted}`);
-    return res.status(200).json({ status: 'ok', checked: totalChecked, deleted: totalDeleted, retentionDays: RETENTION_DAYS });
+
+    const chatMedia = await cleanupChatMedia();
+    console.log(`✅ Chat media cleanup: checked=${chatMedia.checked} deleted=${chatMedia.deleted}`);
+
+    return res.status(200).json({
+      status: 'ok',
+      receipts: { checked: totalChecked, deleted: totalDeleted, retentionDays: RETENTION_DAYS },
+      chatMedia: { ...chatMedia, retentionDays: CHAT_MEDIA_RETENTION_DAYS, paymentProofRetentionDays: PAYMENT_PROOF_RETENTION_DAYS },
+    });
   } catch (e: any) {
     console.error('❌ cron-cleanup-receipt-images:', e?.message);
     return res.status(500).json({ error: e?.message });
