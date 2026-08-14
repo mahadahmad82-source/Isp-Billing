@@ -231,7 +231,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     // profiles.username is required for RLS-scoped manager_data access but is
     // never set by the signup trigger — set it now so dual-save works immediately.
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', user.id);
+    const cnicDigits = cnic.replace(/[^0-9]/g, '');
+    if (user) {
+      const { error: cnicErr } = await supabase.from('profiles').update({ username: phone, full_name: businessName || phone, cnic: cnicDigits || null }).eq('id', user.id);
+      // CNIC has a unique index — if someone else already registered with it,
+      // don't fail the whole signup over it, just drop the CNIC and let them
+      // know via the account they already have (rare edge case).
+      if (cnicErr && cnicDigits) {
+        await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', user.id);
+      }
+    }
     const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
     saveAccount(newAccount); setAccounts(getAccounts());
     writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
