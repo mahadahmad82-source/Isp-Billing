@@ -569,6 +569,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   </div>
                 )}
 
+                {/* CNIC (signup only, optional) — also usable as a login ID once set */}
+                {view === 'signup' && (
+                  <div>
+                    <label className={labelCls}>CNIC (optional)</label>
+                    <InputField icon={<UserIcon />} placeholder="XXXXX-XXXXXXX-X" value={cnic}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 13);
+                        const formatted = digits.length > 12 ? `${digits.slice(0,5)}-${digits.slice(5,12)}-${digits.slice(12)}` : digits.length > 5 ? `${digits.slice(0,5)}-${digits.slice(5)}` : digits;
+                        setCnic(formatted);
+                      }} />
+                    <p className="text-[9px] text-slate-500 ml-1 mt-1">Add this so you can also log in using your CNIC.</p>
+                  </div>
+                )}
+
                 {/* Recovery Email (signup only, optional) */}
                 {view === 'signup' && (
                   <div>
