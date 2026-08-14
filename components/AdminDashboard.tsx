@@ -143,22 +143,6 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [ledgerModal, setLedgerModal] = useState<string | null>(null); // manager_id
   const [ledgerRows, setLedgerRows] = useState<any[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
-  const [selectedLedgerMonth, setSelectedLedgerMonth] = useState<string | null>(null);
-
-  // Same period-wise grouping pattern as the manager-side Recovery Ledger
-  // (RecoverySummary.tsx) — group payments by "Month Year" using the
-  // project's standard period format, so admin sees the same month-card →
-  // detail-table drill-down UX they're already used to.
-  const monthlyLedger = useMemo(() => {
-    const groups: Record<string, { period: string; rows: any[]; total: number }> = {};
-    ledgerRows.forEach((row) => {
-      const period = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(row.paid_at));
-      if (!groups[period]) groups[period] = { period, rows: [], total: 0 };
-      groups[period].rows.push(row);
-      groups[period].total += Number(row.amount_pkr) || 0;
-    });
-    return Object.values(groups).sort((a, b) => new Date(b.rows[0].paid_at).getTime() - new Date(a.rows[0].paid_at).getTime());
-  }, [ledgerRows]);
   const [receiptView, setReceiptView] = useState<any | null>(null); // payment row
   const [subLoading, setSubLoading] = useState(false);
   const [subToast, setSubToast] = useState<string | null>(null);
@@ -321,7 +305,6 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
 
   const openLedger = async (managerId: string) => {
     setLedgerModal(managerId);
-    setSelectedLedgerMonth(null);
     setLedgerLoading(true);
     try {
       const { data } = await supabase.rpc('admin_get_subscription_ledger', { p_manager_id: managerId });
@@ -1463,31 +1446,90 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
         </div>
       )}
 
-      {/* ══════════ LEDGER MODAL ══════════ */}
+      {/* ══════════ LEDGER MODAL — month-wise, same pattern as the manager-side
+           Recovery Ledger (RecoverySummary.tsx): period cards first, tap one
+           to drill into that month's detailed payment table. ══════════ */}
       {ledgerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setLedgerModal(null)} />
-          <div className="relative z-10 w-full max-w-lg max-h-[80vh] bg-slate-900 rounded-3xl shadow-2xl border border-white/[0.08] p-6 overflow-y-auto">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center"><ClipboardList className="w-5 h-5 text-slate-300" /></div>
-              <div><h2 className="text-lg font-black text-white">Payment Ledger</h2><p className="text-[11px] text-slate-500">@{ledgerModal}</p></div>
+          <div className="relative z-10 w-full max-w-2xl max-h-[85vh] bg-slate-900 rounded-3xl shadow-2xl border border-white/[0.08] p-6 overflow-y-auto">
+            <div className="flex items-center gap-3 mb-5">
+              {selectedLedgerMonth && (
+                <button onClick={()=>setSelectedLedgerMonth(null)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:text-white flex-shrink-0">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+              )}
+              <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center flex-shrink-0"><ClipboardList className="w-5 h-5 text-slate-300" /></div>
+              <div>
+                <h2 className="text-lg font-black text-white">{selectedLedgerMonth || 'Payment Ledger'}</h2>
+                <p className="text-[11px] text-slate-500">@{ledgerModal}{selectedLedgerMonth ? ' — month detail' : ''}</p>
+              </div>
             </div>
+
             {ledgerLoading ? (
               <div className="flex items-center justify-center py-12"><div className="w-5 h-5 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : ledgerRows.length === 0 ? (
               <p className="text-center py-10 text-slate-600 text-xs font-bold">Koi payment record nahi hai abhi.</p>
-            ) : (
-              <div className="space-y-2">
-                {ledgerRows.map((row) => (
-                  <div key={row.id} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-3.5 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-black text-indigo-400">{row.receipt_number}</p>
-                      <p className="text-[13px] font-black text-white">Rs. {Number(row.amount_pkr).toLocaleString()} — {row.plan} ({row.period_months}mo)</p>
-                      <p className="text-[10px] text-slate-500">{fmtDate(row.paid_at)} · {row.method || 'N/A'}</p>
+            ) : selectedLedgerMonth === null ? (
+              /* ── Period cards grid (collection-period-per-month), same visual
+                   language as RecoverySummary's month cards ── */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {monthlyLedger.map((m) => (
+                  <div key={m.period} onClick={()=>setSelectedLedgerMonth(m.period)}
+                    className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-2xl p-4 cursor-pointer transition-all hover:-translate-y-0.5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1">Collection Period</p>
+                    <p className="text-lg font-black text-white mb-2">{m.period}</p>
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Collected</p>
+                        <p className="text-sm font-black text-emerald-400">Rs. {m.total.toLocaleString()}</p>
+                      </div>
+                      <div className="border-l border-white/10 pl-4">
+                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Payments</p>
+                        <p className="text-sm font-black text-slate-200">{m.rows.length}</p>
+                      </div>
                     </div>
-                    <button onClick={()=>setReceiptView(row)} className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-black hover:bg-indigo-500/20 transition-all flex-shrink-0">Receipt</button>
                   </div>
                 ))}
+              </div>
+            ) : (
+              /* ── Detailed table for the selected month ── */
+              <div className="overflow-x-auto -mx-2">
+                <table className="w-full text-left min-w-[560px]">
+                  <thead className="bg-white/[0.03] text-[10px] uppercase font-black text-slate-500 border-b border-white/[0.06]">
+                    <tr>
+                      <th className="px-3 py-3">Receipt #</th>
+                      <th className="px-3 py-3">Plan</th>
+                      <th className="px-3 py-3">Period</th>
+                      <th className="px-3 py-3">Method</th>
+                      <th className="px-3 py-3">Date</th>
+                      <th className="px-3 py-3 text-right">Amount</th>
+                      <th className="px-3 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {monthlyLedger.find(m => m.period === selectedLedgerMonth)?.rows.map((row) => (
+                      <tr key={row.id} className="text-[12px] hover:bg-white/[0.02]">
+                        <td className="px-3 py-3 font-black text-indigo-400">{row.receipt_number}</td>
+                        <td className="px-3 py-3 text-slate-300 capitalize">{row.plan}</td>
+                        <td className="px-3 py-3 text-slate-400">{row.period_months}mo</td>
+                        <td className="px-3 py-3 text-slate-400 capitalize">{(row.method || 'N/A').replace('_',' ')}</td>
+                        <td className="px-3 py-3 text-slate-400">{fmtDate(row.paid_at)}</td>
+                        <td className="px-3 py-3 text-right font-black text-emerald-400">Rs. {Number(row.amount_pkr).toLocaleString()}</td>
+                        <td className="px-3 py-3">
+                          <button onClick={()=>setReceiptView(row)} className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-black hover:bg-indigo-500/20 transition-all">Receipt</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-white/[0.08]">
+                      <td colSpan={5} className="px-3 py-3 text-[11px] font-black text-slate-400 uppercase tracking-wider">Total</td>
+                      <td className="px-3 py-3 text-right font-black text-white">Rs. {(monthlyLedger.find(m => m.period === selectedLedgerMonth)?.total || 0).toLocaleString()}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             )}
           </div>
