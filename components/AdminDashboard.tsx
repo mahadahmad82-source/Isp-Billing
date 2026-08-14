@@ -16,6 +16,7 @@ interface ManagerStat {
   role: string; joined_at: string; last_login: string; last_seen: string | null; user_count: number;
   receipt_count: number; active_count: number; expired_count: number;
   total_revenue: number; total_balance: number; data_updated_at: string | null;
+  is_active: boolean;
 }
 interface Customer {
   id: string; name: string; username: string; phone?: string; plan: string;
