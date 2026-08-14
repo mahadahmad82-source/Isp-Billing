@@ -122,14 +122,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       let identifier = username;
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
       let { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+      // Was the session resolved via a different identifier than what the person
+      // typed (real recovery email, or now CNIC)? If so `identifier` itself is
+      // NOT their actual username — it must be re-derived from their profile
+      // below instead of reused as-is, or RLS (which matches on the real
+      // profiles.username) would silently break for CNIC-based logins.
+      let resolvedViaLookup = false;
       if ((authError || !data?.user) && !identifier.includes('@')) {
-        // This username may be registered with a real recovery email instead
-        // of the synthetic one (set at signup for email-OTP password reset).
+        // This username/CNIC may be registered with a real recovery email
+        // instead of the synthetic one (set at signup for email-OTP password reset).
         try {
           const { data: resolvedEmail } = await supabase.rpc('resolve_login_email', { p_identifier: identifier });
           if (resolvedEmail && resolvedEmail !== authEmail) {
             const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password });
-            if (!retry.error && retry.data?.user) { data = retry.data; authError = null; }
+            if (!retry.error && retry.data?.user) { data = retry.data; authError = null; resolvedViaLookup = true; }
           }
         } catch { /* fall through to existing fallback chain below */ }
       }
