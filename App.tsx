@@ -420,6 +420,16 @@ const App: React.FC = () => {
           planHistory: finalState.planHistory || [],
         });
         // Welcome tour is now triggered reactively by the Tour Guide v2 effect above.
+      }).catch((err: any) => {
+        // Admin suspended this account (AdminDashboard.tsx suspend toggle) —
+        // log out clearly instead of silently showing stale cached data.
+        if (err?.message === 'ACCOUNT_SUSPENDED') {
+          alert('Aapka account admin ne suspend kar diya hai. Apne provider se rabta karein.');
+          setActiveSession(null);
+          setActiveManager(null);
+        } else {
+          console.error('[Login sync]', err);
+        }
       }).finally(() => setIsSyncing(false));
     } else {
       setActiveSession(null);
