@@ -274,6 +274,44 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   }, []);
   useEffect(() => { if (tab === 'subscriptions') loadSubscriptions(); }, [tab, loadSubscriptions]);
 
+  const openPaymentModal = (managerId: string, currentPlan: string, currentAmount: number) => {
+    setPaymentModal(managerId);
+    setPayAmount(currentAmount ? String(currentAmount) : '');
+    setPayMonths('1');
+    setPayMethod('cash');
+    setPayNotes('');
+  };
+
+  const submitPayment = async () => {
+    if (!paymentModal) return;
+    const amount = parseInt(payAmount) || 0;
+    const months = parseInt(payMonths) || 0;
+    if (amount <= 0) { alert('Amount se zyada bara number likhein.'); return; }
+    if (months <= 0) { alert('Period (months) 1 ya zyada hona chahiye.'); return; }
+    const sub = subscriptions.find(s => s.manager_id === paymentModal);
+    setPayBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_record_subscription_payment', {
+        p_manager_id: paymentModal, p_amount_pkr: amount, p_plan: sub?.plan || 'starter',
+        p_period_months: months, p_method: payMethod, p_notes: payNotes || null,
+      });
+      if (error || (data && !data.success)) { alert(error?.message || data?.error || 'Payment record nahi hui'); return; }
+      setSubToast(`✅ Payment recorded — receipt ${data.receipt_number}`);
+      setTimeout(() => setSubToast(null), 3000);
+      setPaymentModal(null);
+      loadSubscriptions();
+    } finally { setPayBusy(false); }
+  };
+
+  const openLedger = async (managerId: string) => {
+    setLedgerModal(managerId);
+    setLedgerLoading(true);
+    try {
+      const { data } = await supabase.rpc('admin_get_subscription_ledger', { p_manager_id: managerId });
+      setLedgerRows(data || []);
+    } finally { setLedgerLoading(false); }
+  };
+
   const updateSubscription = async (managerId: string, updates: any) => {
     const { error } = await supabase.from('manager_subscriptions').upsert({ manager_id: managerId, ...updates }, { onConflict: 'manager_id' });
     if (!error) { await loadSubscriptions(); showSubToast('✅ Updated: ' + managerId); }
