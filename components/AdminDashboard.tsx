@@ -683,6 +683,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => handleToggleActive(m.username, !m.is_active)} disabled={suspendBusy === m.username}
+                      title={m.is_active ? 'Suspend account' : 'Reactivate account'}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${m.is_active ? 'text-slate-500 hover:bg-amber-500/15 hover:text-amber-400' : 'text-amber-400 bg-amber-500/10'}`}>
+                      {suspendBusy === m.username ? <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : m.is_active ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                    </button>
                     <button onClick={() => { setShowResetModal(m.username); setNewPassword(''); setResetMsg(null); }}
                       className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-indigo-500/15 hover:text-indigo-400 transition-all">
                       <Key className="w-4 h-4" />
