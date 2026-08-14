@@ -192,6 +192,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) { showError('This Phone Number is already taken.'); return; }
     const trimmedEmail = email.trim().toLowerCase();
     if (trimmedEmail && (!trimmedEmail.includes('@') || trimmedEmail.endsWith('@myisp.local'))) { showError('Please enter a valid email address.'); return; }
+    const cnicDigits = cnic.replace(/[^0-9]/g, '');
+    if (cnic && cnicDigits.length !== 13) { showError('CNIC must be 13 digits (XXXXX-XXXXXXX-X).'); return; }
     setIsLoading(true); setLoadingText('Initialising New Node...'); setError('');
     try {
       // Use the real email (if given) as the actual login/auth email — this is
