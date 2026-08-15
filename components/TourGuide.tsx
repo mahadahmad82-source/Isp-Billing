@@ -40,8 +40,8 @@ export const WELCOME_STEPS: TourStep[] = [
     id: 'nav', icon: '📂', targetId: 'tour-sidebar-nav',
     title: { en: 'Menu — All Your Features', ur: 'مینو — آپ کے تمام فیچرز' },
     description: {
-      en: 'Tap the ☰ icon anytime to open this menu. Every feature of your business — Customers, Receipts, Recoveries and more — is one tap away.',
-      ur: '☰ آئیکن پر ٹیپ کر کے یہ مینو کبھی بھی کھولیں۔ آپ کے بزنس کا ہر فیچر — کسٹمرز، رسیدیں، ریکوریز وغیرہ — یہاں سے صرف ایک ٹیپ کی دوری پر ہے۔'
+      en: 'Tap the ☰ icon anytime to open this menu. Your core business screens are here, with additional tools grouped under Expenses.',
+      ur: '☰ آئیکن پر ٹیپ کر کے یہ مینو کبھی بھی کھولیں۔ آپ کے بزنس کی بنیادی اسکرینیں یہاں ہیں، جبکہ اضافی ٹولز Expenses کے اندر موجود ہیں۔'
     }
   },
   {
@@ -72,8 +72,8 @@ export const WELCOME_STEPS: TourStep[] = [
     id: 'finish', icon: '🚀',
     title: { en: 'You\'re All Set!', ur: 'آپ اب تیار ہیں!' },
     description: {
-      en: 'As you open each tab for the first time, a quick tip will explain what it\'s for. Want to see all this again? Go to Settings → Tour Guide.',
-      ur: 'جب آپ ہر ٹیب پہلی بار کھولیں گے تو ایک مختصر ٹِپ سمجھا دے گی کہ وہ کس کام کی ہے۔ دوبارہ دیکھنا چاہیں تو سیٹنگز → ٹور گائیڈ میں جائیں۔'
+      en: 'Supported screens show a quick tip the first time you open them. Want to see this welcome tour again? Go to Settings → Tour Guide.',
+      ur: 'جن اسکرینز کے لیے ٹِپ موجود ہے، وہ پہلی بار کھولنے پر مختصر رہنمائی دکھائیں گی۔ یہ ویلکم ٹور دوبارہ دیکھنے کے لیے سیٹنگز → ٹور گائیڈ میں جائیں۔'
     }
   },
 ];
@@ -82,6 +82,14 @@ export const WELCOME_STEPS: TourStep[] = [
 // PER-TAB TIPS — shown once, the first time a manager opens that tab
 // ─────────────────────────────────────────────────────────
 export const TAB_STEPS: Record<string, TourStep[]> = {
+  dashboard: [{
+    id: 'dashboard', icon: '📊', targetId: 'tour-stats-grid',
+    title: { en: 'Dashboard Overview', ur: 'ڈیش بورڈ کا جائزہ' },
+    description: {
+      en: 'See your key revenue, balance, customer-status and expiry-alert numbers at a glance. Tap a card to open its related details.',
+      ur: 'اہم ریونیو، بقایا رقم، کسٹمر اسٹیٹس اور ایکسپائری الرٹس کے اعداد و شمار ایک نظر میں دیکھیں۔ متعلقہ تفصیل کھولنے کے لیے کسی کارڈ پر ٹیپ کریں۔'
+    }
+  }],
   users: [{
     id: 'users', icon: '👥',
     title: { en: 'Customers', ur: 'کسٹمرز' },
@@ -150,8 +158,8 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
     id: 'expenses', icon: '💸',
     title: { en: 'Business Expenses', ur: 'بزنس اخراجات' },
     description: {
-      en: 'Log salaries, bills, and equipment costs here — your Dashboard profit number automatically subtracts these.',
-      ur: 'تنخواہیں، بل اور آلات کے اخراجات یہاں درج کریں — ڈیش بورڈ کا منافع خودکار طور پر ان کو منہا کر کے دکھاتا ہے۔'
+      en: 'Log salaries, bills, and equipment costs here. These records are included in the expense and profit views.',
+      ur: 'تنخواہیں، بل اور آلات کے اخراجات یہاں درج کریں۔ یہ ریکارڈ اخراجات اور منافع کے ویوز میں شامل کیے جاتے ہیں۔'
     }
   }],
   outage: [{
@@ -230,8 +238,8 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
     id: 'invoice', icon: '🧮',
     title: { en: 'Monthly Invoice', ur: 'ماہانہ انوائس' },
     description: {
-      en: 'Generate this month\'s invoice for all customers in one go, instead of creating receipts one at a time.',
-      ur: 'تمام کسٹمرز کے لیے اس مہینے کا انوائس ایک ہی بار میں بنائیں، ایک ایک کر کے رسید بنانے کے بجائے۔'
+      en: 'Select one customer, choose the month and year, review payment history and balance, then print a professional invoice.',
+      ur: 'ایک کسٹمر منتخب کریں، مہینہ اور سال چنیں، ادائیگیوں کی ہسٹری اور بقایا رقم دیکھیں، پھر پروفیشنل انوائس پرنٹ کریں۔'
     }
   }],
 };
