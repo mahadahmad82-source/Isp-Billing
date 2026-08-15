@@ -561,6 +561,55 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
               </form>
             )}
 
+            {/* ── PLAN SELECTION (after successful signup) ── */}
+            {view === 'signup-tier' && !tierPaymentPending && (
+              <div className="space-y-3">
+                <div className="text-center mb-3">
+                  <h2 className="text-lg font-black text-white mb-1">Choose Your Plan</h2>
+                  <p className="text-[11px] text-slate-500">Free starts instantly. Paid plans activate after payment verification.</p>
+                </div>
+                {PLAN_TIERS.map((p) => (
+                  <button key={p.tier} type="button" disabled={tierBusy} onClick={() => handleSelectTier(p.tier, p.label)}
+                    className="w-full text-left p-4 rounded-2xl border border-white/10 hover:border-indigo-500/50 bg-white/[0.02] hover:bg-white/[0.05] transition-all disabled:opacity-50 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-black text-white text-sm">{p.label}</p>
+                      <p className="text-[10px] text-slate-500">{p.desc}</p>
+                    </div>
+                    <span className="text-[11px] font-black text-indigo-400 flex-shrink-0">{p.price}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* ── PAYMENT INSTRUCTIONS (paid tier selected) ── */}
+            {view === 'signup-tier' && tierPaymentPending && (
+              <div className="space-y-4">
+                <div className="text-center mb-2">
+                  <h2 className="text-lg font-black text-white mb-1">{tierPaymentPending.label} Plan Selected</h2>
+                  <p className="text-[11px] text-slate-500">Pay using any option below, then send your receipt on WhatsApp — your plan activates as soon as it's verified.</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-2 text-[12px]">
+                  <p className="font-black text-indigo-400 text-[10px] uppercase tracking-wider mb-1">🏦 Meezan Bank</p>
+                  <div className="flex justify-between"><span className="text-slate-500">Title</span><span className="font-bold text-white">MAHAD AHMAD KHAN LODHI</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Account</span><span className="font-bold text-white">00300112164874</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">IBAN</span><span className="font-bold text-white text-[10px]">PK82MEZN0000300112164874</span></div>
+                  <div className="border-t border-white/10 my-2" />
+                  <p className="font-black text-indigo-400 text-[10px] uppercase tracking-wider mb-1">📱 EasyPaisa / JazzCash</p>
+                  <div className="flex justify-between"><span className="text-slate-500">Number</span><span className="font-bold text-white">0304-2773453</span></div>
+                </div>
+                <a href={`https://wa.me/923477136214?text=${encodeURIComponent(`Payment receipt for ${tierPaymentPending.label} plan — ${businessName || phone}`)}`}
+                  target="_blank" rel="noreferrer"
+                  className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white transition-all active:scale-95 hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 8px 32px rgba(34,197,94,0.35)' }}>
+                  Send Receipt on WhatsApp
+                </a>
+                <button type="button" onClick={() => onLogin(phone)}
+                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-400 hover:text-white transition-colors">
+                  Continue to Dashboard (Free tier until verified)
+                </button>
+              </div>
+            )}
+
             {/* ── NEW PASSWORD ── */}
             {view === 'forgot-newpass' && (
               <form onSubmit={handleSetNewPassword} className="space-y-5">
