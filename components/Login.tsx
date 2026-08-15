@@ -80,6 +80,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [signupOtp, setSignupOtp] = useState('');
   const [tierPaymentPending, setTierPaymentPending] = useState<{ tier: string; label: string } | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofSubmitted, setProofSubmitted] = useState(false);
   const [tierBusy, setTierBusy] = useState(false);
   const [pendingSignupEmail, setPendingSignupEmail] = useState('');
 
