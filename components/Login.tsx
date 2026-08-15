@@ -79,6 +79,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [signupOtp, setSignupOtp] = useState('');
+  const [tierPaymentPending, setTierPaymentPending] = useState<{ tier: string; label: string } | null>(null);
+  const [tierBusy, setTierBusy] = useState(false);
   const [pendingSignupEmail, setPendingSignupEmail] = useState('');
 
   useEffect(() => {
