@@ -49,7 +49,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         const ok = await subscribeToPush(activeManager, 'billcollector');
         if (ok) {
           setPushEnabled(true);
-          await sendPushNotification(activeManager, '🔔 MYISP Notifications Active!', 'Aapko ab expiry aur payment alerts milenge!', 'test');
+          await sendPushNotification(activeManager, '🔔 MYISP Notifications Active!', 'You will now receive expiry and payment alerts!', 'test');
         }
       }
     } finally {
@@ -628,7 +628,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               <div>
                 <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest leading-tight">Show Business Name on Receipt</p>
                 <p className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                  {(localSettings.showBusinessNameOnReceipt ?? true) ? 'Name + Logo dono dikhenge' : 'Only the logo will be displayed.'}
+                  {(localSettings.showBusinessNameOnReceipt ?? true) ? 'Both the name and logo will be displayed.' : 'Only the logo will be displayed.'}
                 </p>
               </div>
               <button
@@ -827,7 +827,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
             <div>
               <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Receipt Serial Number</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Apni marzi se serial number set karo — receipts yahan se start hongi</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Set a custom starting serial number for new receipts.</p>
             </div>
           </div>
 
@@ -843,7 +843,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 onChange={e => setLocalSettings({ ...localSettings, receiptSerialPrefix: e.target.value.toUpperCase() })}
                 className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 uppercase tracking-widest"
               />
-              <p className="text-[10px] text-slate-400 mt-1.5 font-medium">Receipt pe prefix: <span className="font-black text-violet-500">{(localSettings.receiptSerialPrefix || 'MN').toUpperCase()}-0001</span></p>
+              <p className="text-[10px] text-slate-400 mt-1.5 font-medium">Receipt prefix: <span className="font-black text-violet-500">{(localSettings.receiptSerialPrefix || 'MN').toUpperCase()}-0001</span></p>
             </div>
 
             {/* Starting Number */}
@@ -859,7 +859,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
               <p className="text-[10px] text-slate-400 mt-1.5 font-medium">
-                Pehli receipt: <span className="font-black text-violet-500">
+                First receipt: <span className="font-black text-violet-500">
                   {(localSettings.receiptSerialPrefix || 'MN').toUpperCase()}-{String(localSettings.receiptSerialStart || 1).padStart(Math.max(4, String(localSettings.receiptSerialStart || 1).length), '0')}
                 </span>
               </p>
@@ -899,7 +899,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
             <div>
               <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Ayesha WhatsApp Bot</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">WhatsApp support bot ka naam customize karo</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Customize the name of the WhatsApp support bot.</p>
             </div>
           </div>
 
@@ -914,7 +914,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
             <p className="text-[10px] text-slate-400 mt-1.5 font-medium">
-              Bot khud ko introduce karega: <span className="font-black text-emerald-500">"Main {localSettings.ayeshaBotName || 'Ayesha'} hoon..."</span>
+              Bot introduction preview: <span className="font-black text-emerald-500">"I am {localSettings.ayeshaBotName || 'Ayesha'}..."</span>
             </p>
           </div>
 
@@ -928,7 +928,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                  Jab aap receipt generate karenge, customer ko automatic WhatsApp template send hoga.
+                  An automatic WhatsApp confirmation template will be sent when you generate a receipt.
                 </p>
               </div>
               <button
@@ -1084,7 +1084,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           {!pushEnabled && pushSupported && (
             <div className="mt-6 bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
               <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                💡 Toggle ON karo — browser permission maangega. "Allow" karo aur phir notifications shuru ho jayengi!
+                💡 Turn this on to request browser permission. Select "Allow" to start receiving notifications.
               </p>
             </div>
           )}
@@ -1274,7 +1274,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 {mikrotikSyncing ? '⏳ Syncing...' : '🔄 Sync Users'}
               </button>
             </div>
-            <p className="text-[10px] dark:text-white/30 text-slate-400">⚠️ Router same network pe hona chahiye. RouterOS v7+ REST API required.</p>
+            <p className="text-[10px] dark:text-white/30 text-slate-400">⚠️ The router must be on the same network. RouterOS v7+ REST API is required.</p>
           </div>
         </div>
 
