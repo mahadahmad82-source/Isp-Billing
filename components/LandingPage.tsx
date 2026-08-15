@@ -439,12 +439,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   const featuresList = [
-    { title: 'Automated Billing', desc: 'Generate monthly subscriber invoices, automatic package renewals, and professional area ledgers at midnight. Say goodbye to manual Excel spreadsheets and double entries.', icon: <Zap className="w-5 h-5" />, color: '#6366f1' },
-    { title: 'WhatsApp Alerts', desc: 'Send personalized Urdu & English payment reminders with custom bill links directly to customer WhatsApp with a single tap. Boost your monthly recovery rate by 95%.', icon: <Smartphone className="w-5 h-5" />, color: '#8b5cf6' },
+    { title: 'Billing & Receipts', desc: 'Manage subscriber plans, record collections, and generate professional digital receipts for sharing with customers.', icon: <Receipt className="w-5 h-5" />, color: '#6366f1' },
+    { title: 'WhatsApp Reminders', desc: 'Send personalized Urdu and English payment reminders with bill links directly to a customer’s WhatsApp chat with a single tap.', icon: <Smartphone className="w-5 h-5" />, color: '#8b5cf6' },
     { title: 'Cloud Sync', desc: 'Enjoy lightning-fast operations with encrypted local storage coupled with real-time Supabase cloud sync. Your database is always backed up, secure, and accessible from any device.', icon: <Lock className="w-5 h-5" />, color: '#06b6d4' },
-    { title: 'Smart Financials', desc: 'Analyze business health with interactive area-wise collection sheets, daily recovery counters, pending balance grids, and automatic monthly expense trackers.', icon: <BarChart className="w-5 h-5" />, color: '#10b981' },
+    { title: 'Recovery & Financial Tracking', desc: 'Review area-wise collections, recovery activity, pending balances, and outstanding dues in focused operational dashboards.', icon: <BarChart className="w-5 h-5" />, color: '#10b981' },
     { title: 'Agent Management', desc: 'Authorize collection staff with secure, restricted sub-accounts. Let agents collect outstanding dues, issue instant digital receipts, and record field expenses on the spot.', icon: <Users className="w-5 h-5" />, color: '#f59e0b' },
-    { title: 'Network Operations', desc: 'Document fiber optical cuts, power outages, and scheduled maintenance down-time. Keep structured logs of user suspensions with custom reasons and automatic block dates.', icon: <Globe className="w-5 h-5" />, color: '#ec4899' },
+    { title: 'Network Operations', desc: 'Document fiber cuts, power outages, and maintenance downtime while keeping structured suspension records with reasons and dates.', icon: <Globe className="w-5 h-5" />, color: '#ec4899' },
+    { title: 'Subscription Tiers', desc: 'Let ISPs sign up online for the subscription tier that fits their operation and scale access as their needs grow.', icon: <CreditCard className="w-5 h-5" />, color: '#14b8a6' },
+    { title: 'Admin Subscription Ledger', desc: 'Maintain a central subscription ledger with account status and receipts for admin-side tracking.', icon: <FileText className="w-5 h-5" />, color: '#f97316' },
+    { title: 'NetBot AI Support', desc: 'Connect customers to NetBot for WhatsApp support, with multiple configurable voice-agent personas available on higher tiers.', icon: <MessageCircle className="w-5 h-5" />, color: '#22c55e' },
+    { title: 'CNIC-Based Login', desc: 'Provide customers with a secure CNIC-based login option for convenient access to the platform.', icon: <Fingerprint className="w-5 h-5" />, color: '#eab308' },
   ];
 
   const infraFeatures = [
@@ -1933,17 +1937,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
           <div className="marquee-row">
             <div className="marquee-content whitespace-nowrap">
-              <span className="marquee-text">✦ AUTOMATED BILLING · SMART REMINDERS · DIGITAL RECEIPTS · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
-              <span className="marquee-text">✦ AUTOMATED BILLING · SMART REMINDERS · DIGITAL RECEIPTS · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
+              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · NETBOT AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
+              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · NETBOT AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
             </div>
           </div>
           <div className="marquee-row reverse">
             <div className="marquee-content whitespace-nowrap">
               <span className="marquee-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', color: 'rgba(255,255,255,0.05)' }}>
-                ✦ automated billing · smart reminders · digital receipts · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
+                ✦ billing & receipts · WhatsApp reminders · subscription tiers · NetBot AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
               </span>
               <span className="marquee-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', color: 'rgba(255,255,255,0.05)' }}>
-                ✦ automated billing · smart reminders · digital receipts · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
+                ✦ billing & receipts · WhatsApp reminders · subscription tiers · NetBot AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
               </span>
             </div>
           </div>
