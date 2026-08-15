@@ -256,7 +256,34 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
     saveAccount(newAccount); setAccounts(getAccounts());
     writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
-    onLogin(phone);
+    // Ask them which plan they actually want before dropping into the app —
+    // Free activates immediately, paid tiers go to a payment-instructions
+    // screen and stay on Free-level access until an admin verifies the
+    // transfer (see select_signup_tier / admin_record_subscription_payment).
+    setView('signup-tier');
+  };
+
+  const PLAN_TIERS = [
+    { tier: 'free', label: 'Free', price: 'Free', desc: 'Up to 75 customers, core billing tools' },
+    { tier: 'starter', label: 'Starter', price: 'Rs. 1,500/mo', desc: 'Up to 256 customers, +1 sub-manager' },
+    { tier: 'growth', label: 'Growth', price: 'Rs. 2,500/mo', desc: 'Up to 512 customers, +NetBot Text tier' },
+    { tier: 'business', label: 'Business', price: 'Rs. 4,000/mo', desc: 'Up to 750 customers, +NetBot Basic tier' },
+    { tier: 'enterprise', label: 'Enterprise', price: 'Rs. 6,000/mo', desc: 'Up to 1,056 customers, +NetBot Pro tier' },
+    { tier: 'custom', label: 'Custom', price: 'Contact Us', desc: 'Unlimited everything, NetBot Unlimited tier' },
+  ];
+
+  const handleSelectTier = async (tier: string, label: string) => {
+    setTierBusy(true);
+    try {
+      await supabase.rpc('select_signup_tier', { p_tier: tier });
+      if (tier === 'free') {
+        onLogin(phone);
+      } else {
+        setTierPaymentPending({ tier, label });
+      }
+    } finally {
+      setTierBusy(false);
+    }
   };
 
   const handleSignupOtpVerify = async (e: React.FormEvent) => {
