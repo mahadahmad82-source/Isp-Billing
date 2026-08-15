@@ -80,9 +80,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [signupOtp, setSignupOtp] = useState('');
   const [tierPaymentPending, setTierPaymentPending] = useState<{ tier: string; label: string } | null>(null);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [proofUploading, setProofUploading] = useState(false);
-  const [proofSubmitted, setProofSubmitted] = useState(false);
   const [tierBusy, setTierBusy] = useState(false);
   const [pendingSignupEmail, setPendingSignupEmail] = useState('');
 
@@ -286,27 +283,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       }
     } finally {
       setTierBusy(false);
-    }
-  };
-
-  const handleSubmitProof = async () => {
-    if (!proofFile) { showError('Payment proof screenshot select karein.'); return; }
-    setProofUploading(true);
-    try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-      const ext = proofFile.name.split('.').pop() || 'jpg';
-      const path = `signup-proofs/${phone}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, proofFile, {
-        contentType: proofFile.type || 'image/jpeg', cacheControl: '31536000',
-      });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-      await supabase.rpc('submit_signup_payment_proof', { p_proof_url: pub.publicUrl });
-      setProofSubmitted(true);
-    } catch (err: any) {
-      showError(err?.message || 'Proof upload failed, try again.');
-    } finally {
-      setProofUploading(false);
     }
   };
 
@@ -621,11 +597,31 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   <p className="font-black text-indigo-400 text-[10px] uppercase tracking-wider mb-1">📱 EasyPaisa / JazzCash</p>
                   <div className="flex justify-between"><span className="text-slate-500">Number</span><span className="font-bold text-white">0304-2773453</span></div>
                 </div>
+
+                {proofSubmitted ? (
+                  <div className="p-4 rounded-2xl text-center text-[12px] font-bold text-emerald-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)' }}>
+                    ✅ Payment proof submitted — your {tierPaymentPending.label} plan will activate once verified.
+                  </div>
+                ) : (
+                  <div>
+                    <label className={labelCls}>Upload Payment Proof (screenshot)</label>
+                    <input type="file" accept="image/*" onChange={e => setProofFile(e.target.files?.[0] || null)}
+                      className="w-full text-[11px] text-slate-400 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-500/15 file:text-indigo-400 hover:file:bg-indigo-500/25 file:cursor-pointer cursor-pointer" />
+                  </div>
+                )}
+
+                {!proofSubmitted && (
+                  <button type="button" onClick={handleSubmitProof} disabled={proofUploading || !proofFile}
+                    className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white transition-all active:scale-95 hover:-translate-y-0.5 disabled:opacity-40 flex items-center justify-center gap-2"
+                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
+                    {proofUploading ? 'Uploading...' : 'Submit Registration & Payment Proof'}
+                  </button>
+                )}
+
                 <a href={`https://wa.me/923477136214?text=${encodeURIComponent(`Payment receipt for ${tierPaymentPending.label} plan — ${businessName || phone}`)}`}
                   target="_blank" rel="noreferrer"
-                  className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white transition-all active:scale-95 hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 8px 32px rgba(34,197,94,0.35)' }}>
-                  Send Receipt on WhatsApp
+                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5">
+                  Also inform on WhatsApp (optional)
                 </a>
                 <button type="button" onClick={() => onLogin(phone)}
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-400 hover:text-white transition-colors">
