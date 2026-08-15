@@ -51,7 +51,7 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
             { title: 'Recovery Ledger', desc: 'A complete record of monthly collections — who paid, who hasn\'t, who expired — all clear.', icon: <Activity className="w-8 h-8" /> },
             { title: 'Equipment Tracker', desc: 'Routers, ONUs, switches — assign to customers, take back, manage inventory.', icon: <Database className="w-8 h-8" /> },
             { title: 'Leads Pipeline', desc: 'Track new inquiries — from contacted to install pending, see your conversion rate.', icon: <Zap className="w-8 h-8" /> },
-            { title: 'Aging Report', desc: 'How much money has been pending for how long — 0-30, 30-60, 60-90, 90+ day breakdown.', icon: <Smartphone className="w-8 h-8" /> },
+            { title: 'Aging Report', desc: 'See how long outstanding balances have been pending, with clear aging buckets to guide follow-up and recovery.', icon: <Smartphone className="w-8 h-8" /> },
             { title: 'Area Dashboard', desc: 'Active/expired breakdown for each area, revenue and pending amounts separated.', icon: <ShieldCheck className="w-8 h-8" /> },
             { title: 'Suspension Log', desc: 'Suspend and restore connections with reason and full history log.', icon: <Lock className="w-8 h-8" /> },
             { title: 'Outage Tracker', desc: 'Log network downtime — affected areas, severity, duration — all tracked.', icon: <CheckCircle className="w-8 h-8" /> },
@@ -92,14 +92,13 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                 <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-8">
                   <Activity className="w-8 h-8" />
                 </div>
-                <h3 className="text-4xl font-black mb-6 uppercase tracking-tight">AI Recovery Engine</h3>
+                <h3 className="text-4xl font-black mb-6 uppercase tracking-tight">Subscription Tiers</h3>
                 <p className="text-slate-100 text-lg leading-relaxed font-medium mb-8">
-                  Our proprietary AI analyzes payment patterns to predict potential defaults before they happen, 
-                  allowing you to take proactive measures.
+                  Offer online signup across subscription tiers, so ISP teams can start with the right plan and scale their platform access as they grow.
                 </p>
                 <div className="flex gap-4">
-                  <div className="px-4 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Predictive Analytics</div>
-                  <div className="px-4 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Smart Alerts</div>
+                  <div className="px-4 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Online Signup</div>
+                  <div className="px-4 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Tiered Access</div>
                 </div>
               </div>
             </motion.div>
@@ -115,14 +114,13 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
                 <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-8 text-indigo-400">
                   <Database className="w-8 h-8" />
                 </div>
-                <h3 className="text-4xl font-black mb-6 uppercase tracking-tight">Multi-Node Sync</h3>
+                <h3 className="text-4xl font-black mb-6 uppercase tracking-tight">NetBot AI Support</h3>
                 <p className="text-slate-200 text-lg leading-relaxed font-medium mb-8">
-                  Manage multiple ISP branches with real-time data synchronization. 
-                  Every node stays updated across all your devices instantly.
+                  NetBot handles customer support conversations on WhatsApp, with multiple configurable voice-agent personas available on higher subscription tiers.
                 </p>
                 <div className="flex gap-4">
-                  <div className="px-4 py-2 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest">Cloud Relay</div>
-                  <div className="px-4 py-2 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest">Conflict Resolution</div>
+                  <div className="px-4 py-2 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest">AI WhatsApp Support</div>
+                  <div className="px-4 py-2 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest">Voice Personas</div>
                 </div>
               </div>
             </motion.div>
@@ -130,9 +128,9 @@ const Features: React.FC<FeaturesProps> = ({ onGetStarted }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
             {[
-              { title: 'WhatsApp API', desc: 'Direct integration for automated receipt delivery.', icon: <Smartphone className="w-6 h-6" /> },
-              { title: 'Excel Engine', desc: 'High-speed bulk import/export for thousands of records.', icon: <Database className="w-6 h-6" /> },
-              { title: 'Offline First', desc: 'Full functionality even without an active internet connection.', icon: <ShieldCheck className="w-6 h-6" /> },
+              { title: 'Admin Subscription Ledger', desc: 'Track subscription access and issue receipts from a centralized admin ledger.', icon: <BarChart className="w-6 h-6" /> },
+              { title: 'CNIC-Based Login', desc: 'Give customers a familiar CNIC-based sign-in option for secure access to the platform.', icon: <Lock className="w-6 h-6" /> },
+              { title: 'Excel Import & Export', desc: 'Move customer records in and out with supported spreadsheet workflows.', icon: <Database className="w-6 h-6" /> },
             ].map((item, idx) => (
               <motion.div 
                 key={idx}
