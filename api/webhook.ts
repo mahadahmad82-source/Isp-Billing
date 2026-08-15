@@ -804,7 +804,7 @@ function getActiveOutage(rowData: any): any | null {
 async function checkQuota(managerId: string): Promise<boolean> {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=messages_used_this_cycle,message_quota,service_status`,
+      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=messages_used_this_cycle,message_quota,service_status,cycle_start_date,cycle_end_date`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     const rows: any[] = await res.json();
@@ -813,6 +813,38 @@ async function checkQuota(managerId: string): Promise<boolean> {
     if (cfg.service_status === 'suspended' || cfg.service_status === 'cancelled') {
       console.warn(`[quota] manager=${managerId} service_status=${cfg.service_status} — blocking`);
       return true;
+    }
+    // Cron normally rolls cycles over, but a delayed/missed cron must never leave
+    // the live bot permanently silent. If the cycle is expired, reset it atomically
+    // on the first inbound message and continue processing that message.
+    const today = new Date().toISOString().split('T')[0];
+    if (cfg.cycle_end_date && cfg.cycle_end_date <= today) {
+      const oldEnd = new Date(`${cfg.cycle_end_date}T00:00:00Z`);
+      const newStart = new Date(oldEnd);
+      newStart.setUTCDate(newStart.getUTCDate() + 1);
+      const newEnd = new Date(newStart);
+      newEnd.setUTCDate(newEnd.getUTCDate() + 29);
+      const newStartStr = newStart.toISOString().split('T')[0];
+      const newEndStr = newEnd.toISOString().split('T')[0];
+      const resetRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          messages_used_this_cycle: 0,
+          cycle_start_date: newStartStr,
+          cycle_end_date: newEndStr,
+        }),
+      });
+      if (resetRes.ok) {
+        console.warn(`[quota] cycle rolled over for ${managerId}: ${cfg.cycle_end_date} -> ${newEndStr}`);
+        return false;
+      }
+      console.error(`[quota] cycle rollover failed for ${managerId}: ${resetRes.status}`);
     }
     const over = (cfg.messages_used_this_cycle ?? 0) >= (cfg.message_quota ?? 1000);
     if (over) console.warn(`[quota] manager=${managerId} quota hit: ${cfg.messages_used_this_cycle}/${cfg.message_quota}`);
