@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Authenticated application paths
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /app
+Disallow: /login
+
+Sitemap: https://billcollector.online/sitemap.xml
