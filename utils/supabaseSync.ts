@@ -7,6 +7,7 @@ type StatusListener = (s: SyncStatus) => void;
 const listeners: StatusListener[] = [];
 export const onSyncStatus = (fn: StatusListener) => { listeners.push(fn); return () => { const i = listeners.indexOf(fn); if (i > -1) listeners.splice(i, 1); }; };
 const emit = (s: SyncStatus) => listeners.forEach(fn => fn(s));
+let tierLimitAlertedThisSession = false; // debounce repeat plan-limit alerts (see upsertWithRetry)
 
 // ─── Pending queue (survives page reload) ────────────────────────────────────
 const QUEUE_KEY = '__supabase_pending_sync__';
