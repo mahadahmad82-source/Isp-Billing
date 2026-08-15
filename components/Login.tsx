@@ -289,6 +289,27 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     }
   };
 
+  const handleSubmitProof = async () => {
+    if (!proofFile) { showError('Payment proof screenshot select karein.'); return; }
+    setProofUploading(true);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+      const ext = proofFile.name.split('.').pop() || 'jpg';
+      const path = `signup-proofs/${phone}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, proofFile, {
+        contentType: proofFile.type || 'image/jpeg', cacheControl: '31536000',
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+      await supabase.rpc('submit_signup_payment_proof', { p_proof_url: pub.publicUrl });
+      setProofSubmitted(true);
+    } catch (err: any) {
+      showError(err?.message || 'Proof upload failed, try again.');
+    } finally {
+      setProofUploading(false);
+    }
+  };
+
   const handleSignupOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault(); setIsLoading(true); setLoadingText('Verifying OTP...'); setError('');
     try {
