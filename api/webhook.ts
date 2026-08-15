@@ -2143,30 +2143,46 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('No GROQ key');
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      // GPT-OSS 120B is Groq's recommended replacement for Llama 3.3 70B.
-      model: 'openai/gpt-oss-120b',
-      messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
-      temperature: 0.6,
-      max_tokens: 350,
-      response_format: { type: 'json_object' },
-    }),
-  });
+  let lastError = 'unknown';
+  // GPT-OSS 120B is the primary replacement; 20B is a fast failover so one
+  // model/rate-limit hiccup never turns a meaningful customer message into a
+  // generic delay apology.
+  for (const model of ['openai/gpt-oss-120b', 'openai/gpt-oss-20b']) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
+        temperature: 0.6,
+        max_completion_tokens: 350,
+        reasoning_effort: 'low',
+        response_format: { type: 'json_object' },
+      }),
+    });
 
-  if (!res.ok) throw new Error(`Groq ${res.status}`);
-  const data = await res.json();
-  const raw = data?.choices?.[0]?.message?.content?.trim();
-  if (!raw) throw new Error('Groq empty');
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 300);
+      lastError = `Groq ${model} ${res.status}: ${detail}`;
+      console.error('[Groq chat]', lastError);
+      continue;
+    }
+    const data = await res.json();
+    const raw = data?.choices?.[0]?.message?.content?.trim();
+    if (!raw) {
+      lastError = `Groq ${model} empty response`;
+      console.error('[Groq chat]', lastError);
+      continue;
+    }
 
-  try {
-    const parsed = JSON.parse(raw);
-    return { onTopic: parsed.onTopic !== false, reply: sanitizeHindiWords(parsed.reply || raw) };
-  } catch {
-    return { onTopic: true, reply: sanitizeHindiWords(raw) };
+    try {
+      const parsed = JSON.parse(raw);
+      return { onTopic: parsed.onTopic !== false, reply: sanitizeHindiWords(parsed.reply || raw) };
+    } catch {
+      return { onTopic: true, reply: sanitizeHindiWords(raw) };
+    }
   }
+  throw new Error(lastError);
 }
 
 // Safety net for the "CONVERSATION ENDING" prompt rule above: Groq is told not to
@@ -3320,6 +3336,7 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
           });
         }
       } catch (e: any) {
+        console.error('[AI reply] failed after Groq failover:', e?.message);
         await sendText(from, tmpl('temporary_delay_apology', { name: user.name, support_number: CONFIG.supportNumber }));
       }
 
