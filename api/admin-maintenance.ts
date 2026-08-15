@@ -20,7 +20,8 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const QUOTA_MAP: Record<string, number> = {
   basic:     1000,
   pro:       5000,
-  unlimited: 15000,
+  unlimited: Number.MAX_SAFE_INTEGER,
+  enterprise: Number.MAX_SAFE_INTEGER,
   text_only: 1000,
 };
 

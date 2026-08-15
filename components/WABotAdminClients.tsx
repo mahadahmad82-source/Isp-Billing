@@ -14,7 +14,7 @@ interface WABotClient {
   phone_number_id: string | null;
   waba_id: string | null;
   token_status: 'active' | 'expired' | 'invalid' | 'not_set';
-  plan_type: 'basic' | 'pro' | 'unlimited' | 'text_only';
+  plan_type: 'basic' | 'pro' | 'unlimited' | 'enterprise' | 'text_only';
   message_quota: number;
   messages_used_this_cycle: number;
   cycle_start_date: string | null;
@@ -31,7 +31,7 @@ interface Props {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  basic: 'Basic — Rs.2,000', pro: 'Pro — Rs.4,000', unlimited: 'Unlimited — Rs.8,000', text_only: 'Text-Only — Rs.1,500',
+  basic: 'Basic — Rs.2,000', pro: 'Pro — Rs.4,000', unlimited: 'Unlimited — Rs.8,000', enterprise: 'Enterprise — Unlimited', text_only: 'Text-Only — Rs.1,500',
 };
 
 const fmtDate = (iso: string | null) => {

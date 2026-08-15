@@ -804,12 +804,34 @@ function getActiveOutage(rowData: any): any | null {
 async function checkQuota(managerId: string): Promise<boolean> {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=messages_used_this_cycle,message_quota,service_status,cycle_start_date,cycle_end_date`,
+      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=messages_used_this_cycle,message_quota,service_status,plan_type,cycle_start_date,cycle_end_date`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     const rows: any[] = await res.json();
     const cfg = rows?.[0];
     if (!cfg) return false; // no config = not yet onboarded, let through
+    // mahadnet is the BillCollector Owner/Enterprise account. Older onboarding
+    // rows may still contain the legacy Basic plan and 1,000 quota; normalize that
+    // row before the quota guard so the owner cannot be blocked by stale metadata.
+    if (managerId === 'mahadnet' && cfg.plan_type !== 'enterprise') {
+      const ownerRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ plan_type: 'enterprise', message_quota: Number.MAX_SAFE_INTEGER }),
+      });
+      if (ownerRes.ok) {
+        console.warn(`[quota] normalized ${managerId} to Enterprise/unlimited`);
+        cfg.plan_type = 'enterprise';
+        cfg.message_quota = Number.MAX_SAFE_INTEGER;
+      } else {
+        console.error(`[quota] failed to normalize ${managerId}: ${ownerRes.status}`);
+      }
+    }
     if (cfg.service_status === 'suspended' || cfg.service_status === 'cancelled') {
       console.warn(`[quota] manager=${managerId} service_status=${cfg.service_status} — blocking`);
       return true;
