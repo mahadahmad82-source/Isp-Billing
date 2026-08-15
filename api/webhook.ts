@@ -1256,10 +1256,8 @@ async function transliterateToRoman(text: string): Promise<string> {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // The smaller 8b-instant model was inconsistent at this — sometimes echoing the
-        // original script back unchanged, sometimes appending the Roman version after it
-        // instead of replacing it. The bigger model follows the "ONLY" instruction reliably.
-        model: 'llama-3.3-70b-versatile',
+        // GPT-OSS 20B is Groq's recommended replacement for the retired 8B model.
+        model: 'openai/gpt-oss-20b',
         messages: [{
           role: 'system',
           content: `Tum sirf ek script-transliteration tool ho — TRANSLATION nahi karte, sirf script (likhne ka tareeqa) badalte ho. Diya gaya text (Devanagari/Hindi script ya Urdu/Nastaliq script) ko phonetically Roman/Latin letters mein likho — alfaz, maani aur tarteeb EXACTLY wese hi rakho jese bole gaye hain. Agar text already Roman/English mein hai to bilkul wese hi wapis bhej do.
@@ -2094,7 +2092,8 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      // GPT-OSS 120B is Groq's recommended replacement for Llama 3.3 70B.
+      model: 'openai/gpt-oss-120b',
       messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
       temperature: 0.6,
       max_tokens: 350,

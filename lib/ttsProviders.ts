@@ -37,7 +37,8 @@ export async function transliterateRomanToUrdu(text: string): Promise<string | n
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        // GPT-OSS 20B is Groq's supported low-latency replacement model.
+        model: 'openai/gpt-oss-20b',
         messages: [{
           role: 'system',
           content: `Tum sirf ek script-transliteration tool ho — TRANSLATION nahi karte, sirf script (likhne ka tareeqa) badalte ho. Diya gaya Roman Urdu (Latin letters) text ko sahi Urdu (Nastaliq) script mein likho — alfaz, maani aur tarteeb EXACTLY wese hi rakho jese diye gaye hain. Agar beech mein koi English word ho to usay bhi Urdu script mein phonetically likho taake awaz sahi nikle.
