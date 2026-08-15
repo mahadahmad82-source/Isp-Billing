@@ -79,14 +79,14 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
   });
 
   const handleSave = () => {
-    if (!form.name?.trim() || !form.phone?.trim()) { showToast('Naam aur phone zaroori hain!'); return; }
+    if (!form.name?.trim() || !form.phone?.trim()) { showToast('Name and phone number are required.'); return; }
     const now = new Date().toISOString();
     if (editId) {
       onUpdate(editId, { ...form, updatedAt: now });
       showToast('Lead updated!');
     } else {
       onAdd({ ...form, id: genId(), createdAt: now, updatedAt: now } as LeadRecord);
-      showToast('Lead add ho gaya!');
+      showToast('Lead added successfully.');
     }
     setForm(emptyForm()); setEditId(null); setView('list');
   };
@@ -102,7 +102,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
 
   const markLost = (lead: LeadRecord) => {
     onUpdate(lead.id, { status: 'lost', updatedAt: new Date().toISOString() });
-    showToast('Lead lost mark ho gaya.');
+    showToast('Lead marked as lost.');
     if (detail?.id === lead.id) setDetail({ ...lead, status: 'lost' });
   };
 
@@ -187,7 +187,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
         <div>
           <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Note</label>
           <textarea value={form.note||''} onChange={e => setForm(p=>({...p,note:e.target.value}))}
-            placeholder="Koi baat jo yaad rakhni ho..." rows={3}
+            placeholder="Add a note or reminder..." rows={3}
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-indigo-500 resize-none`}/>
         </div>
 
@@ -334,7 +334,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
       {filtered.length === 0 ? (
         <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">🎯</div>
-          <p className="font-bold text-lg">Koi lead nahi</p>
+          <p className="font-bold text-lg">No leads found.</p>
           <p className="text-sm mt-1">Pehla inquiry add karo</p>
         </div>
       ) : (
@@ -371,7 +371,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmConvert(null)}/>
           <div className={`relative z-10 ${isDark ? 'bg-slate-900' : 'bg-slate-50'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-8 w-full max-w-sm text-center`}>
             <p className="text-4xl mb-3">🎉</p>
-            <p className="text-lg font-black mb-2">Customer mein Convert Karo?</p>
+            <p className="text-lg font-black mb-2">Convert to Customer?</p>
             <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>{confirmConvert.name} ko active customer mein add kiya jayega.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmConvert(null)} className={`flex-1 py-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl font-bold text-sm`}>Cancel</button>
@@ -379,7 +379,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
                 onConvertToCustomer(confirmConvert);
                 onUpdate(confirmConvert.id, { status: 'converted', updatedAt: new Date().toISOString() });
                 setConfirmConvert(null); setView('list');
-                showToast(`${confirmConvert.name} customer mein convert ho gaya!`);
+                showToast(`${confirmConvert.name} was converted to a customer.`);
               }} className="flex-1 py-3 bg-emerald-600 rounded-2xl font-bold text-sm">Convert ✅</button>
             </div>
           </div>
@@ -392,7 +392,7 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmDelete(null)}/>
           <div className={`relative z-10 ${isDark ? 'bg-slate-900' : 'bg-slate-50'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-8 w-full max-w-sm text-center`}>
             <p className="text-lg font-black mb-2">Delete Lead?</p>
-            <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>Yeh action undo nahi ho sakti.</p>
+            <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmDelete(null)} className={`flex-1 py-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl font-bold text-sm`}>Cancel</button>
               <button onClick={() => { onDelete(confirmDelete); setConfirmDelete(null); setView('list'); showToast('Deleted!'); }}

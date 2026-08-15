@@ -408,7 +408,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       name: "Zain ul Abideen",
       role: "Founder, Fiber One Broadband",
       location: "Karachi",
-      text: "Pehle collections aur recovery manually control karni parti thin jo ke ghanton ka thaka dene wala kaam tha. Bill Collector se ab har maheeney automated WhatsApp reminders aur professional ledgers automatic manage ho jaate hain. Payment recovery rate 90% tak barh gaya hai!",
+      text: "Collections and recovery once required hours of tiring manual work. Bill Collector now manages automated monthly WhatsApp reminders and professional ledgers for you. Payment recovery rates have increased by up to 90%.",
       rating: 5,
       avatarBg: "#6366f1"
     },

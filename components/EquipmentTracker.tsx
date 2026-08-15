@@ -99,7 +99,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
   // ─── Save handlers ───────────────────────────────────────
   const handleSave = () => {
     if (!formData.serialNumber?.trim() || !formData.brand?.trim() || !formData.model?.trim()) {
-      showToast('Serial number, brand aur model zaroori hain!'); return;
+      showToast('Serial number, brand, and model are required.'); return;
     }
     if (editingId) {
       onUpdate(editingId, formData);
@@ -121,7 +121,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
       assignedDate: assignDate,
       returnDate: undefined,
     });
-    showToast(`${assignItem.brand} ${assignItem.model} — ${user?.name} ko assign ho gaya!`);
+    showToast(`${assignItem.brand} ${assignItem.model} was assigned to ${user?.name}.`);
     setAssignItem(null); setAssignUserId(''); setView('list');
   };
 
@@ -168,10 +168,10 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
       link.download = `Equipment-Receipt-${receiptItem?.saleReceiptNo || 'sale'}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      showToast('Receipt image download ho gayi!');
+      showToast('Receipt image downloaded.');
     } catch (err) {
       console.error('Receipt download error:', err);
-      showToast('Receipt download nahi ho saki.');
+      showToast('The receipt could not be downloaded.');
     }
   };
 
@@ -189,7 +189,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
       (receiptItem.saleNotes ? `Note: ${receiptItem.saleNotes}\n` : '') +
       `\nShukriya!${settings.businessPhone ? ' — ' + settings.businessPhone : ''}`;
     if (phone) shareToWhatsApp(phone, msg);
-    else showToast('Customer ka phone number nahi mila.');
+    else showToast('Customer phone number not found.');
   };
 
   const StatCard = ({ label, value, color, onClick }: { label: string; value: number; color: string; onClick?: () => void }) => (
@@ -602,7 +602,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
       {filtered.length === 0 ? (
         <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">📦</div>
-          <p className="font-bold text-lg">Koi equipment nahi</p>
+          <p className="font-bold text-lg">No equipment found.</p>
           <p className="text-sm mt-1">Pehla device add karo</p>
         </div>
       ) : (
@@ -653,7 +653,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmDelete(null)} />
           <div className={`relative z-10 ${isDark ? 'bg-slate-900' : 'bg-slate-50'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-8 w-full max-w-sm text-center`}>
             <p className="text-lg font-black mb-2">Delete Equipment?</p>
-            <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>Yeh action undo nahi ho sakti.</p>
+            <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmDelete(null)} className={`flex-1 py-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl font-bold text-sm`}>Cancel</button>
               <button onClick={() => { onDelete(confirmDelete); setConfirmDelete(null); setView('list'); showToast('Deleted!'); }}

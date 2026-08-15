@@ -78,12 +78,12 @@ const MessageTemplatesTab: React.FC<MessageTemplatesTabProps> = ({
 
   const handleAddNew = () => {
     if (!newTemplate.key.trim() || !newTemplate.label.trim() || !newTemplate.text.trim()) {
-      alert('Key, label aur text sab required hain');
+      alert('Key, label, and text are all required.');
       return;
     }
     const safeKey = newTemplate.key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
     if (effectiveTemplates[safeKey]) {
-      alert('Ye key already exist karti hai, dusra naam try karein');
+      alert('This key already exists. Try a different name.');
       return;
     }
     const updated = {

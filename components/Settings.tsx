@@ -95,7 +95,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
   const handleSendLinkOtp = async () => {
     if (!linkEmail.includes('@')) {
-      setLinkError('Valid email enter karein');
+      setLinkError('Enter a valid email address.');
       return;
     }
     setLinkLoading(true);
@@ -628,7 +628,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               <div>
                 <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest leading-tight">Show Business Name on Receipt</p>
                 <p className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                  {(localSettings.showBusinessNameOnReceipt ?? true) ? 'Name + Logo dono dikhenge' : 'Sirf Logo dikhega'}
+                  {(localSettings.showBusinessNameOnReceipt ?? true) ? 'Name + Logo dono dikhenge' : 'Only the logo will be displayed.'}
                 </p>
               </div>
               <button
@@ -887,7 +887,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
           <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
             <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">⚠️ Note</p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Yeh starting number save hone ke baad <strong>naye receipts</strong> pe apply hoga. Receipt generate karte waqt aap manually bhi number change kar sakte hain.</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">After this starting number is saved, <strong>new receipts</strong> will use it. You can also change the number manually when generating a receipt.</p>
           </div>
         </div>
 
@@ -1047,7 +1047,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               <div>
                 <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Push Notifications</h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                  {pushEnabled ? '✅ Is device pe notifications ON hain' : pushSupported ? '❌ Notifications OFF hain' : '⚠️ Aapka browser support nahi karta'}
+                  {pushEnabled ? '✅ Notifications are enabled on this device.' : pushSupported ? '❌ Notifications are disabled.' : '⚠️ Your browser does not support notifications.'}
                 </p>
               </div>
             </div>
@@ -1064,13 +1064,13 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
           {pushEnabled && (
             <div className="mt-6 space-y-3">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aapko notifications milegi jab:</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">You will receive notifications when:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
-                  { icon: '⏰', text: 'Customer ka package aaj expire ho' },
-                  { icon: '🔴', text: '3 din mein expire hone wale customers' },
-                  { icon: '🧾', text: 'Receipt generate ho' },
-                  { icon: '👤', text: 'Naya customer add ho' },
+                  { icon: '⏰', text: "Customer's package expires today" },
+                  { icon: '🔴', text: 'Customers expiring within 3 days' },
+                  { icon: '🧾', text: 'Receipt generated' },
+                  { icon: '👤', text: 'New customer added' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2">
                     <span>{item.icon}</span>

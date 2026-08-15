@@ -42,7 +42,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   };
 
   const handleAdd = () => {
-    if (!form.title.trim()) { showToast('Title zaroori hai!'); return; }
+    if (!form.title.trim()) { showToast('Title is required.'); return; }
     const log: OutageLog = {
       id: genId(),
       title: form.title.trim(),
@@ -316,8 +316,8 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       {outageLogs.length === 0 && (
         <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">🌐</div>
-          <p className="font-bold text-lg">Koi outage nahi</p>
-          <p className="text-sm mt-1">Alhamdulillah sab theek hai!</p>
+          <p className="font-bold text-lg">No outages reported.</p>
+          <p className="text-sm mt-1">Everything is working normally.</p>
         </div>
       )}
 

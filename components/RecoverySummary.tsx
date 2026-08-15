@@ -1302,7 +1302,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     <td className="px-4 py-5">
                       <button
                         onClick={() => {
-                          if (window.confirm(item.name + " ko is mahine ki list se hatayen? Directory mein rahega.")) {
+                          if (window.confirm(item.name + " — remove from this month's list? It will remain in the directory.")) {
                             const fullUser = (users || []).find(u => u.id === item.id);
                             if (fullUser && selectedMonth) {
                               onBulkUpdateUsers([{
@@ -1534,7 +1534,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     (u.name || '').toLowerCase().includes(addUserSearch.toLowerCase()) ||
                     (u.username || '').toLowerCase().includes(addUserSearch.toLowerCase()))
                 ).length === 0 && (
-                  <p className="text-center text-sm text-slate-400 py-6 font-bold">Sab users already is period mein hain ✅</p>
+                  <p className="text-center text-sm text-slate-400 py-6 font-bold">All users are already in this period. ✅</p>
                 )}
               </div>
             </div>

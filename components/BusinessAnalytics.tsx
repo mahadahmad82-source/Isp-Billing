@@ -580,7 +580,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
               }
             </p>
             {dailyStats.totalCollected === 0 ? (
-              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-6">Is din koi collection nahi hui.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-6">No collections were made on this day.</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={dailyStats.byMethod} barCategoryGap="35%">

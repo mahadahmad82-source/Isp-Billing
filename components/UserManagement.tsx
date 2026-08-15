@@ -280,7 +280,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (filteredUsers.length === 0) {
       setAlertConfig({
         title: 'Export Rejected',
-        message: `${selectedMonth} mein koi customer nahi mila export karne ke liye.`,
+        message: `No customers found to export for ${selectedMonth}.`,
         type: 'info'
       });
       return;
@@ -517,7 +517,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setShowBulkChangePlan(false);
     setBulkNewPlan('');
     setSelectedIds([]);
-    setAlertConfig({ title: 'Plan Updated', message: `${updatedUsers.length} users ka plan "${bulkNewPlan}" ho gaya — Rs. ${price}/mo.`, type: 'success' });
+    setAlertConfig({ title: 'Plan Updated', message: `${updatedUsers.length} users were moved to the "${bulkNewPlan}" plan — Rs. ${price}/month.`, type: 'success' });
   };
 
   // Bulk set area handler
@@ -532,7 +532,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setShowBulkSetArea(false);
     setBulkNewArea('');
     setSelectedIds([]);
-    setAlertConfig({ title: 'Area Updated', message: `${updatedUsers.length} users ka area "${bulkNewArea.trim()}" set ho gaya.`, type: 'success' });
+    setAlertConfig({ title: 'Area Updated', message: `The area for ${updatedUsers.length} users was set to "${bulkNewArea.trim()}".`, type: 'success' });
   };
 
   // Bulk Expiry handler
@@ -720,7 +720,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
                 {/* Change Plan */}
                 <button
-                  onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Pehle users select karein.',type:'info'});return;} setBulkNewPlan(availablePlans[0]||'');setShowBulkChangePlan(true); }}
+                  onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Select users first.',type:'info'});return;} setBulkNewPlan(availablePlans[0]||'');setShowBulkChangePlan(true); }}
                   className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#3d2f10] hover:bg-[#4d3b14] border border-[#5c4418] active:scale-95 transition-all whitespace-nowrap relative"
                 >
                   <svg className="w-4 h-4 text-[#c9922a] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -777,7 +777,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
                 {/* Bulk Set Area */}
                 <button
-                  onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Pehle users select karein.',type:'info'});return;} setBulkNewArea(''); setShowBulkSetArea(true); }}
+                  onClick={() => { if(selectedIds.length===0){setAlertConfig({title:'No Selection',message:'Select users first.',type:'info'});return;} setBulkNewArea(''); setShowBulkSetArea(true); }}
                   className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#0f2a3d] hover:bg-[#153650] border border-[#1a4560] active:scale-95 transition-all whitespace-nowrap relative"
                 >
                   <svg className="w-4 h-4 text-[#4aa8e0] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -1046,11 +1046,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   /* Remove from Active List — undo an accidental activation, user stays in directory */
                                   <button
                                     onClick={() => {
-                                      if (window.confirm(`${user.name} ko active list se hatayen? Directory mein rahega, sirf is mahine ki activation hatengi.`)) {
+                                      if (window.confirm(`Remove ${user.name} from the active list? It will remain in the directory; only this month's activation will be removed.`)) {
                                         onUpdateUser({ ...user, activatedMonths: (user.activatedMonths || []).filter(m => m !== currentMonth), expiryDate: '' });
                                       }
                                     }}
-                                    title="Remove from Active List (Directory mein rahega)"
+                                    title="Remove from Active List (remains in the directory)"
                                     className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-all"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -1143,7 +1143,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest ml-2">AREA</label>
-                    <input list="um-area-options" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-lg focus:border-indigo-500 transition-all" placeholder="Area select ya naya likhein..." value={formData.area || ''} onChange={e => setFormData({...formData, area: e.target.value})} />
+                    <input list="um-area-options" className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/5 font-bold outline-none text-slate-900 dark:text-white text-lg focus:border-indigo-500 transition-all" placeholder="Select an area or enter a new one..." value={formData.area || ''} onChange={e => setFormData({...formData, area: e.target.value})} />
                     <datalist id="um-area-options">
                       {Array.from(new Set([...(settings.areas || []), ...users.map(u => u.area).filter(Boolean) as string[]])).map(a => (
                         <option key={a} value={a} />
@@ -1342,7 +1342,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   months.add(currentMonth);
                   onUpdateUser({ ...u, activatedMonths: Array.from(months), status: 'active' });
                   setContextMenu(null);
-                  setAlertConfig({ title: 'Activated!', message: `${u.name} ko ${currentMonth} ke liye activate kar diya gaya.`, type: 'success' });
+                  setAlertConfig({ title: 'Activated!', message: `${u.name} was activated for ${currentMonth}.`, type: 'success' });
                 }}
                 className="w-full text-left px-5 py-3.5 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center gap-3 transition-colors"
               >
@@ -1448,7 +1448,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   list="um-bulk-area-options"
                   value={bulkNewArea}
                   onChange={e => setBulkNewArea(e.target.value)}
-                  placeholder="Area select ya naya likhein..."
+                  placeholder="Select an area or enter a new one..."
                   className="w-full p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-sm font-black text-slate-800 dark:text-white outline-none"
                 />
                 <datalist id="um-bulk-area-options">
@@ -1486,11 +1486,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 bg-violet-100 dark:bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">📅</div>
                   <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Bulk Expiry Set</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Username aur expiry date paste karein — system automatically active kar dega</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Paste the username and expiry date — the system will activate it automatically.</p>
                 </div>
                 <div className="space-y-4">
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 text-[10px] text-slate-500 dark:text-slate-400 font-mono leading-relaxed">
-                    <div className="font-black text-slate-700 dark:text-slate-300 mb-1 text-[9px] uppercase tracking-widest">Format (ek line mein ek user):</div>
+                    <div className="font-black text-slate-700 dark:text-slate-300 mb-1 text-[9px] uppercase tracking-widest">Format (one user per line):</div>
                     <div>username 2025-02-28 21:40</div>
                     <div>username,28/02/2025 23:59</div>
                     <div>username 28-02-2025 (time optional)</div>
@@ -1504,7 +1504,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     </div>
                     <div>
                       <div className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Status bhi Active karo</div>
-                      <div className="text-[10px] text-slate-400 dark:text-slate-500">{bulkExpiryActivate ? 'ON — naye/inactive users activate + expiry, already-active ki sirf expiry' : 'OFF — sirf expiry update hogi'}</div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500">{bulkExpiryActivate ? 'ON — activate new/inactive users and update expiry; update expiry only for already-active users' : 'OFF — update expiry only'}</div>
                     </div>
                   </label>
                   <textarea

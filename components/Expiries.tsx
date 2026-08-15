@@ -36,7 +36,7 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
     if (allExpired.length > 0)
       parts.push(`${allExpired.length} users expire: ${allExpired.map(u => u.name).join(', ')}`);
     if (expiring7.length > 0)
-      parts.push(`${expiring7.length} users 7 din mein expire honge: ${expiring7.map(u => u.name).join(', ')}`);
+      parts.push(`${expiring7.length} users will expire within 7 days: ${expiring7.map(u => u.name).join(', ')}`);
 
     showLocalNotification('⚠️ MYISP — Expiry Alert', parts.join(' | '), 'expiry-daily');
     localStorage.setItem('myisp_last_expiry_notify', today);

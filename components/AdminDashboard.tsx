@@ -286,7 +286,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     if (!paymentModal) return;
     const amount = parseInt(payAmount) || 0;
     const months = parseInt(payMonths) || 0;
-    if (amount <= 0) { alert('Amount se zyada bara number likhein.'); return; }
+    if (amount <= 0) { alert('Enter a number greater than the amount.'); return; }
     if (months <= 0) { alert('Period (months) 1 ya zyada hona chahiye.'); return; }
     const sub = subscriptions.find(s => s.manager_id === paymentModal);
     setPayBusy(true);
@@ -295,7 +295,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
         p_manager_id: paymentModal, p_amount_pkr: amount, p_plan: sub?.plan || 'starter',
         p_period_months: months, p_method: payMethod, p_notes: payNotes || null,
       });
-      if (error || (data && !data.success)) { alert(error?.message || data?.error || 'Payment record nahi hui'); return; }
+      if (error || (data && !data.success)) { alert(error?.message || data?.error || 'Payment record was not saved.'); return; }
       setSubToast(`✅ Payment recorded — receipt ${data.receipt_number}`);
       setTimeout(() => setSubToast(null), 3000);
       setPaymentModal(null);
@@ -343,7 +343,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           return;
         }
       } catch { /* fall through to error banner below */ }
-      setStatsError('Session expire ho gaya — ye "0" real data nahi hai. Logout karke dobara login karein.');
+      setStatsError('Your session has expired — "0" is not real data. Log out and sign in again.');
     }
     finally { setLoading(false); }
   }, []);
@@ -591,7 +591,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {loading && (
         <div className="flex items-center justify-center py-24 gap-3">
           <div className="w-7 h-7 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-slate-400 font-bold text-sm">Supabase se live data load ho raha hai...</span>
+          <span className="text-slate-400 font-bold text-sm">Loading live data from Supabase...</span>
         </div>
       )}
 
@@ -686,7 +686,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   </tr>
                 ))}</tbody>
               </table>
-              {managers.length === 0 && <div className="text-center py-10 text-slate-600 text-sm">Koi manager nahi</div>}
+              {managers.length === 0 && <div className="text-center py-10 text-slate-600 text-sm">No managers found.</div>}
             </div>
           </div>
         </div>
@@ -766,7 +766,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                     {!expandedCustomers[m.username] ? (
                       <div className="flex items-center justify-center py-8 gap-2"><div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-500 text-xs">Loading...</span></div>
                     ) : expandedCustomers[m.username].length === 0 ? (
-                      <p className="px-5 py-8 text-center text-slate-600 text-xs">Koi customer nahi</p>
+                      <p className="px-5 py-8 text-center text-slate-600 text-xs">No customers found.</p>
                     ) : (
                       <div className="overflow-x-auto max-h-72 overflow-y-auto">
                         <table className="w-full text-xs">
@@ -793,7 +793,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                 )}
               </div>
             ))}
-            {sortedManagers.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">Koi manager nahi mila</p></div>}
+            {sortedManagers.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No managers found.</p></div>}
           </div>
         </div>
       )}
@@ -820,7 +820,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
             )}
           </div>
           {custLoading ? (
-            <div className="flex items-center justify-center py-24 gap-3"><div className="w-6 h-6 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Load ho rahe hain...</span></div>
+            <div className="flex items-center justify-center py-24 gap-3"><div className="w-6 h-6 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Loading...</span></div>
           ) : (
             <div className="bg-slate-800/60 rounded-3xl border border-white/[0.06] overflow-hidden">
               <div className="px-5 py-4 border-b border-white/[0.05] flex items-center justify-between">
@@ -836,7 +836,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   </thead>
                   <tbody>
                     {filteredCusts.length === 0 ? (
-                      <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-600">{allCustomers.length === 0 ? 'Click "Load Customers"' : 'Koi result nahi'}</td></tr>
+                      <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-600">{allCustomers.length === 0 ? 'Click "Load Customers"' : 'No results found.'}</td></tr>
                     ) : filteredCusts.map((c, i) => (
                       <tr key={`${c.id}-${i}`} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                         <td className="px-5 py-3 text-slate-700 font-black">{i+1}</td>
@@ -888,7 +888,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
             ))}
           </div>
           {actLoading ? (
-            <div className="flex items-center justify-center py-24 gap-3"><div className="w-6 h-6 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Load ho rahe hain...</span></div>
+            <div className="flex items-center justify-center py-24 gap-3"><div className="w-6 h-6 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Loading...</span></div>
           ) : (
             <div className="bg-slate-800/60 rounded-3xl border border-white/[0.06] overflow-hidden">
               <div className="px-5 py-4 border-b border-white/[0.05] flex items-center justify-between">
@@ -897,7 +897,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
               </div>
               <div className="max-h-[65vh] overflow-y-auto divide-y divide-white/[0.03]">
                 {filteredAct.length === 0 ? (
-                  <div className="text-center py-16 text-slate-600 flex flex-col items-center gap-3"><Activity className="w-12 h-12" /><p className="font-bold text-sm">{activityLogs.length === 0 ? 'Click "Load Logs"' : 'Koi activity nahi'}</p></div>
+                  <div className="text-center py-16 text-slate-600 flex flex-col items-center gap-3"><Activity className="w-12 h-12" /><p className="font-bold text-sm">{activityLogs.length === 0 ? 'Click "Load Logs"' : 'No activity yet.'}</p></div>
                 ) : filteredAct.map((log, i) => {
                   const cfg = activityTypeConfig[log.type];
                   return (
@@ -932,7 +932,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
               )}
             </div>
             {adminLogsLoading ? (
-              <div className="flex items-center justify-center py-12 gap-3"><div className="w-5 h-5 border-[3px] border-amber-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Load ho raha hai...</span></div>
+              <div className="flex items-center justify-center py-12 gap-3"><div className="w-5 h-5 border-[3px] border-amber-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Loading...</span></div>
             ) : (
               <div className="max-h-[40vh] overflow-y-auto divide-y divide-white/[0.03]">
                 {adminLogs.length === 0 ? (
@@ -1011,7 +1011,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                       <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${storageComputed.usedPct >= 90 ? 'text-rose-400' : 'text-amber-400'}`} />
                       <div>
                         <p className={`font-black text-[12px] ${storageComputed.usedPct >= 90 ? 'text-rose-300' : 'text-amber-300'}`}>
-                          {storageComputed.usedPct >= 90 ? 'Storage critical! Supabase Pro plan upgrade karein.' : 'Storage 70% se zyada. Monitor karte rahein.'}
+                          {storageComputed.usedPct >= 90 ? 'Storage is critically low. Upgrade to the Supabase Pro plan.' : 'Storage 70% se zyada. Monitor karte rahein.'}
                         </p>
                         <p className="text-slate-500 text-[11px] mt-0.5">Supabase Pro: $25/mo — 8 GB database included</p>
                       </div>
@@ -1019,7 +1019,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   )}
                 </div>
             ) : (
-              <div className="text-center py-4 text-slate-500 text-sm">Storage info load nahi ho saka.</div>
+              <div className="text-center py-4 text-slate-500 text-sm">Storage information could not be loaded.</div>
             )}
           </div>
 
@@ -1135,7 +1135,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
         <div className="space-y-4">
           {subToast && <div className="fixed top-20 right-4 z-50 px-5 py-3 rounded-2xl bg-slate-800 border border-white/10 shadow-2xl text-sm font-black text-white">{subToast}</div>}
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <p className="text-[11px] text-slate-500">Har manager ka plan, status aur access control karein</p>
+            <p className="text-[11px] text-slate-500">Manage each manager's plan, status, and access.</p>
             <button onClick={loadSubscriptions}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-[11px] font-black uppercase tracking-wider hover:bg-indigo-500 transition-all active:scale-95">
               <RefreshCcw className="w-3.5 h-3.5" /> Refresh
@@ -1169,9 +1169,9 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
             </div>
           )}
           {subLoading ? (
-            <div className="flex items-center justify-center py-20 gap-3"><div className="w-5 h-5 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Load ho raha hai...</span></div>
+            <div className="flex items-center justify-center py-20 gap-3"><div className="w-5 h-5 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="text-slate-400 font-bold text-sm">Loading...</span></div>
           ) : subscriptions.length === 0 ? (
-            <div className="text-center py-20 text-slate-600 flex flex-col items-center gap-3"><Shield className="w-12 h-12" /><p className="font-bold text-sm">Koi record nahi. Upar se add karein.</p></div>
+            <div className="text-center py-20 text-slate-600 flex flex-col items-center gap-3"><Shield className="w-12 h-12" /><p className="font-bold text-sm">No records found. Add one above.</p></div>
           ) : (
             <div className="space-y-3">
               {subscriptions.map((sub) => {
@@ -1250,7 +1250,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                           className="w-24 px-2 py-1.5 rounded-xl bg-black/30 border border-white/10 text-[11px] font-black text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500" />
                       </div>
                     </div>
-                    <input type="text" placeholder="Notes — Enter se save hoga" defaultValue={sub.notes||''}
+                    <input type="text" placeholder="Notes — press Enter to save" defaultValue={sub.notes||''}
                       onKeyDown={e=>{if(e.key==='Enter'){updateSubscription(sub.manager_id,{notes:(e.target as HTMLInputElement).value});(e.target as HTMLInputElement).blur();}}}
                       className="w-full mt-2 px-3 py-2 rounded-xl bg-black/20 border border-white/[0.05] text-[11px] text-slate-500 placeholder-slate-700 outline-none focus:ring-1 focus:ring-indigo-500 transition-all" />
                   </div>
@@ -1267,7 +1267,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h2 className="text-lg font-black text-white flex items-center gap-2"><Banknote className="w-5 h-5 text-indigo-400" />Pricing Plans</h2>
-              <p className="text-[11px] text-slate-500">Landing page ke pricing cards yahan se edit/add/delete honge — code touch karne ki zaroorat nahi.</p>
+              <p className="text-[11px] text-slate-500">Edit, add, or delete landing-page pricing cards here — no code changes required.</p>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={loadPricingPlans} disabled={pricingLoading}
@@ -1292,7 +1292,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           )}
 
           {pricingPlans && pricingPlans.length === 0 && !pricingLoading && (
-            <p className="text-center text-slate-500 text-xs py-10">Koi pricing plan nahi mila. "New Plan" se shuru karein.</p>
+            <p className="text-center text-slate-500 text-xs py-10">No pricing plans found. Start with "New Plan".</p>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1346,7 +1346,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Features (ek line mein ek feature)</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Features (one feature per line)</label>
                   <textarea value={plan.features.join('\n')} onChange={e => updatePlanFeatures(idx, e.target.value)} rows={5}
                     className="w-full mt-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
                 </div>
@@ -1402,10 +1402,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>{setShowDeleteConfirm(null);setDeleteMsg(null);}} />
           <div className="relative z-10 w-full max-w-sm bg-slate-900 rounded-3xl shadow-2xl border border-rose-500/20 p-6 text-center">
             <div className="w-14 h-14 bg-rose-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4"><Trash2 className="w-7 h-7 text-rose-400" /></div>
-            <h2 className="text-lg font-black text-white mb-1">Manager Delete Karein?</h2>
+            <h2 className="text-lg font-black text-white mb-1">Delete Manager?</h2>
             <p className="inline-block text-sm font-black text-rose-400 border border-rose-500/20 bg-rose-500/5 px-3 py-1 rounded-xl mb-3">@{showDeleteConfirm}</p>
-            <p className="text-xs text-slate-500 mb-4">Yeh action <span className="font-black text-rose-400">permanent</span> hai.</p>
-            <p className="text-[10px] text-slate-600 mb-2 uppercase tracking-widest font-bold">"DELETE" likhein:</p>
+            <p className="text-xs text-slate-500 mb-4">This action <span className="font-black text-rose-400">is permanent</span>.</p>
+            <p className="text-[10px] text-slate-600 mb-2 uppercase tracking-widest font-bold">Type "DELETE":</p>
             <input type="text" placeholder="DELETE" value={deleteConfirmText} onChange={e=>setDeleteConfirmText(e.target.value.toUpperCase())}
               className="w-full px-4 py-3 rounded-2xl border border-white/10 bg-black/30 text-sm text-center font-black text-white outline-none focus:ring-2 focus:ring-rose-500 mb-5 uppercase tracking-widest" />
             {deleteMsg && <p className="text-[11px] font-bold flex items-center gap-1 mb-3 justify-center text-rose-400"><XCircle className="w-3.5 h-3.5" />{deleteMsg.text}</p>}
@@ -1478,7 +1478,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
             {ledgerLoading ? (
               <div className="flex items-center justify-center py-12"><div className="w-5 h-5 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : ledgerRows.length === 0 ? (
-              <p className="text-center py-10 text-slate-600 text-xs font-bold">Koi payment record nahi hai abhi.</p>
+              <p className="text-center py-10 text-slate-600 text-xs font-bold">No payment records yet.</p>
             ) : selectedLedgerMonth === null ? (
               /* ── Period cards grid (collection-period-per-month), same visual
                    language as RecoverySummary's month cards ── */

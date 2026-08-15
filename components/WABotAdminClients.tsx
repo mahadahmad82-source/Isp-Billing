@@ -93,7 +93,7 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
 
   const handleSubmit = async () => {
     if (!form.manager_id || !form.waba_id || !form.phone_number_id || !form.access_token) {
-      setTestResult({ ok: false, msg: 'Sab fields required hain.' });
+      setTestResult({ ok: false, msg: 'All fields are required.' });
       return;
     }
     setSaving(true);
@@ -102,7 +102,7 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       if (!accessToken) {
-        setTestResult({ ok: false, msg: 'Session expired — dobara login karo.' });
+        setTestResult({ ok: false, msg: 'Session expired — please sign in again.' });
         setSaving(false);
         return;
       }
@@ -117,11 +117,11 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
       if (!res.ok) {
         setTestResult({ ok: false, msg: result?.error || 'Save fail hui.' });
       } else if (result.token_status === 'active') {
-        setTestResult({ ok: true, msg: `✅ Token active hai (Meta ID: ${result.meta_user_id}). Client onboard ho gaya.` });
+        setTestResult({ ok: true, msg: `✅ Token is active (Meta ID: ${result.meta_user_id}). Client onboarded successfully.` });
         await loadClients();
         setTimeout(() => { setShowAddModal(false); resetForm(); }, 1800);
       } else {
-        setTestResult({ ok: false, msg: '⚠️ Token save ho gaya lekin Meta verify nahi hua — token check karo.' });
+        setTestResult({ ok: false, msg: '⚠️ Token was saved, but Meta verification failed — please check the token.' });
         await loadClients();
       }
     } catch (e: any) {
@@ -171,7 +171,7 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
           <span className="text-slate-400 font-bold text-sm">Loading clients...</span>
         </div>
       ) : clients.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 font-bold">Koi client onboard nahi hua abhi. "Add New Client" se shuru karo.</div>
+        <div className="text-center py-16 text-slate-500 font-bold">No clients have been onboarded yet. Start with "Add New Client".</div>
       ) : (
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-x-auto">
           <table className="w-full text-sm">

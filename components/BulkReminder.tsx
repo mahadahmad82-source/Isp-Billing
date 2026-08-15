@@ -45,7 +45,7 @@ const BulkReminder: React.FC<Props> = ({ users, settings }) => {
     const exp = u.expiryDate ? new Date(u.expiryDate) : null;
     const expStr = exp ? exp.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
     const diffDays = exp ? Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    const statusStr = diffDays >= 0 ? `${diffDays} din mein expire hone wala hai` : `${Math.abs(diffDays)} din pehle expire ho gaya`;
+    const statusStr = diffDays >= 0 ? `Expires in ${diffDays} days` : `Expired ${Math.abs(diffDays)} days ago`;
     const balance = u.balance && u.balance > 0 ? u.balance : u.monthlyFee || 0;
     return template
       .replace('{name}', u.name)

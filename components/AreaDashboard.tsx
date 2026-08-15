@@ -38,17 +38,17 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAre
     const name = newAreaName.trim();
     if (!name) return;
     if (definedAreas.some(a => a.toLowerCase() === name.toLowerCase())) {
-      showToast('Yeh area pehle se maujood hai!');
+      showToast('This area already exists.');
       return;
     }
     onUpdateAreas?.([...definedAreas, name]);
     setNewAreaName('');
-    showToast(`"${name}" area add ho gaya!`);
+    showToast(`"${name}" was added.`);
   };
 
   const handleRemoveArea = (name: string) => {
     onUpdateAreas?.(definedAreas.filter(a => a !== name));
-    showToast(`"${name}" area list se hata diya (customers ka data safe hai).`);
+    showToast(`"${name}" was removed from the area list. Customer data is safe.`);
   };
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -168,7 +168,7 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAre
       {/* Customer list */}
       <div className="flex items-center justify-between mb-3">
         <p className={`text-xs font-black ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>Customers</p>
-        <p className={`text-[10px] ${isDark ? 'text-white/30' : 'text-slate-400'}`}>Area badalne ke liye dropdown use karein</p>
+        <p className={`text-[10px] ${isDark ? 'text-white/30' : 'text-slate-400'}`}>Use the dropdown to change the area.</p>
       </div>
       <div className="space-y-2">
         {selectedAreaUsers.map(u => {
@@ -243,7 +243,7 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAre
             </button>
           </div>
           {definedAreas.length === 0 ? (
-            <p className={`text-xs ${isDark ? 'text-white/30' : 'text-slate-400'}`}>Abhi koi area define nahi. Upar naam likh kar "Add" dabayein — phir Customer Directory ke form mein yeh area select ho sakega.</p>
+            <p className={`text-xs ${isDark ? 'text-white/30' : 'text-slate-400'}`}>No areas defined yet. Enter a name above and press "Add" — it will then be available in the Customer Directory form.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {definedAreas.map(a => (
@@ -295,8 +295,8 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAre
       {filtered.length === 0 ? (
         <div className={`text-center py-20 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
           <div className="text-5xl mb-4">📍</div>
-          <p className="font-bold">Koi area nahi mila</p>
-          <p className="text-sm mt-1">Customers mein area set karo</p>
+          <p className="font-bold">No areas found.</p>
+          <p className="text-sm mt-1">Set an area for customers.</p>
         </div>
       ) : (
         <div className="space-y-3">

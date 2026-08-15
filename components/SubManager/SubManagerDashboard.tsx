@@ -533,7 +533,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                             )}
                             <button 
                               disabled={user.displayStatus === 'clear' || !canLogReceipts}
-                              title={!canLogReceipts ? 'Receipts issue karne ki ijazat nahi hai' : undefined}
+                              title={!canLogReceipts ? 'You do not have permission to issue receipts.' : undefined}
                               onClick={() => {
                                 if (!canLogReceipts) return;
                                 if (dutyStatus !== 'online') {

@@ -264,7 +264,7 @@ const EmployeePanel: React.FC<EmployeePanelProps> = ({
             {/* Receipt Ref (optional) */}
             <div>
               <label className={`block text-[10px] font-black uppercase tracking-widest mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Receipt No. (Optional)</label>
-              <input type="text" placeholder="Auto generate hoga agar khali ho" value={receiptRef} onChange={e => setReceiptRef(e.target.value)}
+              <input type="text" placeholder="Generated automatically if left blank" value={receiptRef} onChange={e => setReceiptRef(e.target.value)}
                 className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDark ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`} />
             </div>
 
@@ -296,7 +296,7 @@ const EmployeePanel: React.FC<EmployeePanelProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className={`w-full max-w-sm rounded-2xl p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
             <h3 className="font-black text-lg mb-2">Logout?</h3>
-            <p className={`text-sm mb-5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Kya aap logout karna chahte hain?</p>
+            <p className={`text-sm mb-5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Are you sure you want to log out?</p>
             <div className="flex gap-3">
               <button onClick={() => setShowLogoutConfirm(false)} className={`flex-1 py-2.5 rounded-xl text-sm font-black border ${isDark ? 'border-white/10 text-white' : 'border-slate-200 text-slate-700'}`}>Cancel</button>
               <button onClick={onLogout} className="flex-1 py-2.5 rounded-xl text-sm font-black bg-rose-500 text-white">Logout</button>
