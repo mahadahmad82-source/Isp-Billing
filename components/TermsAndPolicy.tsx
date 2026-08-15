@@ -14,11 +14,11 @@ const SECTIONS: Section[] = [
     icon: <FileText className="w-4 h-4" />,
     title: 'Terms of Service',
     content: [
-      { heading: 'Agreement', text: 'By registering and using myISP, you ("Manager/Operator") agree to these Terms. If you do not agree, do not use the platform.' },
-      { heading: 'Service Description', text: 'myISP is a cloud-based ISP billing and management SaaS platform designed for Pakistani Internet Service Providers. It provides customer management, receipts, and billing automation.' },
-      { heading: 'Account Registration', text: 'You must provide accurate information during signup. Each account represents one ISP operator/company. You are responsible for maintaining the confidentiality of your account credentials.' },
-      { heading: 'Permitted Use', text: 'You may use myISP solely for your own ISP business operations. Reselling, sublicensing, or providing the platform as a service to others without written permission is prohibited.' },
-      { heading: 'Modifications', text: 'myISP reserves the right to modify these Terms at any time. Continued use after changes constitutes acceptance of the updated Terms.' },
+      { heading: 'Agreement', text: 'By registering for or using myISP (the "Platform"), you (the "Manager/Operator") agree to these Terms. If you do not agree, do not use the Platform.' },
+      { heading: 'Service Description', text: 'myISP is a cloud-based ISP billing and management platform for Internet Service Providers. Depending on the plan and enabled features, it supports customer records, billing and recovery workflows, receipts, reports, team or sub-manager access, and related ISP operations.' },
+      { heading: 'Account Registration', text: 'You must provide accurate information when creating an account and keep your login credentials confidential. Each account is intended for one ISP operator, business, or organization unless otherwise agreed in writing.' },
+      { heading: 'Permitted Use', text: 'You may use the Platform for your own ISP business operations. You are responsible for the customer information, receipts, messages, and other content that you or your authorized users add to the Platform.' },
+      { heading: 'Changes to These Terms', text: 'myISP may update these Terms from time to time. The updated version will be posted on this page. Your continued use of the Platform after an update means that you accept the updated Terms.' },
     ],
   },
   {
@@ -26,11 +26,11 @@ const SECTIONS: Section[] = [
     icon: <CreditCard className="w-4 h-4" />,
     title: 'Subscription & Payments',
     content: [
-      { heading: 'Free Trial', text: 'New accounts receive a 30-day free trial with access to all Pro features. No credit card is required during the trial period. Trial may be extended or reset at admin discretion.' },
-      { heading: 'Plan Tiers', text: 'Starter (up to 150 customers, 1 agent), Business (up to 500 customers, 3 agents), Pro (unlimited customers and agents). Feature access varies by plan as described on our pricing page.' },
-      { heading: 'Billing', text: 'Subscription fees are billed in Pakistani Rupees (PKR). Payment is currently processed manually via bank transfer or JazzCash/EasyPaisa as agreed with your account manager.' },
-      { heading: 'Refunds', text: 'Subscription payments are non-refundable. In case of service outage exceeding 48 hours caused by myISP infrastructure, a proportional credit may be applied to the next billing cycle.' },
-      { heading: 'Suspension', text: 'Accounts with overdue payments may be locked. Locked accounts retain all data but lose access to the platform until payment is cleared. Data is retained for 90 days after suspension.' },
+      { heading: 'Plans and Limits', text: 'The Platform offers Free, Starter, Growth, Business, Enterprise, and Custom subscription tiers. Each plan has its own customer and sub-manager limits and may include different features or NetBot access. Limits apply per manager account, and you may request or purchase an upgrade when you need higher limits or additional features. The currently applicable plan details are shown on the pricing page or confirmed by the myISP team.' },
+      { heading: 'Free Access or Trial', text: 'The availability, duration, and features of any free access or trial are determined by the offer shown at signup or confirmed by the myISP team. Unless expressly stated otherwise, a free plan or trial does not guarantee access to every paid feature.' },
+      { heading: 'Payment Methods and Manual Verification', text: 'Subscription fees are charged in Pakistani Rupees (PKR). Payment is made by bank transfer, EasyPaisa, or JazzCash. Payment is not processed through an automated card gateway: after you submit payment details or proof of payment, the payment is reviewed and verified manually, typically within [TURNAROUND TIME]. Access, renewal, or an upgrade may remain pending until verification is complete.' },
+      { heading: 'Refunds and Credits', text: 'Refunds, credits, cancellations, and adjustments are handled according to [REFUND AND CANCELLATION POLICY]. Do not assume that a payment is refundable unless the myISP team confirms it in writing.' },
+      { heading: 'Suspension for Non-Payment or Other Reasons', text: 'An administrator may suspend an account, including for non-payment, suspected misuse, security concerns, or other account-related reasons. Suspension can restrict access to the Platform while keeping the account data intact. An administrator may reactivate the account after the relevant issue is resolved. Any applicable data-retention period after suspension is [DATA RETENTION PERIOD].' },
     ],
   },
   {
@@ -38,12 +38,11 @@ const SECTIONS: Section[] = [
     icon: <Shield className="w-4 h-4" />,
     title: 'Data & Privacy',
     content: [
-      { heading: 'Your Data', text: 'All customer data you enter into myISP remains your property. myISP does not sell, rent, or share your business data with third parties.' },
-      { heading: 'Data Storage', text: 'Data is stored in Supabase PostgreSQL databases hosted on AWS infrastructure (ap-south-1 region). All data is encrypted at rest and in transit using industry-standard protocols.' },
-      { heading: 'Local Storage', text: 'myISP uses browser localStorage as a local cache for faster performance. This data stays on your device. Clearing browser data may remove local cache, but cloud data remains safe.' },
-      { heading: 'Customer Data Responsibility', text: 'You are responsible for obtaining appropriate consent from your customers before entering their personal information (name, CNIC, address, phone) into myISP.' },
-      { heading: 'Data Backup', text: 'myISP performs regular automated backups. However, you are advised to maintain your own backup copies of critical data. myISP is not liable for data loss resulting from insufficient backups.' },
-      { heading: 'Analytics', text: 'myISP may collect anonymized usage analytics (feature usage, page views, performance metrics) to improve the platform. No personally identifiable customer data is included in analytics.' },
+      { heading: 'Manager Data', text: 'You retain responsibility for the customer lists, receipts, balances, contact details, and other business data that you enter into the Platform. Data is stored per manager account: one manager\'s customer lists, receipts, and related business data are not shared with other managers through the Platform.' },
+      { heading: 'How Data Is Used', text: 'myISP uses manager data to provide the billing, customer-management, receipt, reporting, account, and support features that you request. We do not sell or rent your business data. You are responsible for ensuring that you have the right to collect and use your customers\' information.' },
+      { heading: 'Local and Cloud Storage', text: 'The Platform may use browser localStorage as a local cache and may synchronize account data to its cloud database. Clearing browser data can remove the local cache; it does not by itself delete the corresponding cloud data. Specific backup, deletion, and retention practices are [BACKUP, DELETION, AND RETENTION PRACTICES].' },
+      { heading: 'Customer Data Responsibility', text: 'You are responsible for the accuracy and lawful collection of personal information that you enter, including names, phone numbers, addresses, CNIC details, balances, and service records. You should provide your customers with any notices or obtain any permissions required for your use of their information.' },
+      { heading: 'NetBot and WhatsApp Processing', text: 'NetBot is an optional WhatsApp customer-support bot add-on. If you enable it, WhatsApp messages from your own customers may be processed by AI to classify requests and generate replies or other support responses. This processing is for supporting your own customers through your configured myISP service and is not intended for unrelated people, businesses, or purposes. WhatsApp use is also subject to Meta/WhatsApp terms and service availability.' },
     ],
   },
   {
@@ -51,10 +50,10 @@ const SECTIONS: Section[] = [
     icon: <Users className="w-4 h-4" />,
     title: 'Agents & Sub-Managers',
     content: [
-      { heading: 'Agent Accounts', text: 'You may create sub-manager (agent) accounts on your myISP account up to your plan limit. Each agent gets restricted access to selected features as configured by the primary account holder.' },
-      { heading: 'Responsibility', text: 'You are fully responsible for all actions taken by your agents within your myISP account. Ensure your agents are aware of and comply with these Terms.' },
-      { heading: 'Agent Data', text: 'Agent attendance logs, activity records, and check-in/check-out data are stored under your account. You may delete agent accounts at any time.' },
-      { heading: 'WhatsApp Integration', text: 'If you enable the WhatsApp bot (Ayesha) integration, you acknowledge that WhatsApp messages are subject to Meta\'s terms of service. myISP is not responsible for WhatsApp service interruptions.' },
+      { heading: 'Sub-Manager Accounts', text: 'You may create sub-manager accounts up to the limit of your selected plan. The Free, Starter, Growth, Business, Enterprise, and Custom tiers may have different sub-manager limits. A plan upgrade may increase the available limit. The primary Manager can configure the access or permissions available to sub-managers.' },
+      { heading: 'Responsibility', text: 'The primary Manager is responsible for actions taken by sub-managers and other authorized users under the account, including changes to customer records, receipts, collections, and activity records.' },
+      { heading: 'Access to Manager Data', text: 'Sub-managers receive only the access configured for them. Manager data remains associated with the primary Manager account and is not shared with other managers merely because sub-managers or teams use the Platform.' },
+      { heading: 'Optional NetBot Add-On', text: 'If the Manager enables NetBot, the add-on supports WhatsApp customer service for that Manager\'s own customers. AI-generated replies may be used as part of this support workflow. NetBot does not authorize access to another Manager\'s customers or business data.' },
     ],
   },
   {
@@ -62,10 +61,10 @@ const SECTIONS: Section[] = [
     icon: <Lock className="w-4 h-4" />,
     title: 'Security & Account',
     content: [
-      { heading: 'Account Security', text: 'You are responsible for keeping your login credentials secure. Do not share your password. Use a strong, unique password for your myISP account.' },
-      { heading: 'Unauthorized Access', text: 'Notify myISP immediately if you suspect unauthorized access to your account. myISP reserves the right to suspend accounts showing signs of compromise or abuse.' },
-      { heading: 'Password Recovery', text: 'Password recovery is currently handled manually via WhatsApp support. Contact support at +92-304-2773453 to initiate a password reset.' },
-      { heading: 'Session Management', text: 'Sessions are maintained per device. Logging in on a new device does not automatically log out other sessions. You can manage active sessions from your account settings.' },
+      { heading: 'Account Security', text: 'You are responsible for keeping your login credentials secure, using a strong password, and limiting access to authorized users. Do not share passwords or access links unnecessarily.' },
+      { heading: 'Unauthorized Access', text: 'Notify myISP promptly if you suspect unauthorized access, compromised credentials, or misuse of your account. myISP may suspend an account or restrict access when reasonably necessary to protect the Platform or its users.' },
+      { heading: 'Password Recovery', text: 'Password recovery may be handled through the available account-recovery flow or manually through support. Contact support at +92-304-2773453 if you need assistance.' },
+      { heading: 'Third-Party Services', text: 'Some Platform functions depend on third-party services, including cloud hosting, database, and WhatsApp/Meta services. Those providers may process data as needed to deliver the relevant function and may have their own terms and policies.' },
     ],
   },
   {
@@ -73,12 +72,12 @@ const SECTIONS: Section[] = [
     icon: <AlertTriangle className="w-4 h-4" />,
     title: 'Prohibited Activities',
     content: [
-      { text: 'Using myISP for any unlawful purpose or in violation of Pakistani law, including PECA 2016.' },
-      { text: 'Attempting to reverse-engineer, decompile, or extract source code from the myISP platform.' },
-      { text: 'Uploading malicious code, viruses, or any content that could harm the platform or other users.' },
-      { text: 'Creating fake customer records, falsifying receipts, or using myISP for fraudulent billing.' },
-      { text: 'Using automated scripts or bots to access myISP APIs beyond normal usage without written permission.' },
-      { text: 'Attempting to access another operator\'s data or circumvent access controls.' },
+      { text: 'Using myISP for any unlawful purpose or in violation of applicable Pakistani law, including PECA 2016.' },
+      { text: 'Attempting to reverse-engineer, decompile, or extract source code from the Platform.' },
+      { text: 'Uploading malicious code, viruses, or content that could harm the Platform or another user.' },
+      { text: 'Creating fake customer records, falsifying receipts, or using the Platform for fraudulent billing.' },
+      { text: 'Using automated scripts or bots to access Platform APIs beyond normal usage without written permission.' },
+      { text: 'Attempting to access another Manager\'s data, customer lists, receipts, WhatsApp conversations, or account, or attempting to bypass access controls.' },
     ],
   },
   {
@@ -86,9 +85,9 @@ const SECTIONS: Section[] = [
     icon: <Globe className="w-4 h-4" />,
     title: 'Liability & Disclaimers',
     content: [
-      { heading: 'Service Availability', text: 'myISP targets 99.5% uptime but does not guarantee uninterrupted service. Planned maintenance windows will be announced in advance.' },
-      { heading: 'Limitation of Liability', text: 'myISP\'s total liability for any claim shall not exceed the amount paid by you for the service in the past 3 months. myISP is not liable for indirect damages.' },
-      { heading: 'Third-Party Services', text: 'myISP integrates with Supabase, Vercel, and Meta WhatsApp Business API. myISP is not responsible for downtime or changes in these third-party services.' },
+      { heading: 'Service Availability', text: 'The Platform may be unavailable because of maintenance, connectivity problems, account suspension, or failures or changes affecting third-party services. myISP does not guarantee uninterrupted or error-free operation unless a separate written agreement says otherwise.' },
+      { heading: 'Billing and Operational Decisions', text: 'Receipts, balances, reminders, customer statuses, and NetBot replies are tools to assist your operations. You remain responsible for checking information and making decisions about service activation, suspension, renewal, collection, and customer communications.' },
+      { heading: 'Limitation of Liability', text: 'To the extent permitted by applicable law, myISP\'s total liability for any claim shall not exceed the amount paid by you for the service in the past 3 months. myISP is not liable for indirect damages.' },
       { heading: 'Governing Law', text: 'These Terms are governed by the laws of Pakistan. Any disputes shall be subject to the exclusive jurisdiction of courts in Karachi, Pakistan.' },
     ],
   },
@@ -115,7 +114,7 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
           )}
           <div>
             <h1 className="text-sm font-black uppercase tracking-[0.2em] text-white">Terms & Policies</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">myISP Platform — Effective June 2025</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">myISP Platform — Effective [EFFECTIVE DATE]</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -221,7 +220,7 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
       <div className="border-t border-white/5 mt-8">
         <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest text-center">
-            © 2025 myISP — All rights reserved. Operated in Pakistan.
+            © [YEAR] myISP — All rights reserved. Operated in Pakistan.
           </p>
           <a href="https://wa.me/923042773453" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-400 transition-colors">
