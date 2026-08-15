@@ -121,7 +121,8 @@ async function handleAddToken(req: any, res: any) {
   }
 
   // 3. Compute quota + cycle dates
-  const resolvedPlan  = plan_type || 'basic';
+  // Enterprise is the product-facing label; whatsapp_configs stores it as unlimited.
+  const resolvedPlan  = plan_type === 'enterprise' ? 'unlimited' : (plan_type || 'basic');
   const message_quota = QUOTA_MAP[resolvedPlan] ?? 1000;
   const now           = new Date();
   const cycleStart    = now.toISOString().split('T')[0];

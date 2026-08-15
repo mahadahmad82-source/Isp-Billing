@@ -813,7 +813,7 @@ async function checkQuota(managerId: string): Promise<boolean> {
     // mahadnet is the BillCollector Owner/Enterprise account. Older onboarding
     // rows may still contain the legacy Basic plan and 1,000 quota; normalize that
     // row before the quota guard so the owner cannot be blocked by stale metadata.
-    if (managerId === 'mahadnet' && cfg.plan_type !== 'enterprise') {
+    if (managerId === 'mahadnet' && cfg.plan_type !== 'unlimited') {
       const ownerRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}`, {
         method: 'PATCH',
         headers: {
@@ -822,12 +822,12 @@ async function checkQuota(managerId: string): Promise<boolean> {
           'Content-Type': 'application/json',
           Prefer: 'return=minimal',
         },
-        body: JSON.stringify({ plan_type: 'enterprise', message_quota: Number.MAX_SAFE_INTEGER }),
+        body: JSON.stringify({ plan_type: 'unlimited', message_quota: 15000 }),
       });
       if (ownerRes.ok) {
         console.warn(`[quota] normalized ${managerId} to Enterprise/unlimited`);
-        cfg.plan_type = 'enterprise';
-        cfg.message_quota = Number.MAX_SAFE_INTEGER;
+        cfg.plan_type = 'unlimited';
+        cfg.message_quota = 15000;
       } else {
         console.error(`[quota] failed to normalize ${managerId}: ${ownerRes.status}`);
       }
@@ -868,6 +868,7 @@ async function checkQuota(managerId: string): Promise<boolean> {
       }
       console.error(`[quota] cycle rollover failed for ${managerId}: ${resetRes.status}`);
     }
+    if (cfg.plan_type === 'unlimited') return false;
     const over = (cfg.messages_used_this_cycle ?? 0) >= (cfg.message_quota ?? 1000);
     if (over) console.warn(`[quota] manager=${managerId} quota hit: ${cfg.messages_used_this_cycle}/${cfg.message_quota}`);
     return over;
