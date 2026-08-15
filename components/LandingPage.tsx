@@ -1586,6 +1586,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </p>
             </div>
 
+            <div className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6 sm:p-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-2">NetBot / WhatsApp Customer Care</p>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">Purpose-built support for your subscribers</h3>
+                  <p className="text-sm leading-relaxed text-slate-600 mt-3 max-w-3xl">
+                    NetBot is Bill Collector’s AI WhatsApp customer-care service — designed for billing questions, technical support, complaints, and everyday subscriber assistance. Choose natural-sounding female voices and configure different support tones and voice-agent personas for the way your ISP communicates with customers.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:max-w-xs sm:justify-end">
+                  <span className="rounded-full border border-cyan-500/20 bg-white/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-700">WhatsApp Care</span>
+                  <span className="rounded-full border border-cyan-500/20 bg-white/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-700">Female Voices</span>
+                  <span className="rounded-full border border-cyan-500/20 bg-white/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-700">Custom Tones</span>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md overflow-x-auto">
               <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/10 bg-white/5 min-w-[520px]">
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Feature</div>
