@@ -1226,6 +1226,15 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                         className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black hover:bg-emerald-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Unlock
                       </button>}
+                      {sub.status==='pending_payment' && sub.payment_proof_url && (
+                        <a href={sub.payment_proof_url} target="_blank" rel="noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-black hover:bg-amber-500/20 transition-all flex items-center gap-1 active:scale-95">
+                          <Eye className="w-3.5 h-3.5" /> View Proof
+                        </a>
+                      )}
+                      {sub.status==='pending_payment' && !sub.payment_proof_url && (
+                        <span className="px-3 py-1.5 rounded-xl bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-wider">No proof yet</span>
+                      )}
                       <button onClick={()=>openPaymentModal(sub.manager_id, sub.plan, sub.amount_pkr)}
                         className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[11px] font-black hover:bg-indigo-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <Banknote className="w-3.5 h-3.5" /> Record Payment
