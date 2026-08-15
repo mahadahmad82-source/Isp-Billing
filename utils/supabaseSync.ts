@@ -68,6 +68,20 @@ const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts =
         return true;
       }
       console.error(`[Supabase] Attempt ${attempt} error:`, error.message);
+      // Hard plan-limit block (see enforce_tier_limits trigger) — retrying
+      // will never succeed until the manager upgrades or removes data, so
+      // stop immediately instead of burning attempts/backoff, and tell the
+      // person clearly instead of leaving them wondering why nothing saved.
+      if (error.message?.includes('TIER_LIMIT_')) {
+        const friendly = error.message.split(':').slice(1).join(':').trim() || error.message;
+        if (!tierLimitAlertedThisSession) {
+          tierLimitAlertedThisSession = true;
+          alert(friendly);
+          setTimeout(() => { tierLimitAlertedThisSession = false; }, 60000); // allow a fresh alert after 1 min, not every 45s
+        }
+        emit('failed');
+        return false;
+      }
     } catch (err) {
       console.error(`[Supabase] Attempt ${attempt} exception:`, err);
     }
