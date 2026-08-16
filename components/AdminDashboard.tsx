@@ -1013,12 +1013,15 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
-                      { label: 'Used', value: `${storageComputed.usedMB} MB`, color: 'text-indigo-300', icon: '💾' },
-                      { label: 'Remaining', value: `${storageComputed.remainingMB} MB`, color: 'text-emerald-400', icon: '✅' },
-                      { label: 'Status', value: storageComputed.statusLabel, color: storageComputed.usedPct >= 90 ? 'text-rose-400' : storageComputed.usedPct >= 70 ? 'text-amber-400' : 'text-emerald-400', icon: '' },
-                      { label: 'Managers (rows)', value: storageInfo!.row_count.toString(), color: 'text-blue-300', icon: '👥' },
-                      { label: 'Table Size', value: storageInfo!.table_size_pretty, color: 'text-purple-300', icon: '📊' },
-                      { label: 'Avg Row Size', value: `${Math.round(storageInfo!.avg_row_size_bytes / 1024)} KB`, color: 'text-amber-300', icon: '📦' },
+                      // BUG FIX (Manus audit): literal emoji violated the project's
+                      // inline-SVG-only icon rule — removed rather than replaced, since
+                      // these were purely decorative next to a text label.
+                      { label: 'Used', value: `${storageComputed.usedMB} MB`, color: 'text-indigo-300' },
+                      { label: 'Remaining', value: `${storageComputed.remainingMB} MB`, color: 'text-emerald-400' },
+                      { label: 'Status', value: storageComputed.statusLabel, color: storageComputed.usedPct >= 90 ? 'text-rose-400' : storageComputed.usedPct >= 70 ? 'text-amber-400' : 'text-emerald-400' },
+                      { label: 'Managers (rows)', value: storageInfo!.row_count.toString(), color: 'text-blue-300' },
+                      { label: 'Table Size', value: storageInfo!.table_size_pretty, color: 'text-purple-300' },
+                      { label: 'Avg Row Size', value: `${Math.round(storageInfo!.avg_row_size_bytes / 1024)} KB`, color: 'text-amber-300' },
                     ].map(item => (
                       <div key={item.label} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-3">
                         <p className="text-slate-500 font-black uppercase tracking-wider text-[10px] mb-1">{item.icon} {item.label}</p>
