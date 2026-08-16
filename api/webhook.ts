@@ -2294,7 +2294,7 @@ OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence n
 {"onTopic": true ya false, "reply": "tumhari reply yahan — max 4-5 lines, 1-2 emoji max"}
 
 CUSTOMER INFO: ${custData}
-COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat — sirf CURRENT message ka jawab do, kisi purane/unrelated topic par wapis mat jao):\n${recentHistory}` : ''}${knowledgeContext ? `\n\nAPPROVED REFERENCE ANSWERS (Mahad bhai ne yeh wording manually approve ki hai — agar customer ka sawal in se milta hai, isi tarah ka wording/lehja use karo):\n${knowledgeContext}` : ''}`;
+COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECENT CONVERSATION (purana context — isay yaad rakh kar jawab do, dohrao mat — sirf CURRENT message ka jawab do, kisi purane/unrelated topic par wapis mat jao):\n${recentHistory}` : ''}${knowledgeContext ? `\n\nAPPROVED REFERENCE ANSWERS (Mahad bhai ne yeh wording manually approve ki hai — agar customer ka sawal in se milta hai, isi tarah ka wording/lehja/structure use karo. ZAROORI: yeh sirf TONE aur STYLE ke liye reference hain — in mein agar koi purane customer ka naam, password, address, ya koi aur specific detail likha ho, wo KABHI copy mat karo. Naam hamesha sirf CUSTOMER INFO mein diye gaye asal naam se lo — agar CUSTOMER INFO mein naam na ho to koi naam mat likho, generic reply do):\n${knowledgeContext}` : ''}`;
 
   let result = await callGroqOnce(system, userMessage);
 
