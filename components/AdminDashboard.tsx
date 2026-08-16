@@ -216,10 +216,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   // ── Storage Info ─────────────────────────────────────────────────────────────
   const loadStorageInfo = useCallback(async () => {
     setStorageLoading(true);
-    const { data, error } = await supabase.rpc('get_db_storage_info');
-    if (data && data.length > 0) setStorageInfo(data[0]);
-    if (error) console.error('Storage info error:', error.message);
-    setStorageLoading(false);
+    try {
+      const { data, error } = await supabase.rpc('get_db_storage_info');
+      if (data && data.length > 0) setStorageInfo(data[0]);
+      if (error) console.error('Storage info error:', error.message);
+    } finally { setStorageLoading(false); } // BUG FIX (Manus audit): rejected promise used to leave this spinning forever
   }, []);
   useEffect(() => { if (tab === 'system') loadStorageInfo(); }, [tab, loadStorageInfo]);
 
