@@ -80,6 +80,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [signupOtp, setSignupOtp] = useState('');
   const [tierPaymentPending, setTierPaymentPending] = useState<{ tier: string; label: string } | null>(null);
+  // BUG FIX: these were added earlier this session but lost when a later
+  // full-file JSX edit was based on a stale raw.githubusercontent.com fetch
+  // (CDN-cached, not the authoritative GitHub state) instead of the GitHub
+  // Contents API — the exact failure mode our own rules warn about. Restored
+  // here via the Contents API this time.
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofSubmitted, setProofSubmitted] = useState(false);
   const [tierBusy, setTierBusy] = useState(false);
   const [pendingSignupEmail, setPendingSignupEmail] = useState('');
 
@@ -283,6 +291,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       }
     } finally {
       setTierBusy(false);
+    }
+  };
+
+  const handleSubmitProof = async () => {
+    if (!proofFile) { showError('Payment proof screenshot select karein.'); return; }
+    setProofUploading(true);
+    try {
+      const ext = proofFile.name.split('.').pop() || 'jpg';
+      const path = `signup-proofs/${phone}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, proofFile, {
+        contentType: proofFile.type || 'image/jpeg', cacheControl: '31536000',
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+      await supabase.rpc('submit_signup_payment_proof', { p_proof_url: pub.publicUrl });
+      setProofSubmitted(true);
+    } catch (err: any) {
+      showError(err?.message || 'Proof upload failed, try again.');
+    } finally {
+      setProofUploading(false);
     }
   };
 
