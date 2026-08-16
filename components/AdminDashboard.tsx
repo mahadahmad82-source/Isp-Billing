@@ -1201,6 +1201,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   active:  { color:'text-emerald-400', bg:'bg-emerald-500/10 border-emerald-500/30', label:'ACTIVE' },
                   locked:  { color:'text-rose-400',    bg:'bg-rose-500/10 border-rose-500/30',     label:'LOCKED' },
                   expired: { color:'text-slate-500',   bg:'bg-slate-500/10 border-slate-500/30',   label:'EXPIRED' },
+                  // BUG FIX (Manus audit): pending_payment fell back to statusCfg.trial,
+                  // so a manager awaiting payment verification was labeled TRIAL even
+                  // though its payment-proof controls correctly identified it as pending.
+                  pending_payment: { color:'text-orange-400', bg:'bg-orange-500/10 border-orange-500/30', label:'PENDING PAYMENT' },
                 };
                 const sc = statusCfg[sub.status] || statusCfg.trial;
                 const planColors: Record<string,string> = { starter:'text-indigo-400', business:'text-purple-400', enterprise:'text-cyan-400' };
