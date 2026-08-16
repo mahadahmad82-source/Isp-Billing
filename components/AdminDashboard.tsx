@@ -321,6 +321,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
 
   const openLedger = async (managerId: string) => {
     setLedgerModal(managerId);
+    setSelectedLedgerMonth(null); // reset drill-down when opening a different manager's ledger
     setLedgerLoading(true);
     try {
       const { data } = await supabase.rpc('admin_get_subscription_ledger', { p_manager_id: managerId });
