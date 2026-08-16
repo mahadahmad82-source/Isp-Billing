@@ -228,16 +228,17 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const loadPricingPlans = useCallback(async () => {
     setPricingLoading(true);
     setPricingMsg(null);
-    const { data, error } = await supabase.from('site_settings').select('pricing_plans').eq('id', 'default').maybeSingle();
-    if (!error && Array.isArray(data?.pricing_plans)) {
-      setPricingPlans(data.pricing_plans as PricingPlan[]);
-    } else if (error) {
-      setPricingMsg({ ok: false, text: 'Load error: ' + error.message });
-      setPricingPlans([]);
-    } else {
-      setPricingPlans([]);
-    }
-    setPricingLoading(false);
+    try {
+      const { data, error } = await supabase.from('site_settings').select('pricing_plans').eq('id', 'default').maybeSingle();
+      if (!error && Array.isArray(data?.pricing_plans)) {
+        setPricingPlans(data.pricing_plans as PricingPlan[]);
+      } else if (error) {
+        setPricingMsg({ ok: false, text: 'Load error: ' + error.message });
+        setPricingPlans([]);
+      } else {
+        setPricingPlans([]);
+      }
+    } finally { setPricingLoading(false); } // BUG FIX (Manus audit): rejected promise used to leave this spinning forever
   }, []);
   useEffect(() => { if (tab === 'pricing' && pricingPlans === null) loadPricingPlans(); }, [tab, pricingPlans, loadPricingPlans]);
 
