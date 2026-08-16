@@ -1024,7 +1024,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                       { label: 'Avg Row Size', value: `${Math.round(storageInfo!.avg_row_size_bytes / 1024)} KB`, color: 'text-amber-300' },
                     ].map(item => (
                       <div key={item.label} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-3">
-                        <p className="text-slate-500 font-black uppercase tracking-wider text-[10px] mb-1">{item.icon} {item.label}</p>
+                        <p className="text-slate-500 font-black uppercase tracking-wider text-[10px] mb-1">{item.label}</p>
                         <p className={`font-black text-base ${item.color}`}>{item.value}</p>
                       </div>
                     ))}
