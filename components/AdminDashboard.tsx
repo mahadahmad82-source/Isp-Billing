@@ -144,6 +144,22 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [ledgerRows, setLedgerRows] = useState<any[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [receiptView, setReceiptView] = useState<any | null>(null); // payment row
+
+  // BUG FIX (found by Manus AI audit): these were referenced throughout the
+  // ledger modal JSX (back button, heading, period cards, detail table,
+  // total) but never actually declared anywhere — a compile-blocking
+  // ReferenceError the moment anyone opened the Ledger view. Re-added here.
+  const [selectedLedgerMonth, setSelectedLedgerMonth] = useState<string | null>(null);
+  const monthlyLedger = useMemo(() => {
+    const groups: Record<string, { period: string; rows: any[]; total: number }> = {};
+    ledgerRows.forEach((row) => {
+      const period = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(row.paid_at));
+      if (!groups[period]) groups[period] = { period, rows: [], total: 0 };
+      groups[period].rows.push(row);
+      groups[period].total += Number(row.amount_pkr) || 0;
+    });
+    return Object.values(groups).sort((a, b) => new Date(b.rows[0].paid_at).getTime() - new Date(a.rows[0].paid_at).getTime());
+  }, [ledgerRows]);
   const [subLoading, setSubLoading] = useState(false);
   const [subToast, setSubToast] = useState<string | null>(null);
   const showSubToast = (m: string) => { setSubToast(m); setTimeout(() => setSubToast(null), 3000); };
