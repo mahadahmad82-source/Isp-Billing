@@ -286,9 +286,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   // ── Subscriptions ───────────────────────────────────────────────────────────
   const loadSubscriptions = useCallback(async () => {
     setSubLoading(true);
-    const { data } = await supabase.from('manager_subscriptions').select('*').order('created_at', { ascending: false });
-    if (data) setSubscriptions(data);
-    setSubLoading(false);
+    try {
+      const { data } = await supabase.from('manager_subscriptions').select('*').order('created_at', { ascending: false });
+      if (data) setSubscriptions(data);
+    } finally { setSubLoading(false); } // BUG FIX (Manus audit): rejected promise used to leave this spinning forever
   }, []);
   useEffect(() => { if (tab === 'subscriptions') loadSubscriptions(); }, [tab, loadSubscriptions]);
 
