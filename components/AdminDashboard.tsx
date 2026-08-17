@@ -557,6 +557,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     const q = searchMgr.toLowerCase();
     return managers.filter(m => m.username.toLowerCase().includes(q) || m.business_name.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q));
   }, [managers, searchMgr, mgrSort]);
+  const managerAccounts = useMemo(() => managers.filter(m => m.role !== 'sub-manager'), [managers]);
+  const subManagerAccounts = useMemo(() => managers.filter(m => m.role === 'sub-manager'), [managers]);
+  const sortedManagerAccounts = useMemo(() => sortedManagers.filter(m => m.role !== 'sub-manager'), [sortedManagers]);
+  const sortedSubManagerAccounts = useMemo(() => sortedManagers.filter(m => m.role === 'sub-manager'), [sortedManagers]);
 
   const filteredCusts = useMemo(() => {
     let l = custFilter !== 'all' ? allCustomers.filter(c => c.status === custFilter) : allCustomers;
@@ -672,7 +676,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           {/* Summary Table */}
           <div className="bg-slate-800/60 rounded-3xl border border-white/[0.06] overflow-hidden">
             <div className="px-5 py-4 flex items-center justify-between border-b border-white/[0.05]">
-              <h3 className="font-black text-white text-[13px] flex items-center gap-2"><ClipboardList className="w-4 h-4 text-indigo-400" /> All Managers</h3>
+              <h3 className="font-black text-white text-[13px] flex items-center gap-2"><ClipboardList className="w-4 h-4 text-indigo-400" /> Manager Accounts</h3>
               <button onClick={() => setActiveTab?.('admin-managers')} className="text-[11px] text-indigo-400 font-bold hover:text-indigo-300">View All →</button>
             </div>
             <div className="overflow-x-auto">
@@ -682,7 +686,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                     <th key={h} className="text-left px-5 py-3 font-black text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
                   ))}
                 </tr></thead>
-                <tbody>{managers.map(m => (
+                <tbody>{managerAccounts.map(m => (
                   <tr key={m.username} className="border-t border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
@@ -706,7 +710,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   </tr>
                 ))}</tbody>
               </table>
-              {managers.length === 0 && <div className="text-center py-10 text-slate-600 text-sm">No managers found.</div>}
+              {managerAccounts.length === 0 && <div className="text-center py-10 text-slate-600 text-sm">No manager accounts found.</div>}
             </div>
           </div>
         </div>
@@ -730,8 +734,17 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
               ))}
             </div>
           </div>
-          <div className="space-y-3">
-            {sortedManagers.map(m => (
+          <div className="space-y-5">
+            {[
+              { key: 'managers', label: 'Manager Accounts', accounts: sortedManagerAccounts, icon: <Users className="w-4 h-4 text-indigo-400" /> },
+              { key: 'sub-managers', label: 'Sub-Manager / Agent Accounts', accounts: sortedSubManagerAccounts, icon: <UserCheck className="w-4 h-4 text-emerald-400" /> },
+            ].map(section => (
+              <section key={section.key} className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-slate-300">{section.icon}{section.label}</h3>
+                  <span className="rounded-full bg-white/[0.04] px-2.5 py-1 text-[10px] font-black text-slate-500">{section.accounts.length}</span>
+                </div>
+                {section.accounts.map(m => (
               <div key={m.username} className="bg-slate-800/60 backdrop-blur-sm rounded-3xl border border-white/[0.06] overflow-hidden hover:border-indigo-500/30 transition-all">
                 <div className="flex items-center gap-3 p-4">
                   <div className="relative flex-shrink-0">
@@ -812,8 +825,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   </div>
                 )}
               </div>
+                ))}
+              </section>
             ))}
-            {sortedManagers.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No managers found.</p></div>}
+            {sortedManagers.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No accounts found.</p></div>}
           </div>
         </div>
       )}
