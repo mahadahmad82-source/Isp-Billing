@@ -272,21 +272,27 @@ Brahay mehr {support_number} pe call karein — {owner_name} bhai directly help 
 Renewal ke liye payment karein aur screenshot bhejein!
 Bank details chahiye? *"3"* likh kar bhejein 😊`,
   account_billing_blocked_reply: `Ji {name}! Maine check kiya — internet band hone ki wajah lagta hai *billing* hai, router ka masla nahi 🔍
-{pending_line}{expired_line}
+{pending_line}{expired_line}{current_due_line}
 
 Payment kar dein to Mahad bhai ko foran inform kar dungi — payment milte hi Mahad bhai ya accounts team turant activate/restore kar dengay ✅
 Bank details chahiye? *"3"* likh kar bhejein 😊
 
 Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dobara batayen — main foran complaint register kar dungi.`,
   billing_blocked_pending_line: `
-🔴 Pending balance: *Rs. {amount}*`,
+🔴 Pending balance (purana): *Rs. {amount}*`,
   billing_blocked_expired_line: `
 📅 Package expire ho gaya: *{expiry_date}*`,
+  billing_blocked_current_due_line: `
+💰 Is mahine ka renewal payment: *Rs. {amount}*`,
   recharge_reply: `Ji zaroor! 😊 Package activate/renew karne ke liye yeh steps follow karein:
 
 {bank_accounts}{plan_line}
 
-✅ Payment karne ke baad yeh *teen* cheezein zaroor bhejein:
+{steps_block}`,
+  recharge_reply_steps_known: `✅ Payment karne ke baad sirf *payment ka screenshot* bhej dein — Mahad bhai ya accounts team foran activate/renew kar dengay! 🙏
+
+💵 Agar bank/Easypaisa/JazzCash se payment karna mushkil ho, hamara recovery boy ghar aa kar cash collect kar sakta hai — bas bata dein kab visit theek rahega.`,
+  recharge_reply_steps_unknown: `✅ Payment karne ke baad yeh *teen* cheezein zaroor bhejein:
 1️⃣ Payment ka *screenshot*
 2️⃣ Apna *username*
 3️⃣ Apna *address*
@@ -294,6 +300,13 @@ Agar payment pehle se clear hai aur phir bhi internet nahi chal raha, please dob
 Yeh milte hi Mahad bhai ya accounts team foran activate/renew kar dengay! 🙏
 
 💵 Agar bank/Easypaisa/JazzCash se payment karna mushkil ho, to sirf apna *username* aur *address* bhej dein — hamara recovery boy khud aa kar cash collect kar lega.`,
+  recharge_not_needed_reply: `Ji {name}! 😊 Aap ki payment abhi *clear* hai — koi renewal is waqt due nahi hai.
+
+📦 Package: *{plan}*
+📅 Expiry: *{expiry_date}*
+{days_line}
+
+Jab package expire hone ke qareeb hoga to hum khud aap ko yaad dila dengay — abhi kuch karne ki zaroorat nahi. Agar aap phir bhi advance mein payment karna chahte hain to zaroor kar sakte hain, bata dein! 🙏`,
   recharge_reply_plan_line: `
 📦 Aap ka package: *{plan}* — Rs. {amount}/month`,
   recharge_discount_note: `
@@ -373,10 +386,9 @@ Phir bhi panel na khule to call karein: *{support_number}* — main guide karti 
 1️⃣ Apna mobile ya laptop *router ke WiFi* se connect karein (jo bhi naam abhi WiFi list mein dikh raha ho)
 2️⃣ Phone/laptop ka *browser* (Chrome ya koi bhi) khol kar address bar mein yeh likhein: *{ip}*
    _(yeh kisi website ka link nahi — yeh router ka khud ka control panel hai)_
-3️⃣ Login screen aayegi — {note}
-   _(agar yeh login chal na ho to device ke sticker pe likha username/password try karein)_
+3️⃣ Login screen aayegi — {note}{fallback_line}
 4️⃣ Andar *Wireless* ya *WLAN Settings* (kabhi *WiFi Settings* bhi likha hota hai) wala option dhoondein
-5️⃣ Wahan *Password / WiFi Key* ka box milega — naya password likhein (kam az kam 8 letters, mix of numbers achi rahegi)
+5️⃣ Wahan *Password / WiFi Key* ka box milega — naya password likhein (kam az kam 8 letters, mix of numbers achi rahegi). Wahin *SSID / Network Name* wala box bhi hota hai agar WiFi ka naam bhi badalna ho
 6️⃣ Sab se neeche *Save* ya *Apply* button dabayen
 7️⃣ Router ko ek baar *power se nikal kar 10 second baad dobara laga dein* — naya password apply ho jayega
 
@@ -413,6 +425,12 @@ Kya aap *Fiber Connection* lena pasand karenge? Reply karein *"Haan"* ya *"Nahi"
   password_change_ask_model: `Zaroor madad karti hoon! 😊
 
 Aap ka router/ONU konsa model hai? (jaise GS3101, HG8546M, Huawei Q2 — ya jo bhi likha ho device pe)`,
+  password_change_ask_model_fiber: `Zaroor madad karti hoon! 😊
+
+Aap ka Fiber ONU/router *Huawei*, *China Mobile* ya *Vsol* mein se konsa hai? (device ke upar/side pe likha hota hai — ya jo bhi model number ho wo bhi likh sakte hain)`,
+  password_change_ask_model_local: `Zaroor madad karti hoon! 😊
+
+Aap ka router *TP-Link*, *Tenda*, *Mtlink* ya koi aur brand hai? (device ke neeche/peeche sticker pe likha hota hai)`,
   router_order_confirmed: `Theek hai! *{model}* (Rs. {price}) ka order note kar liya hai 😊
 
 Delivery ke liye apna *pura address* bhej dein, taake hamari team rabta kar sake.`,
@@ -2006,7 +2024,13 @@ function accountBillingBlockedReply(user: any): string | null {
     : '';
   const pendingLine = bal > 0 ? tmpl('billing_blocked_pending_line', { amount: bal }) : '';
   const expiredLine = expired ? tmpl('billing_blocked_expired_line', { expiry_date: expDateStr }) : '';
-  return tmpl('account_billing_blocked_reply', { name: user.name, pending_line: pendingLine, expired_line: expiredLine });
+  // Pending balance alone is the OLD dues — a customer whose package just expired needs to
+  // know THIS month's renewal amount to actually pay and get reconnected, not just their
+  // running balance (which may be 0 even though a fresh month's payment is now due).
+  const discount = user.persistentDiscount || 0;
+  const netFee = Math.max(0, (user.monthlyFee || 0) - discount);
+  const currentDueLine = expired && netFee > 0 ? tmpl('billing_blocked_current_due_line', { amount: netFee.toLocaleString() }) : '';
+  return tmpl('account_billing_blocked_reply', { name: user.name, pending_line: pendingLine, expired_line: expiredLine, current_due_line: currentDueLine });
 }
 
 function connectionTypeQuestion(ackLine?: string): string {
@@ -2018,6 +2042,16 @@ function detectConnectionType(text: string): 'fiber' | 'local' | null {
   if (/^1$|fiber|fibre|optic/.test(t)) return 'fiber';
   if (/^2$|local|utp|\blan\b|ethernet|taar\s*wala|wire\s*wala/.test(t)) return 'local';
   return null;
+}
+
+// Customer's connectionType is already recorded in the main app (UserRecord.connectionType,
+// see CONNECTION_TYPES in types.ts) — no need to ask "Fiber ya Local?" again on every
+// complaint if we already know. 'Fiber' maps to fiber; every other type (Local/Panel,
+// Bandwidth, Sharing, Wireless, Other) behaves like a non-fiber/local connection for
+// troubleshooting + fiber-upsell purposes. Returns null only if genuinely unset.
+function mapDbConnectionType(dbType?: string): 'fiber' | 'local' | null {
+  if (!dbType) return null;
+  return dbType.toLowerCase() === 'fiber' ? 'fiber' : 'local';
 }
 
 function troubleshootingReply(issue: string, connectionType?: 'fiber' | 'local'): string {
@@ -2060,15 +2094,51 @@ function coverageReply(): string {
   return tmpl('coverage_reply');
 }
 
-function routerPasswordGuide(modelInput: string): string {
+function routerPasswordGuide(modelInput: string, connectionType?: 'fiber' | 'local' | null): string {
   const m = modelInput.toLowerCase();
   let ip = '192.168.1.1';
   let note = 'username/password device ke peeche/neeche lage sticker pe likha hota hai';
-  if (/gs3101/.test(m)) { ip = '192.168.1.1'; note = 'default login *admin / admin* try karein'; }
-  else if (/hg8546|echolife/.test(m)) { ip = '192.168.100.1'; note = 'default login *telecomadmin / admintelecom* ya *admin / admin* try karein'; }
-  else if (/\bq2\b/.test(m)) { ip = '192.168.100.1'; note = 'login device ke sticker pe check karein'; }
+  let fallbackLine = '\n   _(agar yeh login chal na ho to device ke sticker pe likha username/password try karein)_';
 
-  return tmpl('router_password_guide', { model: modelInput, ip, note, support_number: CONFIG.supportNumber });
+  // ── Fiber ONU/Router brands (deployed: Huawei, China Mobile, Vsol) ──
+  if (/huawei|hg8546|echolife|telecomadmin/.test(m)) {
+    ip = '192.168.100.1';
+    note = 'default login *telecomadmin / admintelecom* try karein';
+    fallbackLine = '\n   _(agar yeh na chale to *admin / admin* try karein)_';
+  } else if (/china\s*-?\s*mobile|chinamobile|\bcm\b/.test(m)) {
+    ip = '192.168.1.1';
+    note = 'default login *admin / admin* try karein';
+    fallbackLine = '\n   _(agar yeh na chale to *superadmin / suportadmin* try karein — wo bhi na chale to *admin / admin123* try karein)_';
+  } else if (/vsol/.test(m)) {
+    ip = '192.168.1.1';
+    note = 'default login *admin / stdONU101* try karein';
+    fallbackLine = '\n   _(agar yeh password na chale to *test1234* try karein)_';
+  } else if (/gs3101/.test(m)) { ip = '192.168.1.1'; note = 'default login *admin / admin* try karein'; }
+  else if (/\bq2\b/.test(m)) { ip = '192.168.100.1'; note = 'login device ke sticker pe check karein'; }
+  // ── Local (Ethernet/UTP) router brands (deployed: TP-Link, Tenda, Mtlink) ──
+  else if (/tp-?link/.test(m)) {
+    ip = '192.168.1.1 (kabhi kabhi 192.168.0.1)';
+    note = 'default login *admin / admin* try karein';
+    fallbackLine = '\n   _(agar yeh na chale to *admin / mahad* ya *admin / test1234* try karein)_';
+  } else if (/tenda/.test(m)) {
+    ip = '192.168.0.1 (kabhi kabhi 192.168.1.1)';
+    note = 'default login *admin / admin* try karein';
+    fallbackLine = '\n   _(agar yeh na chale to *admin / mahad* ya *admin / test1234* try karein)_';
+  } else if (/mt-?link|mtlink/.test(m)) {
+    ip = '192.168.2.1 (kabhi kabhi 192.168.1.1)';
+    note = 'default login *admin / admin* try karein';
+    fallbackLine = '\n   _(agar yeh na chale to *admin / mahad* ya *admin / test1234* try karein)_';
+  }
+  // ── Brand not recognized from customer's reply — fall back on connectionType ──
+  else if (connectionType === 'local') {
+    ip = '192.168.1.1 ya 192.168.0.1 ya 192.168.2.1';
+    note = 'default login *admin / admin* try karein';
+    fallbackLine = '\n   _(agar yeh na chale to *admin / mahad* ya *admin / test1234* try karein, ya device ke sticker pe check karein)_';
+  } else if (connectionType === 'fiber') {
+    note = 'device ke brand ke hisaab se login alag hai — *telecomadmin/admintelecom* (Huawei), *admin/admin* (China Mobile) ya *admin/stdONU101* (Vsol) try karein';
+  }
+
+  return tmpl('router_password_guide', { model: modelInput, ip, note, fallback_line: fallbackLine, support_number: CONFIG.supportNumber });
 }
 
 function complaintAckReply(user: any, ticketId: string, issue: string): string {
@@ -2102,7 +2172,41 @@ function rechargeReply(user?: any, planPrices?: Record<string, number>): string 
   const planLine = user?.plan
     ? tmpl('recharge_reply_plan_line', { plan: user.plan, amount: netFee.toLocaleString() }) + (discount > 0 ? tmpl('recharge_discount_note') : '')
     : '';
-  return tmpl('recharge_reply', { bank_accounts: tmpl('bank_accounts'), plan_line: planLine });
+  // Known/matched customer → username & address already on file, only screenshot needed.
+  // Unknown/unmatched sender → still need username+address to identify them.
+  const stepsBlock = user ? tmpl('recharge_reply_steps_known') : tmpl('recharge_reply_steps_unknown');
+  return tmpl('recharge_reply', { bank_accounts: tmpl('bank_accounts'), plan_line: planLine, steps_block: stepsBlock });
+}
+
+// Same "active" check used by the main MYISP app (App.tsx) — a customer counts as
+// active this cycle either via an explicit activatedMonths entry OR an unexpired
+// expiryDate. Kept in sync manually since this serverless file has no shared import
+// with the main app bundle.
+function isActiveUser(user: any): boolean {
+  if (!user) return false;
+  if (user.status === 'deleted' || user.status === 'pending') return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
+  if (Array.isArray(user.activatedMonths) && user.activatedMonths.includes(currentMonth)) return true;
+  if (!user.expiryDate) return false;
+  const exp = new Date(user.expiryDate);
+  return !isNaN(exp.getTime()) && exp >= today;
+}
+
+// Customer says "recharge/card dalo" but their package hasn't actually expired yet —
+// telling them "payment karein to renew ho jayega" is misleading (implies they're
+// overdue). Instead confirm their payment is clear and show when it actually expires.
+function rechargeNotNeededReply(user: any): string {
+  const expDateStr = user.expiryDate
+    ? new Date(user.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })
+    : 'N/A';
+  let daysLine = '';
+  if (user.expiryDate) {
+    const exp = new Date(user.expiryDate);
+    const days = Math.ceil((exp.getTime() - Date.now()) / 86400000);
+    daysLine = days > 10 ? tmpl('expiry_days_safe', { days }) : days > 0 ? tmpl('expiry_days_warning', { days }) : '';
+  }
+  return tmpl('recharge_not_needed_reply', { name: user.name, plan: user.plan || 'Standard', expiry_date: expDateStr, days_line: daysLine });
 }
 
 // ══════════════════════════════════════════════════════
@@ -2259,7 +2363,7 @@ DISCOUNT AWARENESS — ZAROORI: Agar CUSTOMER INFO mein "Special Discount" menti
 
 PAYMENT & COLLECTION GUIDANCE:
 - Agar customer bole ke abhi payment nahi kar sakta / thodi dair mein karega: usay assure karo ke Mahad bhai ko inform kar diya jayega, jab convenient ho payment kar dein, koi pressure nahi.
-- Agar customer bole ke online/bank/easypaisa se payment nahi ho sakti: usay batao ke hamara "recovery boy" ghar aa kar cash collect kar sakta hai — uska *username* aur *address* maango taake visit arrange ho sake.
+- Agar customer bole ke online/bank/easypaisa se payment nahi ho sakti: usay batao ke hamara "recovery boy" ghar aa kar cash collect kar sakta hai. ZAROORI: yeh customer already hamare system mein registered/pehchana hua hai (CUSTOMER INFO mein uska naam maujood hai) — is liye uska *username* ya *address* dobara mat maango, hamare pass pehle se hai. Sirf itna poochna kaafi hai ke visit kis din/waqt convenient rahegi.
 - BANK/ACCOUNT DETAILS — SAKHT MANAHI: Tumhe koi bhi bank account number, IBAN, ya payment/wallet detail KABHI apne pas se nahi likhna — na yaad se, na andaza laga kar. Yeh CUSTOMER INFO mein diya hi nahi jata is liye tumhare pas asal number hai hi nahi. Agar koi "account number" ya "bank details" maange, to sirf itna kaho ke abhi verified payment details bhej rahi hoon, aur customer ko "3" likhne ko kaho — asal numbers automatically alag se fixed message mein chale jayenge. Kabhi khud koi digit ya account title mat likho.
 - Naya connection ke liye installation hamesha *FREE* hai — sirf monthly package ki payment honi hoti hai. Yeh hamesha clear batao jab koi charges ke baare mein poochay.
 
@@ -2884,7 +2988,7 @@ export default async function handler(req: any, res: any) {
 
         if (session === 'awaiting_router_model') {
           await setSession(from, null);
-          await sendText(from, routerPasswordGuide(text));
+          await sendText(from, routerPasswordGuide(text, sessionData?.connectionType));
           continue;
         }
 
@@ -2954,8 +3058,17 @@ export default async function handler(req: any, res: any) {
           if (outage) { await sendText(from, outageReply(outage)); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
-          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
           const ackLine1 = await acknowledgeIssue(text, found.rowData?.settings?.ayeshaBotName);
+          // Connection type already on file (Connection Types feature) — skip the
+          // Fiber/Local question, go straight to correct troubleshooting tips.
+          const knownConnType1 = mapDbConnectionType(found.user.connectionType);
+          if (knownConnType1) {
+            await setSession(from, 'awaiting_complaint_confirm', { issue: text, connectionType: knownConnType1, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
+            if (ackLine1) await sendText(from, ackLine1);
+            await sendText(from, troubleshootingReply(text, knownConnType1));
+            continue;
+          }
+          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
           await sendText(from, connectionTypeQuestion(ackLine1));
           continue;
         }
@@ -2989,8 +3102,15 @@ export default async function handler(req: any, res: any) {
               if (outage2) { await sendText(from, outageReply(outage2)); continue; }
               const billingBlock2 = accountBillingBlockedReply(found2.user);
               if (billingBlock2) { await sendText(from, billingBlock2); continue; }
-              await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found2.managerId, verifiedUserId: found2.user.id });
               const ackLine2 = await acknowledgeIssue(text, found2.rowData?.settings?.ayeshaBotName);
+              const knownConnType2 = mapDbConnectionType(found2.user.connectionType);
+              if (knownConnType2) {
+                await setSession(from, 'awaiting_complaint_confirm', { issue: text, connectionType: knownConnType2, verifiedManagerId: found2.managerId, verifiedUserId: found2.user.id });
+                if (ackLine2) await sendText(from, ackLine2);
+                await sendText(from, troubleshootingReply(text, knownConnType2));
+                continue;
+              }
+              await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found2.managerId, verifiedUserId: found2.user.id });
               await sendText(from, connectionTypeQuestion(ackLine2));
               continue;
             }
@@ -3148,8 +3268,11 @@ export default async function handler(req: any, res: any) {
 
       // ── Password change → ask router model first ──
       if (intent === 'password_change') {
-        await setSession(from, 'awaiting_router_model');
-        await sendText(from, tmpl('password_change_ask_model'));
+        const foundPw = await findCustomer(from);
+        const connType = mapDbConnectionType(foundPw?.user?.connectionType);
+        await setSession(from, 'awaiting_router_model', { connectionType: connType });
+        const askModelKey = connType === 'fiber' ? 'password_change_ask_model_fiber' : connType === 'local' ? 'password_change_ask_model_local' : 'password_change_ask_model';
+        await sendText(from, tmpl(askModelKey));
         continue;
       }
 
@@ -3187,6 +3310,12 @@ export default async function handler(req: any, res: any) {
       // ── Activate / recharge / renew ──
       if (intent === 'recharge_request') {
         const found = await findCustomer(from);
+        // Known customer whose package hasn't actually expired yet — don't ask for
+        // payment as if they're overdue, just confirm they're clear + show expiry.
+        if (found?.user && isActiveUser(found.user)) {
+          await sendText(from, rechargeNotNeededReply(found.user));
+          continue;
+        }
         const planPrices = found?.planPrices && Object.keys(found.planPrices).length
           ? found.planPrices
           : await getAnyPlanPrices();
@@ -3270,8 +3399,18 @@ export default async function handler(req: any, res: any) {
         if (outage) { await sendText(from, outageReply(outage)); continue; }
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
-        await setSession(from, 'awaiting_connection_type', { issue: text });
         const ackLine3 = await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName);
+        // Connection type already on file (Connection Types feature) — skip the
+        // Fiber/Local question, go straight to correct troubleshooting tips (this is
+        // also what reliably triggers the fiber-upgrade pitch for Local customers).
+        const knownConnType3 = mapDbConnectionType(user.connectionType);
+        if (knownConnType3) {
+          await setSession(from, 'awaiting_complaint_confirm', { issue: text, connectionType: knownConnType3, verifiedManagerId: managerId, verifiedUserId: user.id });
+          if (ackLine3) await sendText(from, ackLine3);
+          await sendText(from, troubleshootingReply(text, knownConnType3));
+          continue;
+        }
+        await setSession(from, 'awaiting_connection_type', { issue: text });
         await sendText(from, connectionTypeQuestion(ackLine3));
         continue;
       }
