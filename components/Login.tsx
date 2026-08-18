@@ -213,11 +213,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       if (data.user) {
         // A direct email login may land here before the username lookup. Match
         // the authenticated identity to sub_managers and route data to parent.
-        const { data: authAgent } = await supabase
+        let { data: authAgent } = await supabase
           .from('sub_managers')
           .select('auth_user_id, manager_id, username, name, email, contact')
           .eq('auth_user_id', data.user.id)
           .maybeSingle();
+        // Fresh browsers may have a valid Auth session but no direct SELECT
+        // visibility on the auth mapping row. Resolve through the protected
+        // service-role-backed endpoint before treating this identity as a manager.
+        if (!authAgent && data.session?.access_token) {
+          try {
+            const response = await fetch('/api/admin-maintenance?action=resolve-sub-manager-session', {
+              headers: { Authorization: `Bearer ${data.session.access_token}` },
+            });
+            const resolved = await response.json().catch(() => ({}));
+            if (response.ok && resolved?.agent) authAgent = resolved.agent;
+          } catch { /* continue with normal profile resolution */ }
+        }
         if (authAgent?.auth_user_id === data.user.id) {
           const agentUsername = authAgent.username;
           setActiveSession(agentUsername);
