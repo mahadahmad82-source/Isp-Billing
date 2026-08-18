@@ -160,6 +160,9 @@ export const flushPendingSync = async (): Promise<void> => {
         attendanceLogs:   mergeById(staleState.attendanceLogs,   currentRemote.attendanceLogs),
         complaintTickets: mergeById(staleState.complaintTickets, currentRemote.complaintTickets),
         businessExpenses: mergeById(staleState.businessExpenses, currentRemote.businessExpenses),
+        dealerProducts:   mergeById(staleState.dealerProducts,   currentRemote.dealerProducts),
+        dealerPurchases:  mergeById(staleState.dealerPurchases,  currentRemote.dealerPurchases),
+        dealerSales:      mergeById(staleState.dealerSales,      currentRemote.dealerSales),
       } : staleState;
       const ok = await upsertWithRetry(item.managerId, stateToPush, 2);
       if (!ok) console.warn('[Supabase] Flush failed for', item.managerId);
@@ -275,6 +278,9 @@ export const smartLoadAndSync = async (
     attendanceLogs:           mergeById(localState?.attendanceLogs,   supabaseState.attendanceLogs),
     complaintTickets:         mergeById(localState?.complaintTickets, supabaseState.complaintTickets),
     businessExpenses:         mergeById(localState?.businessExpenses, supabaseState.businessExpenses),
+    dealerProducts:           mergeById(localState?.dealerProducts,   supabaseState.dealerProducts),
+    dealerPurchases:          mergeById(localState?.dealerPurchases,  supabaseState.dealerPurchases),
+    dealerSales:              mergeById(localState?.dealerSales,      supabaseState.dealerSales),
     activeCompanyId:          base.activeCompanyId || '',
     dismissedNotificationIds: Array.from(new Set([...(localState?.dismissedNotificationIds || []), ...(supabaseState.dismissedNotificationIds || [])])),
     currentManager:           managerId,
