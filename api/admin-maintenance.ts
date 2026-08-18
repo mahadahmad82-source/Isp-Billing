@@ -38,9 +38,10 @@ export default async function handler(req: any, res: any) {
     // Browser path: only an authenticated admin may use these actions.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
-  } else if (action === 'create-sub-manager-auth') {
-    // Browser path: the handler additionally checks that a non-admin caller owns
-    // the manager_username supplied in the request body.
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session') {
+    // Browser/mobile path: each handler performs its own ownership check. The
+    // resolver is intentionally authenticated too, so it can only disclose the
+    // caller's own parent-manager mapping.
     const caller = await getCallerContext(token);
     if (!caller) return res.status(401).json({ error: 'Unauthorized — authenticated session required' });
     req.__caller = caller;
@@ -57,6 +58,10 @@ export default async function handler(req: any, res: any) {
       return handleAddToken(req, res);
     case 'create-sub-manager-auth':
       return handleCreateSubManagerAuth(req, res);
+    case 'reset-sub-manager-auth-password':
+      return handleResetSubManagerAuthPassword(req, res);
+    case 'resolve-sub-manager-session':
+      return handleResolveSubManagerSession(req, res);
     case 'list-sub-manager-accounts':
       return handleListSubManagerAccounts(req, res);
     case 'reset-quota':
@@ -87,8 +92,19 @@ async function getCallerContext(accessToken: string): Promise<CallerContext | nu
     if (!profileRes.ok) return null;
     const rows: any[] = await profileRes.json();
     const profile = rows?.[0];
-    if (!profile) return null;
-    return { userId: user.id, role: profile.role || 'manager', username: profile.username || null };
+    if (profile) return { userId: user.id, role: profile.role || 'manager', username: profile.username || null };
+
+    // Auth-only field agents do not get a profiles row. Resolve their own
+    // identity from sub_managers so the mobile session can safely obtain its
+    // parent manager mapping without exposing any other agent's data.
+    const agentRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?auth_user_id=eq.${encodeURIComponent(user.id)}&select=username&limit=1`,
+      { headers: dbHeaders }
+    );
+    if (!agentRes.ok) return null;
+    const agents: any[] = await agentRes.json();
+    const agent = agents?.[0];
+    return agent?.username ? { userId: user.id, role: 'sub-manager', username: agent.username } : null;
   } catch (e: any) {
     console.error('[getCallerContext]', e?.message);
     return null;
@@ -109,6 +125,57 @@ const dbHeaders = {
 // ── Action: create-sub-manager-auth ─────────────────────────────────────────
 // Provisions the Auth identity while keeping the existing manager_data JSONB
 // agent entry intact. The caller must own manager_username unless admin.
+async function handleResetSubManagerAuthPassword(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const body = req.body || {};
+  const managerUsername = String(body.manager_username || '').trim().toLowerCase();
+  const subManagerUsername = String(body.sub_manager_username || '').trim().toLowerCase();
+  const newPassword = String(body.new_password || '');
+  const caller: CallerContext | undefined = req.__caller;
+  if (!managerUsername || !subManagerUsername || newPassword.length < 6) {
+    return res.status(400).json({ error: 'manager_username, sub_manager_username and a 6-character password are required' });
+  }
+  if (!caller || (caller.role !== 'admin' && caller.username?.toLowerCase() !== managerUsername)) {
+    return res.status(403).json({ error: 'You can only reset agents under your own manager account.' });
+  }
+  try {
+    const rowRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(subManagerUsername)}&select=auth_user_id`,
+      { headers: dbHeaders }
+    );
+    if (!rowRes.ok) throw new Error('agent lookup failed');
+    const rows: any[] = await rowRes.json();
+    const authUserId = rows?.[0]?.auth_user_id;
+    if (!authUserId) return res.status(404).json({ error: 'This agent does not have a real login account yet.' });
+    const { error } = await adminSupabase.auth.admin.updateUserById(authUserId, { password: newPassword });
+    if (error) return res.status(400).json({ error: 'Agent password could not be updated.' });
+    return res.status(200).json({ success: true });
+  } catch (e: any) {
+    console.error('[reset-sub-manager-auth-password]', e?.message);
+    return res.status(500).json({ error: 'Agent password could not be updated.' });
+  }
+}
+
+async function handleResolveSubManagerSession(req: any, res: any) {
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const rowRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?auth_user_id=eq.${encodeURIComponent(caller.userId)}&select=auth_user_id,manager_id,username,name,email,contact,role,assigned_area,commission_rate,salary,duty_status,is_leave,last_check_in,last_check_out,last_location&limit=1`,
+      { headers: dbHeaders }
+    );
+    if (!rowRes.ok) throw new Error('agent session lookup failed');
+    const rows: any[] = await rowRes.json();
+    const row = rows?.[0];
+    if (!row) return res.status(404).json({ error: 'Sub-manager profile not found.' });
+    return res.status(200).json({ success: true, agent: row });
+  } catch (e: any) {
+    console.error('[resolve-sub-manager-session]', e?.message);
+    return res.status(500).json({ error: 'Sub-manager profile could not be loaded.' });
+  }
+}
+
 async function handleCreateSubManagerAuth(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const body = req.body || {};
@@ -117,9 +184,14 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
   const name = String(body.name || '').trim();
+  // Email is optional for field agents. When the manager does not provide a
+  // recovery email, keep the Auth identity deterministic and manager-controlled.
+  // The manager remains responsible for the password and can reset it from the
+  // admin/manager controls; no customer-facing recovery email is implied.
+  const authEmail = email || `agent.${managerUsername}.${subManagerUsername}@myisp.local`;
 
-  if (!managerUsername || !subManagerUsername || !email || !password || !name) {
-    return res.status(400).json({ error: 'manager_username, sub_manager_username, email, password and name are required' });
+  if (!managerUsername || !subManagerUsername || !password || !name) {
+    return res.status(400).json({ error: 'manager_username, sub_manager_username, password and name are required' });
   }
   const caller: CallerContext | undefined = req.__caller;
   if (!caller || (caller.role !== 'admin' && caller.username?.toLowerCase() !== managerUsername)) {
@@ -139,7 +211,7 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
     }
 
     const { data, error: authError } = await adminSupabase.auth.admin.createUser({
-      email,
+      email: authEmail,
       password,
       email_confirm: true,
       user_metadata: { full_name: name, username: subManagerUsername, manager_username: managerUsername },
@@ -155,7 +227,7 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
       manager_id: managerUsername,
       username: subManagerUsername,
       name,
-      email,
+      email: authEmail,
       auth_user_id: authUserId,
       role: 'agent',
     };
@@ -165,7 +237,7 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
       {
         method: 'PATCH',
         headers: { ...dbHeaders, Prefer: 'return=representation' },
-        body: JSON.stringify({ name, email, auth_user_id: authUserId, role: 'agent' }),
+        body: JSON.stringify({ name, email: authEmail, auth_user_id: authUserId, role: 'agent' }),
       }
     );
     if (!dbRes.ok) throw new Error('agent update failed');
@@ -179,7 +251,7 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
       if (!dbRes.ok) throw new Error('agent insert failed');
     }
 
-    return res.status(200).json({ success: true, auth_user_id: authUserId });
+    return res.status(200).json({ success: true, auth_user_id: authUserId, auth_email: authEmail });
   } catch (e: any) {
     console.error('[create-sub-manager-auth] Database provisioning failed:', e?.message);
     // Avoid leaving an orphaned Auth identity if the sub_managers write fails.
