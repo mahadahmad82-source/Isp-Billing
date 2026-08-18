@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, DealerProduct, DealerPurchase, DealerSale, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
@@ -28,7 +28,6 @@ import BusinessAnalytics from './components/BusinessAnalytics';
 import OutageTracker from './components/OutageTracker';
 import AreaDashboard from './components/AreaDashboard';
 import EquipmentTracker from './components/EquipmentTracker';
-import DealerSales from './components/DealerSales';
 import LeadsPipeline from './components/LeadsPipeline';
 
 import BulkReminder from './components/BulkReminder';
@@ -88,9 +87,6 @@ const App: React.FC = () => {
       businessExpenses: loaded.businessExpenses || [],
       systemLogs: loaded.systemLogs || [],
       equipmentRecords: loaded.equipmentRecords || [],
-      dealerProducts: loaded.dealerProducts || [],
-      dealerPurchases: loaded.dealerPurchases || [],
-      dealerSales: loaded.dealerSales || [],
       leads: loaded.leads || [],
       suspensionLogs: loaded.suspensionLogs || [],
       outageLogs: loaded.outageLogs || [],
@@ -124,7 +120,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -139,7 +135,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -418,9 +414,6 @@ const App: React.FC = () => {
           currentManager: dataOwner,
           systemLogs: finalState.systemLogs || [],
           equipmentRecords: finalState.equipmentRecords || [],
-          dealerProducts: finalState.dealerProducts || [],
-          dealerPurchases: finalState.dealerPurchases || [],
-          dealerSales: finalState.dealerSales || [],
           leads: finalState.leads || [],
           suspensionLogs: finalState.suspensionLogs || [],
           outageLogs: finalState.outageLogs || [],
@@ -1768,42 +1761,6 @@ const App: React.FC = () => {
             )
           )}
 
-          {!tabLoading && activeTab === 'dealer-sales' && userRole !== 'sub-manager' && (
-            <DealerSales
-              products={state.dealerProducts || []}
-              purchases={state.dealerPurchases || []}
-              sales={state.dealerSales || []}
-              users={filteredUsers}
-              onAddProduct={(product) => setState(prev => {
-                const ns = { ...prev, dealerProducts: [...(prev.dealerProducts || []), { ...product, id: generateId(), createdAt: new Date().toISOString() }] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onDeleteProduct={(id) => setState(prev => {
-                if ((prev.dealerPurchases || []).some(p => p.productId === id) || (prev.dealerSales || []).some(s => s.productId === id)) {
-                  alert('This product has ledger records and cannot be deleted.');
-                  return prev;
-                }
-                const ns = { ...prev, dealerProducts: (prev.dealerProducts || []).filter(p => p.id !== id) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onAddPurchase={(purchase) => setState(prev => {
-                const ns = { ...prev, dealerPurchases: [...(prev.dealerPurchases || []), { ...purchase, id: generateId(), createdAt: new Date().toISOString() }] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onAddSale={(sale) => setState(prev => {
-                const ns = { ...prev, dealerSales: [...(prev.dealerSales || []), { ...sale, id: generateId(), createdAt: new Date().toISOString() }] };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onDeletePurchase={(id) => setState(prev => {
-                const ns = { ...prev, dealerPurchases: (prev.dealerPurchases || []).filter(p => p.id !== id) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-              onDeleteSale={(id) => setState(prev => {
-                const ns = { ...prev, dealerSales: (prev.dealerSales || []).filter(s => s.id !== id) };
-                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
-              })}
-            />
-          )}
           {!tabLoading && activeTab === 'equipment' && userRole !== 'sub-manager' && (
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
@@ -1948,7 +1905,7 @@ const App: React.FC = () => {
               onEditReceiptAmount={handleEditReceiptAmount}
               onViewLogs={(id) => console.log('Logs for', id)}
               onAgentRecruited={(agent) => {
-                setSuccessToast("Agent Recruited Successfully! Use their email and password to log into the Agent Portal.");
+                setSuccessToast("Agent recruited. Login with the username and manager-set password.");
                 setTimeout(() => setSuccessToast(null), 5000);
                 
     const agentUsername = agent.username;
@@ -1994,6 +1951,28 @@ const App: React.FC = () => {
               onEditAgent={(id, updates) => {
                 const agent = state.subManagers?.find(a => a.id === id);
                 if (agent) {
+                  if (updates.password && updates.password !== agent.password && agent.authUserId) {
+                    void (async () => {
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.access_token) throw new Error('Manager session expired.');
+                        const response = await fetch('/api/admin-maintenance?action=reset-sub-manager-auth-password', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                          body: JSON.stringify({
+                            manager_username: activeManager || '',
+                            sub_manager_username: agent.username,
+                            new_password: updates.password,
+                          }),
+                        });
+                        const result = await response.json().catch(() => ({}));
+                        if (!response.ok || !result.success) throw new Error(result.error || 'Real login password update failed.');
+                      } catch (error: any) {
+                        console.error('[AgentPassword] real-auth reset failed:', error?.message);
+                        alert(`Local password updated, lekin real login password update nahi hua: ${error?.message || 'Unknown error'}`);
+                      }
+                    })();
+                  }
                   // If we need to update the agent's name in accounts
                   const accounts = getAccounts();
                   const targetAccount = accounts.find(a => a.username === agent.username);
