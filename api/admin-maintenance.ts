@@ -38,7 +38,7 @@ export default async function handler(req: any, res: any) {
     // Browser path: only an authenticated admin may use these actions.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -62,6 +62,8 @@ export default async function handler(req: any, res: any) {
       return handleResetSubManagerAuthPassword(req, res);
     case 'resolve-sub-manager-session':
       return handleResolveSubManagerSession(req, res);
+    case 'resolve-sub-manager-state':
+      return handleResolveSubManagerState(req, res);
     case 'list-sub-manager-accounts':
       return handleListSubManagerAccounts(req, res);
     case 'reset-quota':
@@ -173,6 +175,35 @@ async function handleResolveSubManagerSession(req: any, res: any) {
   } catch (e: any) {
     console.error('[resolve-sub-manager-session]', e?.message);
     return res.status(500).json({ error: 'Sub-manager profile could not be loaded.' });
+  }
+}
+
+async function handleResolveSubManagerState(req: any, res: any) {
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || caller.role !== 'sub-manager') return res.status(403).json({ error: 'Sub-manager session required' });
+  try {
+    const agentRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?auth_user_id=eq.${encodeURIComponent(caller.userId)}&select=manager_id,username,auth_user_id&limit=1`,
+      { headers: dbHeaders }
+    );
+    if (!agentRes.ok) throw new Error('agent owner lookup failed');
+    const agents: any[] = await agentRes.json();
+    const agent = agents?.[0];
+    if (!agent?.manager_id) return res.status(404).json({ error: 'Parent manager mapping not found.' });
+
+    const stateRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(agent.manager_id)}&select=manager_id,data&limit=1`,
+      { headers: dbHeaders }
+    );
+    if (!stateRes.ok) throw new Error('parent manager state lookup failed');
+    const states: any[] = await stateRes.json();
+    const state = states?.[0]?.data;
+    if (!state) return res.status(404).json({ error: 'Parent manager data not found.' });
+    return res.status(200).json({ success: true, manager_id: agent.manager_id, agent_username: agent.username, state });
+  } catch (e: any) {
+    console.error('[resolve-sub-manager-state]', e?.message);
+    return res.status(500).json({ error: 'Parent manager data could not be loaded.' });
   }
 }
 
