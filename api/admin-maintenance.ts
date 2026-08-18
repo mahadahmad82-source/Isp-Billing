@@ -87,18 +87,10 @@ async function getCallerContext(accessToken: string): Promise<CallerContext | nu
     const user = await userRes.json();
     if (!user?.id) return null;
 
-    const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,username`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-    );
-    if (!profileRes.ok) return null;
-    const rows: any[] = await profileRes.json();
-    const profile = rows?.[0];
-    if (profile) return { userId: user.id, role: profile.role || 'manager', username: profile.username || null };
-
-    // Auth-only field agents do not get a profiles row. Resolve their own
-    // identity from sub_managers so the mobile session can safely obtain its
-    // parent manager mapping without exposing any other agent's data.
+    // Check the auth mapping first. Supabase may create a default profiles row
+    // for a provisioned agent; if that row is checked first, the agent can be
+    // misclassified as a manager and the scoped parent-state resolver returns
+    // the wrong authorization result.
     const agentRes = await fetch(
       `${SUPABASE_URL}/rest/v1/sub_managers?auth_user_id=eq.${encodeURIComponent(user.id)}&select=username&limit=1`,
       { headers: dbHeaders }
@@ -106,7 +98,16 @@ async function getCallerContext(accessToken: string): Promise<CallerContext | nu
     if (!agentRes.ok) return null;
     const agents: any[] = await agentRes.json();
     const agent = agents?.[0];
-    return agent?.username ? { userId: user.id, role: 'sub-manager', username: agent.username } : null;
+    if (agent?.username) return { userId: user.id, role: 'sub-manager', username: agent.username };
+
+    const profileRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,username`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!profileRes.ok) return null;
+    const rows: any[] = await profileRes.json();
+    const profile = rows?.[0];
+    return profile ? { userId: user.id, role: profile.role || 'manager', username: profile.username || null } : null;
   } catch (e: any) {
     console.error('[getCallerContext]', e?.message);
     return null;
