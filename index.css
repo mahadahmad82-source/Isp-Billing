@@ -389,3 +389,52 @@ html:not(.dark) .bg-\[\#0b1120\] textarea {
   border-color: rgba(15,23,42,0.08) !important;
   box-shadow: 0 8px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9) !important;
 }
+
+/* Shared admin + manager page canvas background */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(circle at 10% 8%, rgba(99, 102, 241, 0.12), transparent 28rem),
+    radial-gradient(circle at 92% 14%, rgba(34, 211, 238, 0.11), transparent 25rem),
+    radial-gradient(circle at 78% 92%, rgba(168, 85, 247, 0.08), transparent 30rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(241, 245, 249, 0.88)),
+    linear-gradient(rgba(99, 102, 241, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.035) 1px, transparent 1px);
+  background-size: auto, auto, auto, auto, 36px 36px, 36px 36px;
+  background-position: center;
+}
+
+.app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.55;
+  background: radial-gradient(ellipse at center, transparent 28%, rgba(148, 163, 184, 0.08) 100%);
+}
+
+.app-shell-dark {
+  background-color: #040814;
+  background-image:
+    radial-gradient(circle at 12% 10%, rgba(99, 102, 241, 0.22), transparent 30rem),
+    radial-gradient(circle at 88% 16%, rgba(34, 211, 238, 0.16), transparent 27rem),
+    radial-gradient(circle at 76% 88%, rgba(168, 85, 247, 0.16), transparent 32rem),
+    linear-gradient(135deg, rgba(4, 8, 20, 0.94), rgba(10, 18, 40, 0.91)),
+    linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
+}
+
+.app-shell-dark::before {
+  opacity: 0.72;
+  background: radial-gradient(ellipse at center, transparent 24%, rgba(0, 0, 0, 0.24) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .app-shell::before {
+    transition: none;
+  }
+}
