@@ -389,3 +389,278 @@ html:not(.dark) .bg-\[\#0b1120\] textarea {
   border-color: rgba(15,23,42,0.08) !important;
   box-shadow: 0 8px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9) !important;
 }
+
+
+/* ============================================
+   ADMIN PANEL — MODERN CLASSIC LIGHT SYSTEM
+   Scoped to the admin shell so manager surfaces
+   and print/receipt styling remain untouched.
+   ============================================ */
+
+.admin-shell {
+  position: relative;
+  isolation: isolate;
+  background: #f4f7fc;
+}
+
+.admin-shell::before,
+.admin-shell::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.34;
+}
+
+.admin-shell::before {
+  width: 34rem;
+  height: 34rem;
+  top: -14rem;
+  left: -10rem;
+  background: rgba(99, 102, 241, 0.24);
+}
+
+.admin-shell::after {
+  width: 30rem;
+  height: 30rem;
+  right: -10rem;
+  bottom: -12rem;
+  background: rgba(34, 211, 238, 0.2);
+}
+
+html:not(.dark) .admin-shell {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(129, 140, 248, 0.12), transparent 28%),
+    radial-gradient(circle at 92% 92%, rgba(34, 211, 238, 0.1), transparent 25%),
+    linear-gradient(135deg, #f7f9fe 0%, #eef4fb 52%, #f7f3ff 100%) !important;
+}
+
+html:not(.dark) .admin-shell::before,
+html:not(.dark) .admin-shell::after {
+  opacity: 0.75;
+}
+
+html:not(.dark) .admin-shell .admin-main {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.055) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: center top;
+  mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,0.92) 68%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,0.92) 68%, transparent 100%);
+}
+
+html:not(.dark) .admin-shell .admin-topbar {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-bottom-color: rgba(99, 102, 241, 0.13) !important;
+  box-shadow: 0 10px 34px rgba(71, 85, 105, 0.08), inset 0 1px 0 rgba(255,255,255,0.92);
+}
+
+html:not(.dark) .admin-shell .admin-topbar button:not(.cta-glow) {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(99, 102, 241, 0.14);
+  color: #475569;
+  box-shadow: 0 5px 16px rgba(71, 85, 105, 0.08);
+}
+
+html:not(.dark) .admin-shell .admin-topbar button:not(.cta-glow):hover {
+  background: rgba(255,255,255,0.96);
+  border-color: rgba(99,102,241,0.3);
+  color: #4338ca;
+}
+
+html:not(.dark) .admin-shell .admin-topbar .text-emerald-500,
+html:not(.dark) .admin-shell .admin-topbar .text-emerald-400 { color: #059669 !important; }
+html:not(.dark) .admin-shell .admin-topbar .text-amber-500,
+html:not(.dark) .admin-shell .admin-topbar .text-amber-400 { color: #b45309 !important; }
+html:not(.dark) .admin-shell .admin-topbar .text-rose-500,
+html:not(.dark) .admin-shell .admin-topbar .text-rose-400 { color: #e11d48 !important; }
+
+html:not(.dark) .admin-shell .admin-topbar .absolute.right-0 {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(99, 102, 241, 0.14) !important;
+  box-shadow: 0 20px 45px rgba(71, 85, 105, 0.16);
+}
+
+html:not(.dark) .admin-shell .admin-topbar .absolute.right-0 > div:first-child {
+  background: linear-gradient(135deg, rgba(238,242,255,0.9), rgba(236,254,255,0.75)) !important;
+  border-bottom-color: rgba(99, 102, 241, 0.12) !important;
+}
+
+html:not(.dark) .admin-shell .admin-topbar .absolute.right-0 button {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+html:not(.dark) .admin-shell .admin-topbar .absolute.right-0 button:hover {
+  background: rgba(99, 102, 241, 0.07);
+}
+
+html:not(.dark) .admin-shell .admin-drawer {
+  background: linear-gradient(160deg, rgba(20, 30, 75, 0.98), rgba(36, 29, 90, 0.98)) !important;
+  border-right: 1px solid rgba(165, 180, 252, 0.18);
+  box-shadow: 18px 0 55px rgba(30, 27, 75, 0.28);
+}
+
+html:not(.dark) .admin-shell .admin-overlay {
+  background: rgba(15, 23, 42, 0.28) !important;
+}
+
+html:not(.dark) .admin-shell .admin-main > .no-print h2 {
+  color: #172554 !important;
+  letter-spacing: -0.02em;
+}
+
+html:not(.dark) .admin-shell .admin-main > .no-print > div:first-child {
+  background: linear-gradient(180deg, #6366f1, #22d3ee) !important;
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.24);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard {
+  color: #334155;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard > .flex:first-child > div:first-child {
+  background: rgba(255,255,255,0.64) !important;
+  border-color: rgba(99,102,241,0.14) !important;
+  box-shadow: 0 8px 24px rgba(71,85,105,0.06);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card {
+  min-height: 148px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(239,246,255,0.92) 52%, rgba(245,243,255,0.94) 100%) !important;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  box-shadow: 0 14px 34px rgba(71, 85, 105, 0.11), inset 0 1px 0 rgba(255,255,255,0.94);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99,102,241,0.28);
+  box-shadow: 0 18px 40px rgba(71,85,105,0.15), inset 0 1px 0 rgba(255,255,255,0.98);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card .admin-kpi-icon { color: #4f46e5 !important; }
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card .admin-kpi-label { color: #64748b !important; }
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card .admin-kpi-value { color: #172554 !important; }
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card .admin-kpi-sub { color: #64748b !important; }
+html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card .bg-white\/10 { background: rgba(99,102,241,0.09) !important; color: #4f46e5 !important; }
+
+html:not(.dark) .admin-shell .admin-dashboard .bg-slate-800\/60,
+html:not(.dark) .admin-shell .admin-dashboard .bg-slate-900\/50,
+html:not(.dark) .admin-shell .admin-dashboard .bg-white\/\[0\.03\] {
+  background: rgba(255,255,255,0.72) !important;
+  border-color: rgba(99,102,241,0.13) !important;
+  box-shadow: 0 12px 30px rgba(71,85,105,0.08), inset 0 1px 0 rgba(255,255,255,0.88);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .bg-slate-800,
+html:not(.dark) .admin-shell .admin-dashboard .bg-slate-900 {
+  background: rgba(255,255,255,0.9) !important;
+  border-color: rgba(99,102,241,0.14) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard [class*="border-white/"] {
+  border-color: rgba(99,102,241,0.13) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard [class*="bg-white/\["] {
+  background: rgba(255,255,255,0.68) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard [class*="text-white"] {
+  color: #172554 !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard [class*="text-white/"] {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .text-slate-200 { color: #334155 !important; }
+html:not(.dark) .admin-shell .admin-dashboard .text-slate-300 { color: #475569 !important; }
+html:not(.dark) .admin-shell .admin-dashboard .text-slate-400 { color: #64748b !important; }
+html:not(.dark) .admin-shell .admin-dashboard .text-slate-500 { color: #64748b !important; }
+html:not(.dark) .admin-shell .admin-dashboard .text-slate-600 { color: #94a3b8 !important; }
+html:not(.dark) .admin-shell .admin-dashboard .text-slate-700 { color: #cbd5e1 !important; }
+
+html:not(.dark) .admin-shell .admin-dashboard input,
+html:not(.dark) .admin-shell .admin-dashboard select,
+html:not(.dark) .admin-shell .admin-dashboard textarea {
+  background: rgba(255,255,255,0.78) !important;
+  color: #172554 !important;
+  border-color: rgba(99,102,241,0.18) !important;
+  box-shadow: inset 0 1px 2px rgba(71,85,105,0.04);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard input::placeholder,
+html:not(.dark) .admin-shell .admin-dashboard textarea::placeholder { color: #94a3b8 !important; }
+
+html:not(.dark) .admin-shell .admin-dashboard input:focus,
+html:not(.dark) .admin-shell .admin-dashboard select:focus,
+html:not(.dark) .admin-shell .admin-dashboard textarea:focus {
+  border-color: rgba(99,102,241,0.48) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard table thead tr {
+  background: rgba(238,242,255,0.72) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard table tbody tr {
+  border-color: rgba(99,102,241,0.09) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard table tbody tr:hover {
+  background: rgba(99,102,241,0.045) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard button.bg-indigo-600,
+html:not(.dark) .admin-shell .admin-dashboard button.bg-rose-500 {
+  box-shadow: 0 10px 22px rgba(79,70,229,0.18);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .bg-black\/30 {
+  background: rgba(255,255,255,0.78) !important;
+  border-color: rgba(99,102,241,0.18) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .fixed.inset-0.z-\[200\] {
+  background: rgba(15,23,42,0.22) !important;
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .fixed.inset-0.z-\[200\] > div {
+  background: rgba(255,255,255,0.94) !important;
+  border-color: rgba(99,102,241,0.16) !important;
+  box-shadow: 0 24px 65px rgba(30,41,59,0.2), inset 0 1px 0 rgba(255,255,255,0.98);
+}
+
+html:not(.dark) .admin-shell .admin-dashboard .fixed.inset-0.z-\[200\] > div [class*="text-white"] {
+  color: #172554 !important;
+}
+
+/* Keep the night theme intentionally rich and aligned with the landing gradient. */
+html.dark .admin-shell {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(99,102,241,0.14), transparent 26%),
+    radial-gradient(circle at 90% 90%, rgba(34,211,238,0.1), transparent 24%),
+    #040814 !important;
+}
+
+html.dark .admin-shell .admin-topbar {
+  background: rgba(4,8,20,0.82) !important;
+  border-bottom-color: rgba(129,140,248,0.16) !important;
+}
+
+@media (max-width: 640px) {
+  html:not(.dark) .admin-shell .admin-main { padding-left: 1rem; padding-right: 1rem; }
+  html:not(.dark) .admin-shell .admin-dashboard .admin-kpi-card { min-height: 132px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell::before,
+  .admin-shell::after,
+  .admin-shell .admin-dashboard .admin-kpi-card { transition: none !important; animation: none !important; }
+}
