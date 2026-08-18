@@ -129,7 +129,37 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         if (sessionOk) { setActiveSession(localFound.username); finishLogin(localFound.username); return true; }
         console.warn('[Auth] Admin quick-login session failed — falling back to full login flow');
       }
-      let identifier = username;
+      let identifier = username.trim();
+
+      // Phase 1 real-auth agent path. Legacy find_sub_manager_login remains
+      // below as the fallback for agents not migrated yet.
+      const findRealSubManager = async (lookup: string) => {
+        try {
+          const column = lookup.includes('@') ? 'email' : 'username';
+          const { data: agent } = await supabase
+            .from('sub_managers')
+            .select('auth_user_id, manager_id, username, name, email, contact')
+            .eq(column, lookup.trim().toLowerCase())
+            .maybeSingle();
+          if (!agent?.auth_user_id || !agent.email) return null;
+          const { data: agentAuth, error: agentAuthError } = await supabase.auth.signInWithPassword({ email: agent.email, password });
+          if (agentAuthError || !agentAuth?.user || agentAuth.user.id !== agent.auth_user_id) {
+            if (agentAuth?.user) await supabase.auth.signOut();
+            return null;
+          }
+          return { agent, user: agentAuth.user };
+        } catch { return null; }
+      };
+
+      const realAgentLogin = await findRealSubManager(identifier);
+      if (realAgentLogin) {
+        const agent = realAgentLogin.agent;
+        const agentUsername = agent.username;
+        setActiveSession(agentUsername);
+        saveAccount({ username: agentUsername, password: '', businessName: agent.name || agentUsername, email: agent.email || '', phone: agent.contact || '', role: 'sub-manager', managerUsername: agent.manager_id, createdAt: new Date().toISOString(), rememberPassword: false, authUserId: agent.auth_user_id });
+        finishLogin(agentUsername); return true;
+      }
+
       const authEmail = identifier.includes('@') ? identifier : `${identifier}@myisp.local`;
       let { data, error: authError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
       // Was the session resolved via a different identifier than what the person
@@ -180,6 +210,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         }
       }
       if (data.user) {
+        // A direct email login may land here before the username lookup. Match
+        // the authenticated identity to sub_managers and route data to parent.
+        const { data: authAgent } = await supabase
+          .from('sub_managers')
+          .select('auth_user_id, manager_id, username, name, email, contact')
+          .eq('auth_user_id', data.user.id)
+          .maybeSingle();
+        if (authAgent?.auth_user_id === data.user.id) {
+          const agentUsername = authAgent.username;
+          setActiveSession(agentUsername);
+          saveAccount({ username: agentUsername, password: '', businessName: authAgent.name || agentUsername, email: authAgent.email || data.user.email || '', phone: authAgent.contact || '', role: 'sub-manager', managerUsername: authAgent.manager_id, createdAt: new Date().toISOString(), rememberPassword: false, authUserId: authAgent.auth_user_id });
+          finishLogin(agentUsername); return true;
+        }
+
         let loginUser = username.includes('@') ? username.split('@')[0] : username;
         // Backfill profiles.username if missing (covers pre-existing accounts and
         // the localStorage→Supabase migration path above) — required for
