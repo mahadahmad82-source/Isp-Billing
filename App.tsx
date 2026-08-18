@@ -788,6 +788,8 @@ const App: React.FC = () => {
   }, [activeManager]);
 
   const handleLogout = useCallback(() => {
+    const account = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
+    if (account?.authUserId) supabase.auth.signOut().catch(() => {});
     setActiveSession(null);
     sessionStorage.clear();
     setActiveManager(null);
@@ -796,7 +798,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       window.location.href = '/';
     }, 100);
-  }, []);
+  }, [activeManager]);
 
 
 
@@ -1385,11 +1387,18 @@ const App: React.FC = () => {
     const areaLockedUsers = agentAreas.length > 0
       ? filteredUsers.filter(u => agentAreas.includes(u.area || ''))
       : filteredUsers;
-    const canLogReceipts = canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
+    const activeAccount = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
+    const isRealAuthSubManager = !!activeAccount?.authUserId;
+    const canLogReceipts = !isRealAuthSubManager && canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
     return (
       <ErrorBoundary>
         {activeTab === 'receipts' ? (
-          !canLogReceipts ? (
+          isRealAuthSubManager ? (
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] flex flex-col items-center justify-center p-8 text-center gap-4">
+              <p className="text-slate-500 dark:text-slate-400 font-semibold">Real-auth agent sessions are read-only in Phase 1.</p>
+              <button onClick={() => setActiveTab('team')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">Back to Agent View</button>
+            </div>
+          ) : !canLogReceipts ? (
             <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] flex flex-col items-center justify-center p-8 text-center gap-4">
               <p className="text-slate-500 dark:text-slate-400 font-semibold">Aapko receipts issue karne ki ijazat nahi hai.</p>
               <button onClick={() => setActiveTab('team')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">Wapis jayein</button>
@@ -1455,10 +1464,12 @@ const App: React.FC = () => {
             receipts={filteredReceipts}
             settings={currentSettings}
             canLogReceipts={canLogReceipts}
+            readOnly={isRealAuthSubManager}
             attendanceLogs={state.attendanceLogs || []}
             onLogout={handleLogout}
-            onAddAttendanceLog={handleAddAttendanceLog}
+            onAddAttendanceLog={isRealAuthSubManager ? (() => {}) as any : handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
+              if (isRealAuthSubManager) return;
               setPreSelectReceiptUser({ 
                 userId, 
                 month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
@@ -1479,6 +1490,7 @@ const App: React.FC = () => {
               setActiveTab('receipts');
             }}
             onUpdateAgent={(agentId, updates) => {
+              if (isRealAuthSubManager) return;
               setState(prev => {
                 const newState = {
                   ...prev,
@@ -1495,7 +1507,7 @@ const App: React.FC = () => {
               t.assignedTo === activeManager ||
               t.assignedTo === state.subManagers?.find(sm => sm.username === activeManager)?.id
             )}
-            onResolveComplaint={(ticketId) => {
+            onResolveComplaint={isRealAuthSubManager ? undefined : (ticketId) => {
               setState(prev => {
                 const ticket = (prev.complaintTickets || []).find(t => t.id === ticketId);
                 const resolveNotif: AppNotification = ticket ? {
@@ -1909,7 +1921,8 @@ const App: React.FC = () => {
       role: 'sub-manager',
       managerUsername: activeManager || '',
       createdAt: new Date().toISOString(),
-      rememberPassword: false // Require explicit remember
+      rememberPassword: false, // Require explicit remember
+      authUserId: agent.authUserId
     });
 
     setState(prev => {
@@ -1924,7 +1937,8 @@ const App: React.FC = () => {
           area: agent.area,
           password: agent.password, // Keep password synced for remote lookups
           email: agent.email,
-          phone: agent.phone
+          phone: agent.phone,
+          authUserId: agent.authUserId
         }]
       };
       saveState(newState);
