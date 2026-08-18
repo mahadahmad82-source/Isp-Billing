@@ -1,5 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { AppState } from '../types';
+import { getActiveSession, getAccounts } from './storage';
+
+const isRealAuthSubManagerSession = (): boolean => {
+  try {
+    const active = getActiveSession();
+    return !!active && !!getAccounts().find(account => account.username === active && account.role === 'sub-manager' && account.authUserId);
+  } catch { return false; }
+};
 
 // ─── Sync status broadcast ────────────────────────────────────────────────────
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
@@ -31,6 +39,7 @@ const dequeue = (managerId: string) => {
 
 // ─── Core upsert with retries ─────────────────────────────────────────────────
 const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts = 3): Promise<boolean> => {
+  if (isRealAuthSubManagerSession()) return false;
   const stateWithTs = { ...state, _syncedAt: new Date().toISOString() };
 
   // Self-heal an expired/lost session BEFORE hammering the DB. An expired
@@ -94,7 +103,7 @@ const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts =
 
 // ─── Public: save state ───────────────────────────────────────────────────────
 export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
-  if (!managerId) return;
+  if (!managerId || isRealAuthSubManagerSession()) return;
 
   const userCount    = state?.users?.length    || 0;
   const receiptCount = state?.receipts?.length || 0;
@@ -124,6 +133,7 @@ export const saveStateToSupabase = async (managerId: string, state: AppState): P
 
 // ─── Public: flush pending queue (call every 30–60s from App.tsx) ─────────────
 export const flushPendingSync = async (): Promise<void> => {
+  if (isRealAuthSubManagerSession()) return;
   const q = getQueue();
   if (q.length === 0) return;
   console.log(`[Supabase] Flushing ${q.length} pending item(s)…`);
