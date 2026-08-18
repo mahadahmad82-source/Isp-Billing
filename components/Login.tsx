@@ -141,8 +141,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
             .select('auth_user_id, manager_id, username, name, email, contact')
             .eq(column, lookup.trim().toLowerCase())
             .maybeSingle();
-          if (!agent?.auth_user_id || !agent.email) return null;
-          const { data: agentAuth, error: agentAuthError } = await supabase.auth.signInWithPassword({ email: agent.email, password });
+          if (!agent?.auth_user_id) return null;
+          const authEmail = agent.email || `agent.${agent.manager_id}.${agent.username}@myisp.local`;
+          const { data: agentAuth, error: agentAuthError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
           if (agentAuthError || !agentAuth?.user || agentAuth.user.id !== agent.auth_user_id) {
             if (agentAuth?.user) await supabase.auth.signOut();
             return null;
