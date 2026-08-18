@@ -76,19 +76,19 @@ const KpiCard = ({ icon, label, value, sub, gradient, valColor, accent, pct }: {
   icon: React.ReactNode; label: string; value: string | number;
   sub?: string; gradient: string; valColor?: string; accent: string; pct?: number;
 }) => (
-  <div className={`admin-kpi-card rounded-3xl p-5 ${gradient} flex flex-col justify-between shadow-lg relative overflow-hidden`}>
+  <div className={`rounded-3xl p-5 ${gradient} flex flex-col justify-between shadow-lg relative overflow-hidden`}>
     {/* Decorative circle */}
     <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/5" />
     <div className="flex items-start justify-between mb-3 relative z-10">
-      <span className="admin-kpi-icon text-white/70">{icon}</span>
+      <span className="text-white/70">{icon}</span>
       {pct !== undefined && (
         <span className="text-[10px] font-bold text-white/60 bg-white/10 px-2 py-0.5 rounded-full">{pct}%</span>
       )}
     </div>
     <div className="relative z-10">
-      <span className="admin-kpi-label text-[10px] font-black uppercase tracking-[0.18em] text-white/50 block mb-1">{label}</span>
-      <span className={`admin-kpi-value text-[2rem] font-black leading-none ${valColor || 'text-white'}`}>{value}</span>
-      {sub && <span className="admin-kpi-sub text-[11px] text-white/40 font-semibold block mt-1">{sub}</span>}
+      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50 block mb-1">{label}</span>
+      <span className={`text-[2rem] font-black leading-none ${valColor || 'text-white'}`}>{value}</span>
+      {sub && <span className="text-[11px] text-white/40 font-semibold block mt-1">{sub}</span>}
     </div>
   </div>
 );
@@ -581,7 +581,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   // RENDER — No custom sidebar, just content area (Layout sidebar handles nav)
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="admin-dashboard space-y-5">
+    <div className="space-y-5">
 
       {/* ── Refresh + Live status row ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -623,7 +623,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {!loading && tab === 'overview' && (
         <div className="space-y-5">
           {/* KPI Cards — same style as manager Dashboard */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <KpiCard icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>}
               label="Managers" value={totals.managers}
               gradient="bg-gradient-to-br from-indigo-600 to-indigo-800" accent="text-indigo-300" />
