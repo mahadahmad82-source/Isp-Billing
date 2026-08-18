@@ -1,5 +1,6 @@
 import React, { useState, useMemo, Suspense, lazy } from 'react';
 import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment, ComplaintTicket } from '../../types';
+import { supabase } from '../../lib/supabase';
 import { getAccounts } from '../../utils/storage';
 import RecruitAgentModal from './RecruitAgentModal';
 import AgentAttendance from './AgentAttendance';
@@ -48,6 +49,34 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const [performanceAgentId, setPerformanceAgentId] = useState<string | null>(null);
   const [rightsAgentId, setRightsAgentId] = useState<string | null>(null);
+
+  const handleAgentRecruited = async (agent: any) => {
+    const normalizedAgent = { ...agent, username: String(agent.username || '').trim().toLowerCase() };
+    let enrichedAgent = normalizedAgent;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Manager session expired.');
+      const response = await fetch('/api/admin-maintenance?action=create-sub-manager-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          manager_username: managerId,
+          sub_manager_username: normalizedAgent.username,
+          email: normalizedAgent.email,
+          password: normalizedAgent.password,
+          name: normalizedAgent.name,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.error || 'Real login provisioning failed.');
+      enrichedAgent = { ...normalizedAgent, authUserId: result.auth_user_id };
+    } catch (error: any) {
+      console.error('[RecruitAgent] real-auth provisioning failed:', error?.message);
+      alert(`Agent local profile save ho jayega, lekin real login account create nahi hua: ${error?.message || 'Unknown error'}`);
+    }
+    // Existing manager_data JSONB + localStorage dual-save remains in App.tsx.
+    onAgentRecruited(enrichedAgent);
+  };
 
   const selectedAgentForPerformance = subManagers.find(sm => sm.id === performanceAgentId || sm.username === performanceAgentId);
   const agentReceipts = recentReceipts.filter(r =>
@@ -163,7 +192,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <RecruitAgentModal isOpen={showRecruitModal} onClose={() => setShowRecruitModal(false)} managerId={managerId}
-        onSuccess={agent => { onAgentRecruited(agent); }} />
+        onSuccess={handleAgentRecruited} />
 
       {/* ── EDIT AGENT MODAL ── */}
       {editingAgent && (
