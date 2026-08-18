@@ -241,7 +241,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isDark = theme === 'dark';
 
   return (
-    <div className={`flex flex-col h-screen transition-colors duration-300 overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`app-shell flex flex-col h-screen transition-colors duration-300 overflow-hidden ${isDark ? 'app-shell-dark text-slate-100' : 'app-shell-light text-slate-900'}`}>
 
       {/* ═══════════════════════════════════════
           TOP HEADER — All screen sizes
