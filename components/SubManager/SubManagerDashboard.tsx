@@ -19,6 +19,7 @@ interface SubManagerDashboardProps {
   complaintTickets?: ComplaintTicket[];
   onResolveComplaint?: (ticketId: string) => void;
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
+  readOnly?: boolean; // Real Supabase Auth agents are read-only during Phase 1
 }
 
 const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
@@ -38,6 +39,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   complaintTickets = [],
   onResolveComplaint,
   canLogReceipts = true,
+  readOnly = false,
 }) => {
   const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,7 +62,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   };
 
   const handleDutyStatusChange = (status: 'online' | 'offline', location?: { lat: number, lng: number }) => {
-    if (status === dutyStatus) return;
+    if (readOnly || status === dutyStatus) return;
     
     setDutyStatus(status);
     if (agentId) {
@@ -95,7 +97,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   };
 
   const handleApplyLeave = () => {
-    if (!agentId || !leaveReason.trim()) return;
+    if (readOnly || !agentId || !leaveReason.trim()) return;
     
     onAddAttendanceLog({
       subManagerId: agentId,
@@ -116,6 +118,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   };
 
   const handleLocationUpdate = (loc: { lat: number; lng: number; accuracy: number; timestamp: number }) => {
+    if (readOnly) return;
     if (agentId) {
       onUpdateAgent(agentId, { 
         lastLocation: {
@@ -679,7 +682,12 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-8">Record your work duration correctly</p>
                     
                     <div className="space-y-4">
-                      {dutyStatus === 'offline' ? (
+                      {readOnly ? (
+                        <div className="w-full py-6 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-3xl flex flex-col items-center gap-2 border border-slate-200 dark:border-white/5">
+                          <span className="text-[10px] font-black uppercase tracking-widest">Read-only agent view</span>
+                          <span className="text-[10px] font-bold">Attendance writes are disabled in Phase 1.</span>
+                        </div>
+                      ) : dutyStatus === 'offline' ? (
                         <button 
                           onClick={() => handleDutyStatusChange('online')}
                           className="w-full py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-3xl flex flex-col items-center gap-2 transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
@@ -697,12 +705,14 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                         </button>
                       )}
 
-                      <button 
-                        onClick={() => setShowLeaveModal(true)}
-                        className="w-full py-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-[2rem] text-[10px] font-black uppercase tracking-widest border border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all active:scale-95"
-                      >
-                        Request Leave / Absence
-                      </button>
+                      {!readOnly && (
+                        <button 
+                          onClick={() => setShowLeaveModal(true)}
+                          className="w-full py-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-[2rem] text-[10px] font-black uppercase tracking-widest border border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all active:scale-95"
+                        >
+                          Request Leave / Absence
+                        </button>
+                      )}
                     </div>
 
                     <div className="mt-8 pt-8 border-t border-slate-100 dark:border-white/5 space-y-4">
@@ -721,12 +731,14 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                     </div>
                   </div>
 
-                  <LocationTracker 
-                    status={dutyStatus}
-                    lastCheckIn={agent?.lastCheckIn}
-                    onStatusChange={handleDutyStatusChange}
-                    onLocationUpdate={handleLocationUpdate}
-                  />
+                  {!readOnly && (
+                    <LocationTracker 
+                      status={dutyStatus}
+                      lastCheckIn={agent?.lastCheckIn}
+                      onStatusChange={handleDutyStatusChange}
+                      onLocationUpdate={handleLocationUpdate}
+                    />
+                  )}
                </div>
 
                {/* Attendance List */}
@@ -883,7 +895,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                             <span>🕐 {new Date(ticket.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        {ticket.status !== 'resolved' && ticket.status !== 'closed' && onResolveComplaint && (
+                        {!readOnly && ticket.status !== 'resolved' && ticket.status !== 'closed' && onResolveComplaint && (
                           <button
                             onClick={() => onResolveComplaint(ticket.id)}
                             className="shrink-0 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 whitespace-nowrap"
