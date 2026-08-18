@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, DealerProduct, DealerPurchase, DealerSale, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
@@ -28,6 +28,7 @@ import BusinessAnalytics from './components/BusinessAnalytics';
 import OutageTracker from './components/OutageTracker';
 import AreaDashboard from './components/AreaDashboard';
 import EquipmentTracker from './components/EquipmentTracker';
+import DealerSales from './components/DealerSales';
 import LeadsPipeline from './components/LeadsPipeline';
 
 import BulkReminder from './components/BulkReminder';
@@ -87,6 +88,9 @@ const App: React.FC = () => {
       businessExpenses: loaded.businessExpenses || [],
       systemLogs: loaded.systemLogs || [],
       equipmentRecords: loaded.equipmentRecords || [],
+      dealerProducts: loaded.dealerProducts || [],
+      dealerPurchases: loaded.dealerPurchases || [],
+      dealerSales: loaded.dealerSales || [],
       leads: loaded.leads || [],
       suspensionLogs: loaded.suspensionLogs || [],
       outageLogs: loaded.outageLogs || [],
@@ -120,7 +124,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','outage','area','reminders','invoice','wabot','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -135,7 +139,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','leads','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','outage','area','reminders','invoice','wabot','templates'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -414,6 +418,9 @@ const App: React.FC = () => {
           currentManager: dataOwner,
           systemLogs: finalState.systemLogs || [],
           equipmentRecords: finalState.equipmentRecords || [],
+          dealerProducts: finalState.dealerProducts || [],
+          dealerPurchases: finalState.dealerPurchases || [],
+          dealerSales: finalState.dealerSales || [],
           leads: finalState.leads || [],
           suspensionLogs: finalState.suspensionLogs || [],
           outageLogs: finalState.outageLogs || [],
@@ -1761,6 +1768,42 @@ const App: React.FC = () => {
             )
           )}
 
+          {!tabLoading && activeTab === 'dealer-sales' && userRole !== 'sub-manager' && (
+            <DealerSales
+              products={state.dealerProducts || []}
+              purchases={state.dealerPurchases || []}
+              sales={state.dealerSales || []}
+              users={filteredUsers}
+              onAddProduct={(product) => setState(prev => {
+                const ns = { ...prev, dealerProducts: [...(prev.dealerProducts || []), { ...product, id: generateId(), createdAt: new Date().toISOString() }] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDeleteProduct={(id) => setState(prev => {
+                if ((prev.dealerPurchases || []).some(p => p.productId === id) || (prev.dealerSales || []).some(s => s.productId === id)) {
+                  alert('This product has ledger records and cannot be deleted.');
+                  return prev;
+                }
+                const ns = { ...prev, dealerProducts: (prev.dealerProducts || []).filter(p => p.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onAddPurchase={(purchase) => setState(prev => {
+                const ns = { ...prev, dealerPurchases: [...(prev.dealerPurchases || []), { ...purchase, id: generateId(), createdAt: new Date().toISOString() }] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onAddSale={(sale) => setState(prev => {
+                const ns = { ...prev, dealerSales: [...(prev.dealerSales || []), { ...sale, id: generateId(), createdAt: new Date().toISOString() }] };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDeletePurchase={(id) => setState(prev => {
+                const ns = { ...prev, dealerPurchases: (prev.dealerPurchases || []).filter(p => p.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDeleteSale={(id) => setState(prev => {
+                const ns = { ...prev, dealerSales: (prev.dealerSales || []).filter(s => s.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+            />
+          )}
           {!tabLoading && activeTab === 'equipment' && userRole !== 'sub-manager' && (
             <EquipmentTracker
               equipment={state.equipmentRecords || []}
