@@ -442,6 +442,53 @@ export interface PlanChange {
   reason?: string;
 }
 
+// ─── DEALER SALES & PROFIT (bulk resale ledger; separate from Equipment Tracker) ──
+export type DealerProductCategory = 'Device' | 'ONU/ONT' | 'Fiber' | 'Internet Wire' | 'Accessories' | 'Other';
+
+export interface DealerProduct {
+  id: string;
+  name: string;
+  category: DealerProductCategory;
+  unit: string;
+  defaultSalePrice: number;
+  notes?: string;
+  active?: boolean;
+  createdAt: string;
+}
+
+export interface DealerPurchase {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  supplier?: string;
+  invoiceNo?: string;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface DealerSale {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  saleUnitPrice: number;
+  totalRevenue: number;
+  totalCost: number;
+  profit: number;
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  date: string;
+  paymentStatus: 'paid' | 'partial' | 'credit';
+  notes?: string;
+  createdAt: string;
+}
+
 export interface AppState {
   users: UserRecord[];
   receipts: Receipt[];
@@ -459,6 +506,9 @@ export interface AppState {
   businessExpenses?: BusinessExpense[];
   systemLogs?: SystemLog[];
   equipmentRecords?: EquipmentRecord[];
+  dealerProducts?: DealerProduct[];
+  dealerPurchases?: DealerPurchase[];
+  dealerSales?: DealerSale[];
   leads?: LeadRecord[];
   suspensionLogs?: SuspensionLog[];
   outageLogs?: OutageLog[];
