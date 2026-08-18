@@ -12,10 +12,14 @@
 //    verified against Supabase Auth + profiles.role === 'admin'. CRON_SECRET is NEVER shipped to the
 //    frontend bundle, so this action cannot use the CRON_SECRET path.
 
-import { encryptToken, decryptToken } from '../lib/whatsappCrypto';
+import { createClient } from '@supabase/supabase-js';
+import { encryptToken, decryptToken } from '../lib/whatsappCrypto.js';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const adminSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 const QUOTA_MAP: Record<string, number> = {
   basic:     1000,
@@ -30,10 +34,16 @@ export default async function handler(req: any, res: any) {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
 
-  if (action === 'add-token') {
-    // Frontend path: verify Supabase session belongs to an admin
+  if (action === 'add-token' || action === 'list-sub-manager-accounts') {
+    // Browser path: only an authenticated admin may use these actions.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
+  } else if (action === 'create-sub-manager-auth') {
+    // Browser path: the handler additionally checks that a non-admin caller owns
+    // the manager_username supplied in the request body.
+    const caller = await getCallerContext(token);
+    if (!caller) return res.status(401).json({ error: 'Unauthorized — authenticated session required' });
+    req.__caller = caller;
   } else {
     // Cron path: server-to-server secret only
     const cronSecret = process.env.CRON_SECRET;
@@ -45,38 +55,195 @@ export default async function handler(req: any, res: any) {
   switch (action) {
     case 'add-token':
       return handleAddToken(req, res);
+    case 'create-sub-manager-auth':
+      return handleCreateSubManagerAuth(req, res);
+    case 'list-sub-manager-accounts':
+      return handleListSubManagerAccounts(req, res);
     case 'reset-quota':
       return handleResetQuota(req, res);
     case 'token-health':
       return handleTokenHealth(req, res);
     default:
-      return res.status(400).json({ error: 'Unknown or missing ?action=. Use add-token | reset-quota | token-health' });
+      return res.status(400).json({ error: 'Unknown or missing ?action=. Use add-token | create-sub-manager-auth | list-sub-manager-accounts | reset-quota | token-health' });
+  }
+}
+
+interface CallerContext { userId: string; role: string; username: string | null; }
+
+async function getCallerContext(accessToken: string): Promise<CallerContext | null> {
+  if (!accessToken) return null;
+  try {
+    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
+    });
+    if (!userRes.ok) return null;
+    const user = await userRes.json();
+    if (!user?.id) return null;
+
+    const profileRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,username`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!profileRes.ok) return null;
+    const rows: any[] = await profileRes.json();
+    const profile = rows?.[0];
+    if (!profile) return null;
+    return { userId: user.id, role: profile.role || 'manager', username: profile.username || null };
+  } catch (e: any) {
+    console.error('[getCallerContext]', e?.message);
+    return null;
   }
 }
 
 async function verifyAdminSession(accessToken: string): Promise<boolean> {
-  if (!accessToken) return false;
-  try {
-    // 1. Resolve the user from their Supabase access token
-    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
-    });
-    if (!userRes.ok) return false;
-    const user = await userRes.json();
-    if (!user?.id) return false;
+  const caller = await getCallerContext(accessToken);
+  return caller?.role === 'admin';
+}
 
-    // 2. Check profiles.role === 'admin' for that user (service role bypasses RLS)
-    const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=role`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+const dbHeaders = {
+  apikey: SUPABASE_KEY,
+  Authorization: `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+};
+
+// ── Action: create-sub-manager-auth ─────────────────────────────────────────
+// Provisions the Auth identity while keeping the existing manager_data JSONB
+// agent entry intact. The caller must own manager_username unless admin.
+async function handleCreateSubManagerAuth(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const body = req.body || {};
+  const managerUsername = String(body.manager_username || '').trim().toLowerCase();
+  const subManagerUsername = String(body.sub_manager_username || '').trim().toLowerCase();
+  const email = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '');
+  const name = String(body.name || '').trim();
+
+  if (!managerUsername || !subManagerUsername || !email || !password || !name) {
+    return res.status(400).json({ error: 'manager_username, sub_manager_username, email, password and name are required' });
+  }
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || (caller.role !== 'admin' && caller.username?.toLowerCase() !== managerUsername)) {
+    return res.status(403).json({ error: 'You can only create agents under your own manager account.' });
+  }
+
+  let provisionedAuthUserId: string | null = null;
+  try {
+    const existingRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(subManagerUsername)}&select=auth_user_id`,
+      { headers: dbHeaders }
     );
-    const rows: any[] = await profileRes.json();
-    return rows?.[0]?.role === 'admin';
+    if (!existingRes.ok) return res.status(500).json({ error: 'Could not verify the existing agent record.' });
+    const existingRows: any[] = await existingRes.json();
+    if (existingRows?.[0]?.auth_user_id) {
+      return res.status(409).json({ error: 'This agent already has a real login account.' });
+    }
+
+    const { data, error: authError } = await adminSupabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: name, username: subManagerUsername, manager_username: managerUsername },
+    });
+    if (authError || !data?.user?.id) {
+      console.error('[create-sub-manager-auth] Auth provisioning failed:', authError?.message);
+      return res.status(400).json({ error: 'Unable to create the agent login. Check that the email and password are valid and unused.' });
+    }
+
+    const authUserId = data.user.id;
+    provisionedAuthUserId = authUserId;
+    const row = {
+      manager_id: managerUsername,
+      username: subManagerUsername,
+      name,
+      email,
+      auth_user_id: authUserId,
+      role: 'agent',
+    };
+
+    let dbRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(subManagerUsername)}`,
+      {
+        method: 'PATCH',
+        headers: { ...dbHeaders, Prefer: 'return=representation' },
+        body: JSON.stringify({ name, email, auth_user_id: authUserId, role: 'agent' }),
+      }
+    );
+    if (!dbRes.ok) throw new Error('agent update failed');
+    const updatedRows: any[] = await dbRes.json();
+    if (!updatedRows.length) {
+      dbRes = await fetch(`${SUPABASE_URL}/rest/v1/sub_managers`, {
+        method: 'POST',
+        headers: { ...dbHeaders, Prefer: 'return=representation' },
+        body: JSON.stringify(row),
+      });
+      if (!dbRes.ok) throw new Error('agent insert failed');
+    }
+
+    return res.status(200).json({ success: true, auth_user_id: authUserId });
   } catch (e: any) {
-    console.error('[verifyAdminSession]', e?.message);
-    return false;
+    console.error('[create-sub-manager-auth] Database provisioning failed:', e?.message);
+    // Avoid leaving an orphaned Auth identity if the sub_managers write fails.
+    if (provisionedAuthUserId) await adminSupabase.auth.admin.deleteUser(provisionedAuthUserId).catch(() => {});
+    return res.status(500).json({ error: 'Login account could not be linked to the agent record. The existing local agent was not blocked.' });
   }
 }
+
+// ── Action: list-sub-manager-accounts ───────────────────────────────────────
+// Admin-only service-role read; avoids widening sub_managers RLS for the panel.
+async function handleListSubManagerAccounts(req: any, res: any) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const rowsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?select=id,manager_id,auth_user_id,username,name,role,assigned_area,commission_rate,contact,email,salary,duty_status,is_leave,last_check_in,last_check_out,last_location,metadata&order=manager_id.asc,username.asc`,
+      { headers: dbHeaders }
+    );
+    if (!rowsRes.ok) throw new Error('sub-manager query failed');
+    const rows: any[] = await rowsRes.json();
+    const parentUsernames = Array.from(new Set(rows.map(row => row.manager_id).filter(Boolean)));
+    const parentMap = new Map<string, any>();
+    if (parentUsernames.length) {
+      const parentRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?username=in.(${parentUsernames.map(encodeURIComponent).join(',')})&select=username,business_name,full_name,is_active`,
+        { headers: dbHeaders }
+      );
+      if (parentRes.ok) {
+        const parents: any[] = await parentRes.json();
+        parents.forEach(parent => parentMap.set(parent.username, parent));
+      }
+    }
+    const accounts = rows.map(row => {
+      const parent = parentMap.get(row.manager_id) || {};
+      return {
+        username: row.username,
+        business_name: row.name || row.username,
+        email: row.email || '',
+        phone: row.contact || null,
+        role: 'sub-manager',
+        joined_at: row.metadata?.created_at || '',
+        last_login: row.last_check_in || '',
+        last_seen: row.last_check_in || null,
+        user_count: 0,
+        receipt_count: 0,
+        active_count: 0,
+        expired_count: 0,
+        total_revenue: 0,
+        total_balance: 0,
+        data_updated_at: null,
+        is_active: row.is_leave !== true,
+        auth_user_id: row.auth_user_id,
+        parent_username: row.manager_id,
+        parent_business_name: parent.business_name || parent.full_name || row.manager_id,
+        assigned_area: row.assigned_area || null,
+        duty_status: row.duty_status || 'offline',
+      };
+    });
+    return res.status(200).json({ success: true, accounts });
+  } catch (e: any) {
+    console.error('[list-sub-manager-accounts]', e?.message);
+    return res.status(500).json({ error: 'Could not load sub-manager accounts.' });
+  }
+}
+
 
 
 // ── Action: add-token ──────────────────────────────────────────────────────
