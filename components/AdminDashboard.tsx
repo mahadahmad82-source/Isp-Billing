@@ -18,6 +18,12 @@ interface ManagerStat {
   total_revenue: number; total_balance: number; data_updated_at: string | null;
   is_active: boolean;
 }
+interface SubManagerAdminAccount extends ManagerStat {
+  parent_username: string;
+  parent_business_name: string;
+  assigned_area?: string | null;
+  duty_status?: string;
+}
 interface Customer {
   id: string; name: string; username: string; phone?: string; plan: string;
   monthlyFee: number; balance: number; expiryDate: string;
@@ -133,6 +139,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const tab = activeTab.replace('admin-', '') || 'overview';
 
   const [managers, setManagers] = useState<ManagerStat[]>([]);
+  const [subManagerAccounts, setSubManagerAccounts] = useState<SubManagerAdminAccount[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [paymentModal, setPaymentModal] = useState<string | null>(null); // manager_id
   const [payAmount, setPayAmount] = useState('');
@@ -368,11 +375,27 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     finally { setLoading(false); }
   }, []);
   useEffect(() => { loadManagers(); }, [loadManagers]);
+  const loadSubManagerAccounts = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.error || 'Could not load agents');
+      setSubManagerAccounts(result.accounts || []);
+    } catch (error) {
+      console.error('[AdminDashboard] sub-manager load failed:', error);
+      setSubManagerAccounts([]);
+    }
+  }, []);
+  useEffect(() => { loadSubManagerAccounts(); }, [loadSubManagerAccounts]);
   useEffect(() => {
     const map: Record<string, { status: OnlineStatus; updatedAt: string | null }> = {};
-    for (const m of managers) map[m.username] = { status: getOnlineStatus(m.last_seen), updatedAt: m.last_seen };
+    for (const m of [...managers, ...subManagerAccounts]) map[m.username] = { status: getOnlineStatus(m.last_seen), updatedAt: m.last_seen };
     setOnlineMap(map);
-  }, [managers]);
+  }, [managers, subManagerAccounts]);
 
   // ── Realtime ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -558,9 +581,16 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     return managers.filter(m => m.username.toLowerCase().includes(q) || m.business_name.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q));
   }, [managers, searchMgr, mgrSort]);
   const managerAccounts = useMemo(() => managers.filter(m => m.role !== 'sub-manager'), [managers]);
-  const subManagerAccounts = useMemo(() => managers.filter(m => m.role === 'sub-manager'), [managers]);
   const sortedManagerAccounts = useMemo(() => sortedManagers.filter(m => m.role !== 'sub-manager'), [sortedManagers]);
-  const sortedSubManagerAccounts = useMemo(() => sortedManagers.filter(m => m.role === 'sub-manager'), [sortedManagers]);
+  const sortedSubManagerAccounts = useMemo(() => {
+    const q = searchMgr.trim().toLowerCase();
+    return [...subManagerAccounts]
+      .filter(m => !q || m.username.toLowerCase().includes(q) || m.business_name.toLowerCase().includes(q) || m.parent_username.toLowerCase().includes(q) || m.parent_business_name.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q))
+      .sort((a, b) => {
+        const av = a[mgrSort.key] as any; const bv = b[mgrSort.key] as any;
+        return (typeof av === 'number' ? (av - bv) : String(av ?? '').localeCompare(String(bv ?? ''))) * mgrSort.dir;
+      });
+  }, [subManagerAccounts, searchMgr, mgrSort]);
 
   const filteredCusts = useMemo(() => {
     let l = custFilter !== 'all' ? allCustomers.filter(c => c.status === custFilter) : allCustomers;
@@ -575,7 +605,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   }, [activityLogs, actFilter, searchAct]);
 
   const sortCol = (key: keyof ManagerStat) => setMgrSort(prev => prev.key === key ? { key, dir: prev.dir === 1 ? -1 : 1 } : { key, dir: -1 });
-  const doRefresh = () => { loadManagers(); setAllCustomers([]); setActivityLogs([]); };
+  const doRefresh = () => { loadManagers(); loadSubManagerAccounts(); setAllCustomers([]); setActivityLogs([]); };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER — No custom sidebar, just content area (Layout sidebar handles nav)
@@ -760,6 +790,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
                       <span className="font-black text-indigo-400">@{m.username}</span>
+                      {'parent_username' in m && <span className="text-emerald-400">Parent: {(m as SubManagerAdminAccount).parent_business_name} (@{(m as SubManagerAdminAccount).parent_username})</span>}
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(m.last_login)}</span>
                       <OnlineDot status={onlineMap[m.username]?.status || 'offline'} showLabel />
                     </div>
@@ -828,7 +859,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                 ))}
               </section>
             ))}
-            {sortedManagers.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No accounts found.</p></div>}
+            {sortedManagerAccounts.length === 0 && sortedSubManagerAccounts.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No accounts found.</p></div>}
           </div>
         </div>
       )}
