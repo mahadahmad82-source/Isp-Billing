@@ -76,7 +76,7 @@ const KpiCard = ({ icon, label, value, sub, gradient, valColor, accent, pct }: {
   icon: React.ReactNode; label: string; value: string | number;
   sub?: string; gradient: string; valColor?: string; accent: string; pct?: number;
 }) => (
-  <div className={`rounded-3xl p-5 ${gradient} flex flex-col justify-between shadow-lg relative overflow-hidden`}>
+  <div className={`rounded-[2rem] p-7 ${gradient} flex flex-col justify-between shadow-lg relative overflow-hidden`}>
     {/* Decorative circle */}
     <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/5" />
     <div className="flex items-start justify-between mb-3 relative z-10">
@@ -623,7 +623,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {!loading && tab === 'overview' && (
         <div className="space-y-5">
           {/* KPI Cards — same style as manager Dashboard */}
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <KpiCard icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>}
               label="Managers" value={totals.managers}
               gradient="bg-gradient-to-br from-indigo-600 to-indigo-800" accent="text-indigo-300" />
