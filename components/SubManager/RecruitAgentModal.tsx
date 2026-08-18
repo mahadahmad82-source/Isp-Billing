@@ -109,11 +109,10 @@ const RecruitAgentModal: React.FC<RecruitAgentModalProps> = ({ isOpen, onClose, 
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address (Optional)</label>
                   <input 
-                    required
                     type="email" 
-                    placeholder="agent@myisp.com"
+                    placeholder="Optional recovery email"
                     value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})}
                     className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
