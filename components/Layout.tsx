@@ -241,14 +241,14 @@ const Layout: React.FC<LayoutProps> = ({
   const isDark = theme === 'dark';
 
   return (
-    <div className={`${isAdmin ? 'admin-shell' : 'manager-shell'} flex flex-col h-screen transition-colors duration-300 overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`flex flex-col h-screen transition-colors duration-300 overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
 
       {/* ═══════════════════════════════════════
           TOP HEADER — All screen sizes
       ═══════════════════════════════════════ */}
       <header
         id="tour-top-header"
-        className={`admin-topbar fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 md:px-6 no-print
+        className={`fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 md:px-6 no-print
           ${isDark
             ? 'bg-slate-950/90 backdrop-blur-md border-b border-slate-800/60'
             : 'bg-white/90 backdrop-blur-md border-b border-slate-200/60'
@@ -384,7 +384,7 @@ const Layout: React.FC<LayoutProps> = ({
       ═══════════════════════════════════════ */}
       {drawerOpen && (
         <div
-          className="admin-overlay fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
           onClick={() => setDrawerOpen(false)}
         />
       )}
@@ -392,7 +392,7 @@ const Layout: React.FC<LayoutProps> = ({
       {/* ═══════════════════════════════════════
           LEFT DRAWER — All screen sizes
       ═══════════════════════════════════════ */}
-      <div className={`admin-drawer fixed top-0 left-0 h-full z-[100] transition-transform duration-300 ease-in-out shadow-2xl
+      <div className={`fixed top-0 left-0 h-full z-[100] transition-transform duration-300 ease-in-out shadow-2xl
         w-72 md:w-80
         ${isDark ? 'bg-slate-900' : 'bg-indigo-900'}
         ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -530,7 +530,7 @@ const Layout: React.FC<LayoutProps> = ({
       {/* ═══════════════════════════════════════
           MAIN CONTENT AREA
       ═══════════════════════════════════════ */}
-      <main className="admin-main flex-1 px-4 md:px-8 lg:px-10 pb-8 pt-[80px] overflow-y-auto custom-scrollbar h-full">
+      <main className="flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full">
         {/* Page Title Bar */}
         <div className="flex items-center justify-between mb-6 no-print">
           <div className="flex items-center gap-3">
@@ -541,7 +541,7 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
 
-        <div className="admin-content-canvas w-full max-w-[1600px] mx-auto">
+        <div className="w-full">
           {/* Supabase sync indicator */}
           {isSyncing && (
             <div className="w-full h-0.5 bg-indigo-100 dark:bg-indigo-950 overflow-hidden">
