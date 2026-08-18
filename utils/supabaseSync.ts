@@ -160,9 +160,6 @@ export const flushPendingSync = async (): Promise<void> => {
         attendanceLogs:   mergeById(staleState.attendanceLogs,   currentRemote.attendanceLogs),
         complaintTickets: mergeById(staleState.complaintTickets, currentRemote.complaintTickets),
         businessExpenses: mergeById(staleState.businessExpenses, currentRemote.businessExpenses),
-        dealerProducts:   mergeById(staleState.dealerProducts,   currentRemote.dealerProducts),
-        dealerPurchases:  mergeById(staleState.dealerPurchases,  currentRemote.dealerPurchases),
-        dealerSales:      mergeById(staleState.dealerSales,      currentRemote.dealerSales),
       } : staleState;
       const ok = await upsertWithRetry(item.managerId, stateToPush, 2);
       if (!ok) console.warn('[Supabase] Flush failed for', item.managerId);
@@ -176,6 +173,21 @@ export const flushPendingSync = async (): Promise<void> => {
 export const loadStateFromSupabase = async (managerId: string): Promise<AppState | null> => {
   if (!managerId) return null;
   try {
+    // A real-auth sub-manager must never depend on a client-side managerId
+    // guess or on direct RLS visibility of manager_data. Resolve the caller's
+    // own parent mapping server-side and return only that parent's state.
+    if (isRealAuthSubManagerSession()) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const response = await fetch('/api/admin-maintenance?action=resolve-sub-manager-state', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload?.state) return payload.state as AppState;
+        if (response.status >= 500) console.warn('[Supabase] Scoped sub-manager state resolver failed:', payload?.error);
+      }
+    }
+
     const { data, error } = await supabase
       .from('manager_data').select('data').eq('manager_id', managerId).maybeSingle();
     if (!error && data?.data) return data.data as AppState;
@@ -278,9 +290,6 @@ export const smartLoadAndSync = async (
     attendanceLogs:           mergeById(localState?.attendanceLogs,   supabaseState.attendanceLogs),
     complaintTickets:         mergeById(localState?.complaintTickets, supabaseState.complaintTickets),
     businessExpenses:         mergeById(localState?.businessExpenses, supabaseState.businessExpenses),
-    dealerProducts:           mergeById(localState?.dealerProducts,   supabaseState.dealerProducts),
-    dealerPurchases:          mergeById(localState?.dealerPurchases,  supabaseState.dealerPurchases),
-    dealerSales:              mergeById(localState?.dealerSales,      supabaseState.dealerSales),
     activeCompanyId:          base.activeCompanyId || '',
     dismissedNotificationIds: Array.from(new Set([...(localState?.dismissedNotificationIds || []), ...(supabaseState.dismissedNotificationIds || [])])),
     currentManager:           managerId,
