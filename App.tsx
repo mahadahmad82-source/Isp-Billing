@@ -390,51 +390,88 @@ const App: React.FC = () => {
   }, [userRole, activeManager]);
 
   useEffect(() => {
+    let cancelled = false;
     if (activeManager) {
       setActiveSession(activeManager);
-      const account = getAccounts().find(a => a.username === activeManager);
-      const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
 
-      // Smart sync: compare localStorage vs Supabase, use richer data.
-      // Sub-managers share the manager's single data blob across many
-      // devices/agents — force a real-time Supabase pull for them instead
-      // of merging in their own device's local cache (see supabaseSync.ts).
-      const localState = loadState(activeManager);
-      setIsSyncing(true);
-      smartLoadAndSync(dataOwner, localState, { forceRemote: account?.role === 'sub-manager' }).then(finalState => {
-        setState({
-          ...finalState,
-          archives: finalState.archives || [],
-          dismissedNotificationIds: finalState.dismissedNotificationIds || [],
-          pendingManagerNotifications: finalState.pendingManagerNotifications || [],
-          shownManagerNotificationIds: finalState.shownManagerNotificationIds || [],
-          agentPendingNotifications: finalState.agentPendingNotifications || {},
-          companies: finalState.companies || [],
-          activeCompanyId: finalState.activeCompanyId || '',
-          currentManager: dataOwner,
-          systemLogs: finalState.systemLogs || [],
-          equipmentRecords: finalState.equipmentRecords || [],
-          leads: finalState.leads || [],
-          suspensionLogs: finalState.suspensionLogs || [],
-          outageLogs: finalState.outageLogs || [],
-          planHistory: finalState.planHistory || [],
-        });
-        // Welcome tour is now triggered reactively by the Tour Guide v2 effect above.
-      }).catch((err: any) => {
-        // Admin suspended this account (AdminDashboard.tsx suspend toggle) —
-        // log out clearly instead of silently showing stale cached data.
-        if (err?.message === 'ACCOUNT_SUSPENDED') {
-          alert('Aapka account admin ne suspend kar diya hai. Apne provider se rabta karein.');
-          setActiveSession(null);
-          setActiveManager(null);
-        } else {
-          console.error('[Login sync]', err);
+      const bootstrapSync = async () => {
+        let account = getAccounts().find(a => a.username === activeManager);
+        let dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
+        const isSubManager = account?.role === 'sub-manager' || userRole === 'sub-manager';
+
+        // A fresh browser can have a valid Auth session while its locally saved
+        // account predates managerUsername persistence. Resolve ownership before
+        // the first remote load; otherwise M27 is queried as manager M27 and the
+        // shared parent manager_data appears empty.
+        if (isSubManager && !account?.managerUsername) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              const response = await fetch('/api/admin-maintenance?action=resolve-sub-manager-session', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              const resolved = await response.json().catch(() => ({}));
+              const agent = resolved?.agent;
+              if (response.ok && agent?.manager_id && agent?.username) {
+                dataOwner = agent.manager_id;
+                const repairedAccount = {
+                  ...(account || { username: agent.username, password: '', createdAt: new Date().toISOString(), rememberPassword: false }),
+                  username: agent.username,
+                  businessName: agent.name || agent.username,
+                  email: agent.email || '',
+                  phone: agent.contact || '',
+                  role: 'sub-manager' as const,
+                  managerUsername: agent.manager_id,
+                  authUserId: agent.auth_user_id,
+                };
+                saveAccount(repairedAccount);
+                account = repairedAccount;
+              }
+            }
+          } catch (error) {
+            console.warn('[Login sync] Could not resolve sub-manager owner:', error);
+          }
         }
-      }).finally(() => setIsSyncing(false));
+
+        if (cancelled) return;
+        const localState = loadState(activeManager);
+        setIsSyncing(true);
+        smartLoadAndSync(dataOwner, localState, { forceRemote: isSubManager }).then(finalState => {
+          if (cancelled) return;
+          setState({
+            ...finalState,
+            archives: finalState.archives || [],
+            dismissedNotificationIds: finalState.dismissedNotificationIds || [],
+            pendingManagerNotifications: finalState.pendingManagerNotifications || [],
+            shownManagerNotificationIds: finalState.shownManagerNotificationIds || [],
+            agentPendingNotifications: finalState.agentPendingNotifications || {},
+            companies: finalState.companies || [],
+            activeCompanyId: finalState.activeCompanyId || '',
+            currentManager: dataOwner,
+            systemLogs: finalState.systemLogs || [],
+            equipmentRecords: finalState.equipmentRecords || [],
+            leads: finalState.leads || [],
+            suspensionLogs: finalState.suspensionLogs || [],
+            outageLogs: finalState.outageLogs || [],
+            planHistory: finalState.planHistory || [],
+          });
+        }).catch((err: any) => {
+          if (err?.message === 'ACCOUNT_SUSPENDED') {
+            alert('Aapka account admin ne suspend kar diya hai. Apne provider se rabta karein.');
+            setActiveSession(null);
+            setActiveManager(null);
+          } else {
+            console.error('[Login sync]', err);
+          }
+        }).finally(() => { if (!cancelled) setIsSyncing(false); });
+      };
+
+      void bootstrapSync();
     } else {
       setActiveSession(null);
     }
-  }, [activeManager]);
+    return () => { cancelled = true; };
+  }, [activeManager, userRole]);
 
   const activeCompany = useMemo(() => {
     if (!state?.companies) return null;
