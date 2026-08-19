@@ -320,6 +320,22 @@ const App: React.FC = () => {
     return unsub;
   }, []);
 
+  // Keep "Last Login" accurate for daily-returning users too. activeManager is
+  // restored straight from localStorage on app reopen (getActiveSession()) —
+  // no Supabase call happens on that path, so track_manager_login (only fired
+  // from handleLogin on a fresh credential submit) was never re-triggered for
+  // sessions that just persist across days. Throttle to once per calendar day
+  // per manager so we don't spam the RPC on every render/tab-focus.
+  useEffect(() => {
+    if (!activeManager || activeManager === 'admin' || userRole === 'sub-manager') return;
+    const throttleKey = `myisp_last_login_ping_${activeManager}`;
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(throttleKey) === today) return;
+    supabase.rpc('track_manager_login', { p_username: activeManager })
+      .then(() => localStorage.setItem(throttleKey, today))
+      .catch(() => {});
+  }, [activeManager, userRole]);
+
   // Background flush every 45s — retries any failed saves
   useEffect(() => {
     if (!activeManager || activeManager === 'admin') return;
