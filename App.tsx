@@ -1527,7 +1527,17 @@ const App: React.FC = () => {
             readOnly={isRealAuthSubManager}
             attendanceLogs={state.attendanceLogs || []}
             onLogout={handleLogout}
-            onAddAttendanceLog={isRealAuthSubManager ? (() => {}) as any : handleAddAttendanceLog}
+            onAddAttendanceLog={isRealAuthSubManager ? ((log: any) => {
+              supabase.rpc('agent_log_attendance', {
+                p_type: log.type,
+                p_reason: log.reason || null,
+                p_location: log.location || null,
+              }).then(({ error }: any) => {
+                if (error) { console.error('[attendance]', error); return; }
+                setSuccessToast(log.type === 'check-in' ? 'Checked in' : log.type === 'check-out' ? 'Checked out' : 'Leave logged');
+                setTimeout(() => setSuccessToast(null), 2500);
+              });
+            }) as any : handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
               if (isRealAuthSubManager) return;
               setPreSelectReceiptUser({ 
