@@ -13,7 +13,7 @@ interface ReceiptGeneratorProps {
   receipts: Receipt[];
   settings: AppSettings;
   subManagers?: SubManagerAccount[];
-  onAddReceipt: (receipt: Receipt) => void;
+  onAddReceipt: (receipt: Receipt) => Receipt | void | Promise<Receipt | void>;
   onUpdateReceipt: (receipt: Receipt) => void;
   onUpdateUser: (userId: string, update: Partial<UserRecord>) => void;
   onDeleteReceipt: (id: string) => void;
@@ -616,17 +616,19 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         collectedBy: agentId
       };
 
+      let savedReceipt: Receipt | void = newReceipt;
       if (editingReceiptId) {
         onUpdateReceipt(newReceipt);
       } else {
-        onAddReceipt(newReceipt);
+        savedReceipt = await onAddReceipt(newReceipt);
       }
+      const receiptForView = savedReceipt || newReceipt;
       
       // Flip the screen to the receipt view IMMEDIATELY, before any secondary
       // work below. That secondary work (expiry update) or the background
       // WhatsApp auto-send further down must never be able to leave the
       // screen stuck on this form if something in them throws or runs slow.
-      setActiveReceipt(newReceipt);
+      setActiveReceipt(receiptForView);
       setViewMode('view');
       setEditingReceiptId(null);
 
@@ -650,16 +652,16 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         requestAnimationFrame(() => {
           setTimeout(async () => {
             // 1. First, trigger the user-visible download (Scale 2)
-            await captureAndDownload(newReceipt);
+            await captureAndDownload(receiptForView);
             
             // 2. Then, trigger the background storage upload (Scale 1.5)
             // We don't 'await' this so the UI stays responsive for the next action,
             // but the captureAndDownload being finished means the CPU is free.
-            generateAndStoreReceiptImage(newReceipt);
+            generateAndStoreReceiptImage(receiptForView);
             
             // 3. Trigger the Meta WhatsApp Template send
             if (settings.autoSendPaymentConfirmation ?? true) {
-              autoSendPaymentTemplate(newReceipt, user);
+              autoSendPaymentTemplate(receiptForView, user);
             }
           }, 200);
         });
