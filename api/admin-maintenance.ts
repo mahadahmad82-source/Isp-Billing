@@ -38,7 +38,7 @@ export default async function handler(req: any, res: any) {
     // Browser path: only an authenticated admin may use these actions.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -64,6 +64,8 @@ export default async function handler(req: any, res: any) {
       return handleResolveSubManagerSession(req, res);
     case 'resolve-sub-manager-state':
       return handleResolveSubManagerState(req, res);
+    case 'agent-issue-receipt':
+      return handleAgentIssueReceipt(req, res);
     case 'list-sub-manager-accounts':
       return handleListSubManagerAccounts(req, res);
     case 'reset-quota':
@@ -71,7 +73,7 @@ export default async function handler(req: any, res: any) {
     case 'token-health':
       return handleTokenHealth(req, res);
     default:
-      return res.status(400).json({ error: 'Unknown or missing ?action=. Use add-token | create-sub-manager-auth | list-sub-manager-accounts | reset-quota | token-health' });
+      return res.status(400).json({ error: 'Unknown or missing ?action=. Use add-token | create-sub-manager-auth | resolve-sub-manager-state | agent-issue-receipt | list-sub-manager-accounts | reset-quota | token-health' });
   }
 }
 
@@ -348,7 +350,309 @@ async function handleListSubManagerAccounts(req: any, res: any) {
   }
 }
 
+// ── Action: agent-issue-receipt ───────────────────────────────────────────────
+// Real-auth sub-managers may issue a receipt only while checked in. The parent
+// manager_data row is read and conditionally patched by updated_at so a stale
+// read can never silently erase another manager/agent write.
+async function handleAgentIssueReceipt(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || caller.role !== 'sub-manager' || !caller.username) {
+    return res.status(403).json({ error: 'Sub-manager session required' });
+  }
+
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  const paidAmount = Number(body.paidAmount);
+  const advanceAmount = body.advanceAmount === undefined ? 0 : Number(body.advanceAmount);
+  const discountInput = body.discount === undefined ? undefined : Number(body.discount);
+  const paymentMethod = String(body.paymentMethod || 'Cash').trim();
+  const description = body.description === undefined || body.description === null ? '' : String(body.description);
+  const paymentDateInput = body.paymentDate || body.date;
+  const requestedTransactionRef = String(body.transactionRef || '').trim();
+
+  if (!userId || !Number.isFinite(paidAmount) || paidAmount < 0 || !Number.isFinite(advanceAmount) || advanceAmount < 0) {
+    return res.status(400).json({ error: 'userId, paidAmount and valid payment amounts are required' });
+  }
+  if (discountInput !== undefined && !Number.isFinite(discountInput)) {
+    return res.status(400).json({ error: 'discount must be a valid number' });
+  }
+
+  try {
+    const checkedIn = await adminSupabase.rpc('agent_is_checked_in', { p_auth_uid: caller.userId });
+    if (checkedIn.error) {
+      console.error('[agent-issue-receipt] attendance check failed:', checkedIn.error.message);
+      return res.status(500).json({ error: 'Could not verify attendance. Please try again.' });
+    }
+    if (checkedIn.data !== true) {
+      return res.status(403).json({ error: 'You must check in before issuing receipts' });
+    }
+
+    const agentRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?auth_user_id=eq.${encodeURIComponent(caller.userId)}&select=manager_id,username,assigned_area&limit=1`,
+      { headers: dbHeaders }
+    );
+    if (!agentRes.ok) throw new Error('sub-manager ownership lookup failed');
+    const agents: any[] = await agentRes.json();
+    const agent = agents?.[0];
+    if (!agent?.manager_id || agent.username !== caller.username) {
+      return res.status(401).json({ error: 'Sub-manager account mapping not found' });
+    }
+
+    let read = await fetchParentManagerState(agent.manager_id);
+    if (!read) return res.status(404).json({ error: 'Parent manager data not found.' });
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const state = read.data || {};
+      const settings = getReceiptSettings(state);
+      const currentMonthLabel = getCurrentMonthLabel();
+      const user = (state.users || []).find((candidate: any) => String(candidate?.id) === userId);
+      if (!user) return res.status(400).json({ error: 'Customer was not found in the parent manager data.' });
+
+      const agentState = (state.subManagers || []).find((candidate: any) => candidate?.username === caller.username) || {};
+      if (!isCurrentMonthPendingUser(state, user, currentMonthLabel, agent, agentState, settings)) {
+        return res.status(attempt === 0 ? 400 : 409).json({
+          error: attempt === 0
+            ? 'This customer is not currently pending for the current month.'
+            : 'The customer changed while saving. Please retry.',
+        });
+      }
+
+      const built = buildAgentReceipt({
+        state,
+        user,
+        settings,
+        currentMonthLabel,
+        collectedBy: caller.username,
+        paidAmount,
+        advanceAmount,
+        discount: discountInput,
+        paymentMethod,
+        description,
+        paymentDateInput,
+        requestedTransactionRef,
+      });
+
+      const updatedUsers = (state.users || []).map((candidate: any) => candidate?.id === user.id ? built.updatedUser : candidate);
+      const receiptLog = {
+        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        action: 'PAYMENT_COLLECTED',
+        description: `Receipt: @${built.receipt.username} — Rs. ${(built.receipt.paidAmount || 0).toLocaleString()} for ${built.receipt.period}`,
+        performedBy: caller.username,
+        category: 'payment',
+      };
+      const updatedState = {
+        ...state,
+        _syncedAt: new Date().toISOString(),
+        receipts: [...(state.receipts || []), built.receipt],
+        users: updatedUsers,
+        systemLogs: [receiptLog, ...(state.systemLogs || [])].slice(0, 500),
+      };
+      const writeTimestamp = new Date().toISOString();
+      const writeRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(agent.manager_id)}&updated_at=eq.${encodeURIComponent(read.updated_at)}`,
+        {
+          method: 'PATCH',
+          headers: { ...dbHeaders, Prefer: 'return=representation' },
+          body: JSON.stringify({ data: updatedState, updated_at: writeTimestamp }),
+        }
+      );
+      if (!writeRes.ok) {
+        const detail = await writeRes.text();
+        console.error('[agent-issue-receipt] conditional write failed:', detail.slice(0, 300));
+        return res.status(500).json({ error: 'Receipt could not be saved.' });
+      }
+      const writtenRows: any[] = await writeRes.json().catch(() => []);
+      if (writtenRows.length > 0) {
+        return res.status(200).json({ success: true, receipt: built.receipt, user: built.updatedUser });
+      }
+
+      // Someone wrote the shared JSONB blob after our read. Re-fetch and apply
+      // the receipt operation once against that fresh state; never overwrite it.
+      if (attempt === 0) {
+        read = await fetchParentManagerState(agent.manager_id);
+        if (!read) return res.status(500).json({ error: 'The parent manager data could not be reloaded. Please retry.' });
+        continue;
+      }
+      return res.status(409).json({ error: 'The manager data changed while saving. Please retry.' });
+    }
+
+    return res.status(409).json({ error: 'The manager data changed while saving. Please retry.' });
+  } catch (e: any) {
+    console.error('[agent-issue-receipt]', e?.message);
+    return res.status(500).json({ error: 'Receipt could not be issued.' });
+  }
+}
+
+async function fetchParentManagerState(managerId: string): Promise<{ data: any; updated_at: string } | null> {
+  const stateRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(managerId)}&select=data,updated_at&limit=1`,
+    { headers: dbHeaders }
+  );
+  if (!stateRes.ok) throw new Error('parent manager state lookup failed');
+  const rows: any[] = await stateRes.json();
+  const row = rows?.[0];
+  if (!row?.data || !row?.updated_at) return null;
+  return { data: row.data, updated_at: row.updated_at };
+}
+
+function getCurrentMonthLabel(): string {
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+}
+
+function getReceiptSettings(state: any): any {
+  const activeCompany = (state.companies || []).find((company: any) => company?.id === state.activeCompanyId) || (state.companies || [])[0];
+  return activeCompany?.settings || state.settings || { planPrices: {} };
+}
+
+function parseMonthYear(value: string): Date | null {
+  if (!value) return null;
+  const parts = String(value).trim().split(' ');
+  if (parts.length < 2) return null;
+  const date = new Date(`${parts[0]} 1, ${parts[1]}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isCurrentMonthPendingUser(state: any, user: any, currentMonthLabel: string, agent: any, agentState: any, settings: any): boolean {
+  if (user.status !== 'active') return false;
+
+  const assignedAreas = Array.isArray(agentState.assignedAreas) ? agentState.assignedAreas : [];
+  if (assignedAreas.length > 0 && !assignedAreas.includes(user.area || '')) return false;
+  const agentArea = agent.assigned_area || agentState.area;
+  if (agentArea && user.area && user.area !== agentArea) return false;
+
+  const receipts = (state.receipts || []).filter((receipt: any) => receipt?.userId === user.id);
+  const isActivatedForThisMonth = (user.activatedMonths || []).includes(currentMonthLabel);
+  const hasReceiptForThisMonth = receipts.some((receipt: any) => receipt?.period === currentMonthLabel);
+  if (!isActivatedForThisMonth && !hasReceiptForThisMonth) return false;
+
+  const hasPaidForCurrentMonth = receipts.some((receipt: any) => receipt?.period === currentMonthLabel && receipt?.status === 'Success');
+  const previousMonthDate = new Date();
+  previousMonthDate.setDate(1);
+  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+  const previousMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(previousMonthDate);
+  const previousMonthReceipts = receipts.filter((receipt: any) => receipt?.period === previousMonthLabel);
+  const previousMonthLatest = previousMonthReceipts.length > 0
+    ? [...previousMonthReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+    : null;
+  const anyPreviousReceipt = previousMonthLatest
+    ? previousMonthLatest
+    : [...receipts]
+        .filter((receipt: any) => receipt?.period !== currentMonthLabel)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] || null;
+  const arrears = anyPreviousReceipt ? (anyPreviousReceipt.balanceAmount || 0) : (user.balance || 0);
+  const planPrice = settings?.planPrices?.[user.plan || ''] || 1500;
+  const totalOutstanding = (planPrice + Math.max(0, arrears)) - (user.persistentDiscount || 0);
+  void totalOutstanding; // retained to mirror the dashboard's displayStatus calculation exactly
+  const isClear = hasPaidForCurrentMonth || arrears < 0;
+  return !isClear;
+}
+
+function buildAgentReceipt(args: any): { receipt: any; updatedUser: any } {
+  const { state, user, settings, currentMonthLabel, collectedBy, paidAmount, advanceAmount, discount, paymentMethod, description, paymentDateInput, requestedTransactionRef } = args;
+  const fee = settings?.planPrices?.[user.plan] !== undefined ? settings.planPrices[user.plan] : (user.monthlyFee || 0);
+  const userReceipts = (state.receipts || []).filter((receipt: any) => receipt?.userId === user.id);
+  const currentBillingPeriod = currentMonthLabel;
+  const previousReceipts = [...userReceipts]
+    .filter((receipt: any) => receipt?.period && receipt.period !== currentBillingPeriod)
+    .sort((a, b) => {
+      const dateA = parseMonthYear(a.period);
+      const dateB = parseMonthYear(b.period);
+      if (!dateA || !dateB) return 0;
+      return dateB.getTime() - dateA.getTime();
+    });
+  const latestPreviousReceipt = previousReceipts.length > 0 ? previousReceipts[0] : null;
+  const lastReceiptBalance = latestPreviousReceipt ? (latestPreviousReceipt.balanceAmount || 0) : (user.balance || 0);
+  let missedMonthsArrears = 0;
+  if (latestPreviousReceipt?.period) {
+    const currentDate = parseMonthYear(currentBillingPeriod);
+    const lastDate = parseMonthYear(latestPreviousReceipt.period);
+    if (currentDate && lastDate && currentDate > lastDate) {
+      const cursor = new Date(lastDate);
+      cursor.setMonth(cursor.getMonth() + 1);
+      while (cursor < currentDate) {
+        const monthName = cursor.toLocaleString('en-US', { month: 'long' });
+        const monthPeriod = `${monthName} ${cursor.getFullYear()}`;
+        const hasPaid = userReceipts.some((receipt: any) => receipt?.period === monthPeriod);
+        if (!hasPaid) missedMonthsArrears += fee;
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    }
+  }
+  const balance = lastReceiptBalance + missedMonthsArrears;
+  const resolvedDiscount = discount === undefined ? (user.persistentDiscount || 0) : discount;
+  const totalPayable = (fee + balance) - resolvedDiscount;
+  const calculatedBalance = totalPayable - (paidAmount + advanceAmount);
+  const receiptDate = paymentDateInput && !Number.isNaN(new Date(paymentDateInput).getTime()) ? new Date(paymentDateInput) : new Date();
+  const configuredExpiryDate = user.expiryDate;
+  const parsedExpiryDate = configuredExpiryDate ? new Date(configuredExpiryDate) : null;
+  const hasValidConfiguredExpiry = !!parsedExpiryDate && !Number.isNaN(parsedExpiryDate.getTime());
+  const resolvedExpiryDate = hasValidConfiguredExpiry ? configuredExpiryDate : new Date().toISOString();
+  const resolvedRechargeDate = hasValidConfiguredExpiry ? parsedExpiryDate!.toISOString() : new Date().toISOString();
+  const existingRefs = new Set((state.receipts || []).map((receipt: any) => receipt?.transactionRef).filter(Boolean));
+  const transactionRef = resolveTransactionRef(settings, state.receipts || [], requestedTransactionRef, existingRefs);
+  const receipt = {
+    id: generateReceiptId(),
+    userId: user.id,
+    username: user.username,
+    userName: user.name,
+    userPhone: user.phone,
+    userAddress: user.address,
+    totalAmount: totalPayable || 0,
+    paidAmount: (paidAmount || 0) + (advanceAmount || 0),
+    balanceAmount: calculatedBalance || 0,
+    advanceAmount: advanceAmount || 0,
+    discount: resolvedDiscount || 0,
+    monthlyFee: fee || 0,
+    plan: user.plan || '',
+    date: receiptDate.toISOString(),
+    expiryDate: resolvedExpiryDate,
+    rechargeDate: resolvedRechargeDate,
+    period: currentMonthLabel,
+    paymentMethod,
+    status: 'Success',
+    transactionRef,
+    description,
+    collectedBy,
+    companyId: state.activeCompanyId,
+  };
+  const activatedMonths = user.activatedMonths || [];
+  const updatedUser = {
+    ...user,
+    lastPaymentDate: receiptDate.toISOString(),
+    expiryDate: resolvedExpiryDate,
+    status: 'active',
+    balance: calculatedBalance || 0,
+    persistentDiscount: resolvedDiscount || 0,
+    activatedMonths: activatedMonths.includes(currentMonthLabel) ? activatedMonths : [...activatedMonths, currentMonthLabel],
+    creditRecharge: false,
+    creditAmount: 0,
+    creditDate: null,
+    creditLastReminderSent: null,
+    creditReminderCount: 0,
+  };
+  return { receipt, updatedUser };
+}
+
+function generateReceiptId(): string {
+  return Math.random().toString(36).substr(2, 9).toUpperCase();
+}
+
+function resolveTransactionRef(settings: any, receipts: any[], requested: string, existingRefs: Set<string>): string {
+  const prefix = settings?.receiptSerialPrefix || 'MN';
+  const startFrom = settings?.receiptSerialStart || 1;
+  const padLength = Math.max(4, String(startFrom).length);
+  if (requested && !existingRefs.has(requested)) return requested;
+  let offset = receipts.length;
+  let candidate = '';
+  do {
+    candidate = `${prefix}-${String(startFrom + offset).padStart(padLength, '0')}`;
+    offset += 1;
+  } while (existingRefs.has(candidate));
+  return candidate;
+}
 
 // ── Action: add-token ──────────────────────────────────────────────────────
 // Receive an ISP manager's Meta token → test connection → encrypt → upsert whatsapp_configs
