@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getActiveSession, getAccounts } from '../utils/storage';
 
 const VAPID_PUBLIC_KEY = 'BN2VJ2pAPIIaDOk2nnSPgwJiQMAZXn4s-IAU71OMOgei4liMdRmc18dOIQoeJm9KG2cGUjq19KLcujWcyo9MGCI';
 const SUPABASE_FUNCTION_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co/functions/v1/send-push-notification';
@@ -53,9 +54,21 @@ export const subscribeToPush = async (managerId: string, app: 'billcollector' | 
     else if (/Mac/i.test(ua)) deviceName = 'Mac';
     else if (/Linux/i.test(ua)) deviceName = 'Linux PC';
 
+    // `manager_id` remains the parent manager for data-scoping, while the
+    // owner fields identify the actual account using this browser/device.
+    const activeUsername = getActiveSession();
+    const activeAccount = activeUsername
+      ? getAccounts().find(account => account.username === activeUsername)
+      : undefined;
+    const isRealAuthSubManager = activeAccount?.role === 'sub-manager' && !!(activeAccount as any)?.authUserId;
+    const ownerRole = isRealAuthSubManager ? 'sub-manager' : 'manager';
+    const ownerUsername = activeUsername || managerId;
+
     // Save to Supabase
     const { error } = await supabase.from('push_subscriptions').upsert({
       manager_id: managerId,
+      owner_role: ownerRole,
+      owner_username: ownerUsername,
       endpoint: subJson.endpoint,
       p256dh: subJson.keys.p256dh,
       auth: subJson.keys.auth,
@@ -109,18 +122,24 @@ export const isSubscribed = async (): Promise<boolean> => {
   }
 };
 
+export interface PushTarget {
+  target_role?: 'manager' | 'sub-manager';
+  target_username?: string;
+}
+
 // Send notification via Supabase Edge Function
 export const sendPushNotification = async (
   managerId: string,
   title: string,
   body: string,
-  tag?: string
+  tag?: string,
+  target?: PushTarget
 ): Promise<void> => {
   try {
     await fetch(SUPABASE_FUNCTION_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manager_id: managerId, title, body, tag }),
+      body: JSON.stringify({ manager_id: managerId, title, body, tag, ...target }),
     });
   } catch (err) {
     console.error('Send push error:', err);

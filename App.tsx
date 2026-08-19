@@ -1578,6 +1578,26 @@ const App: React.FC = () => {
                 p_location: log.location || null,
               }).then(({ error }: any) => {
                 if (error) { console.error('[attendance]', error); return; }
+
+                const agentName = currentAgent?.name || activeManager || 'Agent';
+                const timeStr = new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+                let notifTitle = '🟢 Agent Checked In';
+                let notifMsg = `${agentName} marked IN at ${timeStr}`;
+                if (log.type === 'check-out') {
+                  notifTitle = '🔴 Agent Checked Out';
+                  notifMsg = `${agentName} marked OUT at ${timeStr}`;
+                } else if (log.type === 'leave') {
+                  notifTitle = '📋 Agent On Leave';
+                  notifMsg = `${agentName} applied for leave${log.reason ? `: ${log.reason}` : ''}`;
+                }
+                void sendPushNotification(
+                  currentAgent?.managerUsername || state.currentManager || activeManager || 'mahadnet',
+                  notifTitle,
+                  notifMsg,
+                  'myisp-attendance',
+                  { target_role: 'manager' }
+                );
+
                 setSuccessToast(log.type === 'check-in' ? 'Checked in' : log.type === 'check-out' ? 'Checked out' : 'Leave logged');
                 setTimeout(() => setSuccessToast(null), 2500);
               });
@@ -1828,6 +1848,16 @@ const App: React.FC = () => {
                       actionTab: 'complaints'
                     };
                     newAgentPending[agentId] = [...(newAgentPending[agentId] || []), agentNotif];
+                    const assignedAgent = prev.subManagers?.find(sm => sm.id === agentId || sm.username === agentId);
+                    if (assignedAgent?.username) {
+                      void sendPushNotification(
+                        prev.currentManager || activeManager || 'mahadnet',
+                        agentNotif.title,
+                        agentNotif.message,
+                        'myisp-complaint',
+                        { target_username: assignedAgent.username }
+                      );
+                    }
                   }
 
                   const finalState = { ...newState, pendingManagerNotifications: newPending, agentPendingNotifications: newAgentPending };
@@ -1938,7 +1968,20 @@ const App: React.FC = () => {
                 saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
               })}
               onUpdate={(id, updates) => setState(prev => {
+                const lead = (prev.leads || []).find(l => l.id === id);
                 const ns = { ...prev, leads: (prev.leads || []).map(l => l.id === id ? { ...l, ...updates } : l) };
+                if (updates.assignedTo && updates.assignedTo !== lead?.assignedTo && lead) {
+                  const assignedAgent = prev.subManagers?.find(sm => sm.id === updates.assignedTo || sm.username === updates.assignedTo);
+                  if (assignedAgent?.username) {
+                    void sendPushNotification(
+                      prev.currentManager || activeManager || 'mahadnet',
+                      '📋 New Lead Assigned',
+                      `You have been assigned a lead: "${lead.name}" (${lead.phone}).`,
+                      'myisp-lead',
+                      { target_username: assignedAgent.username }
+                    );
+                  }
+                }
                 saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
               })}
               onDelete={(id) => setState(prev => {

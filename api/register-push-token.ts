@@ -9,8 +9,10 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role —
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { managerId, token, deviceName } = req.body || {};
+  const { managerId, token, deviceName, owner_role, owner_username } = req.body || {};
   if (!managerId || !token) return res.status(400).json({ error: 'managerId and token are required' });
+  const ownerRole = owner_role === 'sub-manager' ? 'sub-manager' : 'manager';
+  const ownerUsername = owner_username || managerId;
 
   try {
     const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/push_tokens?on_conflict=token`, {
@@ -23,6 +25,8 @@ export default async function handler(req: any, res: any) {
       },
       body: JSON.stringify({
         manager_id: managerId,
+        owner_role: ownerRole,
+        owner_username: ownerUsername,
         token,
         device_name: deviceName || null,
         updated_at: new Date().toISOString(),
