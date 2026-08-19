@@ -17,11 +17,11 @@ const SECTIONS: Section[] = [
     icon: <FileText className="w-4 h-4" />,
     title: 'Terms of Service',
     content: [
-      { heading: 'Agreement', text: 'By registering for or using myISP (the "Platform"), you (the "Manager/Operator") agree to these Terms. If you do not agree, do not use the Platform.' },
-      { heading: 'Service Description', text: 'myISP is a cloud-based ISP billing and management platform for Internet Service Providers. Depending on the plan and enabled features, it supports customer records, billing and recovery workflows, receipts, reports, team or sub-manager access, and related ISP operations.' },
+      { heading: 'Agreement', text: 'By registering for or using Bill Collector (the "Platform"), you (the "Manager/Operator") agree to these Terms. If you do not agree, do not use the Platform.' },
+      { heading: 'Service Description', text: 'Bill Collector is a cloud-based ISP billing and management platform for Internet Service Providers. Depending on the plan and enabled features, it supports customer records, billing and recovery workflows, receipts, reports, team and sub-manager access, complaints, expenses, analytics, and related ISP operations.' },
       { heading: 'Account Registration', text: 'You must provide accurate information when creating an account and keep your login credentials confidential. Each account is intended for one ISP operator, business, or organization unless otherwise agreed in writing.' },
       { heading: 'Permitted Use', text: 'You may use the Platform for your own ISP business operations. You are responsible for the customer information, receipts, messages, and other content that you or your authorized users add to the Platform.' },
-      { heading: 'Changes to These Terms', text: 'myISP may update these Terms from time to time. The updated version will be posted on this page. Your continued use of the Platform after an update means that you accept the updated Terms.' },
+      { heading: 'Changes to These Terms', text: 'Bill Collector may update these Terms from time to time. The updated version will be posted on this page. Your continued use of the Platform after an update means that you accept the updated Terms.' },
     ],
   },
   {
@@ -29,11 +29,11 @@ const SECTIONS: Section[] = [
     icon: <CreditCard className="w-4 h-4" />,
     title: 'Subscription & Payments',
     content: [
-      { heading: 'Plans and Limits', text: 'The Platform offers Free, Starter, Growth, Business, Enterprise, and Custom subscription tiers. Each plan has its own customer and sub-manager limits and may include different features or NetBot access. Limits apply per manager account, and you may request or purchase an upgrade when you need higher limits or additional features. The currently applicable plan details are shown on the pricing page or confirmed by the myISP team.' },
-      { heading: 'Free Access or Trial', text: 'The availability, duration, and features of any free access or trial are determined by the offer shown at signup or confirmed by the myISP team. Unless expressly stated otherwise, a free plan or trial does not guarantee access to every paid feature.' },
-      { heading: 'Payment Methods and Manual Verification', text: 'Subscription fees are charged in Pakistani Rupees (PKR). Payment is made by bank transfer, EasyPaisa, or JazzCash. Payment is not processed through an automated card gateway: after you submit payment details or proof of payment, the payment is reviewed and verified manually, typically within [TURNAROUND TIME]. Access, renewal, or an upgrade may remain pending until verification is complete.' },
-      { heading: 'Refunds and Credits', text: 'Refunds, credits, cancellations, and adjustments are handled according to [REFUND AND CANCELLATION POLICY]. Do not assume that a payment is refundable unless the myISP team confirms it in writing.' },
-      { heading: 'Suspension for Non-Payment or Other Reasons', text: 'An administrator may suspend an account, including for non-payment, suspected misuse, security concerns, or other account-related reasons. Suspension can restrict access to the Platform while keeping the account data intact. An administrator may reactivate the account after the relevant issue is resolved. Any applicable data-retention period after suspension is [DATA RETENTION PERIOD].' },
+      { heading: 'Plans and Limits', text: 'The Platform currently offers Free, Starter, Growth, Business, Enterprise, and Custom tiers. The signup screen currently describes these tiers as: Free up to 75 customers; Starter up to 256 customers and one sub-manager; Growth up to 512 customers with NetBot Text; Business up to 750 customers with NetBot Basic; Enterprise up to 1,056 customers with NetBot Pro; and Custom with limits and NetBot access agreed with the customer. The plan details shown at signup or confirmed by Bill Collector are controlling.' },
+      { heading: 'Free Access or Trial', text: 'The Free tier is available according to the limits and features shown at signup. Free access does not guarantee access to every paid feature, higher limits, or NetBot capabilities included in paid tiers.' },
+      { heading: 'Payment Methods and Manual Verification', text: 'Subscription fees are charged in Pakistani Rupees (PKR). Paid-plan payments may be made through the payment methods communicated by Bill Collector, including bank transfer, EasyPaisa, or JazzCash. Paid-plan activation is not completed through an automated card gateway: payment proof is submitted through the available signup flow and reviewed manually. Access, renewal, or an upgrade may remain pending until verification is complete.' },
+      { heading: 'Refunds and Credits', text: 'Refunds, credits, cancellations, and adjustments are considered case by case after reviewing the account and payment status. Do not assume that a payment is refundable or transferable unless Bill Collector confirms it in writing.' },
+      { heading: 'Suspension for Non-Payment or Other Reasons', text: 'An administrator may suspend an account, including for non-payment, suspected misuse, security concerns, or other account-related reasons. Suspension can restrict access to the Platform while account data may remain retained for service, security, backup, or legal purposes. Reactivation may occur after the relevant issue is resolved.' },
     ],
   },
   {
@@ -41,11 +41,11 @@ const SECTIONS: Section[] = [
     icon: <Shield className="w-4 h-4" />,
     title: 'Data & Privacy',
     content: [
-      { heading: 'Manager Data', text: 'You retain responsibility for the customer lists, receipts, balances, contact details, and other business data that you enter into the Platform. Data is stored per manager account: one manager\'s customer lists, receipts, and related business data are not shared with other managers through the Platform.' },
-      { heading: 'How Data Is Used', text: 'myISP uses manager data to provide the billing, customer-management, receipt, reporting, account, and support features that you request. We do not sell or rent your business data. You are responsible for ensuring that you have the right to collect and use your customers\' information.' },
-      { heading: 'Local and Cloud Storage', text: 'The Platform may use browser localStorage as a local cache and may synchronize account data to its cloud database. Clearing browser data can remove the local cache; it does not by itself delete the corresponding cloud data. Specific backup, deletion, and retention practices are [BACKUP, DELETION, AND RETENTION PRACTICES].' },
+      { heading: 'Manager Data', text: 'You retain responsibility for the customer lists, receipts, balances, contact details, CNIC information, and other business data that you enter into the Platform. Data is scoped to the relevant manager account and is not intentionally shared with other managers through the Platform.' },
+      { heading: 'How Data Is Used', text: 'Bill Collector uses manager data to provide the billing, customer-management, receipt, reporting, account, team, support, and related features that you request. Bill Collector does not sell or rent your business data. You are responsible for ensuring that you have the right to collect and use your customers\' information.' },
+      { heading: 'Local and Cloud Storage', text: 'The Platform uses browser localStorage as a local cache and synchronizes account data with its cloud database. Clearing browser data can remove the local cache; it does not by itself delete the corresponding cloud data. Cloud data may be retained for service operation, backup, security, support, and legal or operational requirements.' },
       { heading: 'Customer Data Responsibility', text: 'You are responsible for the accuracy and lawful collection of personal information that you enter, including names, phone numbers, addresses, CNIC details, balances, and service records. You should provide your customers with any notices or obtain any permissions required for your use of their information.' },
-      { heading: 'NetBot and WhatsApp Processing', text: 'NetBot is an optional WhatsApp customer-support bot add-on. If you enable it, WhatsApp messages from your own customers may be processed by AI to classify requests and generate replies or other support responses. This processing is for supporting your own customers through your configured myISP service and is not intended for unrelated people, businesses, or purposes. WhatsApp use is also subject to Meta/WhatsApp terms and service availability.' },
+      { heading: 'NetBot and WhatsApp Processing', text: 'NetBot is an optional WhatsApp customer-support bot add-on. If you enable it, WhatsApp messages from your own customers may be stored in the Platform inbox and processed by AI to classify requests, transcribe voice messages, and generate replies or other support responses. NetBot is intended to support your own customer communications; WhatsApp use is also subject to Meta/WhatsApp terms, availability, and policies.' },
     ],
   },
   {
@@ -53,8 +53,8 @@ const SECTIONS: Section[] = [
     icon: <Users className="w-4 h-4" />,
     title: 'Agents & Sub-Managers',
     content: [
-      { heading: 'Sub-Manager Accounts', text: 'You may create sub-manager accounts up to the limit of your selected plan. The Free, Starter, Growth, Business, Enterprise, and Custom tiers may have different sub-manager limits. A plan upgrade may increase the available limit. The primary Manager can configure the access or permissions available to sub-managers.' },
-      { heading: 'Responsibility', text: 'The primary Manager is responsible for actions taken by sub-managers and other authorized users under the account, including changes to customer records, receipts, collections, and activity records.' },
+      { heading: 'Sub-Manager Accounts', text: 'You may create sub-manager or field-agent accounts up to the limit of your selected plan. The available plans may have different limits and permissions. The primary Manager can configure the access rights available to each authorized team member.' },
+      { heading: 'Responsibility', text: 'The primary Manager is responsible for actions taken by sub-managers, field agents, and other authorized users under the account, including changes to customer records, receipts, collections, complaints, and activity records.' },
       { heading: 'Access to Manager Data', text: 'Sub-managers receive only the access configured for them. Manager data remains associated with the primary Manager account and is not shared with other managers merely because sub-managers or teams use the Platform.' },
       { heading: 'Optional NetBot Add-On', text: 'If the Manager enables NetBot, the add-on supports WhatsApp customer service for that Manager\'s own customers. AI-generated replies may be used as part of this support workflow. NetBot does not authorize access to another Manager\'s customers or business data.' },
     ],
@@ -65,9 +65,9 @@ const SECTIONS: Section[] = [
     title: 'Security & Account',
     content: [
       { heading: 'Account Security', text: 'You are responsible for keeping your login credentials secure, using a strong password, and limiting access to authorized users. Do not share passwords or access links unnecessarily.' },
-      { heading: 'Unauthorized Access', text: 'Notify myISP promptly if you suspect unauthorized access, compromised credentials, or misuse of your account. myISP may suspend an account or restrict access when reasonably necessary to protect the Platform or its users.' },
-      { heading: 'Password Recovery', text: 'Password recovery may be handled through the available account-recovery flow or manually through support. Contact support at +92-304-2773453 if you need assistance.' },
-      { heading: 'Third-Party Services', text: 'Some Platform functions depend on third-party services, including cloud hosting, database, and WhatsApp/Meta services. Those providers may process data as needed to deliver the relevant function and may have their own terms and policies.' },
+      { heading: 'Unauthorized Access', text: 'Notify Bill Collector promptly if you suspect unauthorized access, compromised credentials, or misuse of your account. Bill Collector may suspend an account or restrict access when reasonably necessary to protect the Platform or its users.' },
+      { heading: 'Password Recovery', text: 'Password recovery may be handled through the available account-recovery flow or manually through support. Contact support at +92-304-2773453 or support@billcollector.online if you need assistance.' },
+      { heading: 'Third-Party Services', text: 'Some Platform functions depend on third-party services, including Supabase cloud services, Vercel hosting, Meta/WhatsApp services, and AI providers. Those providers may process data as needed to deliver the relevant function and may have their own terms and policies.' },
     ],
   },
   {
@@ -75,7 +75,7 @@ const SECTIONS: Section[] = [
     icon: <AlertTriangle className="w-4 h-4" />,
     title: 'Prohibited Activities',
     content: [
-      { text: 'Using myISP for any unlawful purpose or in violation of applicable Pakistani law, including PECA 2016.' },
+      { text: 'Using Bill Collector for any unlawful purpose or in violation of applicable Pakistani law, including PECA 2016.' },
       { text: 'Attempting to reverse-engineer, decompile, or extract source code from the Platform.' },
       { text: 'Uploading malicious code, viruses, or content that could harm the Platform or another user.' },
       { text: 'Creating fake customer records, falsifying receipts, or using the Platform for fraudulent billing.' },
@@ -88,10 +88,10 @@ const SECTIONS: Section[] = [
     icon: <Globe className="w-4 h-4" />,
     title: 'Liability & Disclaimers',
     content: [
-      { heading: 'Service Availability', text: 'The Platform may be unavailable because of maintenance, connectivity problems, account suspension, or failures or changes affecting third-party services. myISP does not guarantee uninterrupted or error-free operation unless a separate written agreement says otherwise.' },
+      { heading: 'Service Availability', text: 'The Platform may be unavailable because of maintenance, connectivity problems, account suspension, or failures or changes affecting third-party services. Bill Collector does not guarantee uninterrupted or error-free operation unless a separate written agreement says otherwise.' },
       { heading: 'Billing and Operational Decisions', text: 'Receipts, balances, reminders, customer statuses, and NetBot replies are tools to assist your operations. You remain responsible for checking information and making decisions about service activation, suspension, renewal, collection, and customer communications.' },
-      { heading: 'Limitation of Liability', text: 'To the extent permitted by applicable law, myISP\'s total liability for any claim shall not exceed the amount paid by you for the service in the past 3 months. myISP is not liable for indirect damages.' },
-      { heading: 'Governing Law', text: 'These Terms are governed by the laws of Pakistan. Any disputes shall be subject to the exclusive jurisdiction of courts in Karachi, Pakistan.' },
+      { heading: 'Limitation of Liability', text: 'To the extent permitted by applicable law, Bill Collector\'s total liability for any claim shall not exceed the amount paid by you for the service in the three months preceding the event giving rise to the claim. Bill Collector is not liable for indirect, incidental, special, or consequential damages to the extent permitted by law.' },
+      { heading: 'Governing Law', text: 'These Terms are governed by the applicable laws of Pakistan. Disputes will be handled under the applicable jurisdiction and dispute-resolution rules in Pakistan.' },
     ],
   },
 ];
@@ -155,9 +155,9 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
                 Clear policies for a reliable ISP billing and management experience. Review the terms that govern your use of the Bill Collector platform.
               </p>
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">myISP Platform</span>
-                <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">Effective [EFFECTIVE DATE]</span>
-                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-600">Version 2.0</span>
+                <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">Bill Collector Platform</span>
+                <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">Effective August 18, 2026</span>
+                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-600">Version 2.1</span>
               </div>
             </div>
 
@@ -201,7 +201,7 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
                   {current.id === 'prohibited' ? (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 sm:p-6">
                       <p className="mb-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-amber-700">
-                        <AlertTriangle className="h-3.5 w-3.5" /> The following activities are strictly prohibited on myISP:
+                        <AlertTriangle className="h-3.5 w-3.5" /> The following activities are strictly prohibited on Bill Collector:
                       </p>
                       <ul className="space-y-3">
                         {current.content.map((item, i) => (

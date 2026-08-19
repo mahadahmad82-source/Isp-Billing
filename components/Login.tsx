@@ -803,6 +803,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                     rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-indigo-400 transition-colors p-1">{showPassword ? <EyeOffIcon /> : <EyeIcon />}</button>} />
                 </div>
 
+                {/* Terms access — informational link only; acceptance enforcement remains a separate auth-review item. */}
+                <div className="-mt-1 flex justify-end">
+                  <a href="/terms" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-wider transition-colors">
+                    Read Terms & Policies
+                  </a>
+                </div>
+
                 {/* Confirm Password (signup only) */}
                 {view === 'signup' && (
                   <div>
