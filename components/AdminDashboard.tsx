@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import { mergeById } from '../utils/supabaseSync';
+import { ensureWhatsAppBotPlan, type PricingPlan } from '../utils/pricing';
 import WABotAdminClients from './WABotAdminClients';
 import {
   Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle,
@@ -34,10 +35,6 @@ interface ActivityEntry {
   managerUsername: string; managerBusiness: string; action: string;
   details?: string; timestamp: string;
   type: 'login' | 'receipt' | 'customer' | 'update' | 'system' | 'other';
-}
-interface PricingPlan {
-  name: string; price: string; period: string; color: string;
-  features: string[]; cta: string; highlight: boolean;
 }
 interface Props {
   activeTab?: string;
@@ -232,13 +229,23 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   useEffect(() => { if (tab === 'system') loadStorageInfo(); }, [tab, loadStorageInfo]);
 
   // ── Pricing Plans ────────────────────────────────────────────────────────────
+  const SUBSCRIPTION_PLAN_OPTIONS = [
+  { value: 'free', label: 'Free', color: 'text-slate-400' },
+  { value: 'starter', label: 'Starter', color: 'text-indigo-400' },
+  { value: 'growth', label: 'Growth', color: 'text-violet-400' },
+  { value: 'business', label: 'Business', color: 'text-purple-400' },
+  { value: 'enterprise', label: 'Enterprise', color: 'text-cyan-400' },
+  { value: 'custom', label: 'Custom', color: 'text-amber-400' },
+  { value: 'whatsapp-bot', label: 'WhatsApp Bot', color: 'text-emerald-400' },
+] as const;
+
   const loadPricingPlans = useCallback(async () => {
     setPricingLoading(true);
     setPricingMsg(null);
     try {
       const { data, error } = await supabase.from('site_settings').select('pricing_plans').eq('id', 'default').maybeSingle();
       if (!error && Array.isArray(data?.pricing_plans)) {
-        setPricingPlans(data.pricing_plans as PricingPlan[]);
+        setPricingPlans(ensureWhatsAppBotPlan(data.pricing_plans as PricingPlan[]));
       } else if (error) {
         setPricingMsg({ ok: false, text: 'Load error: ' + error.message });
         setPricingPlans([]);
@@ -253,8 +260,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     if (!pricingPlans) return;
     setPricingSaving(true);
     setPricingMsg(null);
+    const plansToSave = ensureWhatsAppBotPlan(pricingPlans);
+    setPricingPlans(plansToSave);
     const { error } = await supabase.from('site_settings').upsert(
-      { id: 'default', pricing_plans: pricingPlans, updated_at: new Date().toISOString() },
+      { id: 'default', pricing_plans: plansToSave, updated_at: new Date().toISOString() },
       { onConflict: 'id' }
     );
     setPricingSaving(false);
@@ -1256,7 +1265,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   pending_payment: { color:'text-orange-400', bg:'bg-orange-500/10 border-orange-500/30', label:'PENDING PAYMENT' },
                 };
                 const sc = statusCfg[sub.status] || statusCfg.trial;
-                const planColors: Record<string,string> = { starter:'text-indigo-400', business:'text-purple-400', enterprise:'text-cyan-400' };
+                const planColors: Record<string,string> = Object.fromEntries(SUBSCRIPTION_PLAN_OPTIONS.map(option => [option.value, option.color]));
                 return (
                   <div key={sub.manager_id} className="bg-slate-800/60 rounded-3xl border border-white/[0.06] p-5 hover:border-indigo-500/30 transition-all">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1280,9 +1289,9 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                     <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/[0.04]">
                       <select value={sub.plan} onChange={e => updateSubscription(sub.manager_id, { plan: e.target.value })}
                         className="px-3 py-1.5 rounded-xl bg-black/30 border border-white/10 text-[11px] font-black text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
-                        <option value="starter">Starter</option>
-                        <option value="business">Business</option>
-                        <option value="enterprise">Enterprise</option>
+                        {SUBSCRIPTION_PLAN_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
                       </select>
                       {sub.status!=='active' && <button onClick={()=>updateSubscription(sub.manager_id,{status:'active'})}
                         className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black hover:bg-emerald-500/20 transition-all flex items-center gap-1 active:scale-95">

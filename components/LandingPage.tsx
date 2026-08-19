@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { logoBase64 } from '../utils/logoBase64';
 import { supabase } from '../lib/supabase';
+import { ensureWhatsAppBotPlan, type PricingPlan } from '../utils/pricing';
 import VideoBackground from './landing/VideoBackground';
 import { 
   Zap, Smartphone, Lock, BarChart, Users, Globe, Cpu, Server, 
@@ -15,19 +16,9 @@ interface LandingPageProps {
   onGetStarted: () => void;
 }
 
-interface PricingPlan {
-  name: string;
-  price: string;
-  period: string;
-  color: string;
-  features: string[];
-  cta: string;
-  highlight: boolean;
-}
-
 // Fallback plans — used until (or unless) admin-edited plans load from Supabase,
 // and whenever that fetch fails, so the pricing section never breaks/goes blank.
-const DEFAULT_PRICING_PLANS: PricingPlan[] = [
+const DEFAULT_PRICING_PLANS: PricingPlan[] = ensureWhatsAppBotPlan([
   {
     name: 'Free', price: 'Free', period: '', color: '#64748b',
     features: ['Up to 75 customers', 'Core billing, receipts & recovery ledger', 'Manual WhatsApp reminders', 'Cloud sync', 'NetBot available as paid add-on'],
@@ -58,7 +49,7 @@ const DEFAULT_PRICING_PLANS: PricingPlan[] = [
     features: ['Unlimited customers', 'Unlimited sub-manager accounts', 'NetBot — Unlimited tier (7 voice agents)', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
     cta: 'Contact Us', highlight: false,
   },
-];
+]);
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const location = useLocation();
@@ -84,7 +75,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           .eq('id', 'default')
           .maybeSingle();
         if (!cancelled && !error && Array.isArray(data?.pricing_plans) && data.pricing_plans.length > 0) {
-          setPricingPlans(data.pricing_plans as PricingPlan[]);
+          setPricingPlans(ensureWhatsAppBotPlan(data.pricing_plans as PricingPlan[]));
         }
       } catch {
         // Silently keep DEFAULT_PRICING_PLANS on any network/parse failure.
@@ -93,13 +84,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     return () => { cancelled = true; };
   }, []);
 
-  // Card Progress and Onsite Support Form States
+  // Card Progress State
   const [activeCardIdx, setActiveCardIdx] = useState(0);
-  const [onsiteIspName, setOnsiteIspName] = useState('');
-  const [onsiteCity, setOnsiteCity] = useState('');
-  const [onsiteSubscribers, setOnsiteSubscribers] = useState('');
-  const [onsitePhone, setOnsitePhone] = useState('');
-  const [onsiteSubmitted, setOnsiteSubmitted] = useState(false);
 
   // Scroll Progress
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -113,9 +99,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const countersContainerRef = useRef<HTMLDivElement>(null);
   const revealContainerRef = useRef<HTMLDivElement>(null);
   const wordRevealContainerRef = useRef<HTMLDivElement>(null);
-  const parallaxSectionRef = useRef<HTMLDivElement>(null);
-  const parallaxBgRef = useRef<HTMLDivElement>(null);
-  const parallaxGridRef = useRef<HTMLDivElement>(null);
   const orb1Ref = useRef<HTMLDivElement>(null);
   const orb2Ref = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLDivElement>(null);
@@ -262,14 +245,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
       }
 
-      // Parallax Section
-      if (parallaxSectionRef.current && parallaxBgRef.current && parallaxGridRef.current) {
-        const rect = parallaxSectionRef.current.getBoundingClientRect();
-        const p = 1 - (rect.top + rect.height) / (window.innerHeight + rect.height);
-        const clamped = Math.max(0, Math.min(1, p));
-        parallaxBgRef.current.style.transform = `translateY(${(clamped - 0.5) * 100}px)`;
-        parallaxGridRef.current.style.transform = `translateY(${(clamped - 0.5) * 200}px)`;
-      }
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -1678,269 +1653,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300">
                 <Database className="w-4 h-4 text-emerald-400" /> Automated Backups
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 6: PAKISTAN SUPPORT HUB & ONSITE DEPLOYMENT ── */}
-        <section className="parallax-section" id="parallax" ref={parallaxSectionRef}>
-          <div className="parallax-bg" ref={parallaxBgRef}></div>
-          <div className="parallax-grid">
-            <div className="parallax-grid-inner" ref={parallaxGridRef}>
-              {[...Array(9)].map((_, i) => (
-                <div key={i} className="box opacity-20" style={{ borderColor: `rgba(99,102,241,${0.1 + i * 0.02})`, background: `rgba(99,102,241,${0.02 + i * 0.005})` }}></div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="w-full max-w-6xl mx-auto relative z-10 px-4 sm:px-6">
-            {/* Header */}
-            <div className="text-center mb-16 scroll-reveal">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">06 / Live Support & Onsite Deployment</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
-                Pakistan <span className="bg-gradient-to-r from-[#6366f1] to-[#06b6d4] bg-clip-text text-transparent">Support Hub</span>
-              </h2>
-              <p className="text-slate-400 text-sm max-w-2xl mx-auto mt-4 leading-relaxed font-semibold">
-                Whether you need fiber splicing assistance, MikroTik configuration, or automated WhatsApp gateway setup, our dedicated regional agents are available 24/7.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-              {/* Left Column: Regional Contact Hubs (lg:col-span-7) */}
-              <div className="lg:col-span-7 space-y-4 flex flex-col justify-between">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Karachi Hub */}
-                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-indigo-500/20 transition-all flex flex-col justify-between group">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase text-indigo-400 tracking-widest">Sindh Province</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
-                      <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">Karachi Regional HQ</h3>
-                      <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
-                        Office 402, Block 6, PECHS, Main Shahrah-e-Faisal, Karachi.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white/5 space-y-2">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-500 font-bold">Manager:</span>
-                        <span className="text-slate-300 font-black">Zain ul Abideen</span>
-                      </div>
-                      <a href="https://wa.me/923042773453?text=Hi, I am an ISP from Karachi and I need support with Bill Collector." 
-                        target="_blank" rel="noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#25D366] rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Support
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Lahore Hub */}
-                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-purple-500/20 transition-all flex flex-col justify-between group">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-[9px] font-black uppercase text-purple-400 tracking-widest">Punjab Province</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
-                      <h3 className="text-lg font-black text-slate-900 group-hover:text-purple-600 transition-colors">Lahore Operations Desk</h3>
-                      <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
-                        3rd Floor, Software Technology Park, Main Ferozepur Road, Lahore.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white/5 space-y-2">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-500 font-bold">Lead Splicer:</span>
-                        <span className="text-slate-300 font-black">Mian Muhammad Bilal</span>
-                      </div>
-                      <a href="https://wa.me/923042773453?text=Hi, I am an ISP from Lahore and I need support with Bill Collector." 
-                        target="_blank" rel="noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#25D366] rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Support
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Faisalabad Hub */}
-                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-cyan-500/20 transition-all flex flex-col justify-between group">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-[9px] font-black uppercase text-cyan-400 tracking-widest">Textile City Hub</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
-                      <h3 className="text-lg font-black text-slate-900 group-hover:text-cyan-600 transition-colors">Faisalabad Field Office</h3>
-                      <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
-                        Bilal Plaza, Jaranwala Road, Near Kohinoor City, Faisalabad.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white/5 space-y-2">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-500 font-bold">Field Engineer:</span>
-                        <span className="text-slate-300 font-black">Yasir Mahmood</span>
-                      </div>
-                      <a href="https://wa.me/923042773453?text=Hi, I am an ISP from Faisalabad and I need support with Bill Collector." 
-                        target="_blank" rel="noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#25D366] rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Support
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Islamabad & Northern Areas Hub */}
-                  <div className="p-6 rounded-2xl bg-[#040814]/50 border border-white/5 hover:border-emerald-500/20 transition-all flex flex-col justify-between group">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase text-emerald-400 tracking-widest">Capital Hub</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
-                      <h3 className="text-lg font-black text-slate-900 group-hover:text-emerald-600 transition-colors">Islamabad Support Desk</h3>
-                      <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
-                        Ground Floor, Evacuee Trust Complex, F-5/1, Islamabad.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white/5 space-y-2">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-500 font-bold">Network Ops:</span>
-                        <span className="text-slate-300 font-black">Khurram Shahzad</span>
-                      </div>
-                      <a href="https://wa.me/923042773453?text=Hi, I am an ISP from Islamabad and I need support with Bill Collector." 
-                        target="_blank" rel="noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#25D366] rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Support
-                      </a>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-400 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 flex-shrink-0">
-                    <HeadphonesIcon className="w-4 h-4" />
-                  </div>
-                  <p className="font-semibold">
-                    <strong>Urgent Outage or Emergency?</strong> Call our 24/7 direct national helpline: <a href="tel:+923042773453" className="text-slate-900 font-black hover:underline">+92 304 2773453</a>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Column: Interactive Setup Form (lg:col-span-5) */}
-              <div className="lg:col-span-5">
-                <div className="p-8 rounded-3xl border border-white/10 bg-[#0a1228]/80 backdrop-blur-md shadow-2xl h-full flex flex-col justify-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-                  
-                  {!onsiteSubmitted ? (
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!onsiteIspName || !onsiteCity || !onsitePhone) return;
-                      setOnsiteSubmitted(true);
-                    }} className="space-y-4">
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block mb-1">Interactive Form</span>
-                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Onsite Integration</h3>
-                        <p className="text-xs text-slate-400 mt-1 font-semibold">
-                          Our engineering team will visit your office to import data and connect MikroTik routers for free.
-                        </p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">ISP / Cable Network Name</label>
-                          <input 
-                            type="text" 
-                            required
-                            placeholder="e.g. Faisalabad Broadband Network"
-                            value={onsiteIspName}
-                            onChange={(e) => setOnsiteIspName(e.target.value)}
-                            className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Your City</label>
-                            <input 
-                              type="text" 
-                              required
-                              placeholder="e.g. Faisalabad"
-                              value={onsiteCity}
-                              onChange={(e) => setOnsiteCity(e.target.value)}
-                              className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Subscribers</label>
-                            <input 
-                              type="text" 
-                              placeholder="e.g. 350 users"
-                              value={onsiteSubscribers}
-                              onChange={(e) => setOnsiteSubscribers(e.target.value)}
-                              className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">WhatsApp Phone Number</label>
-                          <input 
-                            type="tel" 
-                            required
-                            placeholder="e.g. 03042773453"
-                            value={onsitePhone}
-                            onChange={(e) => setOnsitePhone(e.target.value)}
-                            className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
-                          />
-                        </div>
-                      </div>
-
-                      <button 
-                        type="submit"
-                        className="cta-glow w-full h-12 rounded-xl font-black text-xs uppercase tracking-[0.2em] text-white flex items-center justify-center gap-2 active:scale-98"
-                      >
-                        Schedule Free Onsite Setup <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="text-center py-6 space-y-6">
-                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
-                        <CheckCircle className="w-8 h-8" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-wider">Request Confirmed!</h3>
-                        <p className="text-xs text-slate-400 mt-2 leading-relaxed font-semibold">
-                          Thank you! We have received your request for <strong>{onsiteIspName}</strong> in <strong>{onsiteCity}</strong>. 
-                        </p>
-                        <p className="text-[11px] text-slate-500 mt-1 font-semibold">
-                          Our regional deployment representative will contact you on WhatsApp at <strong>{onsitePhone}</strong> within 15 minutes.
-                        </p>
-                      </div>
-
-                      <div className="pt-4 border-t border-white/5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Want Instant Connection?</p>
-                        <a 
-                          href={`https://wa.me/923042773453?text=I just submitted the onsite setup form for my ISP ${encodeURIComponent(onsiteIspName)} in ${encodeURIComponent(onsiteCity)} (${encodeURIComponent(onsiteSubscribers || '0')} subscribers). Phone: ${encodeURIComponent(onsitePhone)}. Please contact me right away!`}
-                          target="_blank" rel="noreferrer"
-                          className="flex items-center justify-center gap-2 w-full py-3 bg-[#25D366] hover:bg-[#22c35e] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-[#25D366]/20"
-                        >
-                          <MessageCircle className="w-4 h-4" /> Connect On WhatsApp Now
-                        </a>
-                        <button 
-                          onClick={() => {
-                            setOnsiteSubmitted(false);
-                            setOnsiteIspName('');
-                            setOnsiteCity('');
-                            setOnsiteSubscribers('');
-                            setOnsitePhone('');
-                          }}
-                          className="text-[10px] text-slate-500 hover:text-slate-400 underline font-semibold mt-4 block mx-auto uppercase tracking-widest"
-                        >
-                          Submit another request
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
