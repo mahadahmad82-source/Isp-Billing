@@ -1044,6 +1044,49 @@ const App: React.FC = () => {
     });
   };
 
+  const handleAgentAddReceipt = async (receipt: Receipt): Promise<Receipt> => {
+    setLoadingMessage('Saving Receipt...');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Authenticated agent session is missing. Please log in again.');
+      const response = await fetch('/api/admin-maintenance?action=agent-issue-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: receipt.userId,
+          paidAmount: receipt.paidAmount,
+          advanceAmount: receipt.advanceAmount || 0,
+          discount: receipt.discount || 0,
+          paymentMethod: receipt.paymentMethod,
+          description: receipt.description || '',
+          paymentDate: receipt.date,
+          transactionRef: receipt.transactionRef,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.receipt || !payload?.user) {
+        throw new Error(payload?.error || 'Receipt could not be saved.');
+      }
+      const savedReceipt = payload.receipt as Receipt;
+      const savedUser = payload.user as UserRecord;
+      setState(prev => {
+        const nextState = {
+          ...prev,
+          receipts: [...(prev.receipts || []), { ...savedReceipt, companyId: prev.activeCompanyId }],
+          users: (prev.users || []).map(u => u.id === savedUser.id ? savedUser : u),
+        };
+        saveState(nextState);
+        return nextState;
+      });
+      return savedReceipt;
+    } finally {
+      setLoadingMessage(null);
+    }
+  };
+
   const handleAddReceipt = (receipt: Receipt) => {
     // Reduced delay from 600ms to 200ms. The UI will feel much more responsive 
     // while still giving a brief "Saving" feedback.
@@ -1449,19 +1492,20 @@ const App: React.FC = () => {
       : filteredUsers;
     const activeAccount = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
     const isRealAuthSubManager = !!activeAccount?.authUserId;
-    const canLogReceipts = !isRealAuthSubManager && canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
+    const canLogReceipts = isRealAuthSubManager
+      ? currentAgent?.dutyStatus === 'online'
+      : canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
     return (
       <ErrorBoundary>
         {activeTab === 'receipts' ? (
-          isRealAuthSubManager ? (
+          !canLogReceipts ? (
             <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] flex flex-col items-center justify-center p-8 text-center gap-4">
-              <p className="text-slate-500 dark:text-slate-400 font-semibold">Real-auth agent sessions are read-only in Phase 1.</p>
-              <button onClick={() => setActiveTab('team')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">Back to Agent View</button>
-            </div>
-          ) : !canLogReceipts ? (
-            <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] flex flex-col items-center justify-center p-8 text-center gap-4">
-              <p className="text-slate-500 dark:text-slate-400 font-semibold">Aapko receipts issue karne ki ijazat nahi hai.</p>
-              <button onClick={() => setActiveTab('team')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">Wapis jayein</button>
+              <p className="text-slate-500 dark:text-slate-400 font-semibold">
+                {isRealAuthSubManager
+                  ? 'Please check in before issuing receipts.'
+                  : 'Aapko receipts issue karne ki ijazat nahi hai.'}
+              </p>
+              <button onClick={() => setActiveTab('team')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">{isRealAuthSubManager ? 'Back to Agent View' : 'Wapis jayein'}</button>
             </div>
           ) : (
           <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-300 flex flex-col">
@@ -1490,7 +1534,7 @@ const App: React.FC = () => {
                 onPreSelectConsumed={() => setPreSelectReceiptUser(null)}
                 hideHistory={true}
                 defaultCollectedBy={state.subManagers?.find(sm => sm.username === activeManager)?.id || activeManager || undefined}
-                onAddReceipt={(receipt) => {
+                onAddReceipt={isRealAuthSubManager ? handleAgentAddReceipt : (receipt) => {
                   handleAddReceipt(receipt);
                   setSuccessToast("Collection logged successfully!");
                   setTimeout(() => setSuccessToast(null), 3000);
@@ -1539,7 +1583,7 @@ const App: React.FC = () => {
               });
             }) as any : handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
-              if (isRealAuthSubManager) return;
+              if (isRealAuthSubManager && currentAgent?.dutyStatus !== 'online') return;
               setPreSelectReceiptUser({ 
                 userId, 
                 month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
