@@ -194,8 +194,8 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
 
   const StatCard = ({ label, value, color, onClick }: { label: string; value: number; color: string; onClick?: () => void }) => (
     <button onClick={onClick}
-      className={`flex-1 min-w-[80px] bg-white/5 border border-white/10 rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 ${onClick ? 'cursor-pointer' : ''}`}>
-      <p className={`text-2xl font-black ${color}`}>{value}</p>
+      className={`flex-1 min-w-[80px] rounded-2xl border p-4 text-center transition-all active:scale-95 ${isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-slate-200 shadow-sm hover:bg-slate-50'} ${onClick ? 'cursor-pointer' : ''}`}>
+      <p className={`text-2xl font-black ${isDark ? color : color === 'text-white' ? 'text-slate-900' : color.replace('400', '700')}`}>{value}</p>
       <p className={`text-[10px] font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider mt-1`}>{label}</p>
     </button>
   );
@@ -561,13 +561,13 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
           {stats.totalValue > 0 && (
             <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 rounded-2xl px-4 py-3 flex flex-col">
               <span className={`text-[10px] font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>Inventory Value</span>
-              <span className="text-lg font-black text-indigo-300">Rs. {stats.totalValue.toLocaleString()}</span>
+              <span className={`text-lg font-black ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>Rs. {stats.totalValue.toLocaleString()}</span>
             </div>
           )}
           {stats.totalSales > 0 && (
             <div className="bg-gradient-to-r from-purple-600/20 to-fuchsia-600/20 border border-purple-500/20 rounded-2xl px-4 py-3 flex flex-col">
               <span className={`text-[10px] font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider`}>Total Sales ({stats.sold})</span>
-              <span className="text-lg font-black text-purple-300">Rs. {stats.totalSales.toLocaleString()}</span>
+              <span className={`text-lg font-black ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>Rs. {stats.totalSales.toLocaleString()}</span>
             </div>
           )}
         </div>
@@ -591,7 +591,9 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
             className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all border ${
               filterStatus === s
                 ? 'bg-indigo-600 border-indigo-500 text-white'
-                : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+                : isDark
+                  ? 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
             }`}>
             {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
           </button>
@@ -611,7 +613,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
             const cfg = STATUS_CONFIG[item.status];
             return (
               <button key={item.id} onClick={() => { setDetailItem(item); setView('detail'); }}
-                className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} hover:${isDark ? 'bg-white/8' : 'bg-slate-50'} rounded-2xl p-4 text-left transition-all active:scale-[0.98]`}>
+                className={`w-full ${isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-slate-200 hover:bg-slate-50'} border rounded-2xl p-4 text-left transition-all active:scale-[0.98]`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -621,19 +623,19 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-500'}`}>{EQUIPMENT_TYPE_LABELS[item.type]}</span>
                       {item.assignedToUserName && (
-                        <span className="text-xs text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                        <span className={`text-xs ${isDark ? 'text-blue-300' : 'text-blue-700'} bg-blue-500/10 px-2 py-0.5 rounded-full`}>
                           👤 {item.assignedToUserName}
                         </span>
                       )}
                       {item.soldToUserName && (
-                        <span className="text-xs text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                        <span className={`text-xs ${isDark ? 'text-purple-300' : 'text-purple-700'} bg-purple-500/10 px-2 py-0.5 rounded-full`}>
                           💰 {item.soldToUserName}
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 ml-3">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${cfg.bg} ${cfg.color}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${cfg.bg} ${isDark ? cfg.color : cfg.color.replace('400', '700')}`}>
                       {cfg.label}
                     </span>
                     {item.purchasePrice && (
@@ -655,9 +657,9 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
             <p className="text-lg font-black mb-2">Delete Equipment?</p>
             <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-sm mb-6`}>This action cannot be undone.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className={`flex-1 py-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-2xl font-bold text-sm`}>Cancel</button>
+              <button onClick={() => setConfirmDelete(null)} className={`flex-1 py-3 rounded-2xl border font-bold text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'}`}>Cancel</button>
               <button onClick={() => { onDelete(confirmDelete); setConfirmDelete(null); setView('list'); showToast('Deleted!'); }}
-                className={`flex-1 py-3 bg-red-600 rounded-2xl font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>Delete</button>
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-sm">Delete</button>
             </div>
           </div>
         </div>
@@ -666,7 +668,7 @@ const EquipmentTracker: React.FC<Props> = ({ equipment, users, settings, onAdd, 
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-          <div className={`bg-emerald-600 ${isDark ? 'text-white' : 'text-slate-900'} px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold`}>{toast}</div>
+          <div className="bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold">{toast}</div>
         </div>
       )}
     </div>

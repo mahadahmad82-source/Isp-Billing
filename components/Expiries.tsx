@@ -228,7 +228,7 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
             <button 
               disabled={!!loadingId || isProcessingPriority || isProcessingUpcoming}
               onClick={() => handleSendMessage(user, 'whatsapp')}
-              className={`flex-1 ${reminded ? 'bg-emerald-50 text-emerald-300 dark:bg-emerald-500/5 dark:text-emerald-900' : 'bg-green-600 text-white shadow-lg shadow-green-100 dark:shadow-none'} py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50`}
+              className={`flex-1 ${reminded ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/5 dark:text-emerald-300' : 'bg-green-600 text-white shadow-lg shadow-green-100 dark:shadow-none'} py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50`}
             >
               {loadingId === `${user.id}-whatsapp` ? (
                 <span className="animate-pulse">Loading...</span>

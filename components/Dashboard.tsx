@@ -415,14 +415,14 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       </div>
 
       {/* ── Analytics Chart ── */}
-      <div className="bg-[#0b1120] border border-white/5 rounded-[2.5rem] p-8 shadow-xl">
+      <div className="bg-white dark:bg-[#0b1120] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-xl">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h3 className="text-xl font-black text-white uppercase tracking-tight">Revenue Analytics</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Revenue Analytics</h3>
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Last 6 Months Collection</p>
           </div>
           <button onClick={() => setActiveTab('analytics')}
-            className="text-[10px] bg-white/5 text-slate-400 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-white/5">
+            className="text-[10px] bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-slate-200 dark:border-white/5">
             Full Analytics
           </button>
         </div>
@@ -435,18 +435,18 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
           </BarChart>
         </ResponsiveContainer>
         {/* Monthly summary row */}
-        <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/5">
+        <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-200 dark:border-white/5">
           <div className="text-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">This Month</p>
-            <p className="text-lg font-black text-indigo-400">Rs. {(monthlyRecovered || 0).toLocaleString()}</p>
+            <p className="text-lg font-black text-indigo-700 dark:text-indigo-400">Rs. {(monthlyRecovered || 0).toLocaleString()}</p>
           </div>
-          <div className="text-center border-x border-white/5">
+          <div className="text-center border-x border-slate-200 dark:border-white/5">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Today</p>
-            <p className="text-lg font-black text-emerald-400">Rs. {(todayCollection || 0).toLocaleString()}</p>
+            <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">Rs. {(todayCollection || 0).toLocaleString()}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pending</p>
-            <p className="text-lg font-black text-rose-400">Rs. {(monthlyPending || 0).toLocaleString()}</p>
+            <p className="text-lg font-black text-rose-700 dark:text-rose-400">Rs. {(monthlyPending || 0).toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -513,17 +513,17 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       {(activeModal === 'TODAY_EXPIRY' || activeModal === 'TODAY_EXPIRED') && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
-          <div className="bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-white/5 relative z-10 flex flex-col max-h-[85vh]">
-            <div className={`p-6 border-b border-white/5 flex justify-between items-center ${activeModal === 'TODAY_EXPIRY' ? 'bg-amber-500/5' : 'bg-rose-500/5'}`}>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/5 relative z-10 flex flex-col max-h-[85vh]">
+            <div className={`p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center ${activeModal === 'TODAY_EXPIRY' ? 'bg-amber-50 dark:bg-amber-500/5' : 'bg-rose-50 dark:bg-rose-500/5'}`}>
               <div>
-                <h4 className="text-xl font-black text-white uppercase tracking-tight">
+                <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
                   {activeModal === 'TODAY_EXPIRY' ? 'Today Expiry' : 'Today Expired'}
                 </h4>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${activeModal === 'TODAY_EXPIRY' ? 'text-amber-400' : 'text-rose-400'}`}>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${activeModal === 'TODAY_EXPIRY' ? 'text-amber-700 dark:text-amber-400' : 'text-rose-700 dark:text-rose-400'}`}>
                   {activeModal === 'TODAY_EXPIRY' ? 'Last Active Day' : 'Expired Today'}
                 </p>
               </div>
-              <button onClick={() => setActiveModal(null)} className="p-3 bg-white/10 rounded-2xl text-white font-bold">✕</button>
+              <button onClick={() => setActiveModal(null)} className="p-3 bg-slate-100 dark:bg-white/10 rounded-2xl text-slate-600 dark:text-white font-bold">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
               {(activeModal === 'TODAY_EXPIRY' ? todayExpiringUsers : todayExpiredUsers).map(u => (

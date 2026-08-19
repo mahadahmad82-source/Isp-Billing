@@ -990,14 +990,14 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
 
         {/* Data & Backup */}
-        <div className="bg-[#0f172a] p-12 rounded-[3.5rem] border border-white/5 shadow-2xl space-y-10 text-white relative overflow-hidden group">
+        <div className="bg-white dark:bg-[#0f172a] p-12 rounded-[3.5rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-10 text-slate-900 dark:text-white relative overflow-hidden group">
           <div className="flex items-start gap-8 relative z-10">
-            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center border border-white/5 shadow-2xl">
-              <svg className="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+            <div className="w-20 h-20 bg-indigo-50 dark:bg-slate-800/50 rounded-3xl flex items-center justify-center border border-indigo-100 dark:border-white/5 shadow-2xl">
+              <svg className="w-10 h-10 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
             </div>
             <div className="flex-1">
-              <h4 className="text-3xl font-black tracking-tight mb-4 uppercase leading-none text-white">Data Management & Backup</h4>
-              <p className="text-sm font-bold text-slate-400 leading-relaxed max-w-xl">
+              <h4 className="text-3xl font-black tracking-tight mb-4 uppercase leading-none text-slate-900 dark:text-white">Data Management & Backup</h4>
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
                 Download your entire database as an Excel file for backup. You can restore this file on any device to recover all your subscribers, receipts, and configurations.
               </p>
             </div>
@@ -1007,22 +1007,22 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             <button onClick={handleBackupDataJSON} className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-white/5 shadow-2xl">
               DOWNLOAD FULL SYSTEM BACKUP (.JSON)
             </button>
-            <button onClick={() => restoreJsonInputRef.current?.click()} className="w-full py-6 bg-slate-800/40 hover:bg-slate-800/60 text-slate-300 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-white/5 shadow-2xl">
+            <button onClick={() => restoreJsonInputRef.current?.click()} className="w-full py-6 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-slate-200 dark:border-white/5 shadow-2xl">
               RESTORE FROM JSON FILE
             </button>
             <div className="flex gap-4">
-              <button onClick={handleBackupDataExcel} className="flex-1 py-4 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-white/5">
+              <button onClick={handleBackupDataExcel} className="flex-1 py-4 bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-700 dark:text-emerald-400 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-emerald-100 dark:border-white/5">
                 EXPORT TO EXCEL
               </button>
-              <button onClick={() => restoreFileInputRef.current?.click()} className="flex-1 py-4 bg-slate-800/40 hover:bg-slate-800/60 text-slate-400 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-white/5">
+              <button onClick={() => restoreFileInputRef.current?.click()} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-slate-200 dark:border-white/5">
                 IMPORT EXCEL
               </button>
             </div>
             <input type="file" ref={restoreFileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleRestoreFromExcel} />
             <input type="file" ref={restoreJsonInputRef} className="hidden" accept=".json" onChange={handleRestoreFromJSON} />
           </div>
-          <div className="pt-8 border-t border-white/5 flex flex-col items-center gap-4 relative z-10">
-            <button onClick={onWipeData} className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 hover:text-white transition-colors">
+          <div className="pt-8 border-t border-slate-200 dark:border-white/5 flex flex-col items-center gap-4 relative z-10">
+            <button onClick={onWipeData} className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.15em] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
               SYSTEM FACTORY RESET (WIPE LOCAL)
             </button>
@@ -1190,7 +1190,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         </div>
 
         {/* Tour Guide */}
-        <div className="bg-white/5 dark:bg-white/5 bg-slate-50 border border-white/10 dark:border-white/10 border-slate-200 rounded-[2.5rem] p-6 mb-4">
+        <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 mb-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-xl">🎓</div>
             <div>
@@ -1215,7 +1215,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         </div>
 
         {/* Mikrotik Integration */}
-        <div className="bg-white/5 dark:bg-white/5 bg-slate-50 border border-white/10 dark:border-white/10 border-slate-200 rounded-[2.5rem] p-6 mb-4">
+        <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 mb-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-orange-500/20 rounded-2xl flex items-center justify-center text-xl">🔧</div>
             <div>
@@ -1228,24 +1228,24 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               <div className="col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Router IP</label>
                 <input value={mikrotikHost} onChange={e=>setMikrotikHost(e.target.value)} placeholder="192.168.1.1"
-                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Port</label>
                 <input value={mikrotikPort} onChange={e=>setMikrotikPort(e.target.value)} placeholder="8728"
-                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Username</label>
                 <input value={mikrotikUser} onChange={e=>setMikrotikUser(e.target.value)} placeholder="admin"
-                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Password</label>
                 <input type="password" value={mikrotikPass} onChange={e=>setMikrotikPass(e.target.value)} placeholder="••••••"
-                  className="w-full bg-white/5 dark:bg-white/5 bg-white border border-white/10 dark:border-white/10 border-slate-200 rounded-xl px-3 py-2 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
               </div>
             </div>
             <div className="flex gap-2">
@@ -1257,7 +1257,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   });
                   setMikrotikStatus(r.ok ? 'ok' : 'fail');
                 } catch { setMikrotikStatus('fail'); }
-              }} className="flex-1 py-2.5 rounded-xl text-xs font-black border border-white/10 dark:text-white text-slate-700 transition-all hover:bg-white/5">
+              }} className="flex-1 py-2.5 rounded-xl text-xs font-black border border-slate-200 dark:border-white/10 dark:text-white text-slate-700 transition-all hover:bg-slate-100 dark:hover:bg-white/5">
                 {mikrotikStatus === 'testing' ? '...' : mikrotikStatus === 'ok' ? '✅ Connected' : mikrotikStatus === 'fail' ? '❌ Failed' : '🔌 Test Connection'}
               </button>
               <button onClick={async () => {
@@ -1270,7 +1270,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   setModalStatus({ title: 'Mikrotik', message: `${secrets?.length || 0} PPP secrets found. Full sync coming soon.`, type: 'info' });
                 } catch { setModalStatus({ title: 'Error', message: 'Could not reach router. Make sure app is on same network.', type: 'error' }); }
                 setMikrotikSyncing(false);
-              }} className="flex-1 py-2.5 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-xl text-xs font-black transition-all hover:bg-orange-500/30">
+              }} className="flex-1 py-2.5 bg-orange-50 dark:bg-orange-500/20 border border-orange-200 dark:border-orange-500/30 text-orange-700 dark:text-orange-400 rounded-xl text-xs font-black transition-all hover:bg-orange-100 dark:hover:bg-orange-500/30">
                 {mikrotikSyncing ? '⏳ Syncing...' : '🔄 Sync Users'}
               </button>
             </div>

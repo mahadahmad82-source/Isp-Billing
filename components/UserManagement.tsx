@@ -698,7 +698,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
 
           {!readOnly && isCurrentMonth && (
-            <div className="rounded-2xl bg-white/5 dark:bg-white/3 backdrop-blur-xl border border-white/8 dark:border-white/5 p-2 shadow-xl overflow-x-auto custom-scrollbar">
+            <div className="rounded-2xl bg-white dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-white/5 p-2 shadow-xl overflow-x-auto custom-scrollbar">
               <div className="flex gap-2 min-w-max">
                 {/* New Customer */}
                 <button
@@ -1023,7 +1023,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <td className="px-6 py-6">
                               <div className="flex items-center justify-center gap-1.5 flex-nowrap min-w-max">
                                 {/* Clear Balance */}
-                                <button onClick={() => handleClearBalance(user)} title="Clear Balance" className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-400 hover:text-white hover:bg-indigo-600 border border-slate-200 dark:border-white/10 transition-all">CLR</button>
+                                <button onClick={() => handleClearBalance(user)} title="Clear Balance" className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-600 dark:text-slate-400 hover:text-white hover:bg-indigo-600 border border-slate-200 dark:border-white/10 transition-all">CLR</button>
 
                                 {/* SMS */}
                                 <button onClick={() => handleSendReminder(user, 'sms')} title="SMS Reminder" className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 transition-all">
