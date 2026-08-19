@@ -1568,7 +1568,7 @@ const App: React.FC = () => {
             receipts={filteredReceipts}
             settings={currentSettings}
             canLogReceipts={canLogReceipts}
-            readOnly={isRealAuthSubManager}
+            readOnly={false /* Phase 1 leftover removed — attendance (agent_log_attendance RPC) and receipts (agent-issue-receipt) both now have secure, server-verified write paths for real-auth sub-managers */}
             attendanceLogs={state.attendanceLogs || []}
             onLogout={handleLogout}
             onAddAttendanceLog={isRealAuthSubManager ? ((log: any) => {
