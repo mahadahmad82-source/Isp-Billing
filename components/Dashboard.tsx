@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { UserRecord, Receipt, PaymentStatus, AppSettings } from '../types';
+import { UserRecord, Receipt, PaymentStatus, AppSettings, BusinessExpense } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -9,6 +9,7 @@ interface DashboardProps {
   users: UserRecord[];
   receipts: Receipt[];
   settings: AppSettings;
+  businessExpenses?: BusinessExpense[];
   onDeleteReceipt: (id: string) => void;
   setActiveTab: (tab: string) => void;
   onSetUserFilter?: (filter: 'all' | 'current_month') => void;
@@ -35,10 +36,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false, onUpdateUser }) => {
+const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, businessExpenses = [], onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false, onUpdateUser }) => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
+  const [showProfit, setShowProfit] = useState(false);
   const [hideReminder, setHideReminder] = useState(() => {
     return sessionStorage.getItem('dismissedReminderHub') === 'true';
   });
@@ -75,6 +77,24 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
 
   const currentMonthString = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const monthlyRecovered = calcMonthlyRevenue(receipts || [], currentMonthString);
+
+  const monthlyProfit = useMemo(() => {
+    const periodReceipts = (receipts || []).filter(r => r.period === currentMonthString);
+    const revenue = periodReceipts
+      .filter(r => r.status === PaymentStatus.SUCCESS)
+      .reduce((sum, r) => sum + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
+    const companyPrice = (users || []).reduce((sum, u) => {
+      if (u.status === 'deleted') return sum;
+      const activeInPeriod = (u.activatedMonths || []).includes(currentMonthString) ||
+        periodReceipts.some(r => r.userId === u.id || r.username === u.username);
+      return activeInPeriod ? sum + (Number(settings.planCompanyPrices?.[u.plan]) || 0) : sum;
+    }, 0);
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const expenses = businessExpenses
+      .filter(expense => expense.date?.startsWith(monthKey))
+      .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+    return revenue - expenses - companyPrice;
+  }, [businessExpenses, currentMonthString, receipts, settings, users]);
 
   const todayStr = new Date().toDateString();
   const todayCollection = (receipts || [])
@@ -155,14 +175,21 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       id: 'RECOVERED', label: 'Total Revenue',
       value: showRevenue ? `Rs. ${totalRevenue.toLocaleString()}` : 'Rs. ••••••',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.67 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.67-1M12 16c-1.657 0-3-.895-3-2s1.343-2 3-2 3 .895 3 2-1.343 2-3 2"></path></svg>,
-      gradient: 'from-emerald-600 to-teal-600', color: 'text-emerald-500 bg-emerald-500/10', isMasked: true, isVisible: showRevenue,
+      gradient: 'from-blue-600 to-indigo-700', color: 'text-blue-500 bg-blue-500/10', isMasked: true, isVisible: showRevenue,
       onToggle: () => setShowRevenue(!showRevenue), onViewDetails: () => setActiveTab('receipts'), footerLabel: 'Operational Stat'
+    },
+    {
+      id: 'PROFIT', label: 'Net Profit (This Month)',
+      value: showProfit ? `Rs. ${Math.abs(monthlyProfit).toLocaleString()}` : 'Rs. ••••••',
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v18m-4-4 4 4 4-4M5 7h14"></path></svg>,
+      gradient: monthlyProfit >= 0 ? 'from-emerald-600 to-teal-700' : 'from-rose-600 to-red-700', color: monthlyProfit >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10', isMasked: true, isVisible: showProfit,
+      onToggle: () => setShowProfit(!showProfit), onViewDetails: () => setActiveTab('analytics'), footerLabel: monthlyProfit >= 0 ? 'Healthy Margin' : 'Needs Attention'
     },
     {
       id: 'BALANCE', label: 'Outstanding Balance',
       value: showBalance ? `Rs. ${(totalBalance || 0).toLocaleString()}` : 'Rs. ••••••',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>,
-      gradient: 'from-rose-600 to-pink-700', color: 'text-rose-500 bg-rose-500/10', isMasked: true, isVisible: showBalance,
+      gradient: 'from-amber-500 to-orange-700', color: 'text-amber-500 bg-amber-500/10', isMasked: true, isVisible: showBalance,
       onToggle: () => setShowBalance(!showBalance), onViewDetails: () => setActiveModal('BALANCE'), footerLabel: 'Operational Stat'
     },
     {
@@ -175,21 +202,21 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
     {
       id: 'CUSTOMERS', label: 'Active Customers', value: activeUsersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>,
-      gradient: 'from-blue-600 to-indigo-700', color: 'text-blue-500 bg-blue-500/10', isMasked: false,
+      gradient: 'from-sky-500 to-cyan-700', color: 'text-sky-500 bg-sky-500/10', isMasked: false,
       onToggle: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'),
       onViewDetails: () => onSetUserFilter ? onSetUserFilter('current_month') : setActiveTab('users'), footerLabel: 'Active Subscribers'
     },
     {
       id: 'EXPIRED', label: 'Expired Customers', value: expiredUsersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>,
-      gradient: 'from-orange-600 to-red-700', color: 'text-rose-500 bg-rose-500/10', isMasked: false,
+      gradient: 'from-rose-600 to-red-800', color: 'text-rose-500 bg-rose-500/10', isMasked: false,
       onToggle: () => onSetExpiredFilter ? onSetExpiredFilter() : setActiveTab('users'),
       onViewDetails: () => onSetExpiredFilter ? onSetExpiredFilter() : setActiveTab('users'), footerLabel: 'Inactive / Not Renewed'
     },
     {
       id: 'ALERTS', label: '3-Day Alerts', value: pendingRemindersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>,
-      gradient: 'from-orange-500 to-rose-600', color: 'text-orange-500 bg-orange-500/10', isMasked: false,
+      gradient: 'from-fuchsia-500 to-pink-700', color: 'text-fuchsia-500 bg-fuchsia-500/10', isMasked: false,
       onToggle: () => setActiveTab('expiries'), onViewDetails: () => setActiveTab('expiries'), footerLabel: 'Expiry Alerts'
     },
   ];
@@ -415,7 +442,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
       </div>
 
       {/* ── Analytics Chart ── */}
-      <div className="bg-white dark:bg-[#0b1120] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-xl">
+      <div className="chart-surface bg-white dark:bg-[#0b1120] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-xl">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Revenue Analytics</h3>
@@ -431,7 +458,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, onDele
             <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 700, fill: "#64748b" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.08)' }} />
-            <Bar dataKey="Revenue" radius={[8,8,0,0]} fill="#6366f1" />
+            <Bar dataKey="Revenue" radius={[8,8,0,0]} fill="#6366f1" isAnimationActive animationDuration={900} animationEasing="ease-out" />
           </BarChart>
         </ResponsiveContainer>
         {/* Monthly summary row */}
