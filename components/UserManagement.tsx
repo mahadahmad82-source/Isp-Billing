@@ -5,7 +5,7 @@ import { UserRecord, AppSettings, Receipt, PaymentStatus, CONNECTION_TYPES } fro
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
-import { CheckIcon, DotIcon } from './icons/UiIcons';
+import { CheckIcon, DotIcon, PhoneIcon } from './icons/UiIcons';
 import * as XLSX from 'xlsx';
 
 interface UserManagementProps {
@@ -1038,6 +1038,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   </svg>
                                 </button>
 
+                                {/* Call Customer */}
+                                <button onClick={() => { window.location.href = `tel:${user.phone}`; }} title="Call Customer" aria-label={`Call ${user.name}`} className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-all">
+                                  <PhoneIcon className="w-4 h-4" />
+                                </button>
                                 {/* Ledger */}
                                 <button onClick={() => setViewingLedgerUser(user)} title="View Ledger" className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-white transition-all">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
