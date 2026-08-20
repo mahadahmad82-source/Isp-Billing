@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserRecord, Receipt, AppSettings, PaymentStatus } from '../types';
+import { UserRecord, Receipt, BusinessExpense, AppSettings, PaymentStatus } from '../types';
+import { BarChartIcon, BulbIcon } from './icons/UiIcons';
 import { analyzeTrends } from '../services/geminiService';
 
 interface InsightsProps {
   users: UserRecord[];
   receipts: Receipt[];
   settings?: AppSettings;
+  expenses?: BusinessExpense[];
 }
 
-const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
+const Insights: React.FC<InsightsProps> = ({ users, receipts, settings, expenses = [] }) => {
   const [insight, setInsight] = useState('Generating strategic insights...');
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -42,7 +44,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    const monthlyData = months.map(month => {
+    const monthlyData = months.map((month, monthIndex) => {
       // Strict match: receipt must be SUCCESS AND period must match this month+year exactly
       // This ensures Past Records use ONLY their stored paidAmount — no phantom recalculation
       const filtered = (receipts || []).filter(r => {
@@ -63,6 +65,8 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
       const collected = filtered.reduce((sum, r) =>
         sum + (typeof r.paidAmount === 'number' ? r.paidAmount : 0), 0);
       const count = filtered.length;
+      const monthKey = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}`;
+      const expenseAmount = (expenses || []).filter(e => e.date?.startsWith(monthKey)).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
       // Total company price (wholesale cost) for users active this month.
       // Matches the monthly recovery ledger: user counts if activated for the
@@ -81,7 +85,9 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
         month,
         collected,
         count,
-        companyPrice
+        companyPrice,
+        expenses: expenseAmount,
+        profit: collected - companyPrice - expenseAmount
       };
     });
 
@@ -89,14 +95,20 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
     // This matches Dashboard's calcTotalRevenue for the selected year
     const avgMonthly = totalAnnual / (new Date().getFullYear() === selectedYear ? (new Date().getMonth() + 1) : 12);
     const peakMonth = [...monthlyData].sort((a, b) => b.collected - a.collected)[0];
+    const totalCompanyPrice = monthlyData.reduce((sum, m) => sum + m.companyPrice, 0);
+    const totalExpenses = monthlyData.reduce((sum, m) => sum + m.expenses, 0);
+    const netProfit = totalAnnual - totalCompanyPrice - totalExpenses;
 
     return {
       monthlyData,
       totalAnnual,
       avgMonthly,
-      peakMonth
+      peakMonth,
+      totalCompanyPrice,
+      totalExpenses,
+      netProfit
     };
-  }, [receipts, selectedYear, users, settings]);
+  }, [receipts, expenses, selectedYear, users, settings]);
 
   return (
     <div className="space-y-6 md:space-y-10 pb-24 animate-in fade-in duration-700">
@@ -114,7 +126,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
           </div>
           <div className="w-full md:w-auto bg-white/10 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-[2rem] shadow-2xl">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg">🤖</div>
+              <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg"><BulbIcon className="w-6 h-6 text-white" /></div>
               <div>
                 <p className="font-black text-sm uppercase tracking-tight text-white">Financial AI</p>
                 <p className="text-[9px] font-black text-white opacity-80 uppercase tracking-widest">Real-time Analysis</p>
@@ -159,7 +171,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
         </div>
 
         {/* Top Analytics Cards - Mobile Stack */}
-        <div className="p-6 md:p-10 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
+        <div className="p-6 md:p-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
            <div className="bg-slate-50 dark:bg-[#030712] p-6 md:p-8 rounded-[2rem] border border-slate-100 dark:border-white/5">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Gross Annual Revenue</p>
               <p className="text-3xl md:text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter">Rs. {yearlyReport.totalAnnual.toLocaleString()}</p>
@@ -176,10 +188,15 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
                  <span className="text-[8px] font-black uppercase tracking-widest italic">Growth Factor</span>
               </div>
            </div>
-           <div className="bg-slate-800 dark:bg-indigo-600 p-6 md:p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-500/10">
-              <p className="text-[9px] font-black text-white/60 uppercase tracking-widest mb-1">Peak Collection</p>
+           <div className="bg-emerald-600 dark:bg-emerald-500 p-6 md:p-8 rounded-[2rem] text-white shadow-xl shadow-emerald-500/10">
+              <p className="text-[9px] font-black text-white/70 uppercase tracking-widest mb-1">Net Profit</p>
+              <p className="text-3xl md:text-4xl font-black tracking-tighter">Rs. {yearlyReport.netProfit.toLocaleString()}</p>
+              <p className="text-[9px] font-black mt-2 text-white/70 uppercase tracking-widest">Revenue − cost − expenses</p>
+           </div>
+           <div className="bg-indigo-600 dark:bg-indigo-500 p-6 md:p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-500/10">
+              <p className="text-[9px] font-black text-white/70 uppercase tracking-widest mb-1">Peak Collection</p>
               <p className="text-3xl md:text-4xl font-black tracking-tighter uppercase">{yearlyReport.peakMonth.month}</p>
-              <p className="text-xs font-black mt-1 opacity-90">Rs. {yearlyReport.peakMonth.collected.toLocaleString()}</p>
+              <p className="text-xs font-black mt-1 text-white/90">Rs. {yearlyReport.peakMonth.collected.toLocaleString()}</p>
            </div>
         </div>
 
@@ -232,7 +249,7 @@ const Insights: React.FC<InsightsProps> = ({ users, receipts, settings }) => {
       <div className="max-w-xl mx-auto w-full">
         <div className="bg-white dark:bg-[#0f172a] p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl flex flex-col items-center">
           <h4 className="w-full text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
-            <span className="w-8 h-8 bg-purple-500/10 text-purple-500 rounded-lg flex items-center justify-center text-sm">🛡️</span> Recovery Status
+            <span className="w-8 h-8 bg-purple-500/10 text-purple-500 rounded-lg flex items-center justify-center"><BarChartIcon className="w-4 h-4" /></span> Recovery Status
           </h4>
           <div className="relative w-40 h-40">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
