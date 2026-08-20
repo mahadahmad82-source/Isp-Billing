@@ -1793,7 +1793,7 @@ const App: React.FC = () => {
               onClearLogs={() => setState(prev => ({ ...prev, systemLogs: [] }))}
             />
           )}
-          {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} />}
+          {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} expenses={state.businessExpenses || []} settings={currentSettings} />}
           {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
           {!tabLoading && activeTab === 'complaints' && userRole !== 'sub-manager' && (
