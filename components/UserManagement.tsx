@@ -5,6 +5,7 @@ import { UserRecord, AppSettings, Receipt, PaymentStatus, CONNECTION_TYPES } fro
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
+import { CheckIcon, DotIcon } from './icons/UiIcons';
 import * as XLSX from 'xlsx';
 
 interface UserManagementProps {
@@ -987,10 +988,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                               return (
                                 <div className="flex flex-col items-center gap-1">
                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${hasReceipt ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'}`}>
-                                    {hasReceipt ? '✓ Paid' : '⏳ Pending'}
+                                    <span className="inline-flex items-center gap-1"><>{hasReceipt ? <CheckIcon className="w-3 h-3" /> : <DotIcon color="orange" />}</>{hasReceipt ? 'Paid' : 'Pending'}</span>
                                   </span>
                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${!isExpired ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400' : 'bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-500'}`}>
-                                    {!isExpired ? '🟢 Active' : '🔴 Expired'}
+                                    <span className="inline-flex items-center gap-1"><DotIcon color={!isExpired ? 'green' : 'red'} />{!isExpired ? 'Active' : 'Expired'}</span>
                                   </span>
                                 </div>
                               );
@@ -1026,7 +1027,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 <button onClick={() => handleClearBalance(user)} title="Clear Balance" className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-600 dark:text-slate-400 hover:text-white hover:bg-indigo-600 border border-slate-200 dark:border-white/10 transition-all">CLR</button>
 
                                 {/* SMS */}
-                                <button onClick={() => handleSendReminder(user, 'sms')} title="SMS Reminder" className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 transition-all">
+                                <button onClick={() => handleSendReminder(user, 'sms')} title="SMS Reminder" className="p-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                                 </button>
 
