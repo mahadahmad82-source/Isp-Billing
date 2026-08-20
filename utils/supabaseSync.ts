@@ -176,16 +176,30 @@ export const loadStateFromSupabase = async (managerId: string): Promise<AppState
     // A real-auth sub-manager must never depend on a client-side managerId
     // guess or on direct RLS visibility of manager_data. Resolve the caller's
     // own parent mapping server-side and return only that parent's state.
-    if (isRealAuthSubManagerSession()) {
+    //
+    // Deliberately NOT gated on isRealAuthSubManagerSession() (a local flag
+    // read from localStorage) — that flag can be true/false out of sync with
+    // reality across devices/browsers/timing, and when it's wrong this whole
+    // scoped path silently gets skipped with no error, producing an empty
+    // dataset. auth.uid() on the server is the only authoritative source of
+    // "is this actually a sub-manager". So: if a Supabase session exists at
+    // all, always ask the server first. For a real manager session this
+    // costs one cheap 403 (caller.role !== 'sub-manager') before falling
+    // through to the normal path below — negligible.
+    try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
         const response = await fetch('/api/admin-maintenance?action=resolve-sub-manager-state', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        const payload = await response.json().catch(() => ({}));
-        if (response.ok && payload?.state) return payload.state as AppState;
-        if (response.status >= 500) console.warn('[Supabase] Scoped sub-manager state resolver failed:', payload?.error);
+        if (response.status !== 403) {
+          const payload = await response.json().catch(() => ({}));
+          if (response.ok && payload?.state) return payload.state as AppState;
+          if (response.status >= 500) console.warn('[Supabase] Scoped sub-manager state resolver failed:', payload?.error);
+        }
       }
+    } catch (e) {
+      console.warn('[Supabase] Scoped sub-manager state resolver threw:', e);
     }
 
     const { data, error } = await supabase
