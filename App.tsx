@@ -313,21 +313,53 @@ const App: React.FC = () => {
   const [lastSavedTime, setLastSavedTime] = useState<string>(new Date().toLocaleTimeString());
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
-  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, string>>({});
+  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, {
+    dutyStatus: 'online' | 'offline';
+    lastCheckIn?: string;
+    lastCheckOut?: string;
+  }>>({});
   useEffect(() => {
     if (userRole === 'sub-manager' || !activeManager) return;
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (!session?.access_token) return;
-      fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then(r => r.ok ? r.json() : null).then(rows => {
-        if (!Array.isArray(rows)) return;
-        const map: Record<string, string> = {};
-        rows.forEach((r: any) => { if (r.username) map[r.username] = r.duty_status; });
+    let cancelled = false;
+
+    const loadLiveTeamStatus = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token || cancelled) return;
+        const response = await fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => null);
+        const rows = Array.isArray(payload) ? payload : (Array.isArray(payload?.accounts) ? payload.accounts : []);
+        if (cancelled) return;
+        const map: Record<string, { dutyStatus: 'online' | 'offline'; lastCheckIn?: string; lastCheckOut?: string }> = {};
+        rows.forEach((r: any) => {
+          if (!r.username) return;
+          map[r.username] = {
+            dutyStatus: r.duty_status === 'online' ? 'online' : 'offline',
+            lastCheckIn: r.last_check_in || undefined,
+            lastCheckOut: r.last_check_out || undefined,
+          };
+        });
         setLiveTeamStatus(map);
-      }).catch(() => {});
-    });
-  }, [activeManager, userRole, activeTab]);
+      } catch {
+        // Keep the last known status when a polling request temporarily fails.
+      }
+    };
+
+    void loadLiveTeamStatus();
+    const interval = window.setInterval(() => { void loadLiveTeamStatus(); }, 30000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadLiveTeamStatus();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [activeManager, userRole]);
   const [liveDutyStatus, setLiveDutyStatus] = useState<'online' | 'offline' | null>(null);
   useEffect(() => {
     if (userRole !== 'sub-manager' || !activeManager) return;
@@ -1598,6 +1630,7 @@ const App: React.FC = () => {
             settings={currentSettings}
             canLogReceipts={canLogReceipts}
             readOnly={false /* Phase 1 leftover removed — attendance (agent_log_attendance RPC) and receipts (agent-issue-receipt) both now have secure, server-verified write paths for real-auth sub-managers */}
+            liveDutyStatus={isRealAuthSubManager ? liveDutyStatus : null}
             attendanceLogs={state.attendanceLogs || []}
             onLogout={handleLogout}
             onAddAttendanceLog={isRealAuthSubManager ? ((log: any) => {
@@ -2117,7 +2150,16 @@ const App: React.FC = () => {
           )}
           {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (
             <SubManagerManagement 
-              subManagers={(state.subManagers || []).map(sm => liveTeamStatus[sm.username] ? { ...sm, dutyStatus: liveTeamStatus[sm.username] as any } : sm)}
+              subManagers={(state.subManagers || []).map(sm => {
+                const live = liveTeamStatus[sm.username];
+                if (!live) return sm;
+                return {
+                  ...sm,
+                  dutyStatus: live.dutyStatus,
+                  lastCheckIn: live.lastCheckIn || sm.lastCheckIn,
+                  lastCheckOut: live.lastCheckOut || sm.lastCheckOut,
+                };
+              })}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
               managerId={activeManager || ''}
               areas={currentSettings.areas || []}
