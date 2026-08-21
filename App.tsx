@@ -77,29 +77,6 @@ const App: React.FC = () => {
   // copy of dutyStatus is never touched by that RPC and goes stale the moment
   // someone checks in/out, which was silently keeping the receipt button
   // disabled forever. This tracks the real value client-side instead.
-  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (userRole === 'sub-manager' || !activeManager) return;
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (!session?.access_token) return;
-      fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then(r => r.ok ? r.json() : null).then(rows => {
-        if (!Array.isArray(rows)) return;
-        const map: Record<string, string> = {};
-        rows.forEach((r: any) => { if (r.username) map[r.username] = r.duty_status; });
-        setLiveTeamStatus(map);
-      }).catch(() => {});
-    });
-  }, [activeManager, userRole, activeTab]);
-  const [liveDutyStatus, setLiveDutyStatus] = useState<'online' | 'offline' | null>(null);
-  useEffect(() => {
-    if (userRole !== 'sub-manager' || !activeManager) return;
-    const account = getAccounts().find(a => a.username === activeManager);
-    if (!account?.authUserId) return;
-    supabase.rpc('agent_is_checked_in', { p_auth_uid: account.authUserId })
-      .then(({ data, error }: any) => { if (!error) setLiveDutyStatus(data ? 'online' : 'offline'); });
-  }, [activeManager, userRole]);
   const [state, setState] = useState<AppState>(() => {
     const loaded = loadState(activeManager);
     const initialState = { 
@@ -336,6 +313,29 @@ const App: React.FC = () => {
   const [lastSavedTime, setLastSavedTime] = useState<string>(new Date().toLocaleTimeString());
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
+  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (userRole === 'sub-manager' || !activeManager) return;
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (!session?.access_token) return;
+      fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).then(r => r.ok ? r.json() : null).then(rows => {
+        if (!Array.isArray(rows)) return;
+        const map: Record<string, string> = {};
+        rows.forEach((r: any) => { if (r.username) map[r.username] = r.duty_status; });
+        setLiveTeamStatus(map);
+      }).catch(() => {});
+    });
+  }, [activeManager, userRole, activeTab]);
+  const [liveDutyStatus, setLiveDutyStatus] = useState<'online' | 'offline' | null>(null);
+  useEffect(() => {
+    if (userRole !== 'sub-manager' || !activeManager) return;
+    const account = getAccounts().find(a => a.username === activeManager);
+    if (!account?.authUserId) return;
+    supabase.rpc('agent_is_checked_in', { p_auth_uid: account.authUserId })
+      .then(({ data, error }: any) => { if (!error) setLiveDutyStatus(data ? 'online' : 'offline'); });
+  }, [activeManager, userRole]);
   const [agentArea, setAgentArea] = useState<string | undefined>(undefined);
   const subscription = useSubscription(activeManager);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
