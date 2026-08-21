@@ -77,6 +77,21 @@ const App: React.FC = () => {
   // copy of dutyStatus is never touched by that RPC and goes stale the moment
   // someone checks in/out, which was silently keeping the receipt button
   // disabled forever. This tracks the real value client-side instead.
+  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (userRole === 'sub-manager' || !activeManager) return;
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (!session?.access_token) return;
+      fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).then(r => r.ok ? r.json() : null).then(rows => {
+        if (!Array.isArray(rows)) return;
+        const map: Record<string, string> = {};
+        rows.forEach((r: any) => { if (r.username) map[r.username] = r.duty_status; });
+        setLiveTeamStatus(map);
+      }).catch(() => {});
+    });
+  }, [activeManager, userRole, activeTab]);
   const [liveDutyStatus, setLiveDutyStatus] = useState<'online' | 'offline' | null>(null);
   useEffect(() => {
     if (userRole !== 'sub-manager' || !activeManager) return;
@@ -1493,22 +1508,6 @@ const App: React.FC = () => {
       </ErrorBoundary>
     );
   }
-
-  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (userRole === 'sub-manager' || !activeManager) return;
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (!session?.access_token) return;
-      fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then(r => r.ok ? r.json() : null).then(rows => {
-        if (!Array.isArray(rows)) return;
-        const map: Record<string, string> = {};
-        rows.forEach((r: any) => { if (r.username) map[r.username] = r.duty_status; });
-        setLiveTeamStatus(map);
-      }).catch(() => {});
-    });
-  }, [activeManager, userRole, activeTab]);
 
   if (userRole === 'sub-manager') {
     // Feature A — Access Rights: this is the ACTUAL render path real field agents use
