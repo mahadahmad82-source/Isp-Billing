@@ -60,6 +60,8 @@ export default async function handler(req: any, res: any) {
       return handleCreateSubManagerAuth(req, res);
     case 'reset-sub-manager-auth-password':
       return handleResetSubManagerAuthPassword(req, res);
+    case 'revoke-sub-manager-auth':
+      return handleRevokeSubManagerAuth(req, res);
     case 'resolve-sub-manager-session':
       return handleResolveSubManagerSession(req, res);
     case 'resolve-sub-manager-state':
@@ -161,6 +163,50 @@ async function handleResetSubManagerAuthPassword(req: any, res: any) {
   }
 }
 
+async function handleRevokeSubManagerAuth(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const body = req.body || {};
+  const managerUsername = String(body.manager_username || '').trim().toLowerCase();
+  const subManagerUsername = String(body.sub_manager_username || '').trim().toLowerCase();
+  const caller: CallerContext | undefined = req.__caller;
+  if (!managerUsername || !subManagerUsername) {
+    return res.status(400).json({ error: 'manager_username and sub_manager_username are required' });
+  }
+  if (!caller || (caller.role !== 'admin' && caller.username?.toLowerCase() !== managerUsername)) {
+    return res.status(403).json({ error: 'You can only remove agents under your own manager account.' });
+  }
+  try {
+    const rowRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(subManagerUsername)}&select=id,auth_user_id`,
+      { headers: dbHeaders }
+    );
+    if (!rowRes.ok) throw new Error('agent lookup failed');
+    const rows: any[] = await rowRes.json();
+    const authUserId = rows?.[0]?.auth_user_id;
+
+    // Delete the sub_managers row first (so it's gone even if the auth
+    // deletion below fails for any reason — fail toward "can't be found",
+    // never toward "still has a working login").
+    const delRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(subManagerUsername)}`,
+      { method: 'DELETE', headers: dbHeaders }
+    );
+    if (!delRes.ok) throw new Error('agent row deletion failed');
+
+    // Fully revoke the Supabase Auth account itself — not just the mapping
+    // row — so re-authentication is impossible, not merely unmapped.
+    if (authUserId) {
+      const { error } = await adminSupabase.auth.admin.deleteUser(authUserId);
+      if (error) console.error('[revoke-sub-manager-auth] auth.deleteUser failed:', error.message);
+    }
+
+    return res.status(200).json({ success: true, had_auth_account: !!authUserId });
+  } catch (e: any) {
+    console.error('[revoke-sub-manager-auth]', e?.message);
+    return res.status(500).json({ error: 'Agent could not be fully removed.' });
+  }
+}
+
 async function handleResolveSubManagerSession(req: any, res: any) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const caller: CallerContext | undefined = req.__caller;
@@ -257,6 +303,17 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
 
     const authUserId = data.user.id;
     provisionedAuthUserId = authUserId;
+
+    // SECURITY: Supabase auto-creates a bare profiles row (role defaults to
+    // 'manager') for every auth.users insert. Left in place, that row later
+    // lets this identity be mistaken for a real manager login if the
+    // sub_managers row is ever deleted or a lookup glitches. Remove it now —
+    // this person's identity lives in sub_managers only, never in profiles.
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${authUserId}`, {
+      method: 'DELETE',
+      headers: dbHeaders,
+    }).catch((e) => console.error('[create-sub-manager-auth] shadow profile cleanup failed:', e?.message));
+
     const row = {
       manager_id: managerUsername,
       username: subManagerUsername,
