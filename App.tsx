@@ -72,6 +72,19 @@ const getDeviceId = (): string => {
 
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
+  // Real-auth sub-manager duty status lives in the real `sub_managers` table
+  // (updated live by agent_log_attendance) — the legacy JSONB subManagers[]
+  // copy of dutyStatus is never touched by that RPC and goes stale the moment
+  // someone checks in/out, which was silently keeping the receipt button
+  // disabled forever. This tracks the real value client-side instead.
+  const [liveDutyStatus, setLiveDutyStatus] = useState<'online' | 'offline' | null>(null);
+  useEffect(() => {
+    if (userRole !== 'sub-manager' || !activeManager) return;
+    const account = getAccounts().find(a => a.username === activeManager);
+    if (!account?.authUserId) return;
+    supabase.rpc('agent_is_checked_in', { p_auth_uid: account.authUserId })
+      .then(({ data, error }: any) => { if (!error) setLiveDutyStatus(data ? 'online' : 'offline'); });
+  }, [activeManager, userRole]);
   const [state, setState] = useState<AppState>(() => {
     const loaded = loadState(activeManager);
     const initialState = { 
@@ -1481,6 +1494,22 @@ const App: React.FC = () => {
     );
   }
 
+  const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (userRole === 'sub-manager' || !activeManager) return;
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (!session?.access_token) return;
+      fetch('/api/admin-maintenance?action=list-sub-manager-accounts', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).then(r => r.ok ? r.json() : null).then(rows => {
+        if (!Array.isArray(rows)) return;
+        const map: Record<string, string> = {};
+        rows.forEach((r: any) => { if (r.username) map[r.username] = r.duty_status; });
+        setLiveTeamStatus(map);
+      }).catch(() => {});
+    });
+  }, [activeManager, userRole, activeTab]);
+
   if (userRole === 'sub-manager') {
     // Feature A — Access Rights: this is the ACTUAL render path real field agents use
     // (SubManagerDashboard + the receipts-only screen below). Layout.tsx is never
@@ -1492,8 +1521,9 @@ const App: React.FC = () => {
       : filteredUsers;
     const activeAccount = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
     const isRealAuthSubManager = !!activeAccount?.authUserId;
+    const effectiveDutyStatus = isRealAuthSubManager ? liveDutyStatus : currentAgent?.dutyStatus;
     const canLogReceipts = isRealAuthSubManager
-      ? currentAgent?.dutyStatus === 'online'
+      ? effectiveDutyStatus === 'online'
       : canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
     return (
       <ErrorBoundary>
@@ -1598,12 +1628,13 @@ const App: React.FC = () => {
                   { target_role: 'manager' }
                 );
 
+                setLiveDutyStatus(log.type === 'check-in' ? 'online' : 'offline');
                 setSuccessToast(log.type === 'check-in' ? 'Checked in' : log.type === 'check-out' ? 'Checked out' : 'Leave logged');
                 setTimeout(() => setSuccessToast(null), 2500);
               });
             }) as any : handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
-              if (isRealAuthSubManager && currentAgent?.dutyStatus !== 'online') return;
+              if (isRealAuthSubManager && effectiveDutyStatus !== 'online') return;
               setPreSelectReceiptUser({ 
                 userId, 
                 month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
@@ -2087,7 +2118,7 @@ const App: React.FC = () => {
           )}
           {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (
             <SubManagerManagement 
-              subManagers={state.subManagers || []}
+              subManagers={(state.subManagers || []).map(sm => liveTeamStatus[sm.username] ? { ...sm, dutyStatus: liveTeamStatus[sm.username] as any } : sm)}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
               managerId={activeManager || ''}
               areas={currentSettings.areas || []}
