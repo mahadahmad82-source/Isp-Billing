@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import LocationTracker from './LocationTracker';
 import { UserRecord, AppSettings, Receipt, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket } from '../../types';
 
