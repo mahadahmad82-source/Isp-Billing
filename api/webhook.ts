@@ -808,11 +808,43 @@ async function saveStrayLead(from: string, text: string, note?: string) {
   } catch (e: any) { console.error('[saveStrayLead]', e?.message); }
 }
 
-// Returns the currently active (unresolved) outage log for a manager, if any.
-function getActiveOutage(rowData: any): any | null {
-  const logs: any[] = rowData?.outageLogs || [];
+// Returns the highest-priority live network update that is relevant to this customer message.
+// Notices stay deterministic and targeted: an update with trigger keywords only matches those
+// keywords; an update with target areas only matches customers whose saved area/address contains
+// one of those areas. Empty filters intentionally mean "any support/complaint message".
+function getRelevantUpdate(rowData: any, incomingText: string, customer?: any): any | null {
+  const logs: any[] = Array.isArray(rowData?.outageLogs) ? rowData.outageLogs : [];
   const now = Date.now();
-  return logs.find((o: any) => o.notifyBot !== false && (!o.endTime || new Date(o.endTime).getTime() > now)) || null;
+  const normalize = (value: unknown) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const message = normalize(incomingText);
+  const customerContext = normalize([
+    customer?.area, customer?.zone, customer?.address, customer?.location, customer?.city,
+  ].filter(Boolean).join(' '));
+  return logs
+    .filter((update: any) => {
+      if (update.notifyBot === false || update.endTime) return false;
+      if (update.expiresAt) {
+        const expiry = Date.parse(update.expiresAt);
+        if (!Number.isFinite(expiry) || expiry <= now) return false;
+      }
+      const keywords = Array.isArray(update.triggerKeywords)
+        ? update.triggerKeywords.map(normalize).filter(Boolean)
+        : [];
+      const keywordMatch = !keywords.length || keywords.some((keyword: string) => message.includes(keyword));
+      const configuredAreas = Array.isArray(update.targetAreas) && update.targetAreas.length
+        ? update.targetAreas
+        : [];
+      const areaMatch = !configuredAreas.length || configuredAreas.some((area: string) => {
+        const normalizedArea = normalize(area);
+        return normalizedArea && customerContext.includes(normalizedArea);
+      });
+      return keywordMatch && areaMatch;
+    })
+    .sort((a: any, b: any) => {
+      const priorityDiff = (b.priority === 'high' ? 1 : 0) - (a.priority === 'high' ? 1 : 0);
+      if (priorityDiff) return priorityDiff;
+      return Date.parse(b.startTime || b.createdAt || '') - Date.parse(a.startTime || a.createdAt || '');
+    })[0] || null;
 }
 
 // ── Phase 2: Quota guard + usage tracking ─────────────────────────────────────
@@ -2076,6 +2108,13 @@ function troubleshootingReply(issue: string, connectionType?: 'fiber' | 'local')
 
 function outageReply(outage: any): string {
   if (outage.customerMessage?.trim()) return sanitizeHindiWords(outage.customerMessage.trim());
+  const kind = outage.kind || 'incident';
+  if (kind !== 'incident') {
+    const title = sanitizeHindiWords(outage.title || 'Important update');
+    const details = outage.description ? `\n${sanitizeHindiWords(outage.description)}` : '';
+    const etaLine = outage.estimatedResolution ? `\nAndazatan update: ${sanitizeHindiWords(outage.estimatedResolution)}` : '';
+    return sanitizeHindiWords(`📢 ${title}${details}${etaLine}`);
+  }
   const areas = (outage.areasAffected || []).join(', ') || 'aap ke area';
   const issueType: Record<string, string> = {
     outage: 'network outage', slow: 'speed slow ka issue', maintenance: 'maintenance',
@@ -3066,7 +3105,7 @@ export default async function handler(req: any, res: any) {
             found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
           }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-          const outage = getActiveOutage(found.rowData);
+          const outage = getRelevantUpdate(found.rowData, text, found.user);
           if (outage) { await sendText(from, outageReply(outage)); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
@@ -3110,7 +3149,7 @@ export default async function handler(req: any, res: any) {
                 found2 = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
               }
               if (!found2) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-              const outage2 = getActiveOutage(found2.rowData);
+              const outage2 = getRelevantUpdate(found2.rowData, text, found2.user);
               if (outage2) { await sendText(from, outageReply(outage2)); continue; }
               const billingBlock2 = accountBillingBlockedReply(found2.user);
               if (billingBlock2) { await sendText(from, billingBlock2); continue; }
@@ -3343,7 +3382,7 @@ export default async function handler(req: any, res: any) {
 
       if (intent === 'menu_complaint') {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-        const outage = getActiveOutage(found.rowData);
+        const outage = getRelevantUpdate(found.rowData, text, found.user);
         if (outage) { await sendText(from, outageReply(outage)); continue; }
         const billingBlock = accountBillingBlockedReply(found.user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
@@ -3407,7 +3446,7 @@ export default async function handler(req: any, res: any) {
       if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
       if (intent === 'complaint') {
-        const outage = getActiveOutage(rowData);
+        const outage = getRelevantUpdate(rowData, text, user);
         if (outage) { await sendText(from, outageReply(outage)); continue; }
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
