@@ -34,11 +34,11 @@ export default async function handler(req: any, res: any) {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
 
-  if (action === 'add-token' || action === 'list-sub-manager-accounts') {
-    // Browser path: only an authenticated admin may use these actions.
+  if (action === 'add-token') {
+    // Browser path: only an authenticated admin may use this action.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -355,9 +355,14 @@ async function handleCreateSubManagerAuth(req: any, res: any) {
 // Admin-only service-role read; avoids widening sub_managers RLS for the panel.
 async function handleListSubManagerAccounts(req: any, res: any) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || (caller.role !== 'admin' && caller.role !== 'manager')) {
+    return res.status(403).json({ error: 'Not authorized.' });
+  }
   try {
+    const scopeFilter = caller.role === 'manager' ? `&manager_id=eq.${encodeURIComponent(caller.username || '')}` : '';
     const rowsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/sub_managers?select=id,manager_id,auth_user_id,username,name,role,assigned_area,commission_rate,contact,email,salary,duty_status,is_leave,last_check_in,last_check_out,last_location,metadata&order=manager_id.asc,username.asc`,
+      `${SUPABASE_URL}/rest/v1/sub_managers?select=id,manager_id,auth_user_id,username,name,role,assigned_area,commission_rate,contact,email,salary,duty_status,is_leave,last_check_in,last_check_out,last_location,metadata${scopeFilter}&order=manager_id.asc,username.asc`,
       { headers: dbHeaders }
     );
     if (!rowsRes.ok) throw new Error('sub-manager query failed');
