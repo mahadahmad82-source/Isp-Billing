@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useIsDark } from '../hooks/useIsDark';
-import { OutageLog, OutageSeverity } from '../types';
+import { OutageIncidentType, OutageLog, OutageSeverity } from '../types';
 import { CheckIcon, DotIcon, GlobeIcon, MapPinIcon, UsersIcon } from './icons/UiIcons';
 
 interface Props {
@@ -18,6 +18,15 @@ const SEVERITY: Record<OutageSeverity, { label: string; iconColor: 'yellow' | 'o
   full:     { label: 'Full Outage',  iconColor: 'red', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/15 border-red-500/30' },
 };
 
+const INCIDENT_TYPES: Record<OutageIncidentType, string> = {
+  outage: 'Internet Outage',
+  slow: 'Slow Speed',
+  maintenance: 'Maintenance',
+  'fiber-cut': 'Fiber Cut',
+  power: 'Power Issue',
+  other: 'Other Network Issue',
+};
+
 const genId = () => `OUT-${Date.now()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
 const nowLocal = () => new Date().toISOString().slice(0,16);
 
@@ -25,7 +34,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'detail'>('list');
   const [detail, setDetail] = useState<OutageLog | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', severity: 'full' as OutageSeverity, areasAffected: '', cause: '', affectedCount: '', startTime: nowLocal() });
+  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, areasAffected: '', cause: '', estimatedResolution: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), notifyBot: true });
   const [resolveNote, setResolveNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string|null>(null);
   const [toast, setToast] = useState<string|null>(null);
@@ -48,22 +57,26 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       id: genId(),
       title: form.title.trim(),
       description: form.description.trim() || undefined,
+      incidentType: form.incidentType,
       severity: form.severity,
       areasAffected: form.areasAffected.split(',').map(a => a.trim()).filter(Boolean),
       cause: form.cause.trim() || undefined,
+      estimatedResolution: form.estimatedResolution.trim() || undefined,
+      customerMessage: form.customerMessage.trim() || undefined,
+      notifyBot: form.notifyBot,
       affectedCount: form.affectedCount ? Number(form.affectedCount) : undefined,
       startTime: new Date(form.startTime).toISOString(),
       createdAt: new Date().toISOString(),
       createdBy: currentUser,
     };
     onAdd(log);
-    setForm({ title:'', description:'', severity:'full', areasAffected:'', cause:'', affectedCount:'', startTime: nowLocal() });
+    setForm({ title:'', description:'', incidentType:'outage', severity:'full', areasAffected:'', cause:'', estimatedResolution:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), notifyBot:true });
     showToast('Outage logged!');
     setView('list');
   };
 
   const handleResolve = (log: OutageLog) => {
-    onUpdate(log.id, { endTime: new Date().toISOString(), resolvedBy: currentUser, cause: resolveNote || log.cause });
+    onUpdate(log.id, { endTime: new Date().toISOString(), resolvedBy: currentUser, resolutionNote: resolveNote.trim() || undefined, updatedAt: new Date().toISOString() });
     showToast('Outage resolved.');
     setResolveNote('');
     setDetail(null); setView('list');
@@ -84,6 +97,14 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
           <input value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))}
             placeholder="e.g. Main Fiber Cut — Gulshan Area"
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
+        </div>
+
+        <div>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
+          <select value={form.incidentType} onChange={e => setForm(p=>({...p,incidentType:e.target.value as OutageIncidentType}))}
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}>
+            {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -109,8 +130,15 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
         </div>
 
-        <div>
-          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Start Time</label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Expected Update / ETA</label>
+            <input value={form.estimatedResolution} onChange={e => setForm(p=>({...p,estimatedResolution:e.target.value}))}
+              placeholder="e.g. Aaj 8 baje tak"
+              className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
+          </div>
+          <div>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Start Time</label>
           <input type="datetime-local" value={form.startTime} onChange={e => setForm(p=>({...p,startTime:e.target.value}))}
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
         </div>
@@ -121,6 +149,18 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             placeholder="Kya hua tha..."
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500 resize-none`}/>
         </div>
+
+        <div>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Customer Update (optional)</label>
+          <textarea value={form.customerMessage} onChange={e => setForm(p=>({...p,customerMessage:e.target.value}))} rows={3}
+            placeholder="Customer ko jo exact Roman Urdu update dena ho..."
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500 resize-none`}/>
+        </div>
+
+        <label className={`flex items-center gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'} border rounded-2xl px-4 py-3 text-sm`}>
+          <input type="checkbox" checked={form.notifyBot} onChange={e => setForm(p=>({...p,notifyBot:e.target.checked}))} className="w-4 h-4 accent-red-600" />
+          <span><strong>Use this update in NetBot</strong><span className={`block text-xs mt-0.5 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>Off karne par record history mein rahega, bot isay use nahi karega.</span></span>
+        </label>
 
         <button onClick={handleAdd}
           className="w-full py-4 bg-red-600 hover:bg-red-500 rounded-2xl font-black text-sm uppercase tracking-widest transition-all active:scale-95">
@@ -151,7 +191,10 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
 
         <div className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-6 mb-4`}>
           <div className="flex items-start justify-between mb-3">
-            <h2 className="text-xl font-black flex-1 mr-3">{detail.title}</h2>
+            <div className="flex-1 mr-3">
+              <h2 className="text-xl font-black">{detail.title}</h2>
+              <p className={`text-xs mt-1 ${isDark ? 'text-white/45' : 'text-slate-500'}`}>{INCIDENT_TYPES[detail.incidentType || 'outage']}</p>
+            </div>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${cfg.bg} ${cfg.color}`}><DotIcon color={cfg.iconColor} />{cfg.label}</span>
           </div>
 
@@ -177,6 +220,16 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
                 <p className="font-black mt-1 text-orange-400">{detail.affectedCount}</p>
               </div>
             )}
+            {detail.estimatedResolution && !detail.endTime && (
+              <div className="bg-amber-500/10 rounded-xl p-3">
+                <p className="text-amber-400 text-xs">Expected Update</p>
+                <p className="font-semibold mt-1 text-xs">{detail.estimatedResolution}</p>
+              </div>
+            )}
+            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
+              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>NetBot</p>
+              <p className={`font-semibold mt-1 text-xs ${detail.notifyBot === false ? 'text-slate-400' : 'text-emerald-400'}`}>{detail.notifyBot === false ? 'Not using update' : 'Using update'}</p>
+            </div>
             {detail.resolvedBy && (
               <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
                 <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>Resolved By</p>
@@ -195,6 +248,8 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             )}
           </div>
           {detail.description && <p className={`mt-3 text-sm ${isDark ? 'text-white/60' : 'text-slate-500'} ${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>{detail.description}</p>}
+          {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
+          {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
         </div>
 
         {isOngoing && (
@@ -279,6 +334,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
                 </div>
                 <div className={`flex gap-3 text-xs ${isDark ? 'text-white/40' : 'text-slate-500'} flex-wrap`}>
                   <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />{duration(o.startTime)}</span>
+                  <span>{INCIDENT_TYPES[o.incidentType || 'outage']}</span>
                   {o.affectedCount && <span className="inline-flex items-center gap-1"><UsersIcon className="w-3 h-3" />{o.affectedCount} users</span>}
                   {o.areasAffected.length > 0 && <span className="inline-flex items-center gap-1"><MapPinIcon className="w-3 h-3" />{o.areasAffected.slice(0,2).join(', ')}{o.areasAffected.length > 2 ? '...' : ''}</span>}
                 </div>
