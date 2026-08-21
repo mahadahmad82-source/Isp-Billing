@@ -458,8 +458,8 @@ Pehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:
 {tips}
 
 Agar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍{fiber_pitch}`,
-  outage_reply: `{owner_name} bhai ki team ko *{areas}* mein network outage ka pehle se pata hai aur kaam jaari hai! 🛠️
-{cause_line}
+  outage_reply: `{owner_name} bhai ki team ko *{areas}* mein {issue_type} ka pehle se pata hai aur kaam jaari hai! 🛠️
+{cause_line}{eta_line}
 
 Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi.
 
@@ -812,7 +812,7 @@ async function saveStrayLead(from: string, text: string, note?: string) {
 function getActiveOutage(rowData: any): any | null {
   const logs: any[] = rowData?.outageLogs || [];
   const now = Date.now();
-  return logs.find((o: any) => !o.endTime || new Date(o.endTime).getTime() > now) || null;
+  return logs.find((o: any) => o.notifyBot !== false && (!o.endTime || new Date(o.endTime).getTime() > now)) || null;
 }
 
 // ── Phase 2: Quota guard + usage tracking ─────────────────────────────────────
@@ -2075,9 +2075,21 @@ function troubleshootingReply(issue: string, connectionType?: 'fiber' | 'local')
 }
 
 function outageReply(outage: any): string {
+  if (outage.customerMessage?.trim()) return sanitizeHindiWords(outage.customerMessage.trim());
   const areas = (outage.areasAffected || []).join(', ') || 'aap ke area';
+  const issueType: Record<string, string> = {
+    outage: 'network outage', slow: 'speed slow ka issue', maintenance: 'maintenance',
+    'fiber-cut': 'fiber line ka issue', power: 'power ka issue', other: 'network issue',
+  };
   const causeLine = outage.cause ? tmpl('outage_cause_line', { cause: outage.cause }) : '';
-  return tmpl('outage_reply', { owner_name: CONFIG.ownerName, areas, cause_line: causeLine });
+  const etaLine = outage.estimatedResolution ? `\nAndazatan update: ${sanitizeHindiWords(outage.estimatedResolution)}` : '';
+  return tmpl('outage_reply', {
+    owner_name: CONFIG.ownerName,
+    areas,
+    issue_type: issueType[outage.incidentType] || issueType.outage,
+    cause_line: causeLine,
+    eta_line: etaLine,
+  });
 }
 
 function routerChoicePrompt(): string {
