@@ -2201,6 +2201,19 @@ const App: React.FC = () => {
                 const agent = state.subManagers?.find(a => a.id === id);
                 if (agent) {
                    removeAccount(agent.username);
+                   // SECURITY: the JSONB removal below only hides the agent from
+                   // this app's UI — it does NOT revoke their real Supabase Auth
+                   // login if one was ever provisioned (create-sub-manager-auth).
+                   // Always also call the backend to delete the sub_managers row
+                   // and the underlying auth.users account itself.
+                   supabase.auth.getSession().then(({ data: { session } }) => {
+                     if (!session?.access_token) return;
+                     fetch('/api/admin-maintenance?action=revoke-sub-manager-auth', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                       body: JSON.stringify({ manager_username: state.currentManager || activeManager, sub_manager_username: agent.username }),
+                     }).catch((e) => console.error('[revoke-sub-manager-auth]', e));
+                   });
                 }
                 setState(prev => {
                   const newState = {
