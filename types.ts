@@ -413,18 +413,25 @@ export interface SuspensionLog {
 
 // ─── NETWORK OUTAGE LOG ───────────────────────────────────────
 export type OutageSeverity = 'partial' | 'full' | 'degraded';
+export type OutageIncidentType = 'outage' | 'slow' | 'maintenance' | 'fiber-cut' | 'power' | 'other';
 
 export interface OutageLog {
   id: string;
   title: string;
   description?: string;
+  incidentType?: OutageIncidentType;
   severity: OutageSeverity;
   areasAffected: string[];
   startTime: string;
   endTime?: string;
   resolvedBy?: string;
+  resolutionNote?: string;
   cause?: string;
+  estimatedResolution?: string;
+  customerMessage?: string;
+  notifyBot?: boolean;
   affectedCount?: number;
+  updatedAt?: string;
   createdAt: string;
   createdBy: string;
 }
