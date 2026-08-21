@@ -34,7 +34,7 @@ const INCIDENT_TYPES: Record<OutageIncidentType, string> = {
   'fiber-cut': 'Fiber Cut',
   power: 'Power Issue',
   other: 'Other Network Issue',
-};
+};;
 
 const genId = () => `OUT-${Date.now()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
 const nowLocal = () => new Date().toISOString().slice(0,16);
@@ -124,6 +124,14 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
           </select>
         </div>
 
+        <div>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
+          <select value={form.incidentType} onChange={e => setForm(p=>({...p,incidentType:e.target.value as OutageIncidentType}))}
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}>
+            {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Severity</label>
@@ -158,6 +166,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Start Time</label>
           <input type="datetime-local" value={form.startTime} onChange={e => setForm(p=>({...p,startTime:e.target.value}))}
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
+          </div>
         </div>
 
         <div>
@@ -257,6 +266,16 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
               <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>NetBot</p>
               <p className={`font-semibold mt-1 text-xs ${detail.notifyBot === false ? 'text-slate-400' : 'text-emerald-400'}`}>{detail.notifyBot === false ? 'Not using update' : 'Using update'}</p>
             </div>
+            {detail.estimatedResolution && !detail.endTime && (
+              <div className="bg-amber-500/10 rounded-xl p-3">
+                <p className="text-amber-400 text-xs">Expected Update</p>
+                <p className="font-semibold mt-1 text-xs">{detail.estimatedResolution}</p>
+              </div>
+            )}
+            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
+              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>NetBot</p>
+              <p className={`font-semibold mt-1 text-xs ${detail.notifyBot === false ? 'text-slate-400' : 'text-emerald-400'}`}>{detail.notifyBot === false ? 'Not using update' : 'Using update'}</p>
+            </div>
             {detail.resolvedBy && (
               <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
                 <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>Resolved By</p>
@@ -275,6 +294,8 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             )}
           </div>
           {detail.description && <p className={`mt-3 text-sm ${isDark ? 'text-white/60' : 'text-slate-500'} ${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>{detail.description}</p>}
+          {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
+          {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
           {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
           {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
           {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
