@@ -238,16 +238,30 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         }
 
         let loginUser = username.includes('@') ? username.split('@')[0] : username;
+        const { data: profileDataPre } = await supabase.from('profiles').select('role, manager_id, full_name, username').eq('id', data.user.id).maybeSingle();
+        // SECURITY: Supabase auto-creates a bare profiles row (role defaults to
+        // 'manager' at the schema level) for EVERY auth.users insert, including
+        // the auth accounts created for sub-managers. If the sub_managers lookup
+        // above failed for any reason (deleted account, RLS timing, etc.), this
+        // person is NOT a genuine manager just because *some* profiles row
+        // exists — sub-manager shadow rows are now actively deleted at creation
+        // time (see create-sub-manager-auth), so a row existing at all is the
+        // correct signal; a row with null username still gets the legacy
+        // backfill treatment below rather than being rejected outright.
+        if (!profileDataPre) {
+          await supabase.auth.signOut();
+          throw new Error('This account is not active. Contact your manager or admin.');
+        }
         // Backfill profiles.username if missing (covers pre-existing accounts and
         // the localStorage→Supabase migration path above) — required for
         // manager_own_data_full_access RLS to recognize this session as the owner.
         await supabase.from('profiles').update({ username: loginUser }).eq('id', data.user.id).is('username', null);
-        const { data: profileData } = await supabase.from('profiles').select('role, manager_id, full_name, username').eq('id', data.user.id).maybeSingle();
+        const profileData = profileDataPre;
         // If login was resolved via CNIC/recovery-email lookup (not a direct
         // username match), `identifier` typed by the person is NOT their real
         // username — always trust the profile's actual username in that case.
         if (resolvedViaLookup && profileData?.username) loginUser = profileData.username;
-        const role = profileData?.role || 'manager';
+        const role = profileData.role || 'manager';
         setActiveSession(loginUser);
         if (rememberPassword) saveAccount({ username: loginUser, password, businessName: profileData?.full_name || data.user.user_metadata?.full_name || loginUser, email: data.user.email || '', phone: data.user.user_metadata?.phone || '', role: role as 'admin' | 'manager' | 'sub-manager', managerUsername: profileData?.manager_id || '', createdAt: new Date().toISOString(), rememberPassword: true });
         finishLogin(loginUser); return true;
