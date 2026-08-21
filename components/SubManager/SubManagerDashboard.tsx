@@ -20,6 +20,7 @@ interface SubManagerDashboardProps {
   onResolveComplaint?: (ticketId: string) => void;
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
   readOnly?: boolean; // Real Supabase Auth agents are read-only during Phase 1
+  liveDutyStatus?: 'online' | 'offline' | null; // Server-backed status for real-auth agents
 }
 
 const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
@@ -40,11 +41,19 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   onResolveComplaint,
   canLogReceipts = true,
   readOnly = false,
+  liveDutyStatus = null,
 }) => {
   const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dutyStatus, setDutyStatus] = useState<'online' | 'offline'>(agent?.dutyStatus || 'offline');
+  const [dutyStatus, setDutyStatus] = useState<'online' | 'offline'>(liveDutyStatus || agent?.dutyStatus || 'offline');
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+  // Real-auth attendance is stored in the server-side sub_managers row, not in
+  // the parent manager_data JSONB blob. Rehydrate the local UI whenever the
+  // parent finishes loading or polling that authoritative status.
+  useEffect(() => {
+    if (liveDutyStatus) setDutyStatus(liveDutyStatus);
+  }, [liveDutyStatus]);
   const [leaveReason, setLeaveReason] = useState('');
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [filter, setFilter] = useState<'all' | 'paid' | 'pending'>('pending');
