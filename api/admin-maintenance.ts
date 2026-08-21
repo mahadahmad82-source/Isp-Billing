@@ -653,7 +653,7 @@ function buildAgentReceipt(args: any): { receipt: any; updatedUser: any } {
   const hasValidConfiguredExpiry = !!parsedExpiryDate && !Number.isNaN(parsedExpiryDate.getTime());
   const resolvedExpiryDate = hasValidConfiguredExpiry ? configuredExpiryDate : new Date().toISOString();
   const resolvedRechargeDate = hasValidConfiguredExpiry ? parsedExpiryDate!.toISOString() : new Date().toISOString();
-  const existingRefs = new Set((state.receipts || []).map((receipt: any) => receipt?.transactionRef).filter(Boolean));
+  const existingRefs = new Set<string>((state.receipts || []).map((receipt: any) => receipt?.transactionRef).filter(Boolean));
   const transactionRef = resolveTransactionRef(settings, state.receipts || [], requestedTransactionRef, existingRefs);
   const receipt = {
     id: generateReceiptId(),
