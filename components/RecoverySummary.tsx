@@ -164,18 +164,25 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     return `92${digits.slice(-10)}`;
   };
 
-  const sendPendingAmountTemplate = async (u: UserRecord): Promise<boolean> => {
-    if (!u.phone) return false;
+  const sendPendingAmountTemplate = async (
+    phone: string,
+    name: string,
+    plan: string,
+    currentMonthPayable: number,
+    pendingBalance: number,
+  ): Promise<boolean> => {
+    if (!phone) return false;
     try {
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({
-          to: normalizePhoneForWa(u.phone),
+          to: normalizePhoneForWa(phone),
           managerId,
           type: 'template',
           templateName: 'recharge_pending_payment',
-          templateParams: [u.name || '', String(u.balance || u.creditAmount || 0), String(u.balance || u.creditAmount || 0), u.plan || ''],
+          // [0] name  [1] current-month payable  [2] pending balance  [3] plan
+          templateParams: [name, String(currentMonthPayable), String(pendingBalance), plan],
         }),
       });
       return res.ok;
@@ -185,9 +192,37 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     }
   };
 
-  const handleSendPendingAmountOne = async (u: UserRecord) => {
-    setSendingRecoveryId(u.id);
-    await sendPendingAmountTemplate(u);
+  const handleSendPendingAmountOne = async (item: {
+    id: string;
+    username?: string;
+    name?: string;
+    phone?: string;
+    plan?: string;
+    balance?: number;
+  }) => {
+    setSendingRecoveryId(item.id);
+    // Lookup full UserRecord to get monthlyFee + persistentDiscount — these fields are
+    // NOT present on the detailedList item (which only carries ledger-computed fields).
+    const actualUser = users.find(u => u.id === item.id || u.username === item.username);
+    const monthlyFee = actualUser?.monthlyFee ?? 0;
+    const discount   = actualUser?.persistentDiscount ?? 0;
+
+    // templateParams[1]: gross monthly fee minus persistent discount, floor 0.
+    const currentMonthPayable = Math.max(0, monthlyFee - discount);
+
+    // templateParams[2]: ledger balance for !hasPaid rows comes from UserRecord.balance
+    // (raw, not pre-discounted) so we subtract discount once. Fall back to creditAmount
+    // if balance is 0/falsy (e.g. fresh credit recharge with no prior arrears).
+    const rawBalance     = (item.balance ?? 0) > 0 ? (item.balance ?? 0) : (actualUser?.creditAmount ?? 0);
+    const pendingBalance = Math.max(0, rawBalance - discount);
+
+    await sendPendingAmountTemplate(
+      item.phone ?? '',
+      item.name  ?? '',
+      item.plan  ?? '',
+      currentMonthPayable,
+      pendingBalance,
+    );
     setSendingRecoveryId(null);
   };
 
@@ -1225,7 +1260,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     <td className="px-8 py-5">
                       {!item.hasPaid ? (
                         <button
-                          onClick={() => handleSendPendingAmountOne(item as any)}
+                          onClick={() => handleSendPendingAmountOne(item)}
                           disabled={sendingRecoveryId === item.id}
                           className="px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-amber-500/20 transition-all disabled:opacity-40 whitespace-nowrap"
                         >
