@@ -16,9 +16,9 @@ interface SubManagerDashboardProps {
   onIssueInvoice: (userId: string, agentId?: string) => void;
   onViewReceipt: (receipt: Receipt) => void;
   onUpdateAgent: (agentId: string, updates: any) => void;
-  onAddAttendanceLog: (log: Omit<AttendanceLog, 'id'>) => void;
+  onAddAttendanceLog: (log: Omit<AttendanceLog, 'id'>) => void | Promise<void>;
+  onResolveComplaint?: (ticketId: string, resolutionDetails: string) => void | Promise<boolean | void>;
   complaintTickets?: ComplaintTicket[];
-  onResolveComplaint?: (ticketId: string, resolutionDetails: string) => void;
   teamMessages?: TeamMessage[];
   onSendTeamMessage?: (message: TeamMessage) => void;
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
@@ -82,6 +82,10 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     
     setDutyStatus(status);
     if (agentId) {
+      const previousDutyStatus = dutyStatus;
+      const recordAttendance = (log: Omit<AttendanceLog, 'id'>) => {
+        void Promise.resolve(onAddAttendanceLog(log)).catch(() => setDutyStatus(previousDutyStatus));
+      };
       const updates: any = { dutyStatus: status };
       if (status === 'online') {
         const now = new Date().toISOString();
@@ -91,7 +95,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
           updates.lastLocation = { ...location, timestamp: now };
         }
         
-        onAddAttendanceLog({
+        recordAttendance({
           subManagerId: agentId,
           type: 'check-in',
           timestamp: now,
@@ -103,7 +107,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
         updates.lastCheckOut = checkOut;
         updates.lastLocation = null; // Wipe location state on checkout for privacy
         
-        onAddAttendanceLog({
+        recordAttendance({
           subManagerId: agentId,
           type: 'check-out',
           timestamp: checkOut,
@@ -119,12 +123,12 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   const handleApplyLeave = () => {
     if (readOnly || !agentId || !leaveReason.trim()) return;
     
-    onAddAttendanceLog({
+    void Promise.resolve(onAddAttendanceLog({
       subManagerId: agentId,
       type: 'leave',
       timestamp: new Date().toISOString(),
       reason: leaveReason
-    });
+    })).catch(() => setDutyStatus('online'));
     
     onUpdateAgent(agentId, {
       dutyStatus: 'offline',
@@ -818,7 +822,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                                 </td>
                                 <td className="px-6 py-4">
                                   <p className="text-xs text-slate-500 max-w-[200px] truncate" title={log.reason || log.location ? 'Location Captured' : ''}>
-                                    {log.reason || (log.location ? '📍 Location Stamped' : '-')}
+                                    {log.reason || (log.location ? 'Location Stamped' : '-')}
                                   </p>
                                 </td>
                               </tr>
@@ -923,7 +927,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                         {ticket.assignmentNote && <div className="mt-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 p-4"><p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1">Assignment Note / Instructions</p><p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{ticket.assignmentNote}</p></div>}
                         {ticket.status === 'revision_required' && ticket.reviewNote && <div className="mt-4 rounded-2xl bg-orange-500/5 border border-orange-500/15 p-4"><p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-1">Manager Revision Note</p><p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{ticket.reviewNote}</p></div>}
                         {!readOnly && (ticket.status === 'assigned' || ticket.status === 'revision_required') && onResolveComplaint && (resolutionTicketId === ticket.id ? (
-                          <form onSubmit={event => { event.preventDefault(); const details = resolutionText.trim(); if (!details) return; onResolveComplaint(ticket.id, details); setResolutionTicketId(null); setResolutionText(''); }} className="mt-4 space-y-3 w-full">
+                          <form onSubmit={async event => { event.preventDefault(); const details = resolutionText.trim(); if (!details) return; const submitted = await Promise.resolve(onResolveComplaint(ticket.id, details)); if (submitted === false) return; setResolutionTicketId(null); setResolutionText(''); }} className="mt-4 space-y-3 w-full">
                             <textarea required rows={3} value={resolutionText} onChange={event => setResolutionText(event.target.value)} placeholder="Describe the work completed and customer outcome..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
                             <div className="flex gap-2"><button type="button" onClick={() => { setResolutionTicketId(null); setResolutionText(''); }} className="flex-1 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 text-[9px] font-black uppercase tracking-widest">Cancel</button><button type="submit" className="flex-[2] px-3 py-2.5 rounded-xl bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest">Submit for Manager Review</button></div>
                           </form>
@@ -934,7 +938,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                       {ticket.commissionOnResolve > 0 && (
                         <div className="mt-3 px-3 py-2 bg-amber-500/5 border border-amber-500/15 rounded-xl">
                           <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">
-                            💰 Commission on resolve: Rs. {ticket.commissionOnResolve.toLocaleString()}
+                            Commission on resolve: Rs. {ticket.commissionOnResolve.toLocaleString()}
                           </p>
                         </div>
                       )}
