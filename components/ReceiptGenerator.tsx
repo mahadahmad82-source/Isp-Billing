@@ -1735,7 +1735,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                         const val = parseInt(e.target.value) || 0; 
                         setDiscount(val); 
                         setAmountPaid((monthlyFee + previousBalance) - val); 
-                      }} 
+                      }}
+                      onBlur={e => {
+                        const val = parseInt(e.target.value) || 0;
+                        if (selectedUserId) {
+                          onUpdateUser(selectedUserId, { persistentDiscount: val });
+                        }
+                      }}
                     />
                   </div>
                   <div className="space-y-1">
