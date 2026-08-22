@@ -690,11 +690,13 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
   const priority = /urgent|emergency|2\s*din|3\s*din|kal\s*se|bilkul\s*nahi|completely/.test(t)
     ? 'high' : /slow|thoda|kabhi/.test(t) ? 'low' : 'medium';
   const ticketId = `WA-${Date.now()}`;
+  const inboundAt = new Date().toISOString();
   const complaintTickets = [...(rowData.complaintTickets || []), {
     id: ticketId, customerId: user.id, customerName: user.name,
     customerPhone: user.phone, title: `WA: ${issue.slice(0, 60)}`,
     description: issue, status: 'open', priority,
-    createdAt: new Date().toISOString(), createdBy: 'ayesha_bot',
+    customerLastInboundAt: inboundAt, feedbackStatus: 'pending',
+    createdAt: inboundAt, createdBy: 'ayesha_bot',
   }];
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
