@@ -36,15 +36,16 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'detail'>('list');
   const [detail, setDetail] = useState<OutageLog | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, areasAffected: '', cause: '', estimatedResolution: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), notifyBot: true });
+  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, areasAffected: '', cause: '', estimatedResolution: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
   const [resolveNote, setResolveNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string|null>(null);
   const [toast, setToast] = useState<string|null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-  const ongoing = useMemo(() => outageLogs.filter(o => !o.endTime), [outageLogs]);
-  const resolved = useMemo(() => outageLogs.filter(o => !!o.endTime).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [outageLogs]);
+  const isExpired = (log: OutageLog) => !log.endTime && !!log.expiresAt && Date.parse(log.expiresAt) <= Date.now();
+  const ongoing = useMemo(() => outageLogs.filter(o => !o.endTime && !isExpired(o)), [outageLogs]);
+  const resolved = useMemo(() => outageLogs.filter(o => !!o.endTime || isExpired(o)).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [outageLogs]);
 
   const duration = (start: string, end?: string) => {
     const ms = new Date(end || new Date()).getTime() - new Date(start).getTime();
@@ -55,6 +56,11 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
 
   const handleAdd = () => {
     if (!form.title.trim()) { showToast('Title is required.'); return; }
+    const startMs = new Date(form.startTime).getTime();
+    const expiryHours = Number(form.expiryHours);
+    const expiresAt = Number.isFinite(startMs) && Number.isFinite(expiryHours) && expiryHours > 0
+      ? new Date(startMs + expiryHours * 60 * 60 * 1000).toISOString()
+      : undefined;
     const log: OutageLog = {
       id: genId(),
       title: form.title.trim(),
@@ -68,11 +74,12 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       notifyBot: form.notifyBot,
       affectedCount: form.affectedCount ? Number(form.affectedCount) : undefined,
       startTime: new Date(form.startTime).toISOString(),
+      expiresAt,
       createdAt: new Date().toISOString(),
       createdBy: currentUser,
     };
     onAdd(log);
-    setForm({ title:'', description:'', incidentType:'outage', severity:'full', areasAffected:'', cause:'', estimatedResolution:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), notifyBot:true });
+    setForm({ title:'', description:'', incidentType:'outage', severity:'full', areasAffected:'', cause:'', estimatedResolution:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
     showToast('Outage logged!');
     setView('list');
   };
@@ -179,6 +186,14 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
         </div>
 
         <div>
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>NetBot Auto-Expiry (hours)</label>
+          <input type="number" min="0.25" step="0.25" value={form.expiryHours} onChange={e => setForm(p=>({...p,expiryHours:e.target.value}))}
+            placeholder="2"
+            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
+          <p className={`text-[11px] mt-1 ${isDark ? 'text-white/35' : 'text-slate-400'}`}>Expiry ke baad NetBot complaints normally process karega.</p>
+        </div>
+
+        <div>
           <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Cause / Description</label>
           <textarea value={form.description} onChange={e => setForm(p=>({...p,description:e.target.value}))} rows={3}
             placeholder="Kya hua tha..."
@@ -208,7 +223,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   // ── DETAIL VIEW ────────────────────────────────────────────
   if (view === 'detail' && detail) {
     const cfg = SEVERITY[detail.severity];
-    const isOngoing = !detail.endTime;
+    const isOngoing = !detail.endTime && !isExpired(detail);
     return (
       <div className={`min-h-screen ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-50 text-slate-900'} p-4 pb-24`}>
         <button onClick={() => { setView('list'); setDetail(null); }}
@@ -247,6 +262,12 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
               <div className="bg-red-500/10 rounded-xl p-3">
                 <p className="text-red-400 text-xs">Duration</p>
                 <p className="font-black mt-1 text-red-400">{duration(detail.startTime)}</p>
+              </div>
+            )}
+            {detail.expiresAt && !detail.endTime && (
+              <div className={`${isExpired(detail) ? 'bg-slate-500/10' : 'bg-amber-500/10'} rounded-xl p-3`}>
+                <p className={`${isExpired(detail) ? 'text-slate-400' : 'text-amber-400'} text-xs`}>NetBot Auto-Expiry</p>
+                <p className={`font-semibold mt-1 text-xs ${isExpired(detail) ? 'text-slate-400' : ''}`}>{new Date(detail.expiresAt).toLocaleString('en-PK')}{isExpired(detail) ? ' — expired' : ''}</p>
               </div>
             )}
             {detail.affectedCount && (
@@ -442,7 +463,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${cfg.bg} ${cfg.color}`}><DotIcon color={cfg.iconColor} /></span>
                   </div>
                   <div className={`flex gap-3 text-xs ${isDark ? 'text-white/30' : 'text-slate-400'} flex-wrap`}>
-                    <span className="inline-flex items-center gap-1"><CheckIcon className="w-3 h-3 text-emerald-500" />{duration(o.startTime, o.endTime)}</span>
+                    <span className="inline-flex items-center gap-1"><CheckIcon className="w-3 h-3 text-emerald-500" />{duration(o.startTime, o.endTime || o.expiresAt)}</span>
                     <span>• {new Date(o.startTime).toLocaleDateString('en-PK', {day:'2-digit',month:'short'})}</span>
                     {o.affectedCount && <span>• {o.affectedCount} users</span>}
                   </div>
