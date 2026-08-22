@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
-import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { getWabotAuthHeaders } from './utils/whatsapp';
@@ -392,9 +392,12 @@ const App: React.FC = () => {
     const throttleKey = `myisp_last_login_ping_${activeManager}`;
     const today = new Date().toISOString().slice(0, 10);
     if (localStorage.getItem(throttleKey) === today) return;
-    supabase.rpc('track_manager_login', { p_username: activeManager })
-      .then(() => localStorage.setItem(throttleKey, today))
-      .catch(() => {});
+    void (async () => {
+      try {
+        const { error } = await supabase.rpc('track_manager_login', { p_username: activeManager });
+        if (!error) localStorage.setItem(throttleKey, today);
+      } catch { /* best effort login activity ping */ }
+    })();
   }, [activeManager, userRole]);
 
   // Background flush every 45s — retries any failed saves
@@ -759,6 +762,10 @@ const App: React.FC = () => {
   // ─── Cross-device notification polling ─────────────────
   useEffect(() => {
     if (!activeManager) return;
+    const activeAccount = getAccounts().find(account => account.username === activeManager);
+    const notificationManagerId = activeAccount?.role === 'sub-manager' && activeAccount.managerUsername
+      ? activeAccount.managerUsername
+      : activeManager;
 
     const pollNotifications = async () => {
       try {
@@ -768,7 +775,7 @@ const App: React.FC = () => {
         // burning several GB/month in Supabase egress. Now uses a lightweight
         // RPC that extracts only the needed fields server-side.
         const { data: remoteNotifs, error: notifErr } = await supabase.rpc('get_pending_notifications', {
-          p_manager_id: activeManager,
+          p_manager_id: notificationManagerId,
         });
         if (notifErr || !remoteNotifs) return;
         const remotePending: AppNotification[] = remoteNotifs.pendingManagerNotifications || [];
@@ -804,6 +811,7 @@ const App: React.FC = () => {
         }
 
         // ─── Agent: check for notifications assigned to this agent ───
+        let shouldRefreshSharedState = newNotifs.some(notification => ['COMPLAINT_REVIEW_REQUIRED', 'COMPLAINT_FEEDBACK_SKIPPED', 'TEAM_MESSAGE'].includes(notification.type));
         if (stateRef.current.currentManager && stateRef.current.subManagers) {
           const agentInfo = stateRef.current.subManagers.find(sm => sm.username === activeManager);
           if (agentInfo) {
@@ -812,6 +820,7 @@ const App: React.FC = () => {
             const newAgentNotifs = remoteAgentPending.filter(n => !agentShown.includes(n.id));
             
             if (newAgentNotifs.length > 0) {
+              shouldRefreshSharedState = true;
               newAgentNotifs.forEach(n => {
                 if (n.type !== 'SYSTEM') showLocalNotification(n.title, n.message, n.type.toLowerCase());
               });
@@ -826,6 +835,26 @@ const App: React.FC = () => {
             }
           }
         }
+
+        // The lightweight notification RPC does not carry complaint or chat rows.
+        // Refresh the shared state only when a new team event arrives, keeping the
+        // normal 30-second poll low-egress while making Team Hub updates visible.
+        if (shouldRefreshSharedState) {
+          const freshState = await loadStateFromSupabase(notificationManagerId);
+          if (freshState) {
+            setState(prev => {
+              const next = {
+                ...prev,
+                complaintTickets: freshState.complaintTickets || prev.complaintTickets,
+                teamMessages: freshState.teamMessages || prev.teamMessages,
+                attendanceLogs: freshState.attendanceLogs || prev.attendanceLogs,
+                subManagers: freshState.subManagers || prev.subManagers,
+              };
+              saveState(next);
+              return next;
+            });
+          }
+        }
       } catch (e) {
         // silent fail
       }
@@ -838,7 +867,7 @@ const App: React.FC = () => {
 
     const pollInterval = setInterval(pollNotifications, 30000);
     return () => clearInterval(pollInterval);
-  }, [activeManager]);
+  }, [activeManager, userRole]);
 
   const handleLogin = (username: string) => {
     setActiveManager(username);
@@ -1315,9 +1344,11 @@ const App: React.FC = () => {
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) throw new Error(result.error || 'Resolution submission failed.');
         setState(prev => { const next = { ...prev, complaintTickets: (prev.complaintTickets || []).map(ticket => ticket.id === ticketId ? { ...ticket, status: 'pending_manager_review' as const, resolutionDetails, resolvedAt: result.ticket?.resolvedAt || new Date().toISOString(), resolvedBy: result.ticket?.resolvedBy || activeManager, feedbackStatus: 'pending' as const } : ticket) }; saveState(next); return next; });
+        const managerId = result.manager_id || account.managerUsername || 'mahadnet';
+        void sendPushNotification(managerId, 'Complaint Resolution Needs Review', `Resolution submitted for complaint ${ticketId}.`, 'myisp-complaint', { target_role: 'manager', target_username: managerId });
         void triggerComplaintFeedback(ticketId);
-      } catch (error: any) { alert(error?.message || 'Resolution submit nahi hui. Dobara try karein.'); }
-      return;
+        return true;
+      } catch (error: any) { alert(error?.message || 'Resolution submit nahi hui. Dobara try karein.'); return false; }
     }
     setState(prev => {
       const ticket = (prev.complaintTickets || []).find(candidate => candidate.id === ticketId);
@@ -1328,6 +1359,7 @@ const App: React.FC = () => {
       saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next); showLocalNotification(reviewNotif.title, reviewNotif.message, 'complaint-review'); void sendPushNotification(prev.currentManager || activeManager || 'mahadnet', reviewNotif.title, reviewNotif.message, 'myisp-complaint'); return next;
     });
     void triggerComplaintFeedback(ticketId);
+    return true;
   }, [activeManager, triggerComplaintFeedback]);
 
   const handleSendTeamMessage = useCallback(async (message: TeamMessage) => {
@@ -1341,10 +1373,30 @@ const App: React.FC = () => {
         if (!response.ok || !result.success) throw new Error(result.error || 'Team message send failed.');
         const written = result.message || message;
         setState(prev => { const next = { ...prev, teamMessages: [...(prev.teamMessages || []), written] }; saveState(next); return next; });
-      } catch (error: any) { alert(error?.message || 'Team message save nahi hua.'); }
-      return;
+        const managerId = result.manager_id || message.managerUsername || account.managerUsername || 'mahadnet';
+        const preview = written.text ? written.text.slice(0, 120) : 'You received a voice note.';
+        void sendPushNotification(managerId, `New message from @${written.senderUsername}`, preview, 'myisp-team', { target_role: 'manager', target_username: managerId });
+        return true;
+      } catch (error: any) { alert(error?.message || 'Team message save nahi hua.'); return false; }
     }
-    setState(prev => { const next = { ...prev, teamMessages: [...(prev.teamMessages || []), message] }; saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next); return next; });
+    const recipientAgent = getAccounts().find(account => account.username === message.recipientUsername);
+    const recipientStateAgent = stateRef.current.subManagers?.find(agent => agent.username === message.recipientUsername || agent.id === message.recipientUsername);
+    const recipientKey = recipientStateAgent?.id || message.recipientUsername;
+    const teamNotification: AppNotification = {
+      id: `team-message-${message.id}`, type: 'TEAM_MESSAGE', priority: 'LOW',
+      title: `New message from @${message.senderUsername}`, message: message.text ? message.text.slice(0, 120) : 'You received a voice note.',
+      timestamp: message.createdAt, actionLabel: 'Open Team Hub', actionTab: 'team',
+    };
+    setState(prev => {
+      const next = {
+        ...prev,
+        teamMessages: [...(prev.teamMessages || []), message],
+        agentPendingNotifications: recipientKey ? { ...(prev.agentPendingNotifications || {}), [recipientKey]: [...(prev.agentPendingNotifications?.[recipientKey] || []), teamNotification] } : prev.agentPendingNotifications,
+      };
+      saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next); return next;
+    });
+    if (recipientAgent?.username) void sendPushNotification(activeManager || 'mahadnet', teamNotification.title, teamNotification.message, 'myisp-team', { target_role: 'sub-manager', target_username: recipientAgent.username });
+    return true;
   }, [activeManager]);
 
   const handleUpdateAgent = useCallback((agentId: string, updates: any) => {
@@ -1689,37 +1741,64 @@ const App: React.FC = () => {
             teamMessages={state.teamMessages || []}
             onSendTeamMessage={handleSendTeamMessage}
             onLogout={handleLogout}
-            onAddAttendanceLog={isRealAuthSubManager ? ((log: any) => {
-              supabase.rpc('agent_log_attendance', {
+            onAddAttendanceLog={isRealAuthSubManager ? (async (log: any) => {
+              const now = log.timestamp || new Date().toISOString();
+              const logId = generateId();
+              const { error } = await supabase.rpc('agent_log_attendance', {
                 p_type: log.type,
                 p_reason: log.reason || null,
                 p_location: log.location || null,
-              }).then(({ error }: any) => {
-                if (error) { console.error('[attendance]', error); return; }
-
-                const agentName = currentAgent?.name || activeManager || 'Agent';
-                const timeStr = new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
-                let notifTitle = '🟢 Agent Checked In';
-                let notifMsg = `${agentName} marked IN at ${timeStr}`;
-                if (log.type === 'check-out') {
-                  notifTitle = '🔴 Agent Checked Out';
-                  notifMsg = `${agentName} marked OUT at ${timeStr}`;
-                } else if (log.type === 'leave') {
-                  notifTitle = '📋 Agent On Leave';
-                  notifMsg = `${agentName} applied for leave${log.reason ? `: ${log.reason}` : ''}`;
-                }
-                void sendPushNotification(
-                  currentAgent?.managerUsername || state.currentManager || activeManager || 'mahadnet',
-                  notifTitle,
-                  notifMsg,
-                  'myisp-attendance',
-                  { target_role: 'manager' }
-                );
-
-                setLiveDutyStatus(log.type === 'check-in' ? 'online' : 'offline');
-                setSuccessToast(log.type === 'check-in' ? 'Checked in' : log.type === 'check-out' ? 'Checked out' : 'Leave logged');
-                setTimeout(() => setSuccessToast(null), 2500);
               });
+              if (error) {
+                console.error('[attendance]', error);
+                throw new Error('Attendance update could not be saved.');
+              }
+
+              const mirrorHeaders = await getWabotAuthHeaders();
+              const mirrorResponse = await fetch('/api/admin-maintenance?action=mirror-agent-attendance', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', ...mirrorHeaders },
+                body: JSON.stringify({ ...log, id: logId, timestamp: now }),
+              });
+              if (!mirrorResponse.ok) console.error('[attendance] manager history mirror failed:', await mirrorResponse.text().catch(() => 'unknown error'));
+
+              const agentName = currentAgent?.name || activeManager || 'Agent';
+              const timeStr = new Date(now).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+              let notifTitle = 'Agent Checked In';
+              let notifMsg = `${agentName} marked IN at ${timeStr}`;
+              if (log.type === 'check-out') {
+                notifTitle = 'Agent Checked Out';
+                notifMsg = `${agentName} marked OUT at ${timeStr}`;
+              } else if (log.type === 'leave') {
+                notifTitle = 'Agent On Leave';
+                notifMsg = `${agentName} applied for leave${log.reason ? `: ${log.reason}` : ''}`;
+              }
+              void sendPushNotification(
+                currentAgent?.managerUsername || state.currentManager || activeManager || 'mahadnet',
+                notifTitle,
+                notifMsg,
+                'myisp-attendance',
+                { target_role: 'manager' }
+              );
+
+              const logEntry = { ...log, id: logId, timestamp: now } as AttendanceLog;
+              setState(prev => {
+                const next = {
+                  ...prev,
+                  attendanceLogs: [...(prev.attendanceLogs || []), logEntry],
+                  subManagers: (prev.subManagers || []).map(sm => sm.id === (currentAgent?.id || activeManager) ? {
+                    ...sm,
+                    dutyStatus: log.type === 'check-in' ? 'online' : 'offline',
+                    isLeave: log.type === 'leave',
+                    ...(log.type === 'check-in' ? { lastCheckIn: now, lastLocation: log.location ? { ...log.location, timestamp: now } : sm.lastLocation } : { lastCheckOut: now, lastLocation: null }),
+                  } : sm),
+                };
+                saveState(next);
+                saveStateToSupabase(currentAgent?.managerUsername || prev.currentManager || activeManager || '', next);
+                return next;
+              });
+              setLiveDutyStatus(log.type === 'check-in' ? 'online' : 'offline');
+              setSuccessToast(log.type === 'check-in' ? 'Checked in' : log.type === 'check-out' ? 'Checked out' : 'Leave logged');
+              setTimeout(() => setSuccessToast(null), 2500);
             }) as any : handleAddAttendanceLog}
             onIssueInvoice={(userId, agentId) => {
               if (isRealAuthSubManager && effectiveDutyStatus !== 'online') return;
