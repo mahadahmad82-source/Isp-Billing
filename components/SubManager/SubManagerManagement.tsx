@@ -34,6 +34,7 @@ interface SubManagerManagementProps {
   onDeleteComplaint?: (id: string) => void;
   teamMessages?: TeamMessage[];
   onSendTeamMessage?: (message: TeamMessage) => void;
+  onRefreshTeamMessages?: () => Promise<void>;
   areas?: string[]; // Feature A — Access Rights: service areas list for the area-lock picker
 }
 
@@ -43,7 +44,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   onAgentRecruited, onEditAgent, onDeleteAgent,
   onAddAttendanceLog, onUpdateAttendanceLog, onDeleteAttendanceLog, attendanceLogs,
   complaintTickets = [], onResolveComplaint, users = [],
-  onAddComplaint, onUpdateComplaint, onDeleteComplaint, teamMessages = [], onSendTeamMessage, areas = [],
+  onAddComplaint, onUpdateComplaint, onDeleteComplaint, teamMessages = [], onSendTeamMessage, onRefreshTeamMessages, areas = [],
 }) => {
   const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints' | 'communication'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
@@ -722,7 +723,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
 
       {/* ── COMMUNICATION TAB ── */}
       {activeTab === 'communication' && (
-        <TeamCommunication managerId={managerId} managerUsername={managerId} currentUsername={managerId} currentRole="manager" subManagers={subManagers} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} />
+        <TeamCommunication managerId={managerId} managerUsername={managerId} currentUsername={managerId} currentRole="manager" subManagers={subManagers} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} onRefresh={onRefreshTeamMessages} />
       )}
       {/* ── COMPLAINTS TAB ── */}
       {activeTab === 'complaints' && (
