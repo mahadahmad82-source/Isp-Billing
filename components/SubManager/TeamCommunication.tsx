@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SubManagerAccount, TeamMessage } from '../../types';
 import { supabase } from '../../lib/supabase';
 
@@ -9,7 +9,7 @@ interface TeamCommunicationProps {
   currentRole: 'manager' | 'sub-manager';
   subManagers: SubManagerAccount[];
   messages: TeamMessage[];
-  onSend: (message: TeamMessage) => void;
+  onSend: (message: TeamMessage) => void | Promise<boolean | void>;
 }
 
 const pickMimeType = (): string => {
@@ -32,16 +32,28 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
   const chunksRef = useRef<Blob[]>([]);
 
   const targetUsername = currentRole === 'manager' ? recipient : managerUsername;
+  useEffect(() => {
+    if (currentRole === 'manager' && (!recipient || !subManagers.some(agent => agent.username === recipient))) {
+      setRecipient(subManagers[0]?.username || '');
+    }
+  }, [currentRole, recipient, subManagers]);
   const visibleMessages = useMemo(() => {
     return messages
       .filter(message => message.managerUsername === managerUsername)
-      .filter(message => currentRole === 'sub-manager' || !recipient || message.senderUsername === recipient || message.recipientUsername === recipient)
+      .filter(message => currentRole === 'sub-manager'
+        ? (message.senderUsername === currentUsername || message.recipientUsername === currentUsername)
+        : (!recipient || message.senderUsername === recipient || message.recipientUsername === recipient))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [currentRole, managerUsername, messages, recipient]);
+  }, [currentRole, currentUsername, managerUsername, messages, recipient]);
 
-  const sendMessage = (message: Pick<TeamMessage, 'text' | 'voiceUrl' | 'voiceMimeType'>) => {
-    if (!targetUsername || (!message.text && !message.voiceUrl)) return;
-    onSend({
+  useEffect(() => () => {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+    streamRef.current?.getTracks().forEach(track => track.stop());
+  }, []);
+
+  const sendMessage = async (message: Pick<TeamMessage, 'text' | 'voiceUrl' | 'voiceMimeType'>): Promise<boolean> => {
+    if (!targetUsername || (!message.text && !message.voiceUrl)) return false;
+    const sent = await Promise.resolve(onSend({
       id: `team-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       managerUsername,
       senderUsername: currentUsername,
@@ -49,15 +61,15 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
       recipientUsername: targetUsername,
       createdAt: new Date().toISOString(),
       ...message,
-    });
+    }));
+    return sent !== false;
   };
 
-  const handleTextSubmit = (event: React.FormEvent) => {
+  const handleTextSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    sendMessage({ text });
-    setDraft('');
+    if (await sendMessage({ text })) setDraft('');
   };
 
   const startRecording = async () => {
@@ -84,7 +96,8 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
           });
           if (error) throw error;
           const { data } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-          sendMessage({ voiceUrl: data.publicUrl, voiceMimeType: blob.type || 'audio/webm' });
+          const sent = await sendMessage({ voiceUrl: data.publicUrl, voiceMimeType: blob.type || 'audio/webm' });
+          if (!sent) alert('Voice note save nahi hui.');
         } catch (error: any) {
           alert(`Voice note upload nahi hua: ${error?.message || 'Unknown error'}`);
         } finally {
