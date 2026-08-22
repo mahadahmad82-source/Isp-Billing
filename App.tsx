@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
+import { getWabotAuthHeaders } from './utils/whatsapp';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -1277,29 +1278,82 @@ const App: React.FC = () => {
   }, []);
 
   const handleUpdateAttendanceLog = useCallback((logId: string, updates: Partial<AttendanceLog>) => {
-    setState(prev => ({
-      ...prev,
-      attendanceLogs: (prev.attendanceLogs || []).map(log => 
-        log.id === logId ? { ...log, ...updates } : log
-      )
-    }));
-  }, []);
+    setState(prev => {
+      const next = { ...prev, attendanceLogs: (prev.attendanceLogs || []).map(log => log.id === logId ? { ...log, ...updates } : log) };
+      saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next);
+      return next;
+    });
+  }, [activeManager]);
 
   const handleDeleteAttendanceLog = useCallback((logId: string) => {
-    setState(prev => ({
-      ...prev,
-      attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId)
-    }));
+    setState(prev => {
+      const next = { ...prev, attendanceLogs: (prev.attendanceLogs || []).filter(log => log.id !== logId) };
+      saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next);
+      return next;
+    });
+  }, [activeManager]);
+
+  const triggerComplaintFeedback = useCallback(async (ticketId: string) => {
+    try {
+      const headers = await getWabotAuthHeaders();
+      if (!headers.Authorization) return;
+      const response = await fetch('/api/admin-maintenance?action=complaint-feedback', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ ticketId }) });
+      const result = await response.json().catch(() => ({}));
+      if (result.ticket) {
+        setState(prev => { const next = { ...prev, complaintTickets: (prev.complaintTickets || []).map(ticket => ticket.id === ticketId ? { ...ticket, ...result.ticket } : ticket) }; saveState(next); return next; });
+      }
+    } catch (error) { console.error('[ComplaintFeedback]', error); }
   }, []);
 
+  const handleSubmitComplaintResolution = useCallback(async (ticketId: string, resolutionDetails: string) => {
+    const account = activeManager ? getAccounts().find(candidate => candidate.username === activeManager) : undefined;
+    const isRealAuthAgent = account?.role === 'sub-manager' && !!account.authUserId;
+    if (isRealAuthAgent) {
+      try {
+        const headers = await getWabotAuthHeaders();
+        const response = await fetch('/api/admin-maintenance?action=submit-complaint-resolution', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ ticketId, resolutionDetails }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || 'Resolution submission failed.');
+        setState(prev => { const next = { ...prev, complaintTickets: (prev.complaintTickets || []).map(ticket => ticket.id === ticketId ? { ...ticket, status: 'pending_manager_review' as const, resolutionDetails, resolvedAt: result.ticket?.resolvedAt || new Date().toISOString(), resolvedBy: result.ticket?.resolvedBy || activeManager, feedbackStatus: 'pending' as const } : ticket) }; saveState(next); return next; });
+        void triggerComplaintFeedback(ticketId);
+      } catch (error: any) { alert(error?.message || 'Resolution submit nahi hui. Dobara try karein.'); }
+      return;
+    }
+    setState(prev => {
+      const ticket = (prev.complaintTickets || []).find(candidate => candidate.id === ticketId);
+      if (!ticket) return prev;
+      const now = new Date().toISOString();
+      const reviewNotif: AppNotification = { id: `complaint-review-${ticketId}-${Date.now()}`, type: 'COMPLAINT_REVIEW_REQUIRED', priority: 'HIGH', title: 'Complaint Resolution Needs Review', message: `${ticket.assignedTo || 'Team member'} submitted a resolution for "${ticket.title}" (${ticket.customerName}).`, timestamp: now, actionLabel: 'Review', actionTab: 'complaints' };
+      const next = { ...prev, complaintTickets: (prev.complaintTickets || []).map(candidate => candidate.id === ticketId ? { ...candidate, status: 'pending_manager_review' as const, resolutionDetails, resolvedAt: now, resolvedBy: activeManager || 'sub-manager', feedbackStatus: 'pending' as const } : candidate), pendingManagerNotifications: [...(prev.pendingManagerNotifications || []), reviewNotif] };
+      saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next); showLocalNotification(reviewNotif.title, reviewNotif.message, 'complaint-review'); void sendPushNotification(prev.currentManager || activeManager || 'mahadnet', reviewNotif.title, reviewNotif.message, 'myisp-complaint'); return next;
+    });
+    void triggerComplaintFeedback(ticketId);
+  }, [activeManager, triggerComplaintFeedback]);
+
+  const handleSendTeamMessage = useCallback(async (message: TeamMessage) => {
+    const account = activeManager ? getAccounts().find(candidate => candidate.username === activeManager) : undefined;
+    const isRealAuthAgent = account?.role === 'sub-manager' && !!account.authUserId;
+    if (isRealAuthAgent) {
+      try {
+        const headers = await getWabotAuthHeaders();
+        const response = await fetch('/api/admin-maintenance?action=send-team-message', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ text: message.text, voiceUrl: message.voiceUrl, voiceMimeType: message.voiceMimeType }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || 'Team message send failed.');
+        const written = result.message || message;
+        setState(prev => { const next = { ...prev, teamMessages: [...(prev.teamMessages || []), written] }; saveState(next); return next; });
+      } catch (error: any) { alert(error?.message || 'Team message save nahi hua.'); }
+      return;
+    }
+    setState(prev => { const next = { ...prev, teamMessages: [...(prev.teamMessages || []), message] }; saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next); return next; });
+  }, [activeManager]);
+
   const handleUpdateAgent = useCallback((agentId: string, updates: any) => {
-    setState(prev => ({
-      ...prev,
-      subManagers: (prev.subManagers || []).map(sm => 
-        sm.id === agentId ? { ...sm, ...updates } : sm
-      )
-    }));
-  }, []);
+    setState(prev => {
+      const next = { ...prev, subManagers: (prev.subManagers || []).map(sm => sm.id === agentId ? { ...sm, ...updates } : sm) };
+      saveState(next); saveStateToSupabase(prev.currentManager || activeManager || '', next);
+      return next;
+    });
+  }, [activeManager]);
 
   const handleUpdateUser = (userId: string, update: Partial<UserRecord>) => {
     setState(prev => ({ ...prev, users: prev.users.map(u => u.id === userId ? { ...u, ...update } : u) }));
@@ -1632,6 +1686,8 @@ const App: React.FC = () => {
             readOnly={false /* Phase 1 leftover removed — attendance (agent_log_attendance RPC) and receipts (agent-issue-receipt) both now have secure, server-verified write paths for real-auth sub-managers */}
             liveDutyStatus={isRealAuthSubManager ? liveDutyStatus : null}
             attendanceLogs={state.attendanceLogs || []}
+            teamMessages={state.teamMessages || []}
+            onSendTeamMessage={handleSendTeamMessage}
             onLogout={handleLogout}
             onAddAttendanceLog={isRealAuthSubManager ? ((log: any) => {
               supabase.rpc('agent_log_attendance', {
@@ -1704,31 +1760,7 @@ const App: React.FC = () => {
               t.assignedTo === activeManager ||
               t.assignedTo === state.subManagers?.find(sm => sm.username === activeManager)?.id
             )}
-            onResolveComplaint={isRealAuthSubManager ? undefined : (ticketId) => {
-              setState(prev => {
-                const ticket = (prev.complaintTickets || []).find(t => t.id === ticketId);
-                const resolveNotif: AppNotification = ticket ? {
-                  id: `complaint-resolved-agent-${ticketId}-${Date.now()}`,
-                  type: 'COMPLAINT_RESOLVED',
-                  priority: 'HIGH',
-                  title: '✅ Complaint Resolved',
-                  message: `Agent resolved complaint: "${ticket.title}" for ${ticket.customerName}.`,
-                  timestamp: new Date().toISOString(),
-                  actionLabel: 'View',
-                  actionTab: 'complaints'
-                } : null;
-                showLocalNotification('✅ Complaint Resolved', ticket ? `"${ticket.title}" resolved by agent` : 'Complaint resolved', 'complaint');
-                sendPushNotification(prev.currentManager || activeManager || 'mahadnet', '✅ Complaint Resolved', ticket ? `"${ticket.title}" — ${ticket.customerName}` : 'Complaint resolved', 'myisp-complaint');
-                const newState = { 
-                  ...prev, 
-                  complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t),
-                  pendingManagerNotifications: resolveNotif ? [...(prev.pendingManagerNotifications || []), resolveNotif] : (prev.pendingManagerNotifications || [])
-                };
-                saveState(newState);
-                saveStateToSupabase(prev.currentManager || activeManager || '', newState);
-                return newState;
-              });
-            }}
+            onResolveComplaint={handleSubmitComplaintResolution}
           />
         )}
       </ErrorBoundary>
@@ -2303,18 +2335,70 @@ const App: React.FC = () => {
               }}
               onAddAttendanceLog={handleAddAttendanceLog}
               complaintTickets={state.complaintTickets || []}
+              teamMessages={state.teamMessages || []}
+              onSendTeamMessage={handleSendTeamMessage}
               users={filteredUsers}
               onAddComplaint={(t) => {
                 setState(prev => {
-                  const newState = { ...prev, complaintTickets: [...(prev.complaintTickets || []), { ...t, id: generateId(), createdAt: new Date().toISOString() }] };
-                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
+                  const now = new Date().toISOString();
+                  const ticket = { ...t, id: generateId(), createdAt: now };
+                  const assignedAgent = t.assignedTo ? prev.subManagers?.find(candidate => candidate.id === t.assignedTo || candidate.username === t.assignedTo) : undefined;
+                  const agentKey = assignedAgent?.id || t.assignedTo;
+                  const assignmentNotification: AppNotification | null = agentKey ? {
+                    id: `complaint-assigned-${ticket.id}`, type: 'COMPLAINT_ASSIGNED', priority: 'HIGH', title: 'New Complaint Assigned',
+                    message: `You have been assigned "${ticket.title}" for ${ticket.customerName}.${t.assignmentNote ? ` Instructions: ${t.assignmentNote}` : ''}`,
+                    timestamp: now, actionLabel: 'View', actionTab: 'complaints',
+                  } : null;
+                  const newState = {
+                    ...prev,
+                    complaintTickets: [...(prev.complaintTickets || []), ticket],
+                    agentPendingNotifications: agentKey && assignmentNotification ? { ...(prev.agentPendingNotifications || {}), [agentKey]: [...(prev.agentPendingNotifications?.[agentKey] || []), assignmentNotification] } : prev.agentPendingNotifications,
+                  };
+                  saveState(newState); saveStateToSupabase(activeManager || '', newState);
+                  if (assignedAgent?.username && assignmentNotification) void sendPushNotification(prev.currentManager || activeManager || 'mahadnet', assignmentNotification.title, assignmentNotification.message, 'myisp-complaint', { target_username: assignedAgent.username });
+                  return newState;
                 });
               }}
               onUpdateComplaint={(id, updates) => {
                 setState(prev => {
-                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === id ? { ...t, ...updates } : t) };
+                  const ticket = (prev.complaintTickets || []).find(candidate => candidate.id === id);
+                  let pendingManagerNotifications = [...(prev.pendingManagerNotifications || [])];
+                  const agentPendingNotifications = { ...(prev.agentPendingNotifications || {}) };
+                  const now = new Date().toISOString();
+                  if (ticket && updates.status === 'pending_manager_review') {
+                    pendingManagerNotifications.push({
+                      id: `complaint-review-${id}-${Date.now()}`, type: 'COMPLAINT_REVIEW_REQUIRED', priority: 'HIGH',
+                      title: 'Complaint Resolution Needs Review', message: `Resolution submitted for "${ticket.title}" (${ticket.customerName}).`, timestamp: now, actionLabel: 'Review', actionTab: 'complaints',
+                    });
+                  }
+                  if (ticket && updates.status === 'revision_required' && ticket.assignedTo) {
+                    const agent = prev.subManagers?.find(candidate => candidate.id === ticket.assignedTo || candidate.username === ticket.assignedTo);
+                    const agentKey = agent?.id || ticket.assignedTo;
+                    const revisionNotification: AppNotification = {
+                      id: `complaint-revision-${id}-${Date.now()}`, type: 'COMPLAINT_ASSIGNED', priority: 'HIGH',
+                      title: 'Complaint Sent Back for Revision', message: `Manager requested revision for "${ticket.title}"${updates.reviewNote ? `: ${updates.reviewNote}` : '.'}`, timestamp: now, actionLabel: 'View', actionTab: 'complaints',
+                    };
+                    agentPendingNotifications[agentKey] = [...(agentPendingNotifications[agentKey] || []), revisionNotification];
+                  }
+                  if (ticket && updates.assignedTo && updates.assignedTo !== ticket.assignedTo) {
+                    const agent = prev.subManagers?.find(candidate => candidate.id === updates.assignedTo || candidate.username === updates.assignedTo);
+                    const agentKey = agent?.id || updates.assignedTo;
+                    const assignmentNotification: AppNotification = {
+                      id: `complaint-assigned-${id}-${Date.now()}`, type: 'COMPLAINT_ASSIGNED', priority: 'HIGH',
+                      title: 'New Complaint Assigned', message: `You have been assigned "${ticket.title}" for ${ticket.customerName}.${updates.assignmentNote ? ` Instructions: ${updates.assignmentNote}` : ''}`, timestamp: now, actionLabel: 'View', actionTab: 'complaints',
+                    };
+                    agentPendingNotifications[agentKey] = [...(agentPendingNotifications[agentKey] || []), assignmentNotification];
+                    if (agent?.username) void sendPushNotification(prev.currentManager || activeManager || 'mahadnet', assignmentNotification.title, assignmentNotification.message, 'myisp-complaint', { target_username: agent.username });
+                  }
+                  const newState = {
+                    ...prev,
+                    complaintTickets: (prev.complaintTickets || []).map(candidate => candidate.id === id ? { ...candidate, ...updates } : candidate),
+                    pendingManagerNotifications,
+                    agentPendingNotifications,
+                  };
                   saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
                 });
+                if (updates.status === 'pending_manager_review' || updates.status === 'resolved') void triggerComplaintFeedback(id);
               }}
               onDeleteComplaint={(id) => {
                 setState(prev => {
@@ -2322,12 +2406,7 @@ const App: React.FC = () => {
                   saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
                 });
               }}
-              onResolveComplaint={(ticketId) => {
-                setState(prev => {
-                  const newState = { ...prev, complaintTickets: (prev.complaintTickets || []).map(t => t.id === ticketId ? { ...t, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : t) };
-                  saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
-                });
-              }}
+              onResolveComplaint={handleSubmitComplaintResolution}
               onUpdateAttendanceLog={handleUpdateAttendanceLog}
               onDeleteAttendanceLog={handleDeleteAttendanceLog}
               attendanceLogs={state.attendanceLogs || []}
