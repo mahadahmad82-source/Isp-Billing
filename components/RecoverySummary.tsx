@@ -210,10 +210,9 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     // templateParams[1]: gross monthly fee minus persistent discount, floor 0.
     const currentMonthPayable = Math.max(0, monthlyFee - discount);
 
-    // templateParams[2]: UserRecord.balance is the actual dues already owed — discount has
-    // already been applied upstream (via Excel import or manual entry). Do NOT subtract
-    // discount again here. Fall back to creditAmount if balance is 0/falsy.
-    const pendingBalance = Math.max(0, (item.balance ?? 0) > 0 ? (item.balance ?? 0) : (actualUser?.creditAmount ?? 0));
+    // templateParams[2]: use ledger balance exactly as stored — no fallback to creditAmount.
+    // If balance is 0, send 0. Never invent a dues figure from creditAmount.
+    const pendingBalance = Math.max(0, item.balance ?? 0);
 
     await sendPendingAmountTemplate(
       item.phone ?? '',
