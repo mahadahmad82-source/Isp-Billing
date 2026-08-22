@@ -318,6 +318,7 @@ const App: React.FC = () => {
     dutyStatus: 'online' | 'offline';
     lastCheckIn?: string;
     lastCheckOut?: string;
+    lastLocation?: { lat: number; lng: number; timestamp?: string };
   }>>({});
   useEffect(() => {
     if (userRole === 'sub-manager' || !activeManager) return;
@@ -334,13 +335,14 @@ const App: React.FC = () => {
         const payload = await response.json().catch(() => null);
         const rows = Array.isArray(payload) ? payload : (Array.isArray(payload?.accounts) ? payload.accounts : []);
         if (cancelled) return;
-        const map: Record<string, { dutyStatus: 'online' | 'offline'; lastCheckIn?: string; lastCheckOut?: string }> = {};
+        const map: Record<string, { dutyStatus: 'online' | 'offline'; lastCheckIn?: string; lastCheckOut?: string; lastLocation?: { lat: number; lng: number; timestamp?: string } }> = {};
         rows.forEach((r: any) => {
           if (!r.username) return;
           map[r.username] = {
             dutyStatus: r.duty_status === 'online' ? 'online' : 'offline',
             lastCheckIn: r.last_check_in || undefined,
             lastCheckOut: r.last_check_out || undefined,
+            lastLocation: r.last_location || undefined,
           };
         });
         setLiveTeamStatus(map);
@@ -2269,6 +2271,7 @@ const App: React.FC = () => {
                   dutyStatus: live.dutyStatus,
                   lastCheckIn: live.lastCheckIn || sm.lastCheckIn,
                   lastCheckOut: live.lastCheckOut || sm.lastCheckOut,
+                  lastLocation: live.lastLocation || sm.lastLocation,
                 };
               })}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
@@ -2276,7 +2279,6 @@ const App: React.FC = () => {
               areas={currentSettings.areas || []}
               onVoidReceipt={handleVoidReceipt}
               onEditReceiptAmount={handleEditReceiptAmount}
-              onViewLogs={(id) => console.log('Logs for', id)}
               onAgentRecruited={(agent) => {
                 setSuccessToast("Agent recruited. Login with the username and manager-set password.");
                 setTimeout(() => setSuccessToast(null), 5000);
