@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { SubManagerAccount } from '../../types';
 
 interface LiveTrackingProps {
@@ -18,23 +18,41 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ subManagers }) => {
   const [mapReady, setMapReady] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<SubManagerAccount | null>(null);
 
-  const activeAgents = subManagers.filter(sm =>
-    sm.dutyStatus === 'online' && sm.lastLocation?.lat && sm.lastLocation?.lng
-  );
+  const activeAgents = useMemo(() => subManagers.filter(sm =>
+    sm.dutyStatus === 'online' && Number.isFinite(sm.lastLocation?.lat) && Number.isFinite(sm.lastLocation?.lng)
+  ), [subManagers]);
 
-  // Load Leaflet CSS + JS dynamically
+  // Load Leaflet CSS + JS dynamically and remove only assets created by this view.
   useEffect(() => {
     if (window.L) { setMapReady(true); return; }
 
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
+    let link = document.querySelector('link[data-teamhub-leaflet]') as HTMLLinkElement | null;
+    let script = document.querySelector('script[data-teamhub-leaflet]') as HTMLScriptElement | null;
+    const addedLink = !link;
+    const addedScript = !script;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.dataset.teamhubLeaflet = 'true';
+      document.head.appendChild(link);
+    }
+    const onLoad = () => setMapReady(true);
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.dataset.teamhubLeaflet = 'true';
+      script.addEventListener('load', onLoad);
+      document.head.appendChild(script);
+    } else {
+      script.addEventListener('load', onLoad);
+    }
 
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = () => setMapReady(true);
-    document.head.appendChild(script);
+    return () => {
+      script?.removeEventListener('load', onLoad);
+      if (addedLink) link?.remove();
+      if (addedScript) script?.remove();
+    };
   }, []);
 
   // Init map
@@ -55,6 +73,12 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ subManagers }) => {
     }).addTo(map);
 
     mapInstanceRef.current = map;
+    return () => {
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+      map.remove();
+      if (mapInstanceRef.current === map) mapInstanceRef.current = null;
+    };
   }, [mapReady]);
 
   // Update markers when agents change
