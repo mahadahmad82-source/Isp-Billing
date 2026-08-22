@@ -159,6 +159,7 @@ export const flushPendingSync = async (): Promise<void> => {
         subManagers:      mergeById(staleState.subManagers,      currentRemote.subManagers),
         attendanceLogs:   mergeById(staleState.attendanceLogs,   currentRemote.attendanceLogs),
         complaintTickets: mergeById(staleState.complaintTickets, currentRemote.complaintTickets),
+        teamMessages: mergeById(staleState.teamMessages, currentRemote.teamMessages),
         businessExpenses: mergeById(staleState.businessExpenses, currentRemote.businessExpenses),
       } : staleState;
       const ok = await upsertWithRetry(item.managerId, stateToPush, 2);
@@ -303,6 +304,7 @@ export const smartLoadAndSync = async (
     subManagers:              mergeById(localState?.subManagers,      supabaseState.subManagers),
     attendanceLogs:           mergeById(localState?.attendanceLogs,   supabaseState.attendanceLogs),
     complaintTickets:         mergeById(localState?.complaintTickets, supabaseState.complaintTickets),
+    teamMessages:             mergeById(localState?.teamMessages, supabaseState.teamMessages),
     businessExpenses:         mergeById(localState?.businessExpenses, supabaseState.businessExpenses),
     activeCompanyId:          base.activeCompanyId || '',
     dismissedNotificationIds: Array.from(new Set([...(localState?.dismissedNotificationIds || []), ...(supabaseState.dismissedNotificationIds || [])])),
