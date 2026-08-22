@@ -760,6 +760,7 @@ async function handleSendTeamMessage(req: any, res: any) {
   const text = String(req.body?.text || '').trim();
   const voiceUrl = String(req.body?.voiceUrl || '').trim();
   const voiceMimeType = String(req.body?.voiceMimeType || '').trim();
+  const clientMessageId = String(req.body?.clientMessageId || '').trim().slice(0, 128);
   if (!text && !voiceUrl) return res.status(400).json({ error: 'text or voiceUrl is required' });
   try {
     const parent = await getSubManagerParent(caller);
@@ -768,8 +769,12 @@ async function handleSendTeamMessage(req: any, res: any) {
     if (!read) return res.status(404).json({ error: 'Parent manager data not found.' });
     for (let attempt = 0; attempt < 2; attempt++) {
       const state = read.data || {};
+      if (clientMessageId) {
+        const existing = (state.teamMessages || []).find((candidate: any) => candidate?.id === clientMessageId);
+        if (existing) return res.status(200).json({ success: true, manager_id: parent.managerId, message: existing, idempotent: true });
+      }
       const now = new Date().toISOString();
-      const message = { id: `team-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, managerUsername: parent.managerId, senderUsername: caller.username, senderRole: 'sub-manager', recipientUsername: parent.managerId, ...(text ? { text } : {}), ...(voiceUrl ? { voiceUrl, voiceMimeType: voiceMimeType || 'audio/webm' } : {}), createdAt: now };
+      const message = { id: clientMessageId || `team-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, managerUsername: parent.managerId, senderUsername: caller.username, senderRole: 'sub-manager', recipientUsername: parent.managerId, ...(text ? { text } : {}), ...(voiceUrl ? { voiceUrl, voiceMimeType: voiceMimeType || 'audio/webm' } : {}), createdAt: now };
       const managerNotification = { id: `team-message-${message.id}`, type: 'TEAM_MESSAGE', priority: 'LOW', title: `New message from @${caller.username}`, message: text ? text.slice(0, 120) : 'You received a voice note.', timestamp: now, actionLabel: 'Open Team Hub', actionTab: 'team' };
       const updatedState = { ...state, _syncedAt: now, teamMessages: [...(state.teamMessages || []), message], pendingManagerNotifications: [...(state.pendingManagerNotifications || []), managerNotification] };
       const writeRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(parent.managerId)}&updated_at=eq.${encodeURIComponent(read.updated_at)}`, {
