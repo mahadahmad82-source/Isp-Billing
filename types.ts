@@ -47,6 +47,7 @@ export interface ManagerAccount {
   createdAt: string;
   rememberPassword?: boolean;
   agentToken?: string; // sub-manager only — server-issued session token (find_sub_manager_login), used to authorize WABot requests via check_agent_permission
+  authUserId?: string; // real Supabase Auth identity for provisioned accounts
 }
 
 // A WABot support agent — lets mahadnet run 2-3 named agents (e.g. Ayesha for billing,
@@ -213,7 +214,7 @@ export interface Receipt {
 
 export interface AppNotification {
   id: string;
-  type: 'EXPIRY' | 'OVERDUE' | 'SYSTEM' | 'RECOVERY' | 'PAYMENT' | 'ATTENDANCE_IN' | 'ATTENDANCE_OUT' | 'COMPLAINT_RESOLVED' | 'COMPLAINT_ASSIGNED';
+  type: 'EXPIRY' | 'OVERDUE' | 'SYSTEM' | 'RECOVERY' | 'PAYMENT' | 'ATTENDANCE_IN' | 'ATTENDANCE_OUT' | 'COMPLAINT_RESOLVED' | 'COMPLAINT_ASSIGNED' | 'COMPLAINT_REVIEW_REQUIRED' | 'COMPLAINT_FEEDBACK_SKIPPED';
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   title: string;
   message: string;
@@ -241,6 +242,9 @@ export interface SalaryPayment {
 }
 
 // ─── COMPLAINT TICKET ───────────────────────────────────────
+export type ComplaintStatus = 'open' | 'assigned' | 'pending_manager_review' | 'revision_required' | 'resolved' | 'closed';
+export type ComplaintFeedbackStatus = 'pending' | 'sent' | 'skipped_window' | 'not_configured' | 'failed';
+
 export interface ComplaintTicket {
   id: string;
   customerId: string;       // UserRecord.id
@@ -248,15 +252,38 @@ export interface ComplaintTicket {
   customerPhone?: string;
   title: string;            // Short issue title
   description: string;
-  status: 'open' | 'assigned' | 'resolved' | 'closed';
+  status: ComplaintStatus;
   priority: 'low' | 'medium' | 'high';
   assignedTo?: string;      // SubManagerAccount.id or username
   assignedAt?: string;
+  assignmentNote?: string;
   resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionDetails?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewNote?: string;
   commissionOnResolve?: number;  // Fixed Rs. amount paid on resolution
   createdAt: string;
   createdBy: string;        // manager username
+  customerLastInboundAt?: string; // Used for a fail-closed 24-hour NetBot window check
+  feedbackStatus?: ComplaintFeedbackStatus;
+  feedbackSentAt?: string;
+  feedbackError?: string;
   notes?: string;
+}
+
+export interface TeamMessage {
+  id: string;
+  managerUsername: string;
+  senderUsername: string;
+  senderRole: 'manager' | 'sub-manager';
+  recipientUsername: string;
+  text?: string;
+  voiceUrl?: string;
+  voiceMimeType?: string;
+  createdAt: string;
+  readAt?: string;
 }
 
 // ─── BUSINESS EXPENSE ────────────────────────────────────────
@@ -318,6 +345,8 @@ export interface SubManagerAccount {
   assignedAreas?: string[];    // empty/undefined = all areas (no lock)
   accessRights?: Record<ModuleKey, AccessRights>; // undefined = unrestricted (legacy behavior, unaffected)
   active?: boolean;            // false = suspended (reserved for future login block, not yet enforced)
+  shiftStart?: string;          // Local time in HH:mm, configured by the manager
+  shiftEnd?: string;            // Local time in HH:mm, configured by the manager
 }
 
 export interface AttendanceLog {
@@ -326,10 +355,31 @@ export interface AttendanceLog {
   type: 'check-in' | 'check-out' | 'leave';
   timestamp: string;
   reason?: string;
+  overtimeMinutes?: number;
+  overtimeReason?: string;
   location?: {
     lat: number;
     lng: number;
   };
+}
+
+export function calculateOvertimeMinutes(checkIn: string, checkOut: string, shiftStart?: string, shiftEnd?: string): number {
+  if (!checkIn || !checkOut || !shiftStart || !shiftEnd) return 0;
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+  const [startHour, startMinute] = shiftStart.split(':').map(Number);
+  const [endHour, endMinute] = shiftEnd.split(':').map(Number);
+  if (![startHour, startMinute, endHour, endMinute].every(Number.isFinite)) return 0;
+  const shiftStartDate = new Date(start);
+  shiftStartDate.setHours(startHour, startMinute, 0, 0);
+  const shiftEndDate = new Date(start);
+  shiftEndDate.setHours(endHour, endMinute, 0, 0);
+  if (shiftEndDate <= shiftStartDate) shiftEndDate.setDate(shiftEndDate.getDate() + 1);
+  let overtime = 0;
+  if (start < shiftStartDate) overtime += Math.max(0, Math.round((Math.min(end.getTime(), shiftStartDate.getTime()) - start.getTime()) / 60000));
+  if (end > shiftEndDate) overtime += Math.max(0, Math.round((end.getTime() - Math.max(start.getTime(), shiftEndDate.getTime())) / 60000));
+  return overtime;
 }
 
 export interface Company {
@@ -523,5 +573,6 @@ export interface AppState {
   pendingManagerNotifications?: AppNotification[];
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
+  teamMessages?: TeamMessage[];
 }
 
