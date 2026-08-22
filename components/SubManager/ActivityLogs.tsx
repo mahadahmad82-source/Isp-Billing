@@ -1,41 +1,34 @@
 import React, { useState, useMemo } from 'react';
-import { SubManagerAccount, Receipt } from '../../types';
+import { SubManagerAccount, Receipt, AttendanceLog } from '../../types';
 
 interface ActivityLogsProps {
   subManagers: SubManagerAccount[];
   recentReceipts: Receipt[];
+  attendanceLogs: AttendanceLog[];
   onViewPerformance?: () => void;
 }
 
-const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts, onViewPerformance }) => {
+const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts, attendanceLogs, onViewPerformance }) => {
   const [filterType, setFilterType] = useState<string>('all');
 
   const totalCollected = useMemo(() =>
     recentReceipts.reduce((s, r) => s + (r.paidAmount || 0), 0), [recentReceipts]);
 
-  // ✅ Audit trail: "[Timestamp] - [Agent] collected Rs. X from [Customer]"
+  // Attendance logs are the source of truth for historical duty activity. The
+  // agent snapshot still powers the directory, but must not masquerade as a log.
   const logs = useMemo(() => {
     const result: { id: string; type: string; timestamp: string; description: string }[] = [];
 
-    subManagers.forEach(sm => {
-      if (sm.lastCheckIn) {
-        const ts = new Date(sm.lastCheckIn);
-        result.push({
-          id: `ci-${sm.id}`,
-          type: 'check_in',
-          timestamp: sm.lastCheckIn,
-          description: `[${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} • ${ts.toLocaleDateString()}] — ${sm.name} checked in`,
-        });
-      }
-      if (sm.lastCheckOut) {
-        const ts = new Date(sm.lastCheckOut);
-        result.push({
-          id: `co-${sm.id}`,
-          type: 'check_out',
-          timestamp: sm.lastCheckOut,
-          description: `[${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} • ${ts.toLocaleDateString()}] — ${sm.name} checked out`,
-        });
-      }
+    attendanceLogs.forEach(log => {
+      const ts = new Date(log.timestamp);
+      if (Number.isNaN(ts.getTime())) return;
+      const agent = subManagers.find(sm => sm.id === log.subManagerId || sm.username === log.subManagerId);
+      const agentName = agent?.name || log.subManagerId || 'Team member';
+      const time = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const date = ts.toLocaleDateString();
+      const type = log.type === 'check-in' ? 'check_in' : log.type === 'check-out' ? 'check_out' : 'leave';
+      const detail = log.type === 'check-in' ? 'checked in' : log.type === 'check-out' ? 'checked out' : `marked leave${log.reason ? `: ${log.reason}` : ''}`;
+      result.push({ id: log.id, type, timestamp: log.timestamp, description: `[${time} • ${date}] — ${agentName} ${detail}` });
     });
 
     recentReceipts.forEach(r => {
@@ -43,6 +36,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
       const agent = subManagers.find(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
       if (!agent) return;
       const ts = new Date(r.date);
+      if (Number.isNaN(ts.getTime())) return;
       result.push({
         id: `rec-${r.id}`,
         type: 'collection',
@@ -52,7 +46,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
     });
 
     return result.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [subManagers, recentReceipts]);
+  }, [attendanceLogs, subManagers, recentReceipts]);
 
   const filtered = useMemo(() =>
     logs.filter(l => filterType === 'all' || l.type === filterType), [logs, filterType]);
@@ -76,6 +70,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
             <option value="all">All Events</option>
             <option value="check_in">Check-Ins</option>
             <option value="check_out">Check-Outs</option>
+            <option value="leave">Leave</option>
             <option value="collection">Collections</option>
           </select>
         </div>
@@ -101,6 +96,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
           const colors: Record<string,string> = {
             check_in: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500',
             check_out: 'bg-rose-100 dark:bg-rose-500/20 text-rose-500',
+            leave: 'bg-orange-100 dark:bg-orange-500/20 text-orange-500',
             collection: 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-500',
           };
           return (
@@ -109,6 +105,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ subManagers, recentReceipts
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   {log.type === 'check_in' && <path d="M20 6L9 17l-5-5"/>}
                   {log.type === 'check_out' && <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>}
+                  {log.type === 'leave' && <path d="M12 3v18M5 8h14M5 16h14"/>}
                   {log.type === 'collection' && <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>}
                 </svg>
               </div>
