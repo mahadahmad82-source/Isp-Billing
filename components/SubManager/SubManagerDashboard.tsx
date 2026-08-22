@@ -21,6 +21,7 @@ interface SubManagerDashboardProps {
   complaintTickets?: ComplaintTicket[];
   teamMessages?: TeamMessage[];
   onSendTeamMessage?: (message: TeamMessage) => void;
+  onRefreshTeamMessages?: () => Promise<void>;
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
   readOnly?: boolean; // Real Supabase Auth agents are read-only during Phase 1
   liveDutyStatus?: 'online' | 'offline' | null; // Server-backed status for real-auth agents
@@ -44,6 +45,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   onResolveComplaint,
   teamMessages = [],
   onSendTeamMessage,
+  onRefreshTeamMessages,
   canLogReceipts = true,
   readOnly = false,
   liveDutyStatus = null,
@@ -698,7 +700,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
         </div>
         ) : activePortalTab === 'communication' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <TeamCommunication managerId={agent?.managerUsername || ''} managerUsername={agent?.managerUsername || ''} currentUsername={subManagerName} currentRole="sub-manager" subManagers={agent ? [agent] : []} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} />
+            <TeamCommunication managerId={agent?.managerUsername || ''} managerUsername={agent?.managerUsername || ''} currentUsername={subManagerName} currentRole="sub-manager" subManagers={agent ? [agent] : []} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} onRefresh={onRefreshTeamMessages} />
           </div>
         ) : activePortalTab === 'attendance' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
