@@ -1,5 +1,5 @@
 import React, { useState, useMemo, Suspense, lazy } from 'react';
-import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment, ComplaintTicket } from '../../types';
+import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment, ComplaintTicket, TeamMessage } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { getAccounts } from '../../utils/storage';
 import RecruitAgentModal from './RecruitAgentModal';
@@ -7,6 +7,7 @@ import AgentAttendance from './AgentAttendance';
 import ActivityLogs from './ActivityLogs';
 import AgentPerformanceReport from './AgentPerformanceReport';
 import EditGranularRights from './EditGranularRights';
+import TeamCommunication from './TeamCommunication';
 
 // Lazy load LiveTracking so map issues don't crash the whole Team Hub
 const LiveTracking = lazy(() => import('./LiveTracking'));
@@ -32,6 +33,8 @@ interface SubManagerManagementProps {
   onAddComplaint?: (t: Omit<ComplaintTicket, 'id' | 'createdAt'>) => void;
   onUpdateComplaint?: (id: string, updates: Partial<ComplaintTicket>) => void;
   onDeleteComplaint?: (id: string) => void;
+  teamMessages?: TeamMessage[];
+  onSendTeamMessage?: (message: TeamMessage) => void;
   areas?: string[]; // Feature A — Access Rights: service areas list for the area-lock picker
 }
 
@@ -41,7 +44,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   onAgentRecruited, onEditAgent, onDeleteAgent,
   onAddAttendanceLog, onUpdateAttendanceLog, onDeleteAttendanceLog, attendanceLogs,
   complaintTickets = [], onResolveComplaint, users = [],
-  onAddComplaint, onUpdateComplaint, onDeleteComplaint, areas = [],
+  onAddComplaint, onUpdateComplaint, onDeleteComplaint, teamMessages = [], onSendTeamMessage, areas = [],
 }) => {
   const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
@@ -187,6 +190,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     { id: 'tracking', label: 'Live Tracking' },
     { id: 'overrides', label: 'Field Ops' },
     { id: 'complaints', label: 'Complaints' },
+    { id: 'communication', label: 'Communication' },
   ] as const;
 
   return (
@@ -214,6 +218,8 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 password: editingAgent.password,
                 baseSalary: parseFloat(editingAgent.baseSalary) || 0,
                 commissionPercent: parseFloat(editingAgent.commissionPercent) || 0,
+                shiftStart: editingAgent.shiftStart || '',
+                shiftEnd: editingAgent.shiftEnd || '',
               });
               setEditingAgent(null);
             }} className="p-8 space-y-5 overflow-y-auto max-h-[70vh]">
@@ -265,6 +271,15 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                       onChange={e => setEditingAgent({ ...editingAgent, baseSalary: e.target.value })}
                       className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-bold text-emerald-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
                   </div>
+                </div>
+
+                <div className="col-span-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-3">Shift Configuration</p>
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Shift Start</label><input type="time" value={editingAgent.shiftStart || ''} onChange={e => setEditingAgent({ ...editingAgent, shiftStart: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Shift End</label><input type="time" value={editingAgent.shiftEnd || ''} onChange={e => setEditingAgent({ ...editingAgent, shiftEnd: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-2">Overtime is calculated only from manual clock-in/out records outside this window.</p>
                 </div>
 
                 {/* ✅ NEW: Commission % */}
@@ -706,6 +721,11 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
         </div>
       )}
 
+      {/* ── COMMUNICATION TAB ── */}
+      {activeTab === 'communication' && (
+        <TeamCommunication managerId={managerId} managerUsername={managerId} currentUsername={managerId} currentRole="manager" subManagers={subManagers} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} />
+      )}
+      {activeTab === 'communication' && null}
       {/* ── COMPLAINTS TAB ── */}
       {activeTab === 'complaints' && (
         <Suspense fallback={<div className="text-center py-12 text-slate-400 text-sm">Loading...</div>}>
