@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import LocationTracker from './LocationTracker';
-import { UserRecord, AppSettings, Receipt, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket } from '../../types';
+import { UserRecord, AppSettings, Receipt, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, calculateOvertimeMinutes } from '../../types';
+import TeamCommunication from './TeamCommunication';
 
 interface SubManagerDashboardProps {
   subManagerName: string;
@@ -17,7 +18,9 @@ interface SubManagerDashboardProps {
   onUpdateAgent: (agentId: string, updates: any) => void;
   onAddAttendanceLog: (log: Omit<AttendanceLog, 'id'>) => void;
   complaintTickets?: ComplaintTicket[];
-  onResolveComplaint?: (ticketId: string) => void;
+  onResolveComplaint?: (ticketId: string, resolutionDetails: string) => void;
+  teamMessages?: TeamMessage[];
+  onSendTeamMessage?: (message: TeamMessage) => void;
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
   readOnly?: boolean; // Real Supabase Auth agents are read-only during Phase 1
   liveDutyStatus?: 'online' | 'offline' | null; // Server-backed status for real-auth agents
@@ -39,11 +42,15 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   attendanceLogs,
   complaintTickets = [],
   onResolveComplaint,
+  teamMessages = [],
+  onSendTeamMessage,
   canLogReceipts = true,
   readOnly = false,
   liveDutyStatus = null,
 }) => {
-  const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints'>('clients');
+  const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints' | 'communication'>('clients');
+  const [resolutionTicketId, setResolutionTicketId] = useState<string | null>(null);
+  const [resolutionText, setResolutionText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [dutyStatus, setDutyStatus] = useState<'online' | 'offline'>(liveDutyStatus || agent?.dutyStatus || 'offline');
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -91,13 +98,17 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
           location: location || (agent?.lastLocation ? { lat: agent.lastLocation.lat, lng: agent.lastLocation.lng } : undefined)
         });
       } else {
-        updates.lastCheckOut = new Date().toISOString();
+        const checkOut = new Date().toISOString();
+        const overtimeMinutes = agent?.lastCheckIn ? calculateOvertimeMinutes(agent.lastCheckIn, checkOut, agent.shiftStart, agent.shiftEnd) : 0;
+        updates.lastCheckOut = checkOut;
         updates.lastLocation = null; // Wipe location state on checkout for privacy
         
         onAddAttendanceLog({
           subManagerId: agentId,
           type: 'check-out',
-          timestamp: new Date().toISOString(),
+          timestamp: checkOut,
+          overtimeMinutes,
+          overtimeReason: overtimeMinutes > 0 ? 'Worked outside configured shift window' : undefined,
           location: agent?.lastLocation ? { lat: agent.lastLocation.lat, lng: agent.lastLocation.lng } : undefined
         });
       }
@@ -681,6 +692,10 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
           </div>
           </div>
         </div>
+        ) : activePortalTab === 'communication' ? (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <TeamCommunication managerId={agent?.managerUsername || ''} managerUsername={agent?.managerUsername || ''} currentUsername={subManagerName} currentRole="sub-manager" subManagers={agent ? [agent] : []} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} />
+          </div>
         ) : activePortalTab === 'attendance' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid md:grid-cols-3 gap-6">
@@ -866,7 +881,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Your assigned complaints</p>
                 </div>
                 <span className="px-3 py-1.5 bg-rose-500/10 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                  {complaintTickets.filter(t => t.status !== 'resolved' && t.status !== 'closed').length} Open
+                  {complaintTickets.filter(t => t.status !== 'pending_manager_review' && t.status !== 'resolved' && t.status !== 'closed').length} Open
                 </span>
               </div>
               {complaintTickets.length === 0 ? (
@@ -892,26 +907,29 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                             <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
                               ticket.status === 'open' ? 'bg-rose-500/10 text-rose-500' :
                               ticket.status === 'assigned' ? 'bg-amber-500/10 text-amber-500' :
-                              ticket.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-500' :
+                              ticket.status === 'pending_manager_review' || ticket.status === 'resolved' ? 'bg-indigo-500/10 text-indigo-500' :
+                              ticket.status === 'revision_required' ? 'bg-orange-500/10 text-orange-500' :
                               'bg-slate-200 dark:bg-white/5 text-slate-500'
-                            }`}>{ticket.status}</span>
+                            }`}>{ticket.status.replaceAll('_', ' ')}</span>
                           </div>
                           <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1 truncate">{ticket.title}</h4>
                           <p className="text-xs text-slate-500 mb-3 line-clamp-2">{ticket.description}</p>
                           <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            <span>👤 {ticket.customerName}</span>
-                            {ticket.customerPhone && <span>📞 {ticket.customerPhone}</span>}
-                            <span>🕐 {new Date(ticket.createdAt).toLocaleDateString()}</span>
+                            <span>Customer: {ticket.customerName}</span>
+                            {ticket.customerPhone && <span>Phone: {ticket.customerPhone}</span>}
+                            <span>Created: {new Date(ticket.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        {!readOnly && ticket.status !== 'resolved' && ticket.status !== 'closed' && onResolveComplaint && (
-                          <button
-                            onClick={() => onResolveComplaint(ticket.id)}
-                            className="shrink-0 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 whitespace-nowrap"
-                          >
-                            ✓ Resolve
-                          </button>
-                        )}
+                        {ticket.assignmentNote && <div className="mt-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 p-4"><p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1">Assignment Note / Instructions</p><p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{ticket.assignmentNote}</p></div>}
+                        {ticket.status === 'revision_required' && ticket.reviewNote && <div className="mt-4 rounded-2xl bg-orange-500/5 border border-orange-500/15 p-4"><p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-1">Manager Revision Note</p><p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{ticket.reviewNote}</p></div>}
+                        {!readOnly && (ticket.status === 'assigned' || ticket.status === 'revision_required') && onResolveComplaint && (resolutionTicketId === ticket.id ? (
+                          <form onSubmit={event => { event.preventDefault(); const details = resolutionText.trim(); if (!details) return; onResolveComplaint(ticket.id, details); setResolutionTicketId(null); setResolutionText(''); }} className="mt-4 space-y-3 w-full">
+                            <textarea required rows={3} value={resolutionText} onChange={event => setResolutionText(event.target.value)} placeholder="Describe the work completed and customer outcome..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                            <div className="flex gap-2"><button type="button" onClick={() => { setResolutionTicketId(null); setResolutionText(''); }} className="flex-1 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 text-[9px] font-black uppercase tracking-widest">Cancel</button><button type="submit" className="flex-[2] px-3 py-2.5 rounded-xl bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest">Submit for Manager Review</button></div>
+                          </form>
+                        ) : (
+                          <button onClick={() => { setResolutionTicketId(ticket.id); setResolutionText(ticket.resolutionDetails || ''); }} className="mt-4 shrink-0 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-600/20 whitespace-nowrap">Submit for Review</button>
+                        ))}
                       </div>
                       {ticket.commissionOnResolve > 0 && (
                         <div className="mt-3 px-3 py-2 bg-amber-500/5 border border-amber-500/15 rounded-xl">
@@ -954,6 +972,14 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
             </div>
             <span className="text-[8px] font-black uppercase tracking-widest">Attendance</span>
+          </button>
+          <button
+            onClick={() => setActivePortalTab('communication')}
+            className={`flex flex-col items-center gap-1 flex-1 py-2 transition-all ${activePortalTab === 'communication' ? 'text-white' : 'text-slate-400'}`}
+          >
+            <div className={`p-1.5 rounded-full transition-all ${activePortalTab === 'communication' ? 'bg-indigo-600 scale-110 shadow-lg shadow-indigo-600/30' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 10h8M8 14h5"/></svg>
+            </div><span className="text-[8px] font-black uppercase tracking-widest">Chat</span>
           </button>
           <button 
             onClick={() => setActivePortalTab('complaints')}
