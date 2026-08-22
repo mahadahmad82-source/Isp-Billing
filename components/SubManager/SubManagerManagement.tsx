@@ -46,7 +46,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   complaintTickets = [], onResolveComplaint, users = [],
   onAddComplaint, onUpdateComplaint, onDeleteComplaint, teamMessages = [], onSendTeamMessage, areas = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints' | 'communication'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
@@ -725,7 +725,6 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       {activeTab === 'communication' && (
         <TeamCommunication managerId={managerId} managerUsername={managerId} currentUsername={managerId} currentRole="manager" subManagers={subManagers} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} />
       )}
-      {activeTab === 'communication' && null}
       {/* ── COMPLAINTS TAB ── */}
       {activeTab === 'complaints' && (
         <Suspense fallback={<div className="text-center py-12 text-slate-400 text-sm">Loading...</div>}>
