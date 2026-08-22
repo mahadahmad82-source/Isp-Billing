@@ -473,6 +473,7 @@ export interface OutageLog {
   severity: OutageSeverity;
   areasAffected: string[];
   startTime: string;
+  expiresAt?: string;
   endTime?: string;
   resolvedBy?: string;
   resolutionNote?: string;
