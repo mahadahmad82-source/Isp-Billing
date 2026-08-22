@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
-import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { getWabotAuthHeaders } from './utils/whatsapp';
@@ -419,6 +419,20 @@ const App: React.FC = () => {
   // already-shown notifications because it read `state` captured at mount)
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+
+  const refreshTeamMessages = useCallback(async () => {
+    const account = activeManager ? getAccounts().find(candidate => candidate.username === activeManager) : undefined;
+    const managerId = userRole === 'sub-manager'
+      ? account?.managerUsername || stateRef.current.currentManager || ''
+      : activeManager || '';
+    if (!managerId) return;
+    const remote = await loadStateFromSupabase(managerId);
+    if (!remote) return;
+    setState(previous => ({
+      ...previous,
+      teamMessages: mergeById(previous.teamMessages || [], remote.teamMessages || []),
+    }));
+  }, [activeManager, userRole]);
 
   useEffect(() => {
     // Basic initialization
@@ -1370,11 +1384,11 @@ const App: React.FC = () => {
     if (isRealAuthAgent) {
       try {
         const headers = await getWabotAuthHeaders();
-        const response = await fetch('/api/admin-maintenance?action=send-team-message', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ text: message.text, voiceUrl: message.voiceUrl, voiceMimeType: message.voiceMimeType }) });
+        const response = await fetch('/api/admin-maintenance?action=send-team-message', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ text: message.text, voiceUrl: message.voiceUrl, voiceMimeType: message.voiceMimeType, clientMessageId: message.id }) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) throw new Error(result.error || 'Team message send failed.');
         const written = result.message || message;
-        setState(prev => { const next = { ...prev, teamMessages: [...(prev.teamMessages || []), written] }; saveState(next); return next; });
+        setState(prev => { const next = { ...prev, teamMessages: [...(prev.teamMessages || []).filter(item => item.id !== written.id), written] }; saveState(next); return next; });
         const managerId = result.manager_id || message.managerUsername || account.managerUsername || 'mahadnet';
         const preview = written.text ? written.text.slice(0, 120) : 'You received a voice note.';
         void sendPushNotification(managerId, `New message from @${written.senderUsername}`, preview, 'myisp-team', { target_role: 'manager', target_username: managerId });
@@ -1742,6 +1756,7 @@ const App: React.FC = () => {
             attendanceLogs={state.attendanceLogs || []}
             teamMessages={state.teamMessages || []}
             onSendTeamMessage={handleSendTeamMessage}
+            onRefreshTeamMessages={refreshTeamMessages}
             onLogout={handleLogout}
             onAddAttendanceLog={isRealAuthSubManager ? (async (log: any) => {
               const now = log.timestamp || new Date().toISOString();
@@ -2418,6 +2433,7 @@ const App: React.FC = () => {
               complaintTickets={state.complaintTickets || []}
               teamMessages={state.teamMessages || []}
               onSendTeamMessage={handleSendTeamMessage}
+              onRefreshTeamMessages={refreshTeamMessages}
               users={filteredUsers}
               onAddComplaint={(t) => {
                 setState(prev => {
