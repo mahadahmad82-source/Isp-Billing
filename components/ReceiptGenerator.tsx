@@ -192,8 +192,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       ? (latestPreviousReceipt.balanceAmount || 0)
       : (user.balance || 0);
 
+    // Persistent discount must be known before the missed-months loop so each missed
+    // month charges the discounted fee, not the gross fee.
+    const persistentDisc = user.persistentDiscount || 0;
+
     // Detect missed months: iterate each month between last receipt and current period
-    // Only add fee for months that have NO receipt at all (not just gap math)
+    // Only add fee for months that have NO receipt at all (not just gap math).
+    // Each missed month adds (fee - discount) — same net amount the customer would have
+    // owed if they had been billed that month — so arrears never inflate by the discount.
     let missedMonthsArrears = 0;
     if (latestPreviousReceipt && latestPreviousReceipt.period) {
       const currentDate = parseMonthYear(currentBillingPeriod);
@@ -206,14 +212,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           const mYear = cursor.getFullYear().toString();
           const mPeriod = `${mName} ${mYear}`;
           const hasPaid = userReceipts.some(r => r.period === mPeriod);
-          if (!hasPaid) missedMonthsArrears += fee;
+          if (!hasPaid) missedMonthsArrears += Math.max(0, fee - persistentDisc);
           cursor.setMonth(cursor.getMonth() + 1);
         }
       }
     }
     const balance = lastReceiptBalance + missedMonthsArrears;
-
-    const persistentDisc = user.persistentDiscount || 0;
     
     setMonthlyFee(fee);
     setPreviousBalance(balance);
