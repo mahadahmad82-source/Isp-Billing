@@ -38,7 +38,7 @@ export default async function handler(req: any, res: any) {
     // Browser path: only an authenticated admin may use this action.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -68,6 +68,12 @@ export default async function handler(req: any, res: any) {
       return handleResolveSubManagerState(req, res);
     case 'agent-issue-receipt':
       return handleAgentIssueReceipt(req, res);
+    case 'submit-complaint-resolution':
+      return handleSubmitComplaintResolution(req, res);
+    case 'send-team-message':
+      return handleSendTeamMessage(req, res);
+    case 'complaint-feedback':
+      return handleComplaintFeedback(req, res);
     case 'list-sub-manager-accounts':
       return handleListSubManagerAccounts(req, res);
     case 'reset-quota':
@@ -413,6 +419,182 @@ async function handleListSubManagerAccounts(req: any, res: any) {
 }
 
 // ── Action: agent-issue-receipt ───────────────────────────────────────────────
+async function getSubManagerParent(caller: CallerContext): Promise<{ managerId: string; username: string; id?: string } | null> {
+  const agentRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/sub_managers?auth_user_id=eq.${encodeURIComponent(caller.userId)}&select=id,manager_id,username&limit=1`,
+    { headers: dbHeaders }
+  );
+  if (!agentRes.ok) throw new Error('sub-manager ownership lookup failed');
+  const rows: any[] = await agentRes.json();
+  const agent = rows?.[0];
+  if (!agent?.manager_id || !agent.username) return null;
+  return { managerId: agent.manager_id, username: agent.username, id: agent.id };
+}
+
+async function handleComplaintFeedback(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || !['manager', 'admin', 'sub-manager'].includes(caller.role)) return res.status(403).json({ error: 'Authenticated team session required' });
+  const ticketId = String(req.body?.ticketId || '').trim();
+  if (!ticketId) return res.status(400).json({ error: 'ticketId is required' });
+  try {
+    const parent = caller.role === 'sub-manager' ? await getSubManagerParent(caller) : null;
+    const managerId = parent?.managerId || caller.username;
+    if (!managerId) return res.status(403).json({ error: 'Manager scope could not be resolved.' });
+    let read = await fetchParentManagerState(managerId);
+    if (!read) return res.status(404).json({ error: 'Manager data not found.' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const state = read.data || {};
+      const ticket = (state.complaintTickets || []).find((candidate: any) => candidate?.id === ticketId);
+      if (!ticket) return res.status(404).json({ error: 'Complaint ticket not found.' });
+      if (ticket.status !== 'pending_manager_review') return res.status(409).json({ error: 'Feedback is available only after a resolution is submitted.' });
+      if (ticket.feedbackStatus && ticket.feedbackStatus !== 'pending') return res.status(200).json({ success: true, status: ticket.feedbackStatus, skipped: ticket.feedbackStatus !== 'sent' });
+      const now = new Date().toISOString();
+      const notifyManual = (reason: string) => ({
+        id: `complaint-feedback-${ticketId}-${Date.now()}`,
+        type: 'COMPLAINT_FEEDBACK_SKIPPED', priority: 'MEDIUM',
+        title: 'Customer Feedback Needs Manual Follow-up',
+        message: `NetBot did not send feedback for "${ticket.title}": ${reason}`,
+        timestamp: now, actionLabel: 'Review', actionTab: 'complaints',
+      });
+      let ticketUpdate: any = {};
+      let feedbackResult: any = { success: true, status: 'skipped_window', skipped: true };
+      let notification: any = null;
+      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${encodeURIComponent(managerId)}&select=service_status&limit=1`, { headers: dbHeaders });
+      const cfgRows: any[] = cfgRes.ok ? await cfgRes.json() : [];
+      const botEnabled = ['active', 'trial'].includes(cfgRows?.[0]?.service_status);
+      const inboundAt = ticket.customerLastInboundAt ? new Date(ticket.customerLastInboundAt).getTime() : NaN;
+      const ageMs = Date.now() - inboundAt;
+      if (!botEnabled) {
+        ticketUpdate = { feedbackStatus: 'not_configured', feedbackError: 'NetBot is not active for this manager.' };
+        notification = notifyManual('NetBot is not active for this manager.');
+      } else if (!ticket.customerPhone || !Number.isFinite(inboundAt) || ageMs < 0 || ageMs > 24 * 60 * 60 * 1000) {
+        ticketUpdate = { feedbackStatus: 'skipped_window', feedbackError: 'Customer WhatsApp 24-hour window is not open.' };
+        notification = notifyManual('the customer WhatsApp 24-hour window is closed.');
+      } else {
+        const token = process.env.WHATSAPP_TOKEN;
+        const phoneId = process.env.PHONE_NUMBER_ID;
+        const phone = String(ticket.customerPhone).replace(/\D/g, '').slice(-10);
+        const body = `Assalam o Alaikum ${ticket.customerName || ''}, aap ki complaint par team ne kaam complete kar diya hai. Kya masla theek ho gaya?\n\n1 - Ji haan\n2 - Abhi masla hai\n\nAap ka feedback hamare liye aham hai.`.trim();
+        if (!token || !phoneId || phone.length !== 10) {
+          ticketUpdate = { feedbackStatus: 'failed', feedbackError: 'WhatsApp configuration or customer phone is unavailable.' };
+          notification = notifyManual('WhatsApp configuration or customer phone is unavailable.');
+        } else {
+          const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ messaging_product: 'whatsapp', to: phone, type: 'text', text: { body } }) });
+          const responseBody = await sendRes.json().catch(() => ({}));
+          if (!sendRes.ok) {
+            const errorText = JSON.stringify(responseBody).slice(0, 300);
+            ticketUpdate = { feedbackStatus: 'failed', feedbackError: errorText };
+            notification = notifyManual('Meta rejected the feedback message.');
+            console.error('[complaint-feedback] Meta rejected:', errorText);
+          } else {
+            const wamid = responseBody?.messages?.[0]?.id || null;
+            await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, { method: 'POST', headers: { ...dbHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ manager_id: managerId, customer_phone: phone, direction: 'out', type: 'text', content: body, media_url: null, wa_message_id: wamid }) });
+            ticketUpdate = { feedbackStatus: 'sent', feedbackSentAt: now, feedbackError: undefined };
+            feedbackResult = { success: true, status: 'sent', skipped: false };
+          }
+        }
+      }
+      const updatedTicket = { ...ticket, ...ticketUpdate };
+      const updatedState = { ...state, _syncedAt: now, complaintTickets: (state.complaintTickets || []).map((candidate: any) => candidate.id === ticketId ? updatedTicket : candidate), ...(notification ? { pendingManagerNotifications: [...(state.pendingManagerNotifications || []), notification] } : {}) };
+      const writeRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(managerId)}&updated_at=eq.${encodeURIComponent(read.updated_at)}`, { method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ data: updatedState, updated_at: now }) });
+      if (!writeRes.ok) return res.status(500).json({ error: 'Feedback status could not be saved.' });
+      const writtenRows: any[] = await writeRes.json().catch(() => []);
+      if (writtenRows.length > 0) return res.status(200).json({ ...feedbackResult, ticket: updatedTicket });
+      if (attempt === 0) { read = await fetchParentManagerState(managerId); if (!read) return res.status(500).json({ error: 'Manager data could not be reloaded.' }); continue; }
+      return res.status(409).json({ error: 'The complaint changed while saving. Please retry.' });
+    }
+    return res.status(409).json({ error: 'The complaint changed while saving. Please retry.' });
+  } catch (error: any) {
+    console.error('[complaint-feedback]', error?.message);
+    return res.status(500).json({ error: 'Feedback automation could not be completed.' });
+  }
+}
+
+async function handleSubmitComplaintResolution(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || caller.role !== 'sub-manager' || !caller.username) return res.status(403).json({ error: 'Sub-manager session required' });
+  const ticketId = String(req.body?.ticketId || '').trim();
+  const resolutionDetails = String(req.body?.resolutionDetails || '').trim();
+  if (!ticketId || !resolutionDetails) return res.status(400).json({ error: 'ticketId and resolutionDetails are required' });
+  try {
+    const parent = await getSubManagerParent(caller);
+    if (!parent) return res.status(404).json({ error: 'Parent manager mapping not found.' });
+    let read = await fetchParentManagerState(parent.managerId);
+    if (!read) return res.status(404).json({ error: 'Parent manager data not found.' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const state = read.data || {};
+      const ticket = (state.complaintTickets || []).find((candidate: any) => candidate?.id === ticketId);
+      if (!ticket) return res.status(404).json({ error: 'Complaint ticket not found.' });
+      const assigned = ticket.assignedTo === caller.username || ticket.assignedTo === parent.id;
+      if (!assigned) return res.status(403).json({ error: 'This complaint is not assigned to your account.' });
+      if (!['assigned', 'revision_required'].includes(ticket.status)) return res.status(409).json({ error: 'This complaint is not ready for a new resolution submission.' });
+      const now = new Date().toISOString();
+      const updatedTicket = { ...ticket, status: 'pending_manager_review', resolutionDetails, resolvedAt: now, resolvedBy: caller.username, feedbackStatus: ticket.feedbackStatus || 'pending' };
+      const reviewNotification = {
+        id: `complaint-review-${ticketId}-${Date.now()}`,
+        type: 'COMPLAINT_REVIEW_REQUIRED', priority: 'HIGH',
+        title: 'Complaint Resolution Needs Review',
+        message: `${caller.username} submitted a resolution for "${ticket.title}" (${ticket.customerName}).`,
+        timestamp: now, actionLabel: 'Review', actionTab: 'complaints',
+      };
+      const updatedState = {
+        ...state,
+        _syncedAt: now,
+        complaintTickets: (state.complaintTickets || []).map((candidate: any) => candidate.id === ticketId ? updatedTicket : candidate),
+        pendingManagerNotifications: [...(state.pendingManagerNotifications || []), reviewNotification],
+      };
+      const writeRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(parent.managerId)}&updated_at=eq.${encodeURIComponent(read.updated_at)}`, {
+        method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ data: updatedState, updated_at: now }),
+      });
+      if (!writeRes.ok) return res.status(500).json({ error: 'Complaint resolution could not be saved.' });
+      const writtenRows: any[] = await writeRes.json().catch(() => []);
+      if (writtenRows.length > 0) return res.status(200).json({ success: true, manager_id: parent.managerId, agent_username: caller.username, ticket: updatedTicket });
+      if (attempt === 0) { read = await fetchParentManagerState(parent.managerId); if (!read) return res.status(500).json({ error: 'Parent manager data could not be reloaded.' }); continue; }
+      return res.status(409).json({ error: 'The complaint changed while saving. Please retry.' });
+    }
+    return res.status(409).json({ error: 'The complaint changed while saving. Please retry.' });
+  } catch (error: any) {
+    console.error('[submit-complaint-resolution]', error?.message);
+    return res.status(500).json({ error: 'Complaint resolution could not be saved.' });
+  }
+}
+
+async function handleSendTeamMessage(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || caller.role !== 'sub-manager' || !caller.username) return res.status(403).json({ error: 'Sub-manager session required' });
+  const text = String(req.body?.text || '').trim();
+  const voiceUrl = String(req.body?.voiceUrl || '').trim();
+  const voiceMimeType = String(req.body?.voiceMimeType || '').trim();
+  if (!text && !voiceUrl) return res.status(400).json({ error: 'text or voiceUrl is required' });
+  try {
+    const parent = await getSubManagerParent(caller);
+    if (!parent) return res.status(404).json({ error: 'Parent manager mapping not found.' });
+    let read = await fetchParentManagerState(parent.managerId);
+    if (!read) return res.status(404).json({ error: 'Parent manager data not found.' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const state = read.data || {};
+      const now = new Date().toISOString();
+      const message = { id: `team-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, managerUsername: parent.managerId, senderUsername: caller.username, senderRole: 'sub-manager', recipientUsername: parent.managerId, ...(text ? { text } : {}), ...(voiceUrl ? { voiceUrl, voiceMimeType: voiceMimeType || 'audio/webm' } : {}), createdAt: now };
+      const updatedState = { ...state, _syncedAt: now, teamMessages: [...(state.teamMessages || []), message] };
+      const writeRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(parent.managerId)}&updated_at=eq.${encodeURIComponent(read.updated_at)}`, {
+        method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ data: updatedState, updated_at: now }),
+      });
+      if (!writeRes.ok) return res.status(500).json({ error: 'Team message could not be saved.' });
+      const writtenRows: any[] = await writeRes.json().catch(() => []);
+      if (writtenRows.length > 0) return res.status(200).json({ success: true, message });
+      if (attempt === 0) { read = await fetchParentManagerState(parent.managerId); if (!read) return res.status(500).json({ error: 'Parent manager data could not be reloaded.' }); continue; }
+      return res.status(409).json({ error: 'The team channel changed while saving. Please retry.' });
+    }
+    return res.status(409).json({ error: 'The team channel changed while saving. Please retry.' });
+  } catch (error: any) {
+    console.error('[send-team-message]', error?.message);
+    return res.status(500).json({ error: 'Team message could not be saved.' });
+  }
+}
+
 // Real-auth sub-managers may issue a receipt only while checked in. The parent
 // manager_data row is read and conditionally patched by updated_at so a stale
 // read can never silently erase another manager/agent write.
