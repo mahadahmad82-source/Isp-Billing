@@ -39,6 +39,11 @@ export default async function handler(req: any, res: any) {
     // Browser path: only an authenticated admin may use this action.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
+  } else if (action === 'migrate-legacy-sub-manager-auth') {
+    // Legacy agents have no bearer token yet. This action is intentionally
+    // self-authenticating: it verifies the supplied legacy credentials through
+    // the existing RPC before creating/linking a real Auth identity. It never
+    // accepts a manager id from the client and never returns a privileged key.
   } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
@@ -57,6 +62,8 @@ export default async function handler(req: any, res: any) {
   switch (action) {
     case 'add-token':
       return handleAddToken(req, res);
+    case 'migrate-legacy-sub-manager-auth':
+      return handleMigrateLegacySubManagerAuth(req, res);
     case 'create-sub-manager-auth':
       return handleCreateSubManagerAuth(req, res);
     case 'reset-sub-manager-auth-password':
@@ -316,6 +323,89 @@ async function handleResolveSubManagerState(req: any, res: any) {
   } catch (e: any) {
     console.error('[resolve-sub-manager-state]', e?.message);
     return res.status(500).json({ error: 'Parent manager data could not be loaded.' });
+  }
+}
+
+async function handleMigrateLegacySubManagerAuth(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const identifier = String(req.body?.username || '').trim().toLowerCase();
+  const password = String(req.body?.password || '');
+  if (!identifier || identifier.length > 120 || !password || password.length > 200) {
+    return res.status(401).json({ error: 'Invalid credentials.' });
+  }
+
+  try {
+    // The legacy RPC remains the source of truth for this migration. Do not
+    // trust a manager id, role, or profile supplied by the mobile client.
+    const { data: match, error: matchError } = await adminSupabase.rpc('find_sub_manager_login', {
+      p_identifier: identifier,
+      p_password: password,
+    });
+    if (matchError || !match?.manager_id || !match?.agent) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    const managerUsername = String(match.manager_id).trim().toLowerCase();
+    const agent = match.agent || {};
+    const username = String(agent.username || identifier).trim().toLowerCase();
+    const name = String(agent.name || username).trim();
+  let provisionedAuthUserId: string | null = null;
+    const existingRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(username)}&select=auth_user_id,email&limit=1`,
+      { headers: dbHeaders },
+    );
+    if (!existingRes.ok) throw new Error('legacy agent lookup failed');
+    const existingRows: any[] = await existingRes.json();
+    const existing = existingRows?.[0];
+    if (existing?.auth_user_id) {
+      return res.status(200).json({ success: true, auth_email: existing.email || `agent.${managerUsername}.${username}@myisp.local`, migrated: false });
+    }
+
+    const authEmail = `agent.${managerUsername}.${username}@myisp.local`;
+    const { data, error: authError } = await adminSupabase.auth.admin.createUser({
+      email: authEmail,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: name, username, manager_username: managerUsername },
+    });
+    if (authError || !data?.user?.id) {
+      console.error('[migrate-legacy-sub-manager-auth] Auth provisioning failed:', authError?.message);
+      return res.status(401).json({ error: 'Invalid credentials or account could not be upgraded.' });
+    }
+    provisionedAuthUserId = data.user.id;
+
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${data.user.id}`, { method: 'DELETE', headers: dbHeaders }).catch(() => {});
+    const rowPayload = {
+      manager_id: managerUsername,
+      auth_user_id: data.user.id,
+      username,
+      name,
+      email: authEmail,
+      role: 'agent',
+      assigned_area: agent.area || agent.assigned_area || null,
+      contact: agent.phone || agent.contact || null,
+      commission_rate: agent.commissionPercent ?? agent.commission_rate ?? null,
+      salary: agent.baseSalary ?? agent.salary ?? null,
+    };
+    let linkRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sub_managers?manager_id=eq.${encodeURIComponent(managerUsername)}&username=eq.${encodeURIComponent(username)}`,
+      { method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=representation' }, body: JSON.stringify(rowPayload) },
+    );
+    if (!linkRes.ok) throw new Error('legacy agent link failed');
+    const linkedRows: any[] = await linkRes.json();
+    if (!linkedRows.length) {
+      linkRes = await fetch(`${SUPABASE_URL}/rest/v1/sub_managers`, {
+        method: 'POST',
+        headers: { ...dbHeaders, Prefer: 'return=representation' },
+        body: JSON.stringify(rowPayload),
+      });
+      if (!linkRes.ok) throw new Error('legacy agent auth row insert failed');
+    }
+    return res.status(200).json({ success: true, auth_email: authEmail, migrated: true });
+  } catch (error: any) {
+    console.error('[migrate-legacy-sub-manager-auth]', error?.message || error);
+    if (provisionedAuthUserId) await adminSupabase.auth.admin.deleteUser(provisionedAuthUserId).catch(() => {});
+    return res.status(500).json({ error: 'Agent login could not be upgraded. Please retry.' });
   }
 }
 
