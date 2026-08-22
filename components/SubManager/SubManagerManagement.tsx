@@ -19,7 +19,6 @@ interface SubManagerManagementProps {
   managerId: string;
   onVoidReceipt: (receiptId: string) => void;
   onEditReceiptAmount: (receiptId: string, newAmount: number) => void;
-  onViewLogs: (subManagerId: string) => void;
   onAgentRecruited: (agent: any) => void;
   onEditAgent: (agentId: string, updates: any) => void;
   onDeleteAgent: (agentId: string) => void;
@@ -40,7 +39,7 @@ interface SubManagerManagementProps {
 
 const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   subManagers, recentReceipts, managerId,
-  onVoidReceipt, onEditReceiptAmount, onViewLogs,
+  onVoidReceipt, onEditReceiptAmount,
   onAgentRecruited, onEditAgent, onDeleteAgent,
   onAddAttendanceLog, onUpdateAttendanceLog, onDeleteAttendanceLog, attendanceLogs,
   complaintTickets = [], onResolveComplaint, users = [],
@@ -342,7 +341,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       )}
 
       {activeTab === 'logs' && (
-        <ActivityLogs subManagers={subManagers} recentReceipts={recentReceipts}
+        <ActivityLogs subManagers={subManagers} recentReceipts={recentReceipts} attendanceLogs={attendanceLogs}
           onViewPerformance={() => setActiveTab('performance')} />
       )}
       {activeTab === 'performance' && (
