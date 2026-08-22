@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { SubManagerAccount, AttendanceLog } from '../../types';
+import { SubManagerAccount, AttendanceLog, calculateOvertimeMinutes } from '../../types';
 
 interface AgentAttendanceProps {
   subManagers: SubManagerAccount[];
@@ -18,6 +18,7 @@ interface DailyShift {
   checkIn: string | null;
   checkOut: string | null;
   totalHours: string;
+  overtimeMinutes: number;
   status: 'complete' | 'active' | 'leave' | 'absent';
 }
 
@@ -55,6 +56,7 @@ const AgentAttendance: React.FC<AgentAttendanceProps> = ({
         const checkOutLog = dayLogs.find(l => l.type === 'check-out');
         const leaveLog = dayLogs.find(l => l.type === 'leave');
         let totalHours = '--';
+        let overtimeMinutes = 0;
         let status: DailyShift['status'] = 'absent';
 
         if (leaveLog) {
@@ -64,16 +66,18 @@ const AgentAttendance: React.FC<AgentAttendanceProps> = ({
           const h = Math.floor(diffMs / 3600000);
           const m = Math.floor((diffMs % 3600000) / 60000);
           totalHours = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          overtimeMinutes = checkOutLog.overtimeMinutes ?? calculateOvertimeMinutes(checkInLog.timestamp, checkOutLog.timestamp, agent.shiftStart, agent.shiftEnd);
           status = 'complete';
         } else if (checkInLog) {
           const diffMs = Date.now() - new Date(checkInLog.timestamp).getTime();
           const h = Math.floor(diffMs / 3600000);
           const m = Math.floor((diffMs % 3600000) / 60000);
           totalHours = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} (Live)`;
+          overtimeMinutes = calculateOvertimeMinutes(checkInLog.timestamp, new Date().toISOString(), agent.shiftStart, agent.shiftEnd);
           status = 'active';
         }
 
-        shifts.push({ date: dateKey, agentId: agent.id, agentName: agent.name, checkIn: checkInLog?.timestamp||null, checkOut: checkOutLog?.timestamp||null, totalHours, status });
+        shifts.push({ date: dateKey, agentId: agent.id, agentName: agent.name, checkIn: checkInLog?.timestamp||null, checkOut: checkOutLog?.timestamp||null, totalHours, overtimeMinutes, status });
       });
     });
     return shifts.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -235,7 +239,7 @@ const AgentAttendance: React.FC<AgentAttendanceProps> = ({
             <table className="min-w-full divide-y divide-slate-200 dark:divide-white/5">
               <thead className="bg-slate-50 dark:bg-white/[0.02]">
                 <tr>
-                  {['Date','Lineman Name','Clock-In','Clock-Out','Total Hours','Status'].map(col => (
+                  {['Date','Lineman Name','Clock-In','Clock-Out','Total Hours','Overtime','Status'].map(col => (
                     <th key={col} className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">{col}</th>
                   ))}
                 </tr>
@@ -259,10 +263,11 @@ const AgentAttendance: React.FC<AgentAttendanceProps> = ({
                       {shift.checkOut?new Date(shift.checkOut).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):<span className="text-slate-400">{shift.status==='active'?'(Active)':'--'}</span>}
                     </td>
                     <td className="px-6 py-4 text-xs font-black text-indigo-600 dark:text-indigo-400">{shift.totalHours}</td>
+                    <td className={`px-6 py-4 text-xs font-black ${shift.overtimeMinutes > 0 ? 'text-orange-600' : 'text-slate-400'}`}>{shift.overtimeMinutes > 0 ? `${shift.overtimeMinutes} min` : '--'}</td>
                     <td className="px-6 py-4">{statusBadge(shift.status)}</td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-xs font-bold text-slate-400 opacity-30 uppercase">No records for {reportMonth}</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-12 text-center text-xs font-bold text-slate-400 opacity-30 uppercase">No records for {reportMonth}</td></tr>
                 )}
               </tbody>
             </table>
