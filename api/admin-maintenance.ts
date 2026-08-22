@@ -466,6 +466,7 @@ async function handleListSubManagerAccounts(req: any, res: any) {
         parent_business_name: parent.business_name || parent.full_name || row.manager_id,
         assigned_area: row.assigned_area || null,
         duty_status: row.duty_status || 'offline',
+        last_location: row.last_location || null,
       };
     });
     return res.status(200).json({ success: true, accounts });
