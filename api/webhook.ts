@@ -1830,7 +1830,7 @@ type Intent =
   | 'menu_expiry' | 'menu_new_conn' | 'menu_packages' | 'menu_talk_owner'
   | 'complaint' | 'bill' | 'payment_how' | 'payment_history'
   | 'expiry' | 'new_conn' | 'packages' | 'router_info' | 'fiber_info'
-  | 'router_24g' | 'router_5g' | 'personal' | 'recharge_request'
+  | 'router_24g' | 'router_5g' | 'router_setup' | 'personal' | 'recharge_request'
   | 'password_change' | 'coverage' | 'thanks' | 'bot_identity'
   | 'panel_issue' | 'router_recommend' | 'employment_question' | 'bill_dispute'
   | 'closing_ack' | 'greeting_personal_chat' | 'router_pon_compat' | 'marketing_optout'
@@ -1872,7 +1872,21 @@ function detectIntent(text: string): Intent {
   if (/(as+ala+m|aoa|salam|\bhi\b|hey|hello)/.test(t) && /kaise?\s*ho|kaisa?y?\s*ho|kaisi\s*ho|kh?aire?yat|tabiyat|kya\s*haal\s*chaal|how\s*('?r|are)\s*you|hope\s*you\s*('re|are)?\s*(doing\s*)?well|sab\s*(theek|thik)\b/.test(t))
     return 'greeting_personal_chat';
 
-  // Router band selection (checked first — works regardless of session)
+  // A router/model word is not automatically a purchase request. Customers commonly
+  // mention the existing device while reporting a fault or asking for configuration.
+  // Resolve those support signals BEFORE band/model routing so "5G router band hai"
+  // cannot fall into the product catalog branch.
+  const hasRouterMention = /(router|device|modem|onu|equipment|hardware|light)/.test(t);
+  const hasRouterFault = /(kharab|masla|issue|problem|fault|nahi\s*(?:chal|jal|ho|hai)|band\s*(?:hai|pada|ho)|off\s*hai|kaam\s*nahi|chal\s*nahi|nahi\s*chal|down\s*hai|disconnect|light.{0,12}nahi|nahi.{0,12}light)/.test(t);
+  const hasInternetFault = /(?:internet|\bnet\b|wifi|speed).{0,18}(nahi|band|slow|down|problem|kharab|disconnect|atak|ruk)/.test(t);
+  const hasRouterSetup = /(configure|configuration|\bconfig\b|set\s*(?:kar|kardo|kardena)|install|aa\s*kar|visit|dekh\s*(?:len|lena)|fix\s*kar\s*dena|setting\s*kar)/.test(t);
+  const hasExplicitRouterPurchase = /(router|device|modem|onu).{0,25}(chahiye|lena|buy|purchase|rate|price|model|available|option|dikh|bhej)|(chahiye|lena|buy|purchase|rate|price|model|available|option|dikh|bhej).{0,25}(router|device|modem|onu)/.test(t);
+  const hasExplicitPackageRequest = /(naya|new|change|upgrade|latest).{0,18}(package|plan)|(?:package|plan).{0,18}(chahiye|lena|change|upgrade|detail|info|rate|price)/.test(t);
+  if ((hasRouterMention && hasRouterFault) || hasInternetFault) return 'complaint';
+  if (hasRouterMention && hasRouterSetup) return 'router_setup';
+  if (hasExplicitPackageRequest && !hasExplicitRouterPurchase) return 'packages';
+
+  // Router band selection — only after support/fault/setup meaning is resolved.
   if (/2\.?4\s*g(hz)?|single\s*band/.test(t)) return 'router_24g';
   if (/\b5\s*g(hz)?\b|dual\s*band/.test(t)) return 'router_5g';
 
@@ -2289,6 +2303,16 @@ function routerChoicePrompt(): string {
   return tmpl('router_choice_prompt');
 }
 
+function routerSetupReply(): string {
+  return 'Ji, samajh gaya — aap router ki setting/configuration karwana chahte hain. Main yeh detail Mahad bhai ki team ko bhej deti hoon. Kal aap kis waqt available honge?';
+}
+
+function routerSetupContextNote(issue: string): string {
+  return /configure|configuration|\bconfig\b|set\s*(?:kar|kardo|kardena)|install|aa\s*kar|visit|setting\s*kar/.test(issue.toLowerCase())
+    ? 'Aap ne router ki setting/configuration ka bhi kaha hai — yeh baat team ko note kar di hai. Kal aap kis waqt available honge?'
+    : '';
+}
+
 function newConnReply(planPrices?: Record<string, number>): string {
   const entries = Object.entries(planPrices || {});
   const packageBlock = entries.length ? tmpl('new_conn_package_block', { package_list: renderPackageList(planPrices!) }) : '';
@@ -2362,7 +2386,8 @@ function complaintAckReply(user: any, ticketId: string, issue: string): string {
 
 async function registerComplaintAndReply(from: string, found: any, issue: string) {
   const ticketId = await saveComplaint(found.managerId, found.rowData, found.user, issue);
-  await sendTextAndVoice(from, complaintAckReply(found.user, ticketId, issue));
+  const setupNote = routerSetupContextNote(issue);
+  await sendTextAndVoice(from, `${complaintAckReply(found.user, ticketId, issue)}${setupNote ? `\n\n${setupNote}` : ''}`);
 }
 
 function personalReply(name?: string): string {
@@ -2674,6 +2699,13 @@ OUTPUT: Sirf valid JSON, kuch aur nahi: {"onTopic": true, "reply": "acknowledgme
 // ══════════════════════════════════════════════════════
 // 📤 WHATSAPP SEND
 // ══════════════════════════════════════════════════════
+const _recentOutboundText: Record<string, { body: string; ts: number }> = {};
+const OUTBOUND_TEXT_DEDUPE_MS = 20 * 1000;
+
+function normalizeOutboundText(body: string): string {
+  return body.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 async function sendText(to: string, body: string) {
   // Voice-in → voice-out: if this customer's message this turn was a transcribed
   // voice note, every sendText() call for the rest of this turn becomes a voice reply.
@@ -2681,6 +2713,13 @@ async function sendText(to: string, body: string) {
     const audioUrl = await textToSpeech(body);
     if (audioUrl) { await sendAudio(to, audioUrl); return; }
     console.error('[sendText] TTS failed, falling back to text reply');
+  }
+
+  const dedupeKey = `${normPhone(to)}:${normalizeOutboundText(body)}`;
+  const previous = _recentOutboundText[dedupeKey];
+  if (previous && (Date.now() - previous.ts) < OUTBOUND_TEXT_DEDUPE_MS) {
+    console.warn('[sendText] suppressed duplicate outbound text', { to: normPhone(to) });
+    return;
   }
 
   const token = process.env.WHATSAPP_TOKEN;
@@ -2697,6 +2736,7 @@ async function sendText(to: string, body: string) {
     if (!r.ok) console.error('❌ Meta text:', JSON.stringify(d).slice(0, 200));
     else wamid = d?.messages?.[0]?.id;
   } catch (e: any) { console.error('❌ sendText:', e?.message); }
+  if (wamid) _recentOutboundText[dedupeKey] = { body, ts: Date.now() };
   await logMessage(to, 'out', 'text', body, { waMessageId: wamid });
   if (wamid) incrementUsage(BOUND_MANAGER_ID, 'text').catch((e: any) => console.error('[incrementUsage text]', e?.message));
 }
@@ -3461,6 +3501,21 @@ export default async function handler(req: any, res: any) {
         continue;
       }
 
+      // ── Router setup/configuration request → hand off to the team, never show catalog ──
+      if (intent === 'router_setup') {
+        const setupFound = await findCustomer(from);
+        const setupRow = setupFound?.rowData || await getManagerRow('mahadnet');
+        if (setupRow) {
+          await notifyManager(setupFound?.managerId || 'mahadnet', setupRow, {
+            title: '🔧 Router Configuration Request (WhatsApp)',
+            message: `${setupFound?.user?.name || from} (${from}) ne router ki setting/configuration ke liye team visit/request ki hai: ${text.slice(0, 180)}`,
+            priority: 'MEDIUM',
+          });
+        }
+        await sendText(from, routerSetupReply());
+        continue;
+      }
+
       // ── Fiber info → share details, then capture the area reply as a lead ──
       if (intent === 'fiber_info') {
         await sendText(from, tmpl('fiber_info', { fiber_price_per_meter: CONFIG.fiberPricePerMeter }));
@@ -3606,14 +3661,17 @@ export default async function handler(req: any, res: any) {
         // Fiber/Local question, go straight to correct troubleshooting tips (this is
         // also what reliably triggers the fiber-upgrade pitch for Local customers).
         const knownConnType3 = mapDbConnectionType(user.connectionType);
+        const setupNote3 = routerSetupContextNote(text);
         if (knownConnType3) {
           await setSession(from, 'awaiting_complaint_confirm', { issue: text, connectionType: knownConnType3, verifiedManagerId: managerId, verifiedUserId: user.id });
-          if (ackLine3) await sendText(from, ackLine3);
+          const opening = [ackLine3, setupNote3].filter(Boolean).join('\n\n');
+          if (opening) await sendText(from, opening);
           await sendText(from, troubleshootingReply(text, knownConnType3));
           continue;
         }
         await setSession(from, 'awaiting_connection_type', { issue: text });
-        await sendText(from, connectionTypeQuestion(ackLine3));
+        const opening = [ackLine3, setupNote3].filter(Boolean).join('\n\n');
+        await sendText(from, connectionTypeQuestion(opening));
         continue;
       }
 
