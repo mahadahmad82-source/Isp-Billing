@@ -10,6 +10,7 @@ interface TeamCommunicationProps {
   subManagers: SubManagerAccount[];
   messages: TeamMessage[];
   onSend: (message: TeamMessage) => void | Promise<boolean | void>;
+  onRefresh?: () => Promise<void> | void;
 }
 
 const pickMimeType = (): string => {
@@ -21,15 +22,43 @@ const pickMimeType = (): string => {
 };
 
 const TeamCommunication: React.FC<TeamCommunicationProps> = ({
-  managerId, managerUsername, currentUsername, currentRole, subManagers, messages, onSend,
+  managerId, managerUsername, currentUsername, currentRole, subManagers, messages, onSend, onRefresh,
 }) => {
   const [recipient, setRecipient] = useState(subManagers[0]?.username || '');
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [optimisticMessages, setOptimisticMessages] = useState<TeamMessage[]>([]);
+  const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const refreshRef = useRef(onRefresh);
+
+  useEffect(() => { refreshRef.current = onRefresh; }, [onRefresh]);
+
+  useEffect(() => {
+    if (!managerId || !onRefresh) return;
+    let mounted = true;
+    let inFlight = false;
+    const pullLatest = () => {
+      if (!mounted || inFlight || !refreshRef.current) return;
+      inFlight = true;
+      Promise.resolve(refreshRef.current()).catch(() => {}).finally(() => { inFlight = false; });
+    };
+    pullLatest();
+    const channel = supabase
+      .channel(`team-chat-${managerId}-${currentUsername}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'manager_data', filter: `manager_id=eq.${managerId}` }, pullLatest)
+      .subscribe();
+    const fallback = window.setInterval(pullLatest, 15000);
+    return () => {
+      mounted = false;
+      window.clearInterval(fallback);
+      void supabase.removeChannel(channel);
+    };
+  }, [managerId, currentUsername, onRefresh]);
 
   const targetUsername = currentRole === 'manager' ? recipient : managerUsername;
   useEffect(() => {
@@ -38,13 +67,26 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
     }
   }, [currentRole, recipient, subManagers]);
   const visibleMessages = useMemo(() => {
-    return messages
+    const byId = new Map<string, TeamMessage>();
+    [...optimisticMessages, ...(messages || [])].forEach(message => byId.set(message.id, message));
+    return Array.from(byId.values())
       .filter(message => message.managerUsername === managerUsername)
       .filter(message => currentRole === 'sub-manager'
         ? (message.senderUsername === currentUsername || message.recipientUsername === currentUsername)
         : (!recipient || message.senderUsername === recipient || message.recipientUsername === recipient))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [currentRole, currentUsername, managerUsername, messages, recipient]);
+  }, [currentRole, currentUsername, managerUsername, messages, optimisticMessages, recipient]);
+
+  useEffect(() => {
+    const delivered = new Set((messages || []).map(message => message.id));
+    if (delivered.size > 0) setOptimisticMessages(previous => previous.filter(message => !delivered.has(message.id)));
+  }, [messages]);
+
+  useEffect(() => {
+    const node = messageScrollRef.current;
+    if (!node) return;
+    requestAnimationFrame(() => node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }));
+  }, [visibleMessages.length, recipient]);
 
   useEffect(() => () => {
     if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
@@ -52,8 +94,8 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
   }, []);
 
   const sendMessage = async (message: Pick<TeamMessage, 'text' | 'voiceUrl' | 'voiceMimeType'>): Promise<boolean> => {
-    if (!targetUsername || (!message.text && !message.voiceUrl)) return false;
-    const sent = await Promise.resolve(onSend({
+    if (!targetUsername || (!message.text && !message.voiceUrl) || sending) return false;
+    const nextMessage: TeamMessage = {
       id: `team-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       managerUsername,
       senderUsername: currentUsername,
@@ -61,15 +103,32 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
       recipientUsername: targetUsername,
       createdAt: new Date().toISOString(),
       ...message,
-    }));
-    return sent !== false;
+    };
+    setOptimisticMessages(previous => [...previous, nextMessage]);
+    setSending(true);
+    try {
+      const sent = await Promise.resolve(onSend(nextMessage));
+      if (sent === false) throw new Error('Team message could not be saved.');
+      return true;
+    } catch (error) {
+      setOptimisticMessages(previous => previous.filter(item => item.id !== nextMessage.id));
+      throw error;
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleTextSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    if (await sendMessage({ text })) setDraft('');
+    setDraft('');
+    try {
+      await sendMessage({ text });
+    } catch (error: any) {
+      setDraft(text);
+      alert(error?.message || 'Team message save nahi hua.');
+    }
   };
 
   const startRecording = async () => {
@@ -137,7 +196,7 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
           )}
         </div>
 
-        <div className="min-h-[280px] max-h-[48vh] overflow-y-auto space-y-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] p-4 border border-slate-100 dark:border-white/5">
+          <div ref={messageScrollRef} className="min-h-[280px] max-h-[48vh] overflow-y-auto scroll-smooth space-y-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] p-4 border border-slate-100 dark:border-white/5">
           {visibleMessages.length === 0 ? (
             <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center text-slate-400">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="mb-3"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 10h8M8 14h5"/></svg>
@@ -145,13 +204,14 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
             </div>
           ) : visibleMessages.map(message => {
             const mine = message.senderUsername === currentUsername;
+            const isSending = optimisticMessages.some(item => item.id === message.id);
             return (
               <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${mine ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/5'}`}>
                   <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${mine ? 'text-indigo-100' : 'text-slate-400'}`}>@{message.senderUsername}</p>
                   {message.text && <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>}
                   {message.voiceUrl && <audio controls preload="metadata" src={message.voiceUrl} className="w-full max-w-[240px] h-9 mt-1" />}
-                  <p className={`text-[9px] mt-2 ${mine ? 'text-indigo-100' : 'text-slate-400'}`}>{new Date(message.createdAt).toLocaleString()}</p>
+                  <p className={`text-[9px] mt-2 ${mine ? 'text-indigo-100' : 'text-slate-400'}`}>{isSending ? 'Sending…' : new Date(message.createdAt).toLocaleString()}</p>
                 </div>
               </div>
             );
@@ -159,12 +219,12 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
         </div>
 
         <form onSubmit={handleTextSubmit} className="mt-4 flex items-center gap-2">
-          <input value={draft} onChange={event => setDraft(event.target.value)} disabled={!targetUsername || recording || uploading} placeholder={targetUsername ? 'Write an internal message...' : 'Select a team member first'} className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input value={draft} onChange={event => setDraft(event.target.value)} disabled={!targetUsername || recording || uploading || sending} placeholder={targetUsername ? 'Write an internal message...' : 'Select a team member first'} className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
           <button type="button" onClick={recording ? stopRecording : startRecording} disabled={!targetUsername || uploading} className={`p-3 rounded-xl text-white transition-all ${recording ? 'bg-rose-600' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`} title={recording ? 'Stop recording' : 'Record voice note'}>
             {recording ? <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="1"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>}
           </button>
-          <button type="submit" disabled={!draft.trim() || !targetUsername || recording || uploading} className="p-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" title="Send message">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          <button type="submit" disabled={!draft.trim() || !targetUsername || recording || uploading || sending} className="p-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" title="Send message">
+            {sending ? <span className="text-[10px] font-black">…</span> :             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>}
           </button>
         </form>
         {uploading && <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-2">Uploading voice note...</p>}
