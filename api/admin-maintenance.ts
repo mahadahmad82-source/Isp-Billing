@@ -14,6 +14,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { encryptToken, decryptToken } from '../lib/whatsappCrypto.js';
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -38,7 +39,7 @@ export default async function handler(req: any, res: any) {
     // Browser path: only an authenticated admin may use this action.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -76,6 +77,8 @@ export default async function handler(req: any, res: any) {
       return handleComplaintFeedback(req, res);
     case 'list-sub-manager-accounts':
       return handleListSubManagerAccounts(req, res);
+    case 'ai-insights':
+      return handleAiInsights(req, res);
     case 'reset-quota':
       return handleResetQuota(req, res);
     case 'token-health':
@@ -86,6 +89,58 @@ export default async function handler(req: any, res: any) {
 }
 
 interface CallerContext { userId: string; role: string; username: string | null; }
+
+const AI_INSIGHTS_FALLBACK = 'Local analysis: Payment collection is stable. Monitoring active subscribers.';
+
+async function handleAiInsights(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || !['manager', 'admin', 'sub-manager'].includes(caller.role)) {
+    return res.status(403).json({ error: 'Authenticated manager session required' });
+  }
+
+  try {
+    const requestedManager = String(req.body?.managerId || '').trim().toLowerCase();
+    let managerId = caller.username?.trim().toLowerCase() || '';
+    if (caller.role === 'sub-manager') {
+      const parent = await getSubManagerParent(caller);
+      managerId = parent?.managerId?.trim().toLowerCase() || '';
+    } else if (caller.role === 'admin') {
+      managerId = requestedManager || managerId;
+    } else if (requestedManager && requestedManager !== managerId) {
+      return res.status(403).json({ error: 'Manager scope does not match the authenticated session' });
+    }
+    if (!managerId) return res.status(403).json({ error: 'Manager scope could not be resolved' });
+
+    const rawReceipts = Array.isArray(req.body?.receipts) ? req.body.receipts.slice(-10) : [];
+    if (rawReceipts.length === 0) return res.status(200).json({ insight: AI_INSIGHTS_FALLBACK, fallback: true });
+
+    // Keep the web prompt contract while excluding customer contact/address
+    // fields and arbitrary client-supplied keys from the provider payload.
+    const receipts = rawReceipts.map((receipt: any) => ({
+      period: String(receipt?.period || '').slice(0, 40),
+      date: String(receipt?.date || '').slice(0, 40),
+      status: String(receipt?.status || '').slice(0, 30),
+      paidAmount: Number(receipt?.paidAmount) || 0,
+      balanceAmount: Number(receipt?.balanceAmount) || 0,
+      monthlyFee: Number(receipt?.monthlyFee) || 0,
+      discount: Number(receipt?.discount) || 0,
+      advanceAmount: Number(receipt?.advanceAmount) || 0,
+      paymentMethod: String(receipt?.paymentMethod || '').slice(0, 40),
+      plan: String(receipt?.plan || '').slice(0, 80),
+    }));
+
+    const response = await callGeminiWithFailover({
+      contents: `Analyze these recent internet subscription payments and provide a 2-sentence summary of revenue trends: ${JSON.stringify(receipts)}`,
+      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 120 },
+    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
+    const insight = String(response?.text || '').trim() || AI_INSIGHTS_FALLBACK;
+    return res.status(200).json({ insight, fallback: insight === AI_INSIGHTS_FALLBACK, managerId });
+  } catch (error: any) {
+    console.error('[ai-insights] Gemini failover exhausted:', error?.message || error);
+    return res.status(200).json({ insight: AI_INSIGHTS_FALLBACK, fallback: true });
+  }
+}
 
 async function getCallerContext(accessToken: string): Promise<CallerContext | null> {
   if (!accessToken) return null;
