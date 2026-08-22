@@ -29,6 +29,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
     if (type === 'ATTENDANCE_OUT') return 'bg-slate-400';
     if (type === 'COMPLAINT_RESOLVED') return 'bg-emerald-500';
     if (type === 'COMPLAINT_ASSIGNED') return 'bg-blue-500';
+    if (type === 'COMPLAINT_REVIEW_REQUIRED') return 'bg-indigo-500';
+    if (type === 'COMPLAINT_FEEDBACK_SKIPPED') return 'bg-orange-500';
     switch (priority) {
       case 'HIGH': return 'bg-rose-500';
       case 'MEDIUM': return 'bg-orange-500';
@@ -95,6 +97,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       notif.type === 'ATTENDANCE_OUT' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' :
                       notif.type === 'COMPLAINT_RESOLVED' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' :
                       notif.type === 'COMPLAINT_ASSIGNED' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600' :
+                      notif.type === 'COMPLAINT_REVIEW_REQUIRED' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600' :
+                      notif.type === 'COMPLAINT_FEEDBACK_SKIPPED' ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600' :
                       notif.type === 'OVERDUE' ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600' :
                       notif.type === 'EXPIRY' ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600' :
                       theme === 'dark' ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-400 shadow-sm'
