@@ -454,7 +454,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (type === 'sms') {
       window.location.href = `sms:${user.phone}?body=${encodeURIComponent(msg.replace(/\*/g, ''))}`;
     } else {
-      // Sends directly through Ayesha's WhatsApp number — works even after the
+      // Sends directly through NetBot's WhatsApp number — works even after the
       // number is fully migrated to Meta Cloud API (wa.me deep links need a regular
       // WhatsApp app logged into that number on this device, which won't be true
       // post-migration). Falls back to the old deep link only if the API send fails.
