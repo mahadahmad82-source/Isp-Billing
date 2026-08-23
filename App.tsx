@@ -2274,6 +2274,10 @@ const App: React.FC = () => {
               onUpdateTtsVoice={(voice) => handleUpdateSettings({ ...currentSettings, ttsVoice: voice })}
               wabotAgents={currentSettings.wabotAgents}
               onUpdateWabotAgents={(agents) => handleUpdateSettings({ ...currentSettings, wabotAgents: agents })}
+              botPersonaNotes={currentSettings.botPersonaNotes}
+              onUpdateBotPersonaNotes={(notes) => handleUpdateSettings({ ...currentSettings, botPersonaNotes: notes })}
+              botBehaviorRules={currentSettings.botBehaviorRules}
+              onUpdateBotBehaviorRules={(rules) => handleUpdateSettings({ ...currentSettings, botBehaviorRules: rules })}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (
