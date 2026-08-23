@@ -462,7 +462,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   };
 
   // Sends the receipt image to the customer automatically right after a payment is
-  // recorded — through Ayesha's WhatsApp number (Meta Cloud API), the same channel
+  // recorded — through NetBot's WhatsApp number (Meta Cloud API), the same channel
   // the bot itself uses, instead of requiring a manual "Share" tap every time.
   // Automatically fires the Meta-approved "Payment Success" template right after a
   // receipt is generated — works even outside the 24h WhatsApp session window (unlike
@@ -805,7 +805,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       }
 
       // Desktop (and any failed native share): normally this would push the
-      // image through Ayesha's Cloud API number. TEMP DISABLED while the
+      // image through NetBot's Cloud API number. TEMP DISABLED while the
       // WABA number is paused (Meta Business Verification incomplete) — that
       // call had no timeout, so every attempt sat waiting on a dead endpoint
       // and made this button look stuck. Go straight to the text-only link
