@@ -1,6 +1,6 @@
 // api/cron-expiry-hour-reminders.ts — Fires the Meta-approved "Package Expiry Notice"
 // (package_expiry_official) template automatically the moment a customer's package
-// actually expires, so nobody has to notice/remember to tell them — Ayesha does it on
+// actually expires, so nobody has to notice/remember to tell them — NetBot does it on
 // her own. Runs hourly via a Supabase pg_cron job (net.http_post) that's already
 // active; not registered in vercel.json's `crons` array so it doesn't count against
 // the Vercel plan's cron-job limit.
