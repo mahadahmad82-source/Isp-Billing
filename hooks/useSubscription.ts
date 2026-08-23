@@ -84,14 +84,35 @@ const DEFAULT_SUB: SubscriptionInfo = {
   loading: true,
 };
 
-// Maps admin panel's status+plan columns → PlanTier
+// Maps admin panel's status+plan columns → PlanTier.
+// NOTE: the admin panel's plan dropdown (SUBSCRIPTION_PLAN_OPTIONS in
+// AdminDashboard.tsx) offers more values than this feature system natively
+// understands. This mapping is made EXHAUSTIVE on purpose so nothing falls
+// through silently — every value in SUBSCRIPTION_PLAN_OPTIONS is listed here.
+// 'growth' and 'custom' are treated as 'business'/'pro' respectively as a
+// reasonable default; 'whatsapp-bot' is really an add-on (see
+// manager_subscriptions.ayesha_addon) not a base plan, so it currently maps
+// to 'starter' base features — flag to Mahad if that's not the intent.
+const PLAN_TO_TIER: Record<string, PlanTier> = {
+  free: 'starter',
+  starter: 'starter',
+  growth: 'business',
+  business: 'business',
+  enterprise: 'pro',
+  pro: 'pro',
+  custom: 'pro',
+  'whatsapp-bot': 'starter',
+};
+
 function deriveTier(status: string, plan: string): PlanTier {
   if (status === 'trial') return 'trial';
   if (status === 'locked' || status === 'expired') return 'suspended';
   if (status === 'active') {
-    if (plan === 'pro' || plan === 'enterprise') return 'pro';
-    if (plan === 'business') return 'business';
-    return 'starter';
+    const mapped = PLAN_TO_TIER[plan];
+    if (!mapped && typeof console !== 'undefined') {
+      console.warn(`[useSubscription] Unrecognized plan value "${plan}" — defaulting to 'starter' features.`);
+    }
+    return mapped || 'starter';
   }
   return 'trial';
 }
@@ -159,6 +180,19 @@ export function useSubscription(managerId: string | null): SubscriptionInfo {
     };
 
     fetchSub();
+
+    // Reflect admin-side plan/status changes immediately in an already-open
+    // session, without requiring the manager to log out/in or reload.
+    const channel = supabase
+      .channel(`manager_subscription_${managerId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'manager_subscriptions', filter: `manager_id=eq.${managerId}` },
+        () => { fetchSub(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [managerId]);
 
   return info;
