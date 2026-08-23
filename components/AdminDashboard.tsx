@@ -1463,7 +1463,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
         </div>
       )}
 
-      {/* ══════════ WABOT SAAS (Ayesha clients) ══════════ */}
+      {/* ══════════ WABOT SAAS (NetBot clients) ══════════ */}
       {tab === 'wabot-saas' && (
         <WABotAdminClients managers={managers.map(m => ({ username: m.username, business_name: m.business_name }))} />
       )}
