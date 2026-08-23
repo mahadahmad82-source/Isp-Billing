@@ -1,5 +1,5 @@
 // lib/ttsProviders.ts
-// Multi-provider TTS layer for the WABot voice pipeline (Ayesha + named agents).
+// Multi-provider TTS layer for the WABot voice pipeline (NetBot + named agents).
 //
 // Gemini stays the DEFAULT (native Roman Urdu understanding — no script
 // conversion needed, best quality). Azure and edge-tts are overflow providers
