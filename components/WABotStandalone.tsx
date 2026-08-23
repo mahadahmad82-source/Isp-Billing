@@ -6,7 +6,7 @@ import { subscribeToPush } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import WABotInbox from './WABotInbox';
 
-// ── Shared gradient-ring avatar (Ayesha brand mark) ─────────────────────────
+// ── Shared gradient-ring avatar (NetBot brand mark) ─────────────────────────
 const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
   <div
     style={{ width: size, height: size, background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
