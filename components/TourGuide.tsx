@@ -212,7 +212,7 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
   }],
   wabot: [{
     id: 'wabot', icon: '🤖',
-    title: { en: 'Ayesha — WhatsApp Bot', ur: 'عائشہ — واٹس ایپ بوٹ' },
+    title: { en: 'NetBot — WhatsApp Bot', ur: 'نیٹ بوٹ — واٹس ایپ بوٹ' },
     description: {
       en: 'Your AI assistant that answers customer questions on WhatsApp automatically. Manage its conversations and training here.',
       ur: 'آپ کا AI اسسٹنٹ جو واٹس ایپ پر کسٹمرز کے سوالات کا خودکار جواب دیتا ہے۔ اس کی گفتگو اور تربیت یہاں سے منظم کریں۔'
