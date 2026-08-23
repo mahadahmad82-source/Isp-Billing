@@ -50,7 +50,7 @@ export interface ManagerAccount {
   authUserId?: string; // real Supabase Auth identity for provisioned accounts
 }
 
-// A WABot support agent — lets mahadnet run 2-3 named agents (e.g. Ayesha for billing,
+// A WABot support agent — lets mahadnet run 2-3 named agents (e.g. NetBot for billing,
 // Bilal for technical) each with their own persona name, specialization scope (injected
 // into the AI system prompt so it strictly stays in-lane), voice, and routing keywords.
 export type WABotAgentPurpose = 'billing' | 'complaint' | 'new_connection' | 'network_qa' | 'general' | 'other';
@@ -59,14 +59,14 @@ export type WABotAgentGender = 'male' | 'female';
 
 export interface WABotAgent {
   id: string;
-  name: string; // persona name, e.g. "Ayesha", "Bilal"
+  name: string; // persona name, e.g. "NetBot", "Bilal"
   scope: string; // plain-language description of what this agent handles — appended to the AI's instructions
   keywords: string[]; // words/phrases in the customer's message that route to this agent
   voice: string; // Gemini TTS voice name, e.g. "Kore", "Puck" — used when ttsProvider is 'gemini'
   active: boolean;
   purpose?: WABotAgentPurpose; // label for mahadnet to organize/test agents by use-case (billing/complaint/etc) — informational, doesn't affect routing
   ttsProvider?: WABotTtsProvider; // which TTS engine this agent's voice replies use, default 'gemini'. 'azure'/'edge' speak real Urdu script (auto-transliterated) instead of Gemini's native Roman Urdu, and auto-fallback to 'edge' (free/unlimited) if 'azure' has no key configured or fails
-  gender?: WABotAgentGender; // default 'female' (matches original Ayesha persona) — drives correct Urdu grammatical gender in the reply TEXT (kar sakta hoon vs kar sakti hoon), and picks the ur-PK-AsadNeural/ur-PK-UzmaNeural voice for azure/edge providers
+  gender?: WABotAgentGender; // default 'female' (matches original NetBot persona) — drives correct Urdu grammatical gender in the reply TEXT (kar sakta hoon vs kar sakti hoon), and picks the ur-PK-AsadNeural/ur-PK-UzmaNeural voice for azure/edge providers
 }
 
 export interface WABotBehaviorRule {
@@ -103,7 +103,7 @@ export interface AppSettings {
   showBusinessNameOnReceipt?: boolean; // Default true
   receiptSerialStart?: number; // Starting serial number for receipts (e.g. 1, 900, 5000)
   receiptSerialPrefix?: string; // Prefix for serial like MN, ISP, etc.
-  ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
+  ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "NetBot"
   ttsVoice?: string; // Selected Gemini TTS voice name for the default persona (e.g. "Kore"), falls back to GEMINI_TTS_VOICE env var
   wabotAgents?: WABotAgent[]; // Multi-agent WABot config — each agent has its own name, scope, voice, routing keywords
   botPersonaNotes?: string; // Owner-authored high-level public-dealing/persona guidance for AI replies
@@ -167,23 +167,23 @@ export interface UserRecord {
   companyId?: string;
   area?: string;
   connectionType?: string; // Fiber / Local-Panel / Bandwidth / Sharing / Wireless / Other — see CONNECTION_TYPES
-  // Ayesha bot — reactivation targeting: true once customer has physically moved out
+  // NetBot bot — reactivation targeting: true once customer has physically moved out
   // of the coverage area (excludes them from "disconnected 90+ days" reactivation campaigns).
   movedOut?: boolean;
-  // Ayesha bot — credit/advance recovery tracking. Auto-cleared when a receipt/payment
+  // NetBot bot — credit/advance recovery tracking. Auto-cleared when a receipt/payment
   // is recorded against this customer.
   creditRecharge?: boolean;
   creditAmount?: number;
   creditDate?: string;
   creditLastReminderSent?: string;
   creditReminderCount?: number; // capped at 5-6, then surfaced for manual follow-up
-  // Ayesha bot — overdue payment reminders (package already expired AND balance > 0).
+  // NetBot bot — overdue payment reminders (package already expired AND balance > 0).
   overdueLastReminderSent?: string;
   overdueReminderCount?: number; // capped, then surfaced for manual follow-up
-  // Ayesha bot — reactivation campaign (disconnected 90+ days, see movedOut above).
+  // NetBot bot — reactivation campaign (disconnected 90+ days, see movedOut above).
   reactivationLastSent?: string;
   reactivationReminderCount?: number;
-  // Ayesha bot — 6-hour/1-hour-before-midnight-expiry + just-expired pings.
+  // NetBot bot — 6-hour/1-hour-before-midnight-expiry + just-expired pings.
   // Stores the expiryDate value the reminder was already sent for for, so a renewal
   // (which changes expiryDate) naturally re-arms the reminder for the new date.
   expiry6hNotifiedFor?: string;
