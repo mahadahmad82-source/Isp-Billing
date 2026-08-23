@@ -349,9 +349,21 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   };
 
   const updateSubscription = async (managerId: string, updates: any) => {
-    const { error } = await supabase.from('manager_subscriptions').upsert({ manager_id: managerId, ...updates }, { onConflict: 'manager_id' });
-    if (!error) { await loadSubscriptions(); showSubToast('✅ Updated: ' + managerId); }
-    else showSubToast('❌ Error: ' + error.message);
+    // SECURITY: manager_subscriptions no longer accepts direct client writes (RLS-only
+    // read policy now). All plan/status/amount/notes edits go through this admin-checked,
+    // input-validated RPC instead — see admin_update_manager_subscription migration.
+    const { data, error } = await supabase.rpc('admin_update_manager_subscription', {
+      p_manager_id: managerId,
+      p_plan: updates.plan ?? null,
+      p_status: updates.status ?? null,
+      p_trial_ends_at: updates.trial_ends_at ?? null,
+      p_amount_pkr: updates.amount_pkr ?? null,
+      p_notes: updates.notes ?? null,
+      p_customer_limit: updates.customer_limit ?? null,
+      p_agent_limit: updates.agent_limit ?? null,
+    });
+    if (!error && data?.success) { await loadSubscriptions(); showSubToast('✅ Updated: ' + managerId); }
+    else showSubToast('❌ Error: ' + (error?.message || data?.error || 'Update failed'));
   };
 
   // ── Managers ────────────────────────────────────────────────────────────────
