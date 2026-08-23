@@ -60,12 +60,12 @@ export const shareToWhatsApp = (phone: string, message: string) => {
   }
 };
 /**
- * Sends a WhatsApp message directly through Ayesha's Meta Cloud API number,
+ * Sends a WhatsApp message directly through NetBot's Meta Cloud API number,
  * server-side — no deep link, no dependency on a regular WhatsApp app being logged
  * into this device. This is what keeps "reminder" buttons working once the business
  * number is fully migrated to Cloud API (at which point wa.me/shareToWhatsApp can no
  * longer assume a consumer WhatsApp app is logged in on that number). The message is
- * also auto-logged into the WABot Inbox and Ayesha auto-pauses on that thread.
+ * also auto-logged into the WABot Inbox and NetBot auto-pauses on that thread.
  */
 export const sendWhatsAppDirect = async (
   phone: string,
@@ -89,7 +89,7 @@ export const sendWhatsAppDirect = async (
 };
 
 /**
- * Sends receipt PNG image directly via Ayesha's Meta Cloud API
+ * Sends receipt PNG image directly via NetBot's Meta Cloud API
  * — no template needed, works within 24-hour customer service window.
  * Uploads PNG to Supabase Storage, gets public URL, sends via /api/wabot-send.
  */
