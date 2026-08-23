@@ -69,6 +69,13 @@ export interface WABotAgent {
   gender?: WABotAgentGender; // default 'female' (matches original Ayesha persona) — drives correct Urdu grammatical gender in the reply TEXT (kar sakta hoon vs kar sakti hoon), and picks the ur-PK-AsadNeural/ur-PK-UzmaNeural voice for azure/edge providers
 }
 
+export interface WABotBehaviorRule {
+  id: string;
+  trigger: string; // plain-language situation or customer-message pattern
+  response: string; // the preferred way to handle that situation
+  active: boolean;
+}
+
 export interface AppSettings {
   businessName: string;
   businessPhone: string;
@@ -99,6 +106,8 @@ export interface AppSettings {
   ayeshaBotName?: string; // Editable display name for the WhatsApp bot persona, default "Ayesha"
   ttsVoice?: string; // Selected Gemini TTS voice name for the default persona (e.g. "Kore"), falls back to GEMINI_TTS_VOICE env var
   wabotAgents?: WABotAgent[]; // Multi-agent WABot config — each agent has its own name, scope, voice, routing keywords
+  botPersonaNotes?: string; // Owner-authored high-level public-dealing/persona guidance for AI replies
+  botBehaviorRules?: WABotBehaviorRule[]; // Owner-authored situation -> preferred handling rules
   routerCatalog?: RouterCatalog; // Admin-editable WhatsApp bot router catalog (models/specs/prices/images)
   botTemplates?: Record<string, BotTemplate>; // Admin-editable WhatsApp bot reply templates (wording of every canned reply)
   messageTemplates?: Record<string, MessageTemplate>; // Admin-editable manual-send templates (Customer Directory, Recovery Ledger, Receipt Share, Expiry Reminder, Bulk Reminder)
