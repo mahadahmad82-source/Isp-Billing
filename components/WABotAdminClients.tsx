@@ -1,5 +1,5 @@
 // components/WABotAdminClients.tsx
-// Admin-only panel to onboard/monitor ISP clients on the Ayesha WhatsApp bot SaaS.
+// Admin-only panel to onboard/monitor ISP clients on the NetBot WhatsApp bot SaaS.
 // Rendered inside AdminDashboard when tab === 'wabot-saas'.
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
