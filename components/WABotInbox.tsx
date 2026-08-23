@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent } from '../types';
+import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent, WABotBehaviorRule } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
 import { getWabotAuthHeaders } from '../utils/whatsapp';
@@ -74,6 +74,10 @@ interface WABotInboxProps {
   onUpdateTtsVoice?: (voice: string) => void;
   wabotAgents?: WABotAgent[];
   onUpdateWabotAgents?: (agents: WABotAgent[]) => void;
+  botPersonaNotes?: string;
+  onUpdateBotPersonaNotes?: (notes: string) => void;
+  botBehaviorRules?: WABotBehaviorRule[];
+  onUpdateBotBehaviorRules?: (rules: WABotBehaviorRule[]) => void;
 }
 
 // All 30 Gemini TTS prebuilt voices, with their official one-word style descriptor —
@@ -251,7 +255,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
   // ── Training (Confused Replies) tab state ──
-  const [view, setView] = useState<'inbox' | 'training' | 'catalog' | 'templates' | 'agents'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents'>('inbox');
   // Settings/navigation dropdown — Android's WABot app tucks Catalog/Templates/
   // Agents/Training behind a single ⋮ menu (HeaderMenu.tsx) instead of always-
   // visible tab buttons; this mirrors that so the PWA header matches.
@@ -334,6 +338,34 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [personaDraft, setPersonaDraft] = useState(botPersonaNotes || '');
+  const [ruleDraft, setRuleDraft] = useState({ trigger: '', response: '' });
+  useEffect(() => { setPersonaDraft(botPersonaNotes || ''); }, [botPersonaNotes]);
+
+  const savePersonaNotes = () => {
+    onUpdateBotPersonaNotes?.(personaDraft.trim());
+  };
+
+  const addBehaviorRule = () => {
+    const trigger = ruleDraft.trigger.trim();
+    const response = ruleDraft.response.trim();
+    if (!trigger || !response) {
+      alert('Situation aur preferred handling dono required hain');
+      return;
+    }
+    const rule: WABotBehaviorRule = { id: `rule-${Date.now()}`, trigger, response, active: true };
+    onUpdateBotBehaviorRules?.([...(botBehaviorRules || []), rule]);
+    setRuleDraft({ trigger: '', response: '' });
+  };
+
+  const toggleBehaviorRule = (id: string) => {
+    onUpdateBotBehaviorRules?.((botBehaviorRules || []).map(rule => rule.id === id ? { ...rule, active: !rule.active } : rule));
+  };
+
+  const deleteBehaviorRule = (id: string) => {
+    if (!confirm('Yeh Teach NetBot rule delete karein?')) return;
+    onUpdateBotBehaviorRules?.((botBehaviorRules || []).filter(rule => rule.id !== id));
+  };
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
@@ -1093,6 +1125,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
               <div className="absolute top-11 right-0 z-50 w-64 bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 rounded-xl shadow-lg py-2 overflow-hidden">
                 <button
+                  onClick={() => { setView('teach'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4 11.5-11.5z" /></svg>
+                  Teach NetBot
+                  {(botBehaviorRules || []).filter(rule => rule.active).length > 0 && <span className="ml-auto bg-[#00A884] text-white text-[9px] font-black px-2 py-1 rounded-full">{(botBehaviorRules || []).filter(rule => rule.active).length}</span>}
+                </button>
+                <button
                   onClick={() => { setView('training'); setMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
@@ -1155,12 +1195,65 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : 'Voice & Agents'}
           </h3>
         </div>
       )}
 
-      {view === 'training' ? (
+      {view === 'teach' ? (
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+          <div className="mb-6">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Teach NetBot</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1">Yahan bot ko public dealing ka overall andaaz aur specific situations handle karne ka tareeqa samjhayen. Yeh guidance AI replies mein reference ke taur par use hogi; payment numbers, activation aur renewal ke system safeguards hamesha priority par rahenge.</p>
+          </div>
+
+          <section className="p-4 rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5 mb-6">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <h4 className="text-sm font-black text-slate-900 dark:text-white">Persona &amp; public dealing</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Misal: pehle customer ki baat acknowledge karo, jaldi catalog offer na karo, aur zaroorat par Mahad bhai/team ko handoff batao.</p>
+              </div>
+              <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+            </div>
+            <textarea value={personaDraft} onChange={e => setPersonaDraft(e.target.value)} rows={5} placeholder="Bot ko overall kis lehje aur tareeqe se baat karni chahiye?" className="w-full p-3 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white" />
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h4 className="text-sm font-black text-slate-900 dark:text-white">Situation rules</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Customer ki situation likhein aur preferred handling batayein. Bot isay sales shortcut nahi, support guidance samjhega.</p>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{(botBehaviorRules || []).length} rules</span>
+            </div>
+            <div className="space-y-3 mb-5">
+              {(botBehaviorRules || []).map(rule => (
+                <div key={rule.id} className={`p-4 rounded-2xl border ${rule.active ? 'border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/5' : 'border-slate-100 dark:border-white/5 opacity-60'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#00A884] mb-1">When this happens</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-white whitespace-pre-wrap">{rule.trigger}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-3 mb-1">Handle it like this</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap">{rule.response}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <button onClick={() => toggleBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300">{rule.active ? 'Pause' : 'Use'}</button>
+                      <button onClick={() => deleteBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-slate-400 font-bold py-4">Abhi koi custom rule nahi hai. Neeche se pehla rule add karein.</p>}
+            </div>
+            <div className="p-4 rounded-2xl border border-dashed border-slate-300 dark:border-white/15">
+              <h4 className="text-sm font-black text-slate-900 dark:text-white mb-3">Add a rule</h4>
+              <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: customer kahe router kharab hai aur kal set karwana hai" className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white mb-2" />
+              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: pehle fault acknowledge karo, catalog na bhejo, team visit note karo" className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white" />
+              <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
+            </div>
+          </section>
+        </div>
+      ) : view === 'training' ? (
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Confused Replies / Training</h3>
