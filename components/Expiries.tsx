@@ -120,7 +120,7 @@ const Expiries: React.FC<ExpiriesProps> = ({ users, settings, onMarkReminded, se
     
     setAlertConfig({
       title: 'Automation Sequence',
-      message: `Initiating ${pendingUsers.length} reminders via ${channel.toUpperCase()} — sent automatically through Ayesha's WhatsApp number, no manual tap needed.`,
+      message: `Initiating ${pendingUsers.length} reminders via ${channel.toUpperCase()} — sent automatically through NetBot's WhatsApp number, no manual tap needed.`,
       type: 'info'
     });
 
