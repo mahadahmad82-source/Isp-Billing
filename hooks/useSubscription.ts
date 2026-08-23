@@ -91,7 +91,7 @@ const DEFAULT_SUB: SubscriptionInfo = {
 // through silently — every value in SUBSCRIPTION_PLAN_OPTIONS is listed here.
 // 'growth' and 'custom' are treated as 'business'/'pro' respectively as a
 // reasonable default; 'whatsapp-bot' is really an add-on (see
-// manager_subscriptions.ayesha_addon) not a base plan, so it currently maps
+// manager_subscriptions.netbot_addon) not a base plan, so it currently maps
 // to 'starter' base features — flag to Mahad if that's not the intent.
 const PLAN_TO_TIER: Record<string, PlanTier> = {
   free: 'starter',
