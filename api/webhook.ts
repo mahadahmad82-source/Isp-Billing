@@ -1,4 +1,4 @@
-// api/webhook.ts — Ayesha Bot v6 | MahadNet WhatsApp Support
+// api/webhook.ts — NetBot Bot v6 | MahadNet WhatsApp Support
 // Dynamic packages from Supabase + Router catalog with images + session state
 
 import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
@@ -8,7 +8,7 @@ import { Jimp, JimpMime } from 'jimp';
 // resolution. synthesizeNonGemini itself is imported lazily inside
 // textToSpeech() below, NOT here at top-level: a top-level value import of
 // lib/ttsProviders crashed this ENTIRE webhook at module-load
-// (ERR_MODULE_NOT_FOUND: /var/task/lib/ttsProviders), which meant Ayesha
+// (ERR_MODULE_NOT_FOUND: /var/task/lib/ttsProviders), which meant NetBot
 // stopped replying to every single inbound customer message, not just voice ones.
 import type { TtsProvider, TtsGender } from '../lib/ttsProviders';
 
@@ -20,7 +20,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role —
 // managers' data. When another manager needs WABot service, they get their own
 // WhatsApp Business number (Phase 5 multi-tenant routing), not this one.
 const BOUND_MANAGER_ID = 'mahadnet';
-const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_ayesha_bot';
+const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_netbot';
 const IMG_BASE = 'https://raw.githubusercontent.com/mahadahmad82-source/Isp-Billing/main/public/whatsapp-images';
 
 // ══════════════════════════════════════════════════════
@@ -710,7 +710,7 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
     customerPhone: user.phone, title: `WA: ${issue.slice(0, 60)}`,
     description: issue, status: 'open', priority,
     customerLastInboundAt: inboundAt, feedbackStatus: 'pending',
-    createdAt: inboundAt, createdBy: 'ayesha_bot',
+    createdAt: inboundAt, createdBy: 'netbot',
   }];
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
@@ -764,7 +764,7 @@ async function notifyManager(managerId: string, rowData: any, notif: { title: st
 // Areas are defined by the manager (Area Dashboard → settings.areas, e.g. "H26", "H30",
 // "G1", "HA01", "HA1", "HB01", "HC01", "F1", "FA", "FB") as short building/block codes.
 // When a customer asks about coverage and then sends their address, we try to spot one of
-// these exact codes in what they typed so Ayesha can confirm coverage instantly instead of
+// these exact codes in what they typed so NetBot can confirm coverage instantly instead of
 // always saying "team will check in 1-2 hours" — while still logging the lead either way.
 function extractAreaTokens(text: string): string[] {
   const raw = (text.toUpperCase().match(/[A-Z]+\d*|\d+/g) || []);
@@ -1261,12 +1261,12 @@ SIRF is JSON format mein jawab do, kuch aur nahi, koi markdown fence nahi: {"ban
 let currentTtsVoice: string | null = null;
 // Same per-invocation lifecycle as currentTtsVoice — which TTS engine + grammatical
 // gender this turn's matched agent uses. 'gemini'/'female' are the defaults so
-// existing single-persona (Ayesha) behaviour is byte-identical when no agent/legacy
+// existing single-persona (NetBot) behaviour is byte-identical when no agent/legacy
 // settings specify otherwise.
 let currentTtsProvider: TtsProvider = 'gemini';
 let currentTtsGender: TtsGender = 'female';
 
-// Simple keyword-based agent router for multi-agent WABot (e.g. Ayesha=billing,
+// Simple keyword-based agent router for multi-agent WABot (e.g. NetBot=billing,
 // Bilal=technical). Picks the active agent whose keyword list has the most hits in
 // the customer's message. Returns null (→ default single-persona behaviour, fully
 // backward compatible) if no agents are configured or nothing matches.
@@ -1560,7 +1560,7 @@ async function pushNotify(managerId: string, title: string, body: string, tag?: 
 // approves the good ones, which then feed back into future replies via getApprovedKnowledge.
 async function logKnowledgeCandidate(question: string, answer: string, managerId: string = 'mahadnet') {
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/ayesha_knowledge`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/netbot_knowledge`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ manager_id: managerId, question: question.slice(0, 500), answer: answer.slice(0, 1000), tags: ['unreviewed'] }),
@@ -1591,7 +1591,7 @@ function contextTokens(text: string): Set<string> {
 // matches, no knowledge block is added rather than forcing an unrelated answer.
 async function getApprovedKnowledge(managerId: string = 'mahadnet', currentMessage = '', limit = 6): Promise<string> {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/ayesha_knowledge?manager_id=eq.${managerId}&tags=cs.{approved}&order=updated_at.desc&limit=60&select=question,answer,updated_at`;
+    const url = `${SUPABASE_URL}/rest/v1/netbot_knowledge?manager_id=eq.${managerId}&tags=cs.{approved}&order=updated_at.desc&limit=60&select=question,answer,updated_at`;
     const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
     if (!r.ok) return '';
     const rows: any[] = await r.json();
@@ -1635,7 +1635,7 @@ async function getRecentHistory(phone: string, managerId: string, limit = 8, exc
     }
     return deduped.map(m => {
       const stamp = m?.created_at ? new Date(m.created_at).toISOString().slice(11, 16) : '--:--';
-      return `[${stamp}] ${m.direction === 'in' ? 'Customer' : 'Ayesha'}: ${(m.content || '').slice(0, 350)}`;
+      return `[${stamp}] ${m.direction === 'in' ? 'Customer' : 'NetBot'}: ${(m.content || '').slice(0, 350)}`;
     }).join('\n');
   } catch (e: any) { console.error('[getRecentHistory]', e?.message); return ''; }
 }
@@ -2079,7 +2079,7 @@ function closingAckReply(text: string): string {
   return pickFromList(isEnglishText(text) ? 'closing_ack_replies_en' : 'closing_ack_replies_ur');
 }
 
-function botIdentityReply(text: string, botName: string = 'Ayesha'): string {
+function botIdentityReply(text: string, botName: string = 'NetBot'): string {
   return tmpl(isEnglishText(text) ? 'bot_identity_reply_en' : 'bot_identity_reply_ur', { bot_name: botName });
 }
 
@@ -2106,7 +2106,7 @@ function ponCompatibilityReply(text: string): string {
 // For when a customer is surprised/curious to realize they're talking to a bot and
 // asks something like "Mahad ne aapko rakh liya hai?" — a warm, honest self-intro
 // instead of dodging the question, so trust isn't broken.
-function employmentQuestionReply(text: string, botName: string = 'Ayesha'): string {
+function employmentQuestionReply(text: string, botName: string = 'NetBot'): string {
   return tmpl(isEnglishText(text) ? 'employment_question_reply_en' : 'employment_question_reply_ur', { bot_name: botName, owner_name: CONFIG.ownerName });
 }
 
@@ -2148,7 +2148,7 @@ function extractMbps(planName: string): number {
   return m ? parseInt(m[1], 10) : 999999;
 }
 
-function welcomeMenu(salutation: string, name?: string, botName: string = 'Ayesha'): string {
+function welcomeMenu(salutation: string, name?: string, botName: string = 'NetBot'): string {
   const greeting = name
     ? tmpl('greeting_named', { salutation, name })
     : tmpl('greeting_unnamed', { salutation, business_name: CONFIG.businessName });
@@ -2343,7 +2343,7 @@ ETA: ${String(outage.estimatedResolution || 'N/A').slice(0, 120)}`;
   return fallback;
 }
 
-async function outageReply(outage: any, botName: string = 'Ayesha'): Promise<string> {
+async function outageReply(outage: any, botName: string = 'NetBot'): Promise<string> {
   const kind = outage.kind || 'incident';
   if (kind !== 'incident') {
     const title = sanitizeHindiWords(outage.title || 'Important update');
@@ -2374,7 +2374,7 @@ function outageReminderReply(outage: any, user: any, reminderCount: number): str
   });
 }
 
-async function sendOutageResponse(to: string, outage: any, user?: any, botName: string = 'Ayesha') {
+async function sendOutageResponse(to: string, outage: any, user?: any, botName: string = 'NetBot') {
   const session = await getSession(to);
   const previous = session?.outageNotice;
   const sameOutage = previous?.outageId === outage.id;
@@ -2615,21 +2615,21 @@ async function callGroqOnce(system: string, userMessage: string): Promise<{ onTo
 // repeat the same generic "koi aur madad chahiye to batayen" closer every reply, but
 // small/fast models don't always follow that instruction reliably — customers notice
 // immediately when a support agent sounds like a scripted bot. This strips the trailing
-// generic-closer sentence whenever Ayesha's own last reply in this conversation already
+// generic-closer sentence whenever NetBot's own last reply in this conversation already
 // ended with something near-identical, leaving the substantive part of the answer intact.
 function stripRepeatedGenericCloser(reply: string, recentHistory: string): string {
   const genericCloserRe = /[^.!?\n]*\b(koi (aur )?(masla|madad|sawal|dikkat|pareshani)\b[^.!?\n]*\b(bataen|batayen|bata dein|bata dena|zaroor batayen)|main (hamesha )?(yahan|haazir) hoon)\b[^.!?\n]*[.!?]?\s*$/i;
   const match = reply.match(genericCloserRe);
   if (!match || match.index === undefined) return reply;
 
-  const lastAyeshaLine = recentHistory.split('\n').filter((l) => l.trim().startsWith('Ayesha:')).pop() || '';
-  if (!genericCloserRe.test(lastAyeshaLine)) return reply; // first time saying it — leave it alone
+  const lastNetBotLine = recentHistory.split('\n').filter((l) => l.trim().startsWith('NetBot:')).pop() || '';
+  if (!genericCloserRe.test(lastNetBotLine)) return reply; // first time saying it — leave it alone
 
   const trimmed = reply.slice(0, match.index).trim();
   return trimmed || reply; // never send an empty message
 }
 
-async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'Ayesha', knowledgeContext: string = '', agentScope: string = '', agentGender: 'male' | 'female' = 'female', personaNotes: string = '', behaviorRules: Array<{ trigger?: unknown; response?: unknown; active?: boolean }> = [], conversationState: string = ''): Promise<{ onTopic: boolean; reply: string }> {
+async function askGroq(custData: string, userMessage: string, recentHistory: string = '', botName: string = 'NetBot', knowledgeContext: string = '', agentScope: string = '', agentGender: 'male' | 'female' = 'female', personaNotes: string = '', behaviorRules: Array<{ trigger?: unknown; response?: unknown; active?: boolean }> = [], conversationState: string = ''): Promise<{ onTopic: boolean; reply: string }> {
   // Customer wrote in Urdu/Nastaliq script → reply in that same script (previously this was
   // always force-converted to Roman Urdu, even when the customer clearly preferred Urdu script).
   const replyInUrduScript = containsUrduScript(userMessage);
@@ -2640,7 +2640,7 @@ async function askGroq(custData: string, userMessage: string, recentHistory: str
   // Urdu verb-gender agreement must match the agent's assigned voice gender —
   // a male-voiced agent (e.g. Bilal) saying "main check karti hoon" (female form)
   // sounds obviously wrong to a Pakistani listener. Default/unset stays 'female'
-  // so the original Ayesha persona's output is byte-identical to before.
+  // so the original NetBot persona's output is byte-identical to before.
   const genderToneBlock = agentGender === 'male'
     ? `MALE TONE — ZAROORI (Urdu replies mein, kabhi female/larkiyon wale verb forms mat use karo):
 GHALAT (female) → SAHI (male):
@@ -2770,7 +2770,7 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECEN
 // a personalized opener. Same language/script matching rules as askGroq. Best-effort:
 // any failure here (Groq down, etc.) falls back to the exact previous behaviour (empty
 // ack_line), so the complaint flow can never break because of this extra layer.
-async function acknowledgeIssue(issueText: string, botName: string = 'Ayesha'): Promise<string> {
+async function acknowledgeIssue(issueText: string, botName: string = 'NetBot'): Promise<string> {
   const replyInUrduScript = containsUrduScript(issueText);
   const isFullEnglish = !replyInUrduScript && isEnglishText(issueText) && issueText.trim().split(/\s+/).length >= 3;
   const scriptRule = replyInUrduScript
@@ -2947,7 +2947,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Phase 3 — Admin Inbox: conversations mahadnet has manually taken over should not
-    // get auto-replies from Ayesha. Single-tenant for now, so always manager_id='mahadnet'.
+    // get auto-replies from NetBot. Single-tenant for now, so always manager_id='mahadnet'.
     let pausedPhones: string[] = [];
     try {
       const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones`, {
@@ -3330,7 +3330,7 @@ export default async function handler(req: any, res: any) {
           const leadCustData = `Yeh ek NAYA connection lead hai (abhi MahadNet ka customer nahi hai). Customer ne yeh detail/requirement batayi hai: "${text}"\n\nREAL AVAILABLE PACKAGES — requirement ke mutabiq suggest karna ho to YEHI exact list se karo, khud se package/price mat banao:\n${packagesListForLead}\n\nNaya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberPricePerMeter}/meter hai. Aap ke pas router/fiber na ho to woh humse bhi le sakte hain ya khud kahin se bhi la sakte hain — dono options hain.\n\nAakhir mein: package final customer ki apni marzi se hoga, bas requirement ke mutabiq sahi suggestion dein.`;
           let leadReply = `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.${offer}`;
           try {
-            const aiResult = await askGroq(leadCustData, text, '', row?.settings?.ayeshaBotName || 'Ayesha', '');
+            const aiResult = await askGroq(leadCustData, text, '', row?.settings?.ayeshaBotName || 'NetBot', '');
             if (aiResult?.onTopic && aiResult.reply) leadReply = `${aiResult.reply}${offer}`;
           } catch (e: any) { console.error('[lead askGroq]', e?.message); }
 
@@ -3495,7 +3495,7 @@ export default async function handler(req: any, res: any) {
       // last message (within 20 min), the first template clearly didn't actually
       // answer what they meant — resending the identical text again just feels
       // robotic/broken-record. Reroute THIS turn to Groq (same grounded custData/
-      // bank/package facts used for off-topic replies further below) so Ayesha
+      // bank/package facts used for off-topic replies further below) so NetBot
       // reads the follow-up and replies to it specifically instead of looping.
       // Payment/bank-account intents are deliberately excluded — those must always
       // stay on the fixed deterministic template (see SAFETY-CRITICAL note above,
@@ -3796,11 +3796,11 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
       try {
         const recentHistory = await getRecentHistory(from, managerId, 8, msgId);
         const knowledgeContext = await getApprovedKnowledge(managerId, text);
-        // Multi-agent routing: pick a specialized agent (e.g. Bilal for technical, Ayesha
+        // Multi-agent routing: pick a specialized agent (e.g. Bilal for technical, NetBot
         // for billing) by keyword match; falls back to the single default persona/voice
         // if no agents are configured — zero behaviour change for existing setups.
         const matchedAgent = selectAgent(rowData?.settings?.wabotAgents, text);
-        const effectiveBotName = matchedAgent?.name || rowData?.settings?.ayeshaBotName || 'Ayesha';
+        const effectiveBotName = matchedAgent?.name || rowData?.settings?.ayeshaBotName || 'NetBot';
         currentTtsVoice = matchedAgent?.voice || rowData?.settings?.ttsVoice || null;
         currentTtsProvider = (matchedAgent?.ttsProvider as TtsProvider) || 'gemini';
         currentTtsGender = (matchedAgent?.gender as TtsGender) || 'female';
