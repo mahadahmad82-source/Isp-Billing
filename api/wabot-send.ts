@@ -1,6 +1,6 @@
 // api/wabot-send.ts — Phase 3 Admin Inbox: sends a manual WhatsApp reply on
 // mahadnet's behalf (text, image, voice note, video, or document), logs it, and
-// auto-pauses Ayesha on that thread (so the bot doesn't collide with a human
+// auto-pauses NetBot on that thread (so the bot doesn't collide with a human
 // reply mid-conversation).
 import { callGeminiWithFailover } from '../lib/geminiFailover.js';
 import * as lamejs from '@breezystack/lamejs';
@@ -233,7 +233,7 @@ export default async function handler(req: any, res: any) {
     });
   } catch (e: any) { console.error('[wabot-send log]', e?.message); }
 
-  // Auto-pause Ayesha on this thread — a human just took over the conversation.
+  // Auto-pause NetBot on this thread — a human just took over the conversation.
   try {
     const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${mgr}&select=paused_phones`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
