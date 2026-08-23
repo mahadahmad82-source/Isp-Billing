@@ -369,7 +369,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
-  // ── Router Catalog tab state (admin-editable, drives what Ayesha shows on WhatsApp) ──
+  // ── Router Catalog tab state (admin-editable, drives what NetBot shows on WhatsApp) ──
   const [catalogState, setCatalogState] = useState<RouterCatalog>(
     hasCatalogContent(routerCatalog) ? (routerCatalog as RouterCatalog) : DEFAULT_ROUTER_CATALOG
   );
@@ -514,7 +514,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     setKnowledgeLoading(true);
     try {
       const { data } = await supabase
-        .from('ayesha_knowledge')
+        .from('netbot_knowledge')
         .select('*')
         .eq('manager_id', managerId)
         .order('created_at', { ascending: false })
@@ -536,7 +536,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const approveKnowledge = async (item: KnowledgeItem, finalAnswer: string) => {
     try {
       await supabase
-        .from('ayesha_knowledge')
+        .from('netbot_knowledge')
         .update({ answer: finalAnswer, tags: ['approved'], updated_at: new Date().toISOString() })
         .eq('id', item.id);
       setKnowledge(prev => prev.map(k => (k.id === item.id ? { ...k, answer: finalAnswer, tags: ['approved'] } : k)));
@@ -548,7 +548,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const deleteKnowledge = async (id: string) => {
     try {
-      await supabase.from('ayesha_knowledge').delete().eq('id', id);
+      await supabase.from('netbot_knowledge').delete().eq('id', id);
       setKnowledge(prev => prev.filter(k => k.id !== id));
     } catch (e) {
       console.error('[WABotInbox] deleteKnowledge', e);
@@ -557,7 +557,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const revertKnowledge = async (id: string) => {
     try {
-      await supabase.from('ayesha_knowledge').update({ tags: ['unreviewed'] }).eq('id', id);
+      await supabase.from('netbot_knowledge').update({ tags: ['unreviewed'] }).eq('id', id);
       setKnowledge(prev => prev.map(k => (k.id === id ? { ...k, tags: ['unreviewed'] } : k)));
     } catch (e) {
       console.error('[WABotInbox] revertKnowledge', e);
@@ -1318,7 +1318,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Router Catalog</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Yahan se router models, price, specs aur image edit karein — Ayesha WhatsApp par yehi catalog dikhati hai, code edit ki koi zaroorat nahi.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1">Yahan se router models, price, specs aur image edit karein — NetBot WhatsApp par yehi catalog dikhati hai, code edit ki koi zaroorat nahi.</p>
           </div>
 
           {(['2.4g', '5g'] as const).map(band => (
@@ -1381,7 +1381,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
               <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">Ayesha ke har reply ki wording yahan se edit karein — koi code deploy ki zaroorat nahi. {'{curly_braces}'} wale tokens na hatayen, woh customer ka naam/amount/etc. se fill hote hain.</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">NetBot ke har reply ki wording yahan se edit karein — koi code deploy ki zaroorat nahi. {'{curly_braces}'} wale tokens na hatayen, woh customer ka naam/amount/etc. se fill hote hain.</p>
             </div>
             <button
               onClick={() => setShowAddTemplateModal(true)}
@@ -1531,7 +1531,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Support Agents</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">10 tak agents bana sakte hain (jese Ayesha=billing, Bilal=technical). Customer ke message mein keyword match ho to wo agent apna naam, scope, purpose, TTS provider, gender aur voice ke sath jawab deta hai — koi match na ho to Default Voice/Bot Name use hota hai. Har agent ka apna TTS provider (Gemini/Azure/Edge-TTS) test kar sakte hain.</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">10 tak agents bana sakte hain (jese NetBot=billing, Bilal=technical). Customer ke message mein keyword match ho to wo agent apna naam, scope, purpose, TTS provider, gender aur voice ke sath jawab deta hai — koi match na ho to Default Voice/Bot Name use hota hai. Har agent ka apna TTS provider (Gemini/Azure/Edge-TTS) test kar sakte hain.</p>
             </div>
             <button
               onClick={startNewAgent}
