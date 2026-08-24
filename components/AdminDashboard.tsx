@@ -229,15 +229,35 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   useEffect(() => { if (tab === 'system') loadStorageInfo(); }, [tab, loadStorageInfo]);
 
   // ── Pricing Plans ────────────────────────────────────────────────────────────
-  const SUBSCRIPTION_PLAN_OPTIONS = [
+  // Static fallback (used before pricingPlans has loaded, or if the DB list is empty).
+  // NOTE: "WhatsApp Bot" is intentionally NOT a base-tier option here — it's a
+  // standalone add-on (see utils/pricing.ts) tracked via the separate
+  // netbot_addon toggle below, not a mutually-exclusive plan value.
+  const SUBSCRIPTION_PLAN_OPTIONS_FALLBACK = [
   { value: 'free', label: 'Free', color: 'text-slate-400' },
   { value: 'starter', label: 'Starter', color: 'text-indigo-400' },
   { value: 'growth', label: 'Growth', color: 'text-violet-400' },
   { value: 'business', label: 'Business', color: 'text-purple-400' },
   { value: 'enterprise', label: 'Enterprise', color: 'text-cyan-400' },
   { value: 'custom', label: 'Custom', color: 'text-amber-400' },
-  { value: 'whatsapp-bot', label: 'WhatsApp Bot', color: 'text-emerald-400' },
 ] as const;
+
+  // Once the landing-page pricing plans have loaded, the assignment dropdown
+  // pulls its options from that SAME source instead of a separately hardcoded
+  // list — so renaming/adding/removing a plan on the Pricing tab automatically
+  // shows up here too, with no risk of the two falling out of sync.
+  const SUBSCRIPTION_PLAN_OPTIONS = useMemo(() => {
+    if (!pricingPlans || pricingPlans.length === 0) return SUBSCRIPTION_PLAN_OPTIONS_FALLBACK;
+    const fallbackColors: Record<string, string> = Object.fromEntries(
+      SUBSCRIPTION_PLAN_OPTIONS_FALLBACK.map(o => [o.value, o.color])
+    );
+    return pricingPlans
+      .filter(p => p.name.trim().toLowerCase() !== 'whatsapp bot') // addon card, not a base tier
+      .map(p => {
+        const value = p.name.trim().toLowerCase();
+        return { value, label: p.name, color: fallbackColors[value] || 'text-slate-300' };
+      });
+  }, [pricingPlans]);
 
   const loadPricingPlans = useCallback(async () => {
     setPricingLoading(true);
@@ -254,7 +274,8 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       }
     } finally { setPricingLoading(false); } // BUG FIX (Manus audit): rejected promise used to leave this spinning forever
   }, []);
-  useEffect(() => { if (tab === 'pricing' && pricingPlans === null) loadPricingPlans(); }, [tab, pricingPlans, loadPricingPlans]);
+  // Load on either tab now — Subscriptions needs the same live plan list as Pricing.
+  useEffect(() => { if ((tab === 'pricing' || tab === 'subscriptions') && pricingPlans === null) loadPricingPlans(); }, [tab, pricingPlans, loadPricingPlans]);
 
   const savePricingPlans = async () => {
     if (!pricingPlans) return;
@@ -361,6 +382,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       p_notes: updates.notes ?? null,
       p_customer_limit: updates.customer_limit ?? null,
       p_agent_limit: updates.agent_limit ?? null,
+      p_netbot_addon: updates.netbot_addon ?? null,
     });
     if (!error && data?.success) { await loadSubscriptions(); showSubToast('✅ Updated: ' + managerId); }
     else showSubToast('❌ Error: ' + (error?.message || data?.error || 'Update failed'));
@@ -1332,6 +1354,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                       <button onClick={()=>openPaymentModal(sub.manager_id, sub.plan, sub.amount_pkr)}
                         className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[11px] font-black hover:bg-indigo-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <Banknote className="w-3.5 h-3.5" /> Record Payment
+                      </button>
+                      <button onClick={()=>updateSubscription(sub.manager_id, { netbot_addon: !sub.netbot_addon })}
+                        title="Standalone WhatsApp Bot add-on (separate from the base plan — see Pricing tab)"
+                        className={`px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all flex items-center gap-1 active:scale-95 ${sub.netbot_addon ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'}`}>
+                        {sub.netbot_addon ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />} NetBot Add-on
                       </button>
                       <button onClick={()=>openLedger(sub.manager_id)}
                         className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[11px] font-black hover:bg-white/10 transition-all flex items-center gap-1 active:scale-95">
