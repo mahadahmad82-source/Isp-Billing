@@ -106,6 +106,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
     .reduce((sum, u) => sum + (settings.planPrices[u.plan] || u.monthlyFee || 0), 0);
 
   const monthlyPending = Math.max(0, monthlyTarget - monthlyRecovered);
+  const recoveryPercent = monthlyTarget > 0 ? Math.min(100, Math.round((monthlyRecovered / monthlyTarget) * 100)) : 0;
 
   const _today = new Date();
   _today.setHours(0, 0, 0, 0);
@@ -325,6 +326,8 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
         </div>
       )}
+
+      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-slate-900"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="relative h-36 w-36 shrink-0"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#4f46e5" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-slate-900 dark:text-white">{recoveryPercent}%</span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
 
       <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat) => (

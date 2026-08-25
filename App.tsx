@@ -22,6 +22,7 @@ import AdminDashboard from './components/AdminDashboard';
 import SystemLogs from './components/SystemLogs';
 import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
 import SubManagerManagement from './components/SubManager/SubManagerManagement';
+import SubManagerSettings from './components/SubManager/SubManagerSettings';
 import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
 import BusinessAnalytics from './components/BusinessAnalytics';
@@ -1680,7 +1681,7 @@ const App: React.FC = () => {
       : canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
     return (
       <ErrorBoundary>
-        {activeTab === 'receipts' ? (
+        {activeTab === 'settings' ? (<SubManagerSettings agent={currentAgent} theme={state.theme || 'light'} onToggleTheme={handleToggleTheme} onBack={() => setActiveTab('team')} onLogout={handleLogout} onSave={async (updates) => { if (isRealAuthSubManager) { const headers = await getWabotAuthHeaders(); const response = await fetch('/api/admin-maintenance?action=agent-update-profile', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(updates) }); if (!response.ok) throw new Error('Profile could not be saved.'); } setState(prev => { const next = { ...prev, subManagers: (prev.subManagers || []).map(agent => agent.id === currentAgent?.id ? { ...agent, ...updates } : agent) }; saveState(next); saveStateToSupabase(next.currentManager || activeManager || '', next); return next; }); }} />) : activeTab === 'receipts' ? (
           !canLogReceipts ? (
             <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] flex flex-col items-center justify-center p-8 text-center gap-4">
               <p className="text-slate-500 dark:text-slate-400 font-semibold">
@@ -1758,6 +1759,7 @@ const App: React.FC = () => {
             onSendTeamMessage={handleSendTeamMessage}
             onRefreshTeamMessages={refreshTeamMessages}
             onLogout={handleLogout}
+            onOpenSettings={() => setActiveTab('settings')}
             onAddAttendanceLog={isRealAuthSubManager ? (async (log: any) => {
               const now = log.timestamp || new Date().toISOString();
               const logId = generateId();

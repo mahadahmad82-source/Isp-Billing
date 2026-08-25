@@ -25,6 +25,7 @@ interface SubManagerDashboardProps {
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
   readOnly?: boolean; // Real Supabase Auth agents are read-only during Phase 1
   liveDutyStatus?: 'online' | 'offline' | null; // Server-backed status for real-auth agents
+  onOpenSettings?: () => void;
 }
 
 const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
@@ -49,6 +50,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   canLogReceipts = true,
   readOnly = false,
   liveDutyStatus = null,
+  onOpenSettings,
 }) => {
   const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints' | 'communication'>('clients');
   const [resolutionTicketId, setResolutionTicketId] = useState<string | null>(null);
@@ -383,7 +385,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <button 
+            <button onClick={onOpenSettings} className="rounded-lg bg-indigo-500/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-indigo-600 hover:bg-indigo-600 hover:text-white sm:px-4 sm:py-2">Settings</button><button
               onClick={handleAgentBackup}
               className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2"
               title="Download Agent Data Backup"
@@ -529,7 +531,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                       <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-all group">
                         <td className="px-6 py-4">
                           <p className="font-bold text-slate-900 dark:text-white">{user.name}</p>
-                          <p className="text-[11px] text-slate-500 font-medium">@{user.username}</p>
+                          <p className="text-[11px] text-slate-500 font-medium">@{user.username}</p><p className="mt-1 text-[10px] font-semibold text-slate-500">{user.phone || 'No phone'}</p><p className="truncate text-[10px] text-slate-400">{user.address || 'No address'}</p>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
@@ -602,7 +604,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h4 className="font-bold text-slate-900 dark:text-white">{user.name}</h4>
-                      <p className="text-[11px] text-slate-500 font-medium">@{user.username}</p>
+                      <p className="text-[11px] text-slate-500 font-medium">@{user.username}</p><p className="mt-1 text-[10px] font-semibold text-slate-500">{user.phone || 'No phone'}</p><p className="max-w-[220px] truncate text-[10px] text-slate-400">{user.address || 'No address'}</p>
                     </div>
                     <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${
                       user.displayStatus === 'clear' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'

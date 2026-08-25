@@ -336,6 +336,8 @@ export interface SubManagerAccount {
   username: string;
   name: string;
   managerUsername: string;
+  phone?: string;
+  email?: string;
   dutyStatus: 'online' | 'offline';
   lastCheckIn?: string;
   lastCheckOut?: string;

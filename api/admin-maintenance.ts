@@ -44,7 +44,7 @@ export default async function handler(req: any, res: any) {
     // self-authenticating: it verifies the supplied legacy credentials through
     // the existing RPC before creating/linking a real Auth identity. It never
     // accepts a manager id from the client and never returns a privileged key.
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'agent-update-profile' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -84,6 +84,8 @@ export default async function handler(req: any, res: any) {
       return handleComplaintFeedback(req, res);
     case 'mirror-agent-attendance':
       return handleMirrorAgentAttendance(req, res);
+    case 'agent-update-profile':
+      return handleAgentUpdateProfile(req, res);
     case 'list-sub-manager-accounts':
       return handleListSubManagerAccounts(req, res);
     case 'ai-insights':
@@ -577,6 +579,40 @@ async function getSubManagerParent(caller: CallerContext): Promise<{ managerId: 
   const agent = rows?.[0];
   if (!agent?.manager_id || !agent.username) return null;
   return { managerId: agent.manager_id, username: agent.username, id: agent.id };
+}
+
+async function handleAgentUpdateProfile(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || caller.role !== 'sub-manager' || !caller.username) return res.status(403).json({ error: 'Sub-manager session required' });
+  try {
+    const parent = await getSubManagerParent(caller);
+    if (!parent) return res.status(404).json({ error: 'Parent manager mapping not found.' });
+    let read = await fetchParentManagerState(parent.managerId);
+    if (!read) return res.status(404).json({ error: 'Parent manager data not found.' });
+    const body = req.body || {};
+    const updates: Record<string, string> = {};
+    for (const key of ['name', 'phone', 'email']) if (body[key] !== undefined) updates[key] = String(body[key] || '').trim().slice(0, 160);
+    if (updates.name !== undefined && !updates.name) return res.status(400).json({ error: 'Name is required.' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const state = read.data || {};
+      let matched = false;
+      const updatedAgents = (state.subManagers || []).map((agent: any) => {
+        if (agent?.id !== parent.id && String(agent?.username || '').toLowerCase() !== caller.username!.toLowerCase()) return agent;
+        matched = true;
+        return { ...agent, ...updates };
+      });
+      if (!matched) return res.status(404).json({ error: 'Agent profile not found.' });
+      const now = new Date().toISOString();
+      const updatedState = { ...state, _syncedAt: now, subManagers: updatedAgents };
+      const writeRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${encodeURIComponent(parent.managerId)}&updated_at=eq.${encodeURIComponent(read.updated_at)}`, { method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ data: updatedState, updated_at: now }) });
+      if (!writeRes.ok) return res.status(500).json({ error: 'Profile could not be saved.' });
+      const writtenRows: any[] = await writeRes.json().catch(() => []);
+      if (writtenRows.length > 0) return res.status(200).json({ success: true });
+      if (attempt === 0) { read = await fetchParentManagerState(parent.managerId); if (!read) return res.status(500).json({ error: 'Parent manager data could not be reloaded.' }); }
+    }
+    return res.status(409).json({ error: 'Profile changed while saving. Please retry.' });
+  } catch (error: any) { console.error('[agent-update-profile]', error?.message); return res.status(500).json({ error: 'Profile could not be saved.' }); }
 }
 
 async function handleMirrorAgentAttendance(req: any, res: any) {
