@@ -736,6 +736,23 @@ async function getManagerRow(managerId: string): Promise<any | null> {
   } catch (e: any) { console.error('[getManagerRow]', e?.message); return null; }
 }
 
+// The app keeps the active company's settings alongside the legacy top-level settings.
+// Prefer the active company's value, while retaining top-level values for older records.
+// This matters for greetings sent to unknown numbers because they have no customer row
+// from which to read settings.
+function getEffectiveSettings(rowData: any): Record<string, any> {
+  const companies: any[] = Array.isArray(rowData?.companies) ? rowData.companies : [];
+  const activeCompany = rowData?.activeCompanyId
+    ? companies.find((company: any) => company?.id === rowData.activeCompanyId)
+    : companies[0];
+  return { ...(rowData?.settings || {}), ...(activeCompany?.settings || {}) };
+}
+
+function getConfiguredBotName(rowData: any): string | undefined {
+  const name = getEffectiveSettings(rowData).ayeshaBotName;
+  return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+}
+
 async function notifyManager(managerId: string, rowData: any, notif: { title: string; message: string; priority?: 'HIGH' | 'MEDIUM' | 'LOW' }) {
   const newNotif = {
     id: `wa-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -3179,7 +3196,8 @@ export default async function handler(req: any, res: any) {
       if (isFirstContactTodayFlag && intent !== 'greeting' && intent !== 'greeting_personal_chat' && intent !== 'complaint') {
         try {
           const foundForGreeting = await findCustomer(from);
-          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, foundForGreeting?.rowData?.settings?.ayeshaBotName));
+          const greetingRow = foundForGreeting?.rowData || await getManagerRow(BOUND_MANAGER_ID);
+          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, getConfiguredBotName(greetingRow)));
         } catch (e: any) { console.error('[daily greeting]', e?.message); }
       }
 
@@ -3330,7 +3348,7 @@ export default async function handler(req: any, res: any) {
           const leadCustData = `Yeh ek NAYA connection lead hai (abhi MahadNet ka customer nahi hai). Customer ne yeh detail/requirement batayi hai: "${text}"\n\nREAL AVAILABLE PACKAGES — requirement ke mutabiq suggest karna ho to YEHI exact list se karo, khud se package/price mat banao:\n${packagesListForLead}\n\nNaya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberPricePerMeter}/meter hai. Aap ke pas router/fiber na ho to woh humse bhi le sakte hain ya khud kahin se bhi la sakte hain — dono options hain.\n\nAakhir mein: package final customer ki apni marzi se hoga, bas requirement ke mutabiq sahi suggestion dein.`;
           let leadReply = `Shukriya! 😊 Aap ki details note kar li hain — team 1-2 ghante mein contact karegi.${offer}`;
           try {
-            const aiResult = await askGroq(leadCustData, text, '', row?.settings?.ayeshaBotName || 'NetBot', '');
+            const aiResult = await askGroq(leadCustData, text, '', getConfiguredBotName(row) || 'NetBot', '');
             if (aiResult?.onTopic && aiResult.reply) leadReply = `${aiResult.reply}${offer}`;
           } catch (e: any) { console.error('[lead askGroq]', e?.message); }
 
@@ -3407,7 +3425,7 @@ export default async function handler(req: any, res: any) {
           }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const outage = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
-          if (outage) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
+          if (outage) { await sendOutageResponse(from, outage, found.user, getConfiguredBotName(found.rowData)); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
           await registerComplaintAndReply(from, found, text);
@@ -3440,7 +3458,7 @@ export default async function handler(req: any, res: any) {
               }
               if (!found2) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
               const outage2 = getRelevantUpdate(found2.rowData, text, found2.user, { complaint: true });
-              if (outage2) { await sendOutageResponse(from, outage2, found2.user, found2.rowData?.settings?.ayeshaBotName); continue; }
+              if (outage2) { await sendOutageResponse(from, outage2, found2.user, getConfiguredBotName(found2.rowData)); continue; }
               const billingBlock2 = accountBillingBlockedReply(found2.user);
               if (billingBlock2) { await sendText(from, billingBlock2); continue; }
               await registerComplaintAndReply(from, found2, text);
@@ -3456,7 +3474,7 @@ export default async function handler(req: any, res: any) {
           }
           if (!foundByType) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const outageByType = getRelevantUpdate(foundByType.rowData, text, foundByType.user, { complaint: true });
-          if (outageByType) { await sendOutageResponse(from, outageByType, foundByType.user, foundByType.rowData?.settings?.ayeshaBotName); continue; }
+          if (outageByType) { await sendOutageResponse(from, outageByType, foundByType.user, getConfiguredBotName(foundByType.rowData)); continue; }
           const billingBlockByType = accountBillingBlockedReply(foundByType.user);
           if (billingBlockByType) { await sendText(from, billingBlockByType); continue; }
           const issue = sessionData?.issue || text;
@@ -3480,7 +3498,7 @@ export default async function handler(req: any, res: any) {
           }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
           const outageAfterTips = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
-          if (outageAfterTips) { await sendOutageResponse(from, outageAfterTips, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
+          if (outageAfterTips) { await sendOutageResponse(from, outageAfterTips, found.user, getConfiguredBotName(found.rowData)); continue; }
           const billingBlockAfterTips = accountBillingBlockedReply(found.user);
           if (billingBlockAfterTips) { await sendText(from, billingBlockAfterTips); continue; }
           const connTag = sessionData?.connectionType === 'local' ? '[Local/UTP] ' : sessionData?.connectionType === 'fiber' ? '[Fiber] ' : '';
@@ -3524,7 +3542,8 @@ export default async function handler(req: any, res: any) {
         await setSession(from, null);
         let found = await findCustomer(from);
         if (!found && wasVerified) found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
-        await sendTextAndVoice(from, welcomeMenu(greetingSalutation(text), found?.user?.name, found?.rowData?.settings?.ayeshaBotName));
+        const greetingRow = found?.rowData || await getManagerRow(BOUND_MANAGER_ID);
+        await sendTextAndVoice(from, welcomeMenu(greetingSalutation(text), found?.user?.name, getConfiguredBotName(greetingRow)));
         continue;
       }
 
@@ -3565,14 +3584,14 @@ export default async function handler(req: any, res: any) {
       // ── "What's your name / who are you" — fixed, correctly-gendered identity reply ──
       if (intent === 'bot_identity') {
         const cfgRow = await getManagerRow('mahadnet');
-        await sendText(from, botIdentityReply(text, cfgRow?.settings?.ayeshaBotName));
+        await sendText(from, botIdentityReply(text, getConfiguredBotName(cfgRow)));
         continue;
       }
 
       // ── Customer surprised/asking if Mahad "hired"/"kept" this bot — honest, warm intro ──
       if (intent === 'employment_question') {
         const cfgRow = await getManagerRow('mahadnet');
-        await sendText(from, employmentQuestionReply(text, cfgRow?.settings?.ayeshaBotName));
+        await sendText(from, employmentQuestionReply(text, getConfiguredBotName(cfgRow)));
         continue;
       }
 
@@ -3691,7 +3710,7 @@ export default async function handler(req: any, res: any) {
       if (intent === 'menu_complaint') {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
         const outage = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
-        if (outage) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
+        if (outage) { await sendOutageResponse(from, outage, found.user, getConfiguredBotName(found.rowData)); continue; }
         const billingBlock = accountBillingBlockedReply(found.user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         // Carry the resolved identity forward so the rest of the complaint flow (which
@@ -3755,10 +3774,10 @@ export default async function handler(req: any, res: any) {
 
       if (intent === 'complaint') {
         const outage = getRelevantUpdate(rowData, text, user, { complaint: true });
-        if (outage) { await sendOutageResponse(from, outage, user, rowData?.settings?.ayeshaBotName); continue; }
+        if (outage) { await sendOutageResponse(from, outage, user, getConfiguredBotName(rowData)); continue; }
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
-        const ackLine3 = await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName);
+        const ackLine3 = await acknowledgeIssue(text, getConfiguredBotName(rowData));
         // Connection type already on file (Connection Types feature) — skip the
         // Fiber/Local question, go straight to correct troubleshooting tips (this is
         // also what reliably triggers the fiber-upgrade pitch for Local customers).
@@ -3800,7 +3819,7 @@ Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberP
         // for billing) by keyword match; falls back to the single default persona/voice
         // if no agents are configured — zero behaviour change for existing setups.
         const matchedAgent = selectAgent(rowData?.settings?.wabotAgents, text);
-        const effectiveBotName = matchedAgent?.name || rowData?.settings?.ayeshaBotName || 'NetBot';
+        const effectiveBotName = matchedAgent?.name || getConfiguredBotName(rowData) || 'NetBot';
         currentTtsVoice = matchedAgent?.voice || rowData?.settings?.ttsVoice || null;
         currentTtsProvider = (matchedAgent?.ttsProvider as TtsProvider) || 'gemini';
         currentTtsGender = (matchedAgent?.gender as TtsGender) || 'female';
