@@ -145,7 +145,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
           const authEmail = agent.email || `agent.${agent.manager_id}.${agent.username}@myisp.local`;
           const { data: agentAuth, error: agentAuthError } = await supabase.auth.signInWithPassword({ email: authEmail, password });
           if (agentAuthError || !agentAuth?.user || agentAuth.user.id !== agent.auth_user_id) {
-            if (agentAuth?.user) await supabase.auth.signOut();
+            if (agentAuth?.user) await supabase.auth.signOut({ scope: 'local' });
             return null;
           }
           return { agent, user: agentAuth.user };
@@ -249,7 +249,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         // correct signal; a row with null username still gets the legacy
         // backfill treatment below rather than being rejected outright.
         if (!profileDataPre) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           throw new Error('This account is not active. Contact your manager or admin.');
         }
         // Backfill profiles.username if missing (covers pre-existing accounts and
