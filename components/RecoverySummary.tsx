@@ -58,6 +58,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   defaultCollectedBy
 }) => {
   const [showAmounts, setShowAmounts] = useState(false);
+  const [showTotalAmount, setShowTotalAmount] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [detailSearchTerm, setDetailSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -1020,8 +1021,17 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                 <p className="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-4">{summary.period}</p>
                 <div className="flex flex-wrap items-center gap-6">
                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recovery</span>
-                      <span className="text-lg font-black text-emerald-600 dark:text-emerald-500">Rs. {(summary.totalPaid || 0).toLocaleString()}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recovery</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setShowTotalAmount(value => !value); }}
+                          className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline"
+                        >
+                          {showTotalAmount ? 'Hide Amount' : 'Show Amount'}
+                        </button>
+                      </div>
+                      <span className="text-lg font-black text-emerald-600 dark:text-emerald-500">{showTotalAmount ? `Rs. ${(summary.totalPaid || 0).toLocaleString()}` : 'Rs. ••••••'}</span>
                    </div>
                    <div className="flex flex-col border-l border-slate-100 dark:border-white/5 pl-6">
                       <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Active Payment Unit</span>
@@ -1109,20 +1119,25 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Received</p>
-                <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">{showAmounts ? `Rs. ${(stats.paid || 0).toLocaleString()}` : 'Rs. ••••••'}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Received</p>
+                  <button type="button" onClick={() => setShowTotalAmount(value => !value)} className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline whitespace-nowrap">
+                    {showTotalAmount ? 'Hide Amount' : 'Show Amount'}
+                  </button>
+                </div>
+                <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">{showTotalAmount ? `Rs. ${(stats.paid || 0).toLocaleString()}` : 'Rs. ••••••'}</p>
               </div>
               <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Advance Amount</p>
-                <p className="text-xl font-black text-emerald-600 dark:text-emerald-500">{showAmounts ? `Rs. ${(stats.advance || 0).toLocaleString()}` : 'Rs. ••••••'}</p>
+                <p className="text-xl font-black text-emerald-600 dark:text-emerald-500">Rs. {(stats.advance || 0).toLocaleString()}</p>
               </div>
               <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
                 <p className="text-[9px] font-black text-rose-600 dark:text-rose-500 uppercase tracking-widest mb-1">Total Arrears</p>
-                <p className="text-xl font-black text-rose-600 dark:text-rose-400">{showAmounts ? `Rs. ${(stats.balance || 0).toLocaleString()}` : 'Rs. ••••••'}</p>
+                <p className="text-xl font-black text-rose-600 dark:text-rose-400">Rs. {(stats.balance || 0).toLocaleString()}</p>
               </div>
               <div className="bg-slate-800 dark:bg-indigo-600 p-5 rounded-[1.5rem] text-white shadow-xl">
                 <p className="text-[9px] font-black text-white dark:text-white uppercase tracking-widest mb-1">TOTAL EXPECTED COLLECTION</p>
-                <p className="text-xl font-black text-white dark:text-white">{showAmounts ? `Rs. ${((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}` : 'Rs. ••••••'}</p>
+                <p className="text-xl font-black text-white dark:text-white">Rs. {((stats.paid || 0) + (stats.balance || 0)).toLocaleString()}</p>
               </div>
               <div className="bg-white dark:bg-slate-950 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Recovery %</p>
@@ -1237,17 +1252,17 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     )}
                     {visibleColumns.paidAmount && (
                     <td className="px-8 py-5">
-                       <span className="text-sm font-black text-slate-800 dark:text-slate-100">{showAmounts ? `Rs. ${(item.paidAmount || 0).toLocaleString()}` : 'Rs. ••••••'}</span>
+                       <span className="text-sm font-black text-slate-800 dark:text-slate-100">Rs. ${(item.paidAmount || 0).toLocaleString()}</span>
                     </td>
                     )}
                     {visibleColumns.advanceAmount && (
                     <td className="px-8 py-5">
-                       <span className={`text-sm font-black ${(item.advanceAmount || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`}>{showAmounts ? `Rs. ${(item.advanceAmount || 0).toLocaleString()}` : 'Rs. ••••••'}</span>
+                       <span className={`text-sm font-black ${(item.advanceAmount || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`}>Rs. ${(item.advanceAmount || 0).toLocaleString()}</span>
                     </td>
                     )}
                     {visibleColumns.balance && (
                     <td className="px-8 py-5">
-                       <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>{showAmounts ? `Rs. ${(item.balance || 0).toLocaleString()}` : 'Rs. ••••••'}</span>
+                       <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. ${(item.balance || 0).toLocaleString()}</span>
                     </td>
                     )}
                     {visibleColumns.expiryDate && (
