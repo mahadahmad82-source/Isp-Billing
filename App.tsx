@@ -956,7 +956,7 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(() => {
     const account = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
-    if (account?.authUserId) supabase.auth.signOut().catch(() => {});
+    if (account?.authUserId) supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     setActiveSession(null);
     sessionStorage.clear();
     setActiveManager(null);
