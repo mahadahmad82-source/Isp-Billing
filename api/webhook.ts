@@ -548,7 +548,7 @@ const normPhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
 // manager_data JSONB blob (~900KB+ for 'mahadnet') from Supabase — often 3-5x per single
 // WhatsApp message. This shared, short-TTL cache collapses those into one network fetch per
 // window. Always invalidate the relevant key right after any PATCH write to manager_data.
-const _managerDataCache: Record<string, { rows: any[]; ts: number }> = {};
+const _managerDataCache: Record<string, { rows: any[]; ts: number; updatedAt: string | null }> = {};
 const MANAGER_DATA_CACHE_TTL_MS = 20_000;
 
 // Outage status is intentionally cached longer than the full manager blob. During a
@@ -562,13 +562,40 @@ const OUTAGE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
 async function fetchManagerDataCached(managerIdFilter: string): Promise<any[]> {
   const cached = _managerDataCache[managerIdFilter];
   if (cached && (Date.now() - cached.ts) < MANAGER_DATA_CACHE_TTL_MS) return cached.rows;
+
+  // ── Egress fix (Aug 2026 v2) ──────────────────────────────────────────────
+  // Vercel serverless instances don't share memory, so the 20s in-process cache above
+  // never helped once traffic was spread across concurrent/cold invocations — every one
+  // of them still pulled the full ~980KB blob on every WhatsApp message. Before paying
+  // that cost again, do a cheap updated_at-only check (few bytes) and reuse the cached
+  // rows if nothing actually changed. Falls through to the full fetch exactly like
+  // before whenever there's no cache yet or the row was genuinely updated.
+  if (cached) {
+    try {
+      const headRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,updated_at&manager_id=eq.${managerIdFilter}`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      });
+      if (headRes.ok) {
+        const headRows: any[] = await headRes.json();
+        const liveUpdatedAt = headRows?.[0]?.updated_at || null;
+        if (liveUpdatedAt && liveUpdatedAt === cached.updatedAt) {
+          cached.ts = Date.now();
+          return cached.rows;
+        }
+      }
+    } catch (e: any) {
+      console.error('[fetchManagerDataCached] revalidate check failed:', e?.message);
+      // fall through to full fetch below
+    }
+  }
+
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${managerIdFilter}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data,updated_at&manager_id=eq.${managerIdFilter}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     if (!res.ok) { console.error('[Supabase] fetch failed:', res.status); return cached?.rows || []; }
     const rows: any[] = await res.json();
-    _managerDataCache[managerIdFilter] = { rows, ts: Date.now() };
+    _managerDataCache[managerIdFilter] = { rows, ts: Date.now(), updatedAt: rows?.[0]?.updated_at || null };
     return rows;
   } catch (e: any) {
     console.error('[fetchManagerDataCached]', e?.message);
@@ -1118,40 +1145,11 @@ async function notifyPushTokens(
     data: { phone: normPhone(customerPhone) },
   }));
 
-  const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+  await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(messages),
   });
-
-  // Expo's push API can return HTTP 200 while still reporting a per-message
-  // failure (invalid/expired FCM credentials, DeviceNotRegistered, etc.) —
-  // this was previously discarded entirely, so delivery failures were
-  // invisible in Vercel logs. Log every non-ok ticket, and drop tokens Expo
-  // says are dead so we stop retrying them on every future message.
-  try {
-    const pushJson = await pushRes.json();
-    const tickets: any[] = pushJson?.data || [];
-    const deadTokens: string[] = [];
-    tickets.forEach((ticket, i) => {
-      if (ticket?.status !== 'ok') {
-        console.error(
-          `[notifyPushTokens] delivery failed for manager=${managerId} token=${messages[i]?.to}:`,
-          ticket?.message,
-          ticket?.details
-        );
-        if (ticket?.details?.error === 'DeviceNotRegistered') deadTokens.push(messages[i].to);
-      }
-    });
-    if (deadTokens.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/push_tokens?token=in.(${deadTokens.map((t) => `"${t}"`).join(',')})`, {
-        method: 'DELETE',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.error('[notifyPushTokens] could not parse Expo push response:', e);
-  }
 }
 
 // Downloads WhatsApp media (e.g. payment screenshot) via Meta Graph API and
