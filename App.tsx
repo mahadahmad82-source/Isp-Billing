@@ -320,6 +320,7 @@ const App: React.FC = () => {
     lastCheckIn?: string;
     lastCheckOut?: string;
     lastLocation?: { lat: number; lng: number; timestamp?: string };
+    lastLocationAt?: string;
   }>>({});
   useEffect(() => {
     if (userRole === 'sub-manager' || !activeManager) return;
@@ -336,7 +337,7 @@ const App: React.FC = () => {
         const payload = await response.json().catch(() => null);
         const rows = Array.isArray(payload) ? payload : (Array.isArray(payload?.accounts) ? payload.accounts : []);
         if (cancelled) return;
-        const map: Record<string, { dutyStatus: 'online' | 'offline'; lastCheckIn?: string; lastCheckOut?: string; lastLocation?: { lat: number; lng: number; timestamp?: string } }> = {};
+        const map: Record<string, { dutyStatus: 'online' | 'offline'; lastCheckIn?: string; lastCheckOut?: string; lastLocation?: { lat: number; lng: number; timestamp?: string }; lastLocationAt?: string }> = {};
         rows.forEach((r: any) => {
           if (!r.username) return;
           map[r.username] = {
@@ -344,6 +345,7 @@ const App: React.FC = () => {
             lastCheckIn: r.last_check_in || undefined,
             lastCheckOut: r.last_check_out || undefined,
             lastLocation: r.last_location || undefined,
+            lastLocationAt: r.last_location_at || undefined,
           };
         });
         setLiveTeamStatus(map);
@@ -1754,6 +1756,7 @@ const App: React.FC = () => {
             canLogReceipts={canLogReceipts}
             readOnly={false /* Phase 1 leftover removed — attendance (agent_log_attendance RPC) and receipts (agent-issue-receipt) both now have secure, server-verified write paths for real-auth sub-managers */}
             liveDutyStatus={isRealAuthSubManager ? liveDutyStatus : null}
+            isRealAuthAgent={isRealAuthSubManager}
             attendanceLogs={state.attendanceLogs || []}
             teamMessages={state.teamMessages || []}
             onSendTeamMessage={handleSendTeamMessage}
@@ -1762,23 +1765,16 @@ const App: React.FC = () => {
             onOpenSettings={() => setActiveTab('settings')}
             onAddAttendanceLog={isRealAuthSubManager ? (async (log: any) => {
               const now = log.timestamp || new Date().toISOString();
-              const logId = generateId();
-              const { error } = await supabase.rpc('agent_log_attendance', {
+              const { data: attendanceRow, error } = await supabase.rpc('agent_log_attendance', {
                 p_type: log.type,
                 p_reason: log.reason || null,
                 p_location: log.location || null,
+                p_event_id: `attendance-${activeManager || currentAgent?.username || 'agent'}-${Date.now()}`,
               });
               if (error) {
                 console.error('[attendance]', error);
                 throw new Error('Attendance update could not be saved.');
               }
-
-              const mirrorHeaders = await getWabotAuthHeaders();
-              const mirrorResponse = await fetch('/api/admin-maintenance?action=mirror-agent-attendance', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', ...mirrorHeaders },
-                body: JSON.stringify({ ...log, id: logId, timestamp: now }),
-              });
-              if (!mirrorResponse.ok) console.error('[attendance] manager history mirror failed:', await mirrorResponse.text().catch(() => 'unknown error'));
 
               const agentName = currentAgent?.name || activeManager || 'Agent';
               const timeStr = new Date(now).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
@@ -1799,23 +1795,28 @@ const App: React.FC = () => {
                 { target_role: 'manager' }
               );
 
-              const logEntry = { ...log, id: logId, timestamp: now } as AttendanceLog;
-              setState(prev => {
-                const next = {
-                  ...prev,
-                  attendanceLogs: [...(prev.attendanceLogs || []), logEntry],
-                  subManagers: (prev.subManagers || []).map(sm => sm.id === (currentAgent?.id || activeManager) ? {
-                    ...sm,
-                    dutyStatus: log.type === 'check-in' ? 'online' : 'offline',
-                    isLeave: log.type === 'leave',
-                    ...(log.type === 'check-in' ? { lastCheckIn: now, lastLocation: log.location ? { ...log.location, timestamp: now } : sm.lastLocation } : { lastCheckOut: now, lastLocation: null }),
-                  } : sm),
-                };
-                saveState(next);
-                saveStateToSupabase(currentAgent?.managerUsername || prev.currentManager || activeManager || '', next);
-                return next;
-              });
-              setLiveDutyStatus(log.type === 'check-in' ? 'online' : 'offline');
+              const row = attendanceRow as any;
+              const localLog = {
+                ...log,
+                id: `attendance-${activeManager || currentAgent?.username || 'agent'}-${Date.now()}`,
+                timestamp: now,
+              } as AttendanceLog;
+              setState(prev => ({
+                ...prev,
+                // Keep the report responsive in memory, but do not persist a
+                // second real-auth attendance copy into manager_data JSONB.
+                attendanceLogs: [...(prev.attendanceLogs || []), localLog],
+                subManagers: (prev.subManagers || []).map(sm => sm.id === (currentAgent?.id || activeManager) ? {
+                  ...sm,
+                  dutyStatus: row?.duty_status || (log.type === 'check-in' ? 'online' : 'offline'),
+                  isLeave: log.type === 'leave',
+                  lastCheckIn: row?.last_check_in || (log.type === 'check-in' ? now : sm.lastCheckIn),
+                  lastCheckOut: row?.last_check_out || (log.type === 'check-out' ? now : sm.lastCheckOut),
+                  lastLocation: row?.last_location || null,
+                  lastLocationAt: row?.last_location_at || undefined,
+                } : sm),
+              }));
+              setLiveDutyStatus(row?.duty_status || (log.type === 'check-in' ? 'online' : 'offline'));
               setSuccessToast(log.type === 'check-in' ? 'Checked in' : log.type === 'check-out' ? 'Checked out' : 'Leave logged');
               setTimeout(() => setSuccessToast(null), 2500);
             }) as any : handleAddAttendanceLog}
@@ -2293,6 +2294,7 @@ const App: React.FC = () => {
                   lastCheckIn: live.lastCheckIn || sm.lastCheckIn,
                   lastCheckOut: live.lastCheckOut || sm.lastCheckOut,
                   lastLocation: live.lastLocation || sm.lastLocation,
+                  lastLocationAt: live.lastLocationAt || sm.lastLocationAt,
                 };
               })}
               recentReceipts={filteredReceipts.filter(r => r.collectedBy)}
