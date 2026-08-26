@@ -548,7 +548,7 @@ const normPhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
 // manager_data JSONB blob (~900KB+ for 'mahadnet') from Supabase — often 3-5x per single
 // WhatsApp message. This shared, short-TTL cache collapses those into one network fetch per
 // window. Always invalidate the relevant key right after any PATCH write to manager_data.
-const _managerDataCache: Record<string, { rows: any[]; ts: number; updatedAt: string | null }> = {};
+const _managerDataCache: Record<string, { rows: any[]; ts: number }> = {};
 const MANAGER_DATA_CACHE_TTL_MS = 20_000;
 
 // Outage status is intentionally cached longer than the full manager blob. During a
@@ -562,40 +562,13 @@ const OUTAGE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
 async function fetchManagerDataCached(managerIdFilter: string): Promise<any[]> {
   const cached = _managerDataCache[managerIdFilter];
   if (cached && (Date.now() - cached.ts) < MANAGER_DATA_CACHE_TTL_MS) return cached.rows;
-
-  // ── Egress fix (Aug 2026 v2) ──────────────────────────────────────────────
-  // Vercel serverless instances don't share memory, so the 20s in-process cache above
-  // never helped once traffic was spread across concurrent/cold invocations — every one
-  // of them still pulled the full ~980KB blob on every WhatsApp message. Before paying
-  // that cost again, do a cheap updated_at-only check (few bytes) and reuse the cached
-  // rows if nothing actually changed. Falls through to the full fetch exactly like
-  // before whenever there's no cache yet or the row was genuinely updated.
-  if (cached) {
-    try {
-      const headRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,updated_at&manager_id=eq.${managerIdFilter}`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      });
-      if (headRes.ok) {
-        const headRows: any[] = await headRes.json();
-        const liveUpdatedAt = headRows?.[0]?.updated_at || null;
-        if (liveUpdatedAt && liveUpdatedAt === cached.updatedAt) {
-          cached.ts = Date.now();
-          return cached.rows;
-        }
-      }
-    } catch (e: any) {
-      console.error('[fetchManagerDataCached] revalidate check failed:', e?.message);
-      // fall through to full fetch below
-    }
-  }
-
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data,updated_at&manager_id=eq.${managerIdFilter}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${managerIdFilter}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     if (!res.ok) { console.error('[Supabase] fetch failed:', res.status); return cached?.rows || []; }
     const rows: any[] = await res.json();
-    _managerDataCache[managerIdFilter] = { rows, ts: Date.now(), updatedAt: rows?.[0]?.updated_at || null };
+    _managerDataCache[managerIdFilter] = { rows, ts: Date.now() };
     return rows;
   } catch (e: any) {
     console.error('[fetchManagerDataCached]', e?.message);
@@ -945,6 +918,7 @@ async function checkQuota(managerId: string): Promise<boolean> {
         console.error(`[quota] failed to normalize ${managerId}: ${ownerRes.status}`);
       }
     }
+    CURRENT_PLAN_TYPE = cfg.plan_type ?? null;
     if (cfg.service_status === 'suspended' || cfg.service_status === 'cancelled') {
       console.warn(`[quota] manager=${managerId} service_status=${cfg.service_status} — blocking`);
       return true;
@@ -1320,6 +1294,11 @@ function selectAgent(agents: any[] | undefined, text: string): any | null {
 // Cleared defensively at the top of every invocation, and per-message via try/finally
 // in the main handler — see voiceReplyTargets.delete(from) below.
 const voiceReplyTargets = new Set<string>();
+
+// Cached per-invocation by checkQuota() (which already fetches whatsapp_configs).
+// Text-Only tier customers must never receive voice replies regardless of
+// voiceReplyTargets — see sendText/sendTextAndVoice below.
+let CURRENT_PLAN_TYPE: string | null = null;
 
 // Downloads a WhatsApp voice note, stores the original audio in Supabase Storage
 // (so mahadnet can actually listen to it in the Admin Inbox — previously only the
@@ -2836,7 +2815,8 @@ function normalizeOutboundText(body: string): string {
 async function sendText(to: string, body: string) {
   // Voice-in → voice-out: if this customer's message this turn was a transcribed
   // voice note, every sendText() call for the rest of this turn becomes a voice reply.
-  if (voiceReplyTargets.has(to)) {
+  // Text-Only tier never gets voice, regardless of what the customer sent in.
+  if (voiceReplyTargets.has(to) && CURRENT_PLAN_TYPE !== 'text_only') {
     const audioUrl = await textToSpeech(body);
     if (audioUrl) { await sendAudio(to, audioUrl); return; }
     console.error('[sendText] TTS failed, falling back to text reply');
@@ -2876,7 +2856,7 @@ async function sendTextAndVoice(to: string, body: string) {
   const wasVoiceTurn = voiceReplyTargets.has(to);
   voiceReplyTargets.delete(to); // prevent sendText() below from converting this into a voice-only reply
   await sendText(to, body);
-  if (wasVoiceTurn) {
+  if (wasVoiceTurn && CURRENT_PLAN_TYPE !== 'text_only') {
     const audioUrl = await textToSpeech(body);
     if (audioUrl) await sendAudio(to, audioUrl);
     voiceReplyTargets.add(to); // restore in case more replies follow later this turn
@@ -2951,6 +2931,7 @@ export default async function handler(req: any, res: any) {
     const messages: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.messages || [];
     const statuses: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.statuses || [];
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
+    CURRENT_PLAN_TYPE = null; // defensive: never carry a previous invocation's plan_type
     currentTtsVoice = null; // defensive: never carry a previous message's agent voice into this invocation
     currentTtsProvider = 'gemini';
     currentTtsGender = 'female';
