@@ -254,6 +254,33 @@ export interface SalaryPayment {
   total: number;        // Total paid
 }
 
+export interface PayrollDeduction {
+  reason: string;
+  amount: number;
+}
+
+export interface PayrollRecord {
+  id: string;
+  manager_id: string;
+  sub_manager_id: string;
+  period_start: string;
+  period_end: string;
+  present_days: number;
+  working_days: number;
+  basic_salary: number;
+  collection_amount: number;
+  commission_amount: number;
+  complaint_bonus_included: boolean;
+  complaint_bonus_amount: number;
+  deductions: PayrollDeduction[];
+  payable_amount: number;
+  status: 'draft' | 'paid';
+  created_by: string;
+  paid_by?: string;
+  paid_at?: string;
+  created_at: string;
+}
+
 // ─── COMPLAINT TICKET ───────────────────────────────────────
 export type ComplaintStatus = 'open' | 'assigned' | 'pending_manager_review' | 'revision_required' | 'resolved' | 'closed';
 export type ComplaintFeedbackStatus = 'pending' | 'sent' | 'skipped_window' | 'not_configured' | 'failed';
@@ -356,7 +383,8 @@ export interface SubManagerAccount {
   baseSalary?: number;         // Fixed monthly salary in Rs.
   commissionPercent?: number;  // Commission % on collections (e.g. 5 = 5%)
   complaintCommission?: number; // Fixed Rs. earned per complaint resolved
-  salaryPayments?: SalaryPayment[]; // History of months marked as paid
+  complaintBonusRate?: number; // Manager-configured per-complaint payroll bonus
+  salaryPayments?: SalaryPayment[]; // Legacy history retained for older records
   // ── Feature A: Granular Access Rights Matrix + Area Lock ──
   assignedAreas?: string[];    // empty/undefined = all areas (no lock)
   accessRights?: Record<ModuleKey, AccessRights> & { customers?: { editStatus?: boolean } }; // status control remains explicit opt-in
