@@ -350,6 +350,7 @@ export interface SubManagerAccount {
     lng: number;
     timestamp: string;
   };
+  lastLocationAt?: string; // relational staleness timestamp
   area?: string;
   isLeave?: boolean;
   baseSalary?: number;         // Fixed monthly salary in Rs.
