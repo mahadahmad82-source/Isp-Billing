@@ -82,9 +82,23 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   };
 
   const selectedAgentForPerformance = subManagers.find(sm => sm.id === performanceAgentId || sm.username === performanceAgentId);
-  const agentReceipts = recentReceipts.filter(r =>
-    r.collectedBy === performanceAgentId || r.collectedBy === selectedAgentForPerformance?.username
-  );
+  const performanceMonthKey = new Date().toISOString().slice(0, 7);
+  const performanceMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+  const agentReceipts = recentReceipts.filter(r => {
+    const isAgent = r.collectedBy === performanceAgentId || r.collectedBy === selectedAgentForPerformance?.username;
+    return isAgent && new Date(r.date).toISOString().slice(0, 7) === performanceMonthKey;
+  });
+  const performanceAttendance = useMemo(() => {
+    if (!selectedAgentForPerformance) return { presentDays: 0, leaveDays: 0 };
+    const logs = attendanceLogs.filter(log =>
+      (log.subManagerId === selectedAgentForPerformance.id || log.subManagerId === selectedAgentForPerformance.username) &&
+      log.timestamp && log.timestamp.startsWith(performanceMonthKey)
+    );
+    return {
+      presentDays: new Set(logs.filter(log => log.type === 'check-in').map(log => log.timestamp.slice(0, 10))).size,
+      leaveDays: new Set(logs.filter(log => log.type === 'leave').map(log => log.timestamp.slice(0, 10))).size,
+    };
+  }, [attendanceLogs, performanceMonthKey, selectedAgentForPerformance]);
 
   // ✅ Payroll: Base Salary + Commission - Attendance Deductions
   const currentMonthKey = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
@@ -586,7 +600,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{selectedAgentForPerformance.name || selectedAgentForPerformance.username || 'Unknown'}</h3>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">Performance & Receipt History</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">Performance & Receipt History · {performanceMonthLabel}</p>
                 </div>
               </div>
               <button onClick={() => setPerformanceAgentId(null)}
@@ -597,7 +611,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
 
             <div className="p-10 flex-1 overflow-y-auto space-y-8">
               {/* ✅ Stats: 4 cards including EARNED COMMISSION */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-[2rem] border border-slate-100 dark:border-white/5">
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Collections</p>
                   <p className="text-xl font-black text-emerald-500">Rs. {agentReceipts.reduce((s, r) => s + (r.paidAmount || 0), 0).toLocaleString()}</p>
@@ -605,6 +619,11 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-[2rem] border border-slate-100 dark:border-white/5">
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bills Issued</p>
                   <p className="text-xl font-black text-indigo-500">{agentReceipts.length}</p>
+                </div>
+                <div className="bg-sky-500/5 border border-sky-500/15 p-5 rounded-[2rem]">
+                  <p className="text-[9px] font-bold text-sky-500/70 uppercase tracking-widest mb-1">Attendance</p>
+                  <p className="text-xl font-black text-sky-500">{performanceAttendance.presentDays} present</p>
+                  <p className="text-[9px] text-sky-500/60 mt-1">{performanceAttendance.leaveDays} leave days</p>
                 </div>
                 {/* ✅ EARNED COMMISSION CARD */}
                 <div className="bg-amber-500/5 border border-amber-500/15 p-5 rounded-[2rem]">
