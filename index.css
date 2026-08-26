@@ -244,6 +244,32 @@ html, body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  body.printing-ledger * {
+    visibility: hidden !important;
+  }
+
+  body.printing-ledger .print-ledger-content,
+  body.printing-ledger .print-ledger-content * {
+    visibility: visible !important;
+  }
+
+  body.printing-ledger .print-ledger-content {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.printing-ledger .print-ledger-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
 }
 
 @keyframes loading-bar {
