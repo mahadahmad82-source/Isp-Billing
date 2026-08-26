@@ -31,22 +31,22 @@ const DEFAULT_PRICING_PLANS: PricingPlan[] = ensureWhatsAppBotPlan([
   },
   {
     name: 'Growth', price: 'Rs. 2,500', period: 'month', color: '#8b5cf6',
-    features: ['Up to 512 customers', '2 sub-manager accounts', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics', 'NetBot Customer Support Bot — Text tier included'],
+    features: ['Up to 512 customers', '2 sub-manager accounts', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics', 'NetBot AI Assistant — Text-Only tier included (1,750 msgs/mo)'],
     cta: 'Get Growth', highlight: false,
   },
   {
     name: 'Business', price: 'Rs. 4,000', period: 'month', color: '#4f46e5',
-    features: ['Up to 750 customers', '3 sub-manager accounts', 'Full manager toolset included', 'NetBot — Basic tier included (text + voice replies)'],
+    features: ['Up to 750 customers', '3 sub-manager accounts', 'Full manager toolset included', 'NetBot AI Assistant — Basic tier included (2,500 msgs/mo, text + voice)'],
     cta: 'Get Business', highlight: true,
   },
   {
     name: 'Enterprise', price: 'Rs. 6,000', period: 'month', color: '#06b6d4',
-    features: ['Up to 1,056 customers', '5 sub-manager accounts', 'Full manager toolset included', 'NetBot — Pro tier (3 voice agents)', 'Meta message templates built for you'],
+    features: ['Up to 1,056 customers', '5 sub-manager accounts', 'Full manager toolset included', 'NetBot AI Assistant — Pro tier included (5,000 msgs/mo, text + voice)', 'Meta message templates built for you'],
     cta: 'Get Enterprise', highlight: false,
   },
   {
     name: 'Custom', price: 'Custom', period: '', color: '#f59e0b',
-    features: ['Unlimited customers', 'Unlimited sub-manager accounts', 'NetBot — Unlimited tier (7 voice agents)', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
+    features: ['Unlimited customers', 'Unlimited sub-manager accounts', 'NetBot AI Assistant — Unlimited tier included', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
     cta: 'Contact Us', highlight: false,
   },
 ]);
