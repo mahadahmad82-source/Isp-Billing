@@ -163,7 +163,11 @@ export interface UserRecord {
   createdAt: string;
   lastReminderSentAt?: string;
   activatedMonths?: string[]; // Array of strings like "January 2024"
-  status: 'active' | 'expired' | 'pending' | 'deleted';
+  status: 'active' | 'suspended' | 'expired' | 'pending' | 'deleted';
+  statusReason?: string;
+  statusChangedBy?: string;
+  statusSource?: 'manager' | 'sub-manager' | 'netbot';
+  statusChangedAt?: string;
   companyId?: string;
   area?: string;
   connectionType?: string; // Fiber / Local-Panel / Bandwidth / Sharing / Wireless / Other — see CONNECTION_TYPES
