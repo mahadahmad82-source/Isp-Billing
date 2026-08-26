@@ -8,7 +8,7 @@ import {
   Users, UserCheck, CheckCircle2, XCircle, Banknote, AlertTriangle,
   Search, Inbox, ClipboardList, Server, RefreshCcw, Trash2, Key,
   ChevronUp, ChevronDown, Activity, LogIn, Shield, TrendingUp,
-  Download, Upload, Eye, Clock, BarChart2, Wifi, Plus, Save, Star
+  Download, Upload, Eye, Clock, BarChart2, Wifi, Plus, Save, Star, MessageCircle
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -230,9 +230,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
 
   // ── Pricing Plans ────────────────────────────────────────────────────────────
   // Static fallback (used before pricingPlans has loaded, or if the DB list is empty).
-  // NOTE: "WhatsApp Bot" is intentionally NOT a base-tier option here — it's a
-  // standalone add-on (see utils/pricing.ts) tracked via the separate
-  // netbot_addon toggle below, not a mutually-exclusive plan value.
+  // NOTE: "WhatsApp Bot" is intentionally NOT a base-tier option here — NetBot
+  // access/quota is managed entirely separately in the WABot SaaS tab
+  // (whatsapp_configs.plan_type), independent of this ISP plan. A new manager's
+  // ISP tier only sets their NetBot starting default (see provision_netbot_default
+  // RPC) — admin can always manually give any manager more via WABot SaaS.
   const SUBSCRIPTION_PLAN_OPTIONS_FALLBACK = [
   { value: 'free', label: 'Free', color: 'text-slate-400' },
   { value: 'starter', label: 'Starter', color: 'text-indigo-400' },
@@ -1355,10 +1357,10 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                         className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[11px] font-black hover:bg-indigo-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <Banknote className="w-3.5 h-3.5" /> Record Payment
                       </button>
-                      <button onClick={()=>updateSubscription(sub.manager_id, { netbot_addon: !sub.netbot_addon })}
-                        title="Standalone WhatsApp Bot add-on (separate from the base plan — see Pricing tab)"
-                        className={`px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all flex items-center gap-1 active:scale-95 ${sub.netbot_addon ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'}`}>
-                        {sub.netbot_addon ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />} NetBot Add-on
+                      <button onClick={()=>setActiveTab?.('admin-wabot-saas')}
+                        title="NetBot access/quota is managed separately in the WABot SaaS tab, independent of this ISP plan"
+                        className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[11px] font-black hover:bg-white/10 transition-all flex items-center gap-1 active:scale-95">
+                        <MessageCircle className="w-3.5 h-3.5" /> NetBot Plan →
                       </button>
                       <button onClick={()=>openLedger(sub.manager_id)}
                         className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[11px] font-black hover:bg-white/10 transition-all flex items-center gap-1 active:scale-95">
