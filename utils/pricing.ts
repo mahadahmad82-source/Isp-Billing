@@ -9,22 +9,23 @@ export interface PricingPlan {
 }
 
 /**
- * The WhatsApp Bot is a standalone service card, separate from the ISP billing tiers.
- * Its commercial amount remains editable from Admin > Pricing until the final bot
- * rate is confirmed; the feature scope is kept explicit so it is not lost from
- * the landing page or the admin plan catalog.
+ * The WhatsApp Bot (NetBot) is a standalone service, separate from the ISP
+ * billing tiers — sold on its own tiered pricing regardless of which ISP plan
+ * (if any) a manager is on. Real tiers confirmed and enforced server-side via
+ * whatsapp_configs.plan_type / QUOTA_MAP in api/admin-maintenance.ts.
  */
 export const WHATSAPP_BOT_PLAN: PricingPlan = {
   name: 'WhatsApp Bot',
-  price: 'Contact Us',
-  period: '',
+  price: 'From Rs. 1,500',
+  period: 'month',
   color: '#22c55e',
   features: [
-    'AI WhatsApp customer support for billing, complaints & technical queries',
-    'Automated text replies with voice-message support',
-    'Customer inbox, complaint capture & lead routing',
-    'Meta WhatsApp Business setup and message templates',
-    'Dedicated onboarding and bot configuration',
+    'Text-Only — Rs. 1,500/mo (1,750 messages)',
+    'Basic — Rs. 2,000/mo (2,500 msgs, text + voice)',
+    'Pro — Rs. 4,000/mo (5,000 msgs, text + voice)',
+    'Unlimited — Rs. 8,000/mo',
+    'Works standalone or alongside any ISP plan above',
+    'Meta WhatsApp Business setup included',
   ],
   cta: 'Get WhatsApp Bot',
   highlight: false,
