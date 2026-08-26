@@ -45,14 +45,14 @@ export const TIER_FEATURES: Record<PlanTier, {
     equipment: false, leads: false, area: false, suspension: false,
     outage: false, analytics: false, reports: true, aging: true,
     expenses: true, team: true, systemlogs: false,
-    customerLimit: 150, agentLimit: 1,
+    customerLimit: 256, agentLimit: 1,
     label: 'Starter', color: 'text-indigo-400',
   },
   business: {
     equipment: true, leads: true, area: true, suspension: true,
     outage: true, analytics: true, reports: true, aging: true,
     expenses: true, team: true, systemlogs: true,
-    customerLimit: 500, agentLimit: 3,
+    customerLimit: 750, agentLimit: 3,
     label: 'Business', color: 'text-purple-400',
   },
   pro: {
@@ -85,14 +85,11 @@ const DEFAULT_SUB: SubscriptionInfo = {
 };
 
 // Maps admin panel's status+plan columns → PlanTier.
-// NOTE: the admin panel's plan dropdown (SUBSCRIPTION_PLAN_OPTIONS in
-// AdminDashboard.tsx) offers more values than this feature system natively
-// understands. This mapping is made EXHAUSTIVE on purpose so nothing falls
-// through silently — every value in SUBSCRIPTION_PLAN_OPTIONS is listed here.
-// 'growth' and 'custom' are treated as 'business'/'pro' respectively as a
-// reasonable default; 'whatsapp-bot' is really an add-on (see
-// manager_subscriptions.netbot_addon) not a base plan, so it currently maps
-// to 'starter' base features — flag to Mahad if that's not the intent.
+// NOTE: SUBSCRIPTION_PLAN_OPTIONS (AdminDashboard.tsx) now mirrors the live
+// pricing_plans list exactly (free/starter/growth/business/enterprise/custom) —
+// 'whatsapp-bot' is no longer an assignable base-plan value; NetBot is a fully
+// standalone product (see whatsapp_configs.plan_type / provision_netbot_default),
+// unrelated to this ISP-tier mapping.
 const PLAN_TO_TIER: Record<string, PlanTier> = {
   free: 'starter',
   starter: 'starter',
@@ -101,7 +98,6 @@ const PLAN_TO_TIER: Record<string, PlanTier> = {
   enterprise: 'pro',
   pro: 'pro',
   custom: 'pro',
-  'whatsapp-bot': 'starter',
 };
 
 function deriveTier(status: string, plan: string): PlanTier {
