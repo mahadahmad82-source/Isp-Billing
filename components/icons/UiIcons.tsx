@@ -178,6 +178,14 @@ export const NoEntryIcon: React.FC<IconProps> = ({ className = base }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="2" /><path strokeLinecap="round" strokeWidth="2" d="M5.5 5.5l13 13" /></svg>
 );
 
+export const SuspendIcon: React.FC<IconProps> = ({ className = base }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="2" /><path strokeLinecap="round" strokeWidth="2" d="M9 9v6m6-6v6" /></svg>
+);
+
+export const ActivateIcon: React.FC<IconProps> = ({ className = base }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 8.5l5 3.5-5 3.5v-7z" /></svg>
+);
+
 export const AlertSirenIcon: React.FC<IconProps> = ({ className = base }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3.75m0 3.75h.007M4.929 4.929a10 10 0 1114.142 14.142A10 10 0 014.93 4.93z" /></svg>
 );
