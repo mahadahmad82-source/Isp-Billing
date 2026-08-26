@@ -5,7 +5,7 @@ import { UserRecord, AppSettings, Receipt, PaymentStatus, CONNECTION_TYPES } fro
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
-import { CheckIcon, DotIcon, PhoneIcon, SuspendIcon, ActivateIcon } from './icons/UiIcons';
+import { CheckIcon, DotIcon, PhoneIcon, SuspendIcon, ActivateIcon, ReceiptIcon, CloseIcon, PrinterIcon } from './icons/UiIcons';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 
@@ -308,6 +308,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
 
+
+  const ledgerReceipts = viewingLedgerUser
+    ? receipts
+        .filter(r => r.userId === viewingLedgerUser.id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
+  const ledgerTotalPaid = ledgerReceipts.reduce((sum, receipt) => sum + (Number(receipt.paidAmount) || 0), 0);
+
+  const handlePrintCustomerLedger = () => {
+    document.body.classList.add('printing-ledger');
+    const cleanup = () => document.body.classList.remove('printing-ledger');
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.requestAnimationFrame(() => window.print());
+    window.setTimeout(cleanup, 1500);
+  };
 
   const handleExportExcel = () => {
     if (filteredUsers.length === 0) {
@@ -1215,21 +1230,26 @@ const UserManagement: React.FC<UserManagementProps> = ({
         </div>
       )}
       {viewingLedgerUser && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setViewingLedgerUser(null)}></div>
-          <div className="bg-white dark:bg-[#0f172a] w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+        <div className="print-ledger-shell fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="no-print absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setViewingLedgerUser(null)}></div>
+          <div className="print-ledger-content bg-white dark:bg-[#0f172a] w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-white/5 rounded-t-[2.5rem]">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">📜</div>
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><ReceiptIcon className="w-6 h-6" /></div>
                 <div>
                   <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Subscriber Ledger</h4>
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Transaction History & Plan Details</p>
                 </div>
               </div>
-              <button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 dark:text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors">✕</button>
+              <div className="flex items-center gap-2 no-print">
+                <button onClick={handlePrintCustomerLedger} className="inline-flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl shadow-sm font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-colors" title="Print or save as PDF">
+                  <PrinterIcon className="w-4 h-4" /> Print / PDF
+                </button>
+                <button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 dark:text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors" title="Close ledger"><CloseIcon className="w-5 h-5" /></button>
+              </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+            <div className="print-ledger-scroll flex-1 overflow-y-auto custom-scrollbar p-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Subscriber</p>
@@ -1274,6 +1294,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     Payment History
                   </h5>
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden shadow-sm">
+                    <div className="hidden print:block px-6 pt-5 text-xs font-bold text-slate-500">Total payments: {ledgerReceipts.length} · Total paid: Rs. {ledgerTotalPaid.toLocaleString()}</div>
                     <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[420px]">
                       <thead className="bg-slate-50 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-slate-500">
@@ -1286,11 +1307,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                        {receipts.filter(r => r.userId === viewingLedgerUser.id).length > 0 ? (
-                          receipts
-                            .filter(r => r.userId === viewingLedgerUser.id)
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map(r => (
+                        {ledgerReceipts.length > 0 ? (
+                          ledgerReceipts.map(r => (
                               <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                 <td className="px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300">
                                   {new Date(r.date).toLocaleDateString()}
@@ -1328,7 +1346,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               </div>
             </div>
             
-            <div className="p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 rounded-b-[2.5rem] flex justify-end">
+            <div className="no-print p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 rounded-b-[2.5rem] flex justify-end">
               <button onClick={() => setViewingLedgerUser(null)} className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-transform">
                 Close Ledger
               </button>
