@@ -23,11 +23,11 @@ const adminSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 const QUOTA_MAP: Record<string, number> = {
-  basic:     1000,
+  basic:     2500,
   pro:       5000,
   unlimited: Number.MAX_SAFE_INTEGER,
   enterprise: Number.MAX_SAFE_INTEGER,
-  text_only: 1000,
+  text_only: 1750,
 };
 
 export default async function handler(req: any, res: any) {
