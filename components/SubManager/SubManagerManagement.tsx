@@ -1,5 +1,5 @@
 import React, { useState, useMemo, Suspense, lazy } from 'react';
-import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, SalaryPayment, ComplaintTicket, TeamMessage } from '../../types';
+import { SubManagerAccount, AttendanceLog, Receipt, UserRecord, ComplaintTicket, TeamMessage, PayrollRecord } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { getAccounts } from '../../utils/storage';
 import RecruitAgentModal from './RecruitAgentModal';
@@ -100,79 +100,126 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     };
   }, [attendanceLogs, performanceMonthKey, selectedAgentForPerformance]);
 
-  // ✅ Payroll: Base Salary + Commission - Attendance Deductions
-  const currentMonthKey = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
-  const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [payrollPeriodStart, setPayrollPeriodStart] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
+  const [payrollPeriodEnd, setPayrollPeriodEnd] = useState(new Date().toISOString().slice(0, 10));
+  const [payrollAgentId, setPayrollAgentId] = useState('');
+  const [payrollForm, setPayrollForm] = useState({
+    presentDays: '0',
+    workingDays: '0',
+    basicSalary: '0',
+    collectionAmount: '0',
+    commissionAmount: '0',
+    complaintBonusAmount: '0',
+  });
+  const [payrollIncludeComplaintBonus, setPayrollIncludeComplaintBonus] = useState(false);
+  const [payrollDeductions, setPayrollDeductions] = useState<{ reason: string; amount: string }[]>([]);
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [payrollSaving, setPayrollSaving] = useState(false);
+  const [payrollError, setPayrollError] = useState<string | null>(null);
 
-  const agentPayroll = useMemo(() => {
-    return subManagers.map(sm => {
-      // ── Collections & Commission ──────────────────────────
-      const myReceipts = recentReceipts.filter(r =>
-        r.collectedBy === sm.id || r.collectedBy === sm.username
-      );
-      const totalCollected = myReceipts.reduce((s, r) => s + (r.paidAmount || 0), 0);
-      const commissionPct = sm.commissionPercent || 0;
-      const commissionEarned = Math.round((totalCollected * commissionPct) / 100);
-      const baseSalary = sm.baseSalary || 0;
+  const selectedPayrollAgent = subManagers.find(sm => sm.id === payrollAgentId);
+  const payrollSuggestion = useMemo(() => {
+    if (!selectedPayrollAgent) return { presentDays: 0, workingDays: 0, basicSalary: 0, collectionAmount: 0, commissionAmount: 0, complaintBonusAmount: 0 };
+    const start = new Date(`${payrollPeriodStart}T00:00:00`).getTime();
+    const end = new Date(`${payrollPeriodEnd}T23:59:59.999`).getTime();
+    const inRange = (value: string) => {
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) && time >= start && time <= end;
+    };
+    const logs = attendanceLogs.filter(log =>
+      (log.subManagerId === selectedPayrollAgent.id || log.subManagerId === selectedPayrollAgent.username) && inRange(log.timestamp)
+    );
+    const presentDays = new Set(logs.filter(log => log.type === 'check-in').map(log => log.timestamp.slice(0, 10))).size;
+    const workingDays = start <= end ? Math.floor((new Date(`${payrollPeriodEnd}T00:00:00`).getTime() - new Date(`${payrollPeriodStart}T00:00:00`).getTime()) / 86400000) + 1 : 0;
+    const receipts = recentReceipts.filter(receipt =>
+      (receipt.collectedBy === selectedPayrollAgent.id || receipt.collectedBy === selectedPayrollAgent.username) && inRange(receipt.actualPaymentDate || receipt.date)
+    );
+    const collectionAmount = receipts.reduce((sum, receipt) => sum + (Number(receipt.paidAmount) || 0), 0);
+    const commissionAmount = Math.round(collectionAmount * (selectedPayrollAgent.commissionPercent || 0) / 100);
+    const complaintBonusCount = complaintTickets.filter(ticket =>
+      (ticket.status === 'resolved' || ticket.status === 'closed') &&
+      (ticket.resolvedBy === selectedPayrollAgent.id || ticket.resolvedBy === selectedPayrollAgent.username) &&
+      !!ticket.resolvedAt && inRange(ticket.resolvedAt)
+    ).length;
+    const complaintBonusAmount = complaintBonusCount * (selectedPayrollAgent.complaintBonusRate || 0);
+    const basicSalary = workingDays > 0 ? Math.round((selectedPayrollAgent.baseSalary || 0) * presentDays / workingDays) : 0;
+    return { presentDays, workingDays, basicSalary, collectionAmount, commissionAmount, complaintBonusAmount };
+  }, [attendanceLogs, complaintTickets, payrollPeriodEnd, payrollPeriodStart, recentReceipts, selectedPayrollAgent]);
 
-      // ── Attendance Deduction ──────────────────────────────
-      // Step 1: How many working days in selected month?
-      const [yr, mo] = payrollMonth.split('-').map(Number);
-      const daysInMonth = new Date(yr, mo, 0).getDate();
-      // Count Mon-Sat as working days (exclude Sunday = 0)
-      let workingDays = 0;
-      for (let d = 1; d <= daysInMonth; d++) {
-        const day = new Date(yr, mo - 1, d).getDay();
-        if (day !== 0) workingDays++; // Sunday off
-      }
-
-      // Step 2: Count days agent actually checked in (present days)
-      const agentLogs = attendanceLogs.filter(l =>
-        l.subManagerId === sm.id && l.timestamp && l.timestamp.startsWith(payrollMonth)
-      );
-      const presentDays = new Set(
-        agentLogs
-          .filter(l => l.type === 'check-in' && l.timestamp)
-          .map(l => l.timestamp.split('T')[0])
-      ).size;
-
-      // Step 3: Leave days (not counted as absent)
-      const leaveDays = new Set(
-        agentLogs
-          .filter(l => l.type === 'leave' && l.timestamp)
-          .map(l => l.timestamp.split('T')[0])
-      ).size;
-
-      // Step 4: Absent = Working days - Present days - Leave days
-      const absentDays = Math.max(0, workingDays - presentDays - leaveDays);
-
-      // Step 5: Per-day salary & deduction
-      const dailySalary = workingDays > 0 ? baseSalary / workingDays : 0;
-      const deduction = Math.round(absentDays * dailySalary);
-
-      // ── Final Totals ──────────────────────────────────────
-      const netBaseSalary = Math.max(0, baseSalary - deduction);
-      const totalPayable = netBaseSalary + commissionEarned;
-
-      const alreadyPaid = (sm.salaryPayments || []).some(p => p.month === currentMonthKey);
-
-      return {
-        sm,
-        totalCollected,
-        commissionEarned,
-        baseSalary,
-        netBaseSalary,
-        deduction,
-        absentDays,
-        presentDays,
-        leaveDays,
-        workingDays,
-        dailySalary: Math.round(dailySalary),
-        totalPayable,
-        alreadyPaid,
-      };
+  React.useEffect(() => {
+    if (!payrollAgentId && subManagers[0]) setPayrollAgentId(subManagers[0].id);
+  }, [payrollAgentId, subManagers]);
+  React.useEffect(() => {
+    setPayrollForm({
+      presentDays: String(payrollSuggestion.presentDays),
+      workingDays: String(payrollSuggestion.workingDays),
+      basicSalary: String(payrollSuggestion.basicSalary),
+      collectionAmount: String(payrollSuggestion.collectionAmount),
+      commissionAmount: String(payrollSuggestion.commissionAmount),
+      complaintBonusAmount: String(payrollIncludeComplaintBonus ? payrollSuggestion.complaintBonusAmount : 0),
     });
-  }, [subManagers, recentReceipts, attendanceLogs, currentMonthKey, payrollMonth]);
+    setPayrollDeductions([]);
+    setPayrollError(null);
+  }, [payrollAgentId, payrollIncludeComplaintBonus, payrollPeriodEnd, payrollPeriodStart, payrollSuggestion]);
+
+  const loadPayrollRecords = async (agentId = payrollAgentId) => {
+    if (!managerId || !agentId) return;
+    setPayrollLoading(true);
+    const { data, error } = await supabase
+      .from('payroll_records')
+      .select('*')
+      .eq('manager_id', managerId)
+      .eq('sub_manager_id', agentId)
+      .order('created_at', { ascending: false });
+    if (error) setPayrollError(error.message);
+    else setPayrollRecords((data || []) as PayrollRecord[]);
+    setPayrollLoading(false);
+  };
+  React.useEffect(() => {
+    if (activeTab === 'payroll') void loadPayrollRecords();
+  }, [activeTab, managerId, payrollAgentId]);
+
+  const submitPayroll = async (markPaid: boolean) => {
+    if (!selectedPayrollAgent || !managerId) return;
+    if (!payrollPeriodStart || !payrollPeriodEnd || payrollPeriodStart > payrollPeriodEnd) {
+      setPayrollError('Choose a valid payroll date range.');
+      return;
+    }
+    const deductions = payrollDeductions
+      .map(item => ({ reason: item.reason.trim(), amount: Number(item.amount) || 0 }))
+      .filter(item => item.reason && item.amount > 0);
+    setPayrollSaving(true);
+    setPayrollError(null);
+    const { error } = await supabase.rpc('finalize_payroll_record', {
+      p_manager_id: managerId,
+      p_sub_manager_id: selectedPayrollAgent.id,
+      p_period_start: payrollPeriodStart,
+      p_period_end: payrollPeriodEnd,
+      p_present_days: Number(payrollForm.presentDays) || 0,
+      p_working_days: Number(payrollForm.workingDays) || 0,
+      p_basic_salary: Number(payrollForm.basicSalary) || 0,
+      p_collection_amount: Number(payrollForm.collectionAmount) || 0,
+      p_commission_amount: Number(payrollForm.commissionAmount) || 0,
+      p_complaint_bonus_included: payrollIncludeComplaintBonus,
+      p_complaint_bonus_amount: payrollIncludeComplaintBonus ? Number(payrollForm.complaintBonusAmount) || 0 : 0,
+      p_deductions: deductions,
+      p_mark_paid: markPaid,
+    });
+    setPayrollSaving(false);
+    if (error) setPayrollError(error.message);
+    else await loadPayrollRecords(selectedPayrollAgent.id);
+  };
+
+  const markPayrollPaid = async (record: PayrollRecord) => {
+    if (!managerId || record.status === 'paid') return;
+    setPayrollSaving(true);
+    setPayrollError(null);
+    const { error } = await supabase.rpc('mark_payroll_paid', { p_manager_id: managerId, p_record_id: record.id });
+    setPayrollSaving(false);
+    if (error) setPayrollError(error.message);
+    else await loadPayrollRecords(record.sub_manager_id);
+  };
 
   // ✅ Commission for performance modal
   const perfCommission = useMemo(() => {
@@ -180,20 +227,6 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     const total = agentReceipts.reduce((s, r) => s + (r.paidAmount || 0), 0);
     return Math.round((total * (selectedAgentForPerformance.commissionPercent || 0)) / 100);
   }, [agentReceipts, selectedAgentForPerformance]);
-
-  const handleMarkSalaryPaid = (sm: SubManagerAccount) => {
-    const entry = agentPayroll.find(p => p.sm.id === sm.id);
-    if (!entry) return;
-    const payment: SalaryPayment = {
-      month: currentMonthKey,
-      paidAt: new Date().toISOString(),
-      baseSalary: entry.netBaseSalary,
-      commission: entry.commissionEarned,
-      total: entry.totalPayable,
-    };
-    const existing = sm.salaryPayments || [];
-    onEditAgent(sm.id, { salaryPayments: [...existing, payment] });
-  };
 
   const tabs = [
     { id: 'team', label: 'Directory' },
@@ -232,6 +265,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                 password: editingAgent.password,
                 baseSalary: parseFloat(editingAgent.baseSalary) || 0,
                 commissionPercent: parseFloat(editingAgent.commissionPercent) || 0,
+                complaintBonusRate: parseFloat(editingAgent.complaintBonusRate) || 0,
                 shiftStart: editingAgent.shiftStart || '',
                 shiftEnd: editingAgent.shiftEnd || '',
               });
@@ -308,6 +342,14 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                   </div>
                   <p className="text-[9px] text-slate-400 ml-1">Applied on total collections</p>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Complaint Bonus (Rs.)</label>
+                  <input type="number" min="0" step="1" placeholder="0"
+                    value={editingAgent.complaintBonusRate || ''}
+                    onChange={e => setEditingAgent({ ...editingAgent, complaintBonusRate: e.target.value })}
+                    className="w-full px-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-bold text-amber-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+                  <p className="text-[9px] text-slate-400 ml-1">Optional per resolved complaint</p>
+                </div>
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -372,105 +414,32 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
       {activeTab === 'payroll' && (
         <div className="space-y-6 animate-in fade-in duration-500">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Payroll Summary</h3>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Base + Commission − Absent Deductions</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Payroll Workspace</h3>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Manager review · server-calculated payable total</p>
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Month:</label>
-                <input type="month" value={payrollMonth} onChange={e => setPayrollMonth(e.target.value)}
-                  className="px-4 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="space-y-1"><span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Agent</span><select value={payrollAgentId} onChange={e => setPayrollAgentId(e.target.value)} className="px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select agent</option>{subManagers.map(sm => <option key={sm.id} value={sm.id}>{sm.name || sm.username}</option>)}</select></label>
+                <label className="space-y-1"><span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Period start</span><input type="date" value={payrollPeriodStart} onChange={e => setPayrollPeriodStart(e.target.value)} className="px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" /></label>
+                <label className="space-y-1"><span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Period end</span><input type="date" value={payrollPeriodEnd} onChange={e => setPayrollPeriodEnd(e.target.value)} className="px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" /></label>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {agentPayroll.map(({ sm, totalCollected, commissionEarned, baseSalary, netBaseSalary, deduction, absentDays, presentDays, leaveDays, workingDays, dailySalary, totalPayable, alreadyPaid }) => (
-                <div key={sm.id} className="bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-[2rem] p-6 space-y-4">
-
-                  {/* Agent header */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-lg">
-                      {(sm.name || sm.username || '?').charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white text-sm">{(sm.name || sm.username || "Unknown")}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">@{sm.username}</p>
-                    </div>
-                    {alreadyPaid && (
-                      <span className="ml-auto px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase rounded-full border border-emerald-500/20">✓ Paid</span>
-                    )}
-                  </div>
-
-                  {/* Attendance mini-summary */}
-                  <div className="grid grid-cols-4 gap-2 bg-white dark:bg-white/[0.02] rounded-2xl p-3 border border-slate-100 dark:border-white/5">
-                    {[
-                      { label: 'Working', val: workingDays, color: 'text-slate-600 dark:text-slate-300' },
-                      { label: 'Present', val: presentDays, color: 'text-emerald-500' },
-                      { label: 'Leave', val: leaveDays, color: 'text-amber-500' },
-                      { label: 'Absent', val: absentDays, color: 'text-rose-500' },
-                    ].map(({ label, val, color }) => (
-                      <div key={label} className="text-center">
-                        <p className={`text-base font-black ${color}`}>{val}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Salary breakdown */}
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500">Base Salary</span>
-                      <span className="font-bold text-slate-900 dark:text-white">Rs. {baseSalary.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500">Daily Rate</span>
-                      <span className="font-bold text-slate-500">Rs. {dailySalary.toLocaleString()} / day</span>
-                    </div>
-                    {deduction > 0 && (
-                      <div className="flex justify-between items-center py-2 border-b border-rose-500/10 bg-rose-500/5 rounded-xl px-3">
-                        <span className="text-rose-500 font-bold">Absent Deduction ({absentDays} days)</span>
-                        <span className="font-black text-rose-500">− Rs. {deduction.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500">Net Base Salary</span>
-                      <span className="font-bold text-slate-900 dark:text-white">Rs. {netBaseSalary.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500">Collections</span>
-                      <span className="font-bold text-indigo-600 dark:text-indigo-400">Rs. {totalCollected.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-white/5">
-                      <span className="text-slate-500">Commission ({sm.commissionPercent || 0}%)</span>
-                      <span className="font-bold text-amber-500">Rs. {commissionEarned.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 px-3 mt-2">
-                      <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Total Payable</span>
-                      <span className="text-base font-black text-emerald-600 dark:text-emerald-400">Rs. {totalPayable.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  {/* Mark Paid button */}
-                  <button
-                    disabled={alreadyPaid}
-                    onClick={() => handleMarkSalaryPaid(sm)}
-                    className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${alreadyPaid
-                      ? 'bg-slate-100 dark:bg-white/5 text-slate-400 cursor-not-allowed'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'}`}
-                  >
-                    {alreadyPaid
-                      ? `✓ Paid on ${new Date((sm.salaryPayments || []).find(p => p.month === currentMonthKey)?.paidAt || '').toLocaleDateString()}`
-                      : 'Mark Salary Paid'}
-                  </button>
+            {payrollError && <div className="mb-5 rounded-2xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs font-bold text-rose-500">{payrollError}</div>}
+            <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-6">
+              <div className="bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-[2rem] p-6 space-y-5">
+                <div className="flex items-center justify-between"><div><p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Editable review figures</p><p className="text-xs text-slate-500 mt-1">Suggestions are pre-filled from attendance, receipts, and resolved complaints.</p></div><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No JSONB write</span></div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[['presentDays', 'Present days'], ['workingDays', 'Working days'], ['basicSalary', 'Basic salary (Rs.)'], ['collectionAmount', 'Collections (Rs.)'], ['commissionAmount', 'Commission (Rs.)']].map(([key, label]) => <label key={key} className="space-y-1"><span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">{label}</span><input type="number" min="0" value={payrollForm[key as keyof typeof payrollForm]} onChange={e => setPayrollForm(prev => ({ ...prev, [key]: e.target.value }))} className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" /></label>)}
                 </div>
-              ))}
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.02] px-4 py-3 cursor-pointer"><input type="checkbox" checked={payrollIncludeComplaintBonus} onChange={e => setPayrollIncludeComplaintBonus(e.target.checked)} className="h-4 w-4 accent-indigo-600" /><span><span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Include complaint bonus</span><span className="block text-[9px] text-slate-400 mt-0.5">Suggested: Rs. {payrollSuggestion.complaintBonusAmount.toLocaleString()} from the configured per-complaint rate.</span></span></label>
+                {payrollIncludeComplaintBonus && <label className="space-y-1"><span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Complaint bonus (Rs.)</span><input type="number" min="0" value={payrollForm.complaintBonusAmount} onChange={e => setPayrollForm(prev => ({ ...prev, complaintBonusAmount: e.target.value }))} className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" /></label>}
+                <div className="space-y-2"><div className="flex items-center justify-between"><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Manual deductions</p><button type="button" onClick={() => setPayrollDeductions(prev => [...prev, { reason: '', amount: '' }])} className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">+ Add deduction</button></div>{payrollDeductions.length === 0 && <p className="text-xs text-slate-400">No deductions added.</p>}{payrollDeductions.map((item, index) => <div key={index} className="flex gap-2"><input type="text" placeholder="Reason" value={item.reason} onChange={e => setPayrollDeductions(prev => prev.map((row, i) => i === index ? { ...row, reason: e.target.value } : row))} className="min-w-0 flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-xs outline-none focus:ring-2 focus:ring-indigo-500" /><input type="number" min="0" placeholder="Amount" value={item.amount} onChange={e => setPayrollDeductions(prev => prev.map((row, i) => i === index ? { ...row, amount: e.target.value } : row))} className="w-28 px-3 py-2.5 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-xs outline-none focus:ring-2 focus:ring-indigo-500" /><button type="button" onClick={() => setPayrollDeductions(prev => prev.filter((_, i) => i !== index))} className="px-2 text-slate-400 hover:text-rose-500" aria-label="Remove deduction"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>)}</div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 dark:border-white/5 pt-5"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Client preview only</p><p className="text-xl font-black text-emerald-500">Rs. {(Number(payrollForm.basicSalary) + Number(payrollForm.collectionAmount) + (payrollIncludeComplaintBonus ? Number(payrollForm.complaintBonusAmount) : 0) + Number(payrollForm.commissionAmount) - payrollDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)).toLocaleString()}</p></div><div className="flex gap-2"><button type="button" disabled={!selectedPayrollAgent || payrollSaving} onClick={() => submitPayroll(false)} className="px-4 py-3 rounded-xl bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-[10px] font-black uppercase tracking-widest disabled:opacity-40">{payrollSaving ? 'Saving…' : 'Save Draft'}</button><button type="button" disabled={!selectedPayrollAgent || payrollSaving} onClick={() => submitPayroll(true)} className="px-4 py-3 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 disabled:opacity-40">Finalize & Mark Paid</button></div></div>
+              </div>
 
-              {subManagers.length === 0 && (
-                <div className="col-span-3 py-16 text-center opacity-30 text-xs font-bold uppercase tracking-widest">
-                  No agents — recruit agents first
-                </div>
-              )}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-[2rem] p-6"><div className="flex items-center justify-between mb-5"><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payroll history</p><p className="text-xs text-slate-500 mt-1">{selectedPayrollAgent?.name || 'Select an agent'}</p></div>{payrollLoading && <span className="text-[9px] font-bold text-slate-400 uppercase">Loading…</span>}</div>{payrollRecords.length === 0 && !payrollLoading ? <p className="py-10 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">No payroll records</p> : <div className="space-y-3">{payrollRecords.map(record => <div key={record.id} className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-slate-900 dark:text-white">{record.period_start} → {record.period_end}</p><p className="text-[9px] text-slate-400 uppercase tracking-widest mt-1">{record.present_days}/{record.working_days} present · {record.deductions?.length || 0} deductions</p></div><span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${record.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>{record.status}</span></div><div className="flex items-center justify-between mt-4"><p className="text-lg font-black text-emerald-500">Rs. {Number(record.payable_amount || 0).toLocaleString()}</p>{record.status === 'draft' && <button type="button" disabled={payrollSaving} onClick={() => markPayrollPaid(record)} className="text-[9px] font-black text-indigo-500 uppercase tracking-widest disabled:opacity-40">Mark paid</button>}</div></div>)}</div>}</div>
             </div>
           </div>
         </div>
@@ -494,7 +463,6 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
             </div>
           )}
           {subManagers.map(sm => {
-            const payroll = agentPayroll.find(p => p.sm.id === sm.id);
             const locationTimestamp = sm.lastLocationAt || sm.lastLocation?.timestamp;
             const locationAge = locationTimestamp ? Date.now() - new Date(locationTimestamp).getTime() : Number.POSITIVE_INFINITY;
             const locationStale = sm.dutyStatus === 'online' && (!locationTimestamp || !Number.isFinite(locationAge) || locationAge > 10 * 60 * 1000);
@@ -528,6 +496,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                         password: acc?.password || '',
                         baseSalary: sm.baseSalary || '',
                         commissionPercent: sm.commissionPercent || '',
+                        complaintBonusRate: sm.complaintBonusRate || '',
                       });
                     }} className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-slate-400 hover:text-indigo-500 transition-all hover:scale-110">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
@@ -547,20 +516,6 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                     </button>
                   </div>
                 </div>
-
-                {/* Quick payroll preview */}
-                {payroll && (sm.baseSalary || sm.commissionPercent) ? (
-                  <div className="mt-2 grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-slate-50 dark:bg-white/[0.02] rounded-2xl px-4 py-2.5">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Commission</p>
-                      <p className="text-xs font-black text-amber-500">Rs. {payroll.commissionEarned.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl px-4 py-2.5">
-                      <p className="text-[9px] font-bold text-emerald-500/60 uppercase tracking-widest">Total Due</p>
-                      <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">Rs. {payroll.totalPayable.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ) : null}
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-white/5">
