@@ -358,7 +358,7 @@ export interface SubManagerAccount {
   salaryPayments?: SalaryPayment[]; // History of months marked as paid
   // ── Feature A: Granular Access Rights Matrix + Area Lock ──
   assignedAreas?: string[];    // empty/undefined = all areas (no lock)
-  accessRights?: Record<ModuleKey, AccessRights>; // undefined = unrestricted (legacy behavior, unaffected)
+  accessRights?: Record<ModuleKey, AccessRights> & { customers?: { editStatus?: boolean } }; // status control remains explicit opt-in
   active?: boolean;            // false = suspended (reserved for future login block, not yet enforced)
   shiftStart?: string;          // Local time in HH:mm, configured by the manager
   shiftEnd?: string;            // Local time in HH:mm, configured by the manager
