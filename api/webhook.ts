@@ -3187,7 +3187,13 @@ export default async function handler(req: any, res: any) {
       if (isFirstContactTodayFlag && intent !== 'greeting' && intent !== 'greeting_personal_chat' && intent !== 'complaint') {
         try {
           const foundForGreeting = await findCustomer(from);
-          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, foundForGreeting?.rowData?.settings?.ayeshaBotName));
+          // When the sender isn't a recognized customer yet (new lead / unregistered number),
+          // foundForGreeting is null, so there's no rowData to pull ayeshaBotName from — that
+          // silently fell through to welcomeMenu's hardcoded 'NetBot' default param instead of
+          // the manager's actual configured bot name. Fall back to the manager's own settings.
+          const greetingBotName = foundForGreeting?.rowData?.settings?.ayeshaBotName
+            || (await getManagerRow(BOUND_MANAGER_ID))?.settings?.ayeshaBotName;
+          await sendText(from, welcomeMenu('Assalam o Alaikum', foundForGreeting?.user?.name, greetingBotName));
         } catch (e: any) { console.error('[daily greeting]', e?.message); }
       }
 
@@ -3532,7 +3538,11 @@ export default async function handler(req: any, res: any) {
         await setSession(from, null);
         let found = await findCustomer(from);
         if (!found && wasVerified) found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
-        await sendTextAndVoice(from, welcomeMenu(greetingSalutation(text), found?.user?.name, found?.rowData?.settings?.ayeshaBotName));
+        // Same unregistered-number fallback as the daily first-contact greeting above —
+        // don't let a missing customer match silently drop to the 'NetBot' default.
+        const greetingBotName2 = found?.rowData?.settings?.ayeshaBotName
+          || (await getManagerRow(BOUND_MANAGER_ID))?.settings?.ayeshaBotName;
+        await sendTextAndVoice(from, welcomeMenu(greetingSalutation(text), found?.user?.name, greetingBotName2));
         continue;
       }
 
