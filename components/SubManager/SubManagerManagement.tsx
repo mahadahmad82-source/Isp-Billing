@@ -481,6 +481,9 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
           )}
           {subManagers.map(sm => {
             const payroll = agentPayroll.find(p => p.sm.id === sm.id);
+            const locationTimestamp = sm.lastLocationAt || sm.lastLocation?.timestamp;
+            const locationAge = locationTimestamp ? Date.now() - new Date(locationTimestamp).getTime() : Number.POSITIVE_INFINITY;
+            const locationStale = sm.dutyStatus === 'online' && (!locationTimestamp || !Number.isFinite(locationAge) || locationAge > 10 * 60 * 1000);
             return (
               <div key={sm.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
                 <div className={`absolute pointer-events-none -top-24 -right-24 w-48 h-48 rounded-full blur-[64px] opacity-10 transition-colors ${sm.dutyStatus === 'online' ? 'bg-emerald-500' : 'bg-slate-500'}`} />
@@ -552,7 +555,9 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-white/5">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Sync</p>
-                    <p className="text-xs font-bold dark:text-slate-200">{sm.lastLocation?.timestamp ? new Date(sm.lastLocation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+                    <p className={`text-xs font-bold ${locationStale ? 'text-amber-500' : 'dark:text-slate-200'}`}>
+                      {locationTimestamp ? `${new Date(locationTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${locationStale ? 'Stale' : 'Live'}` : sm.dutyStatus === 'online' ? 'No location' : 'Cleared'}
+                    </p>
                   </div>
                 </div>
               </div>
