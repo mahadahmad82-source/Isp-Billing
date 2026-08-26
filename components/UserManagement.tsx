@@ -5,7 +5,8 @@ import { UserRecord, AppSettings, Receipt, PaymentStatus, CONNECTION_TYPES } fro
 import { generateId } from '../utils/storage';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
-import { CheckIcon, DotIcon, PhoneIcon } from './icons/UiIcons';
+import { CheckIcon, DotIcon, PhoneIcon, SuspendIcon, ActivateIcon } from './icons/UiIcons';
+import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 
 interface UserManagementProps {
@@ -23,6 +24,7 @@ interface UserManagementProps {
   initialFilter?: 'all' | 'current_month';
   customerStatusFilter?: 'all' | 'active' | 'expired';
   onClearCustomerStatusFilter?: () => void;
+  managerId?: string;
 }
 
 type SortKey = 'account_id_asc' | 'account_id_desc' | 'name_asc' | 'name_desc' | 'reg_date_desc' | 'reg_date_asc' | 'expiry_asc' | 'expiry_desc' | 'plan_asc' | 'fee_asc' | 'fee_desc' | 'balance_asc' | 'balance_desc' | 'paid_first' | 'pending_first' | 'none';
@@ -41,7 +43,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
   setLoadingMessage,
   initialFilter = 'all',
   customerStatusFilter = 'all',
-  onClearCustomerStatusFilter
+  onClearCustomerStatusFilter,
+  managerId = ''
 }) => {
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
@@ -94,6 +97,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [sortKey, setSortKey] = useState<SortKey>('none');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, Partial<UserRecord>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ user: UserRecord; x: number; y: number } | null>(null);
   const [showBulkChangePlan, setShowBulkChangePlan] = useState(false);
@@ -217,6 +221,34 @@ const UserManagement: React.FC<UserManagementProps> = ({
     });
     setEditingUser(null);
     setShowForm(false);
+  };
+
+  const handleCustomerStatus = async (user: UserRecord, nextStatus: 'active' | 'suspended') => {
+    const message = nextStatus === 'suspended'
+      ? `Kya aap ${user.name} ka connection suspend karna chahte hain? Customer ko service temporarily band ho jayegi.`
+      : `Kya aap ${user.name} ka connection dobara active karna chahte hain?`;
+    if (!window.confirm(message)) return;
+    const previous = statusOverrides[user.id];
+    setStatusOverrides(prev => ({ ...prev, [user.id]: { ...prev[user.id], status: nextStatus, statusChangedBy: 'manager', statusSource: 'manager', statusChangedAt: new Date().toISOString() } }));
+    const { data, error } = await supabase.rpc('update_customer_status', {
+      p_manager_id: managerId,
+      p_customer_id: user.id,
+      p_new_status: nextStatus,
+      p_reason: nextStatus === 'suspended' ? 'Suspended by manager' : 'Activated by manager',
+      p_source: 'manager',
+    });
+    if (error || !data) {
+      setStatusOverrides(prev => {
+        const next = { ...prev };
+        if (previous) next[user.id] = previous;
+        else delete next[user.id];
+        return next;
+      });
+      setAlertConfig({ title: 'Status Update Failed', message: error?.message || 'Customer status could not be updated.', type: 'error' });
+      return;
+    }
+    setStatusOverrides(prev => ({ ...prev, [user.id]: data as Partial<UserRecord> }));
+    setAlertConfig({ title: nextStatus === 'suspended' ? 'Customer Suspended' : 'Customer Activated', message: `${user.name} status updated successfully.`, type: 'success' });
   };
 
   const handleEditClick = (user: UserRecord) => {
@@ -911,10 +943,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user) => {
+                    filteredUsers.map((rawUser) => {
+                      const user = statusOverrides[rawUser.id] ? { ...rawUser, ...statusOverrides[rawUser.id] } as UserRecord : rawUser;
+                      const isSuspended = user.status === 'suspended';
                       return (
                         <tr key={user.id}
-                          className="hover:bg-indigo-500/5 transition-colors group select-none"
+                          className={`${isSuspended ? 'bg-rose-50/60 dark:bg-rose-950/20' : ''} hover:bg-indigo-500/5 transition-colors group select-none`}
                           onTouchStart={(e) => handleLongPressStart(e, user)}
                           onTouchEnd={handleLongPressEnd}
                           onTouchMove={handleLongPressEnd}
@@ -935,7 +969,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           </td>)}
                           {visibleColumns.full_name && (
                           <td className="px-6 py-6">
-                             <span className="text-sm font-black text-slate-900 dark:text-slate-100">{user.name}</span>
+                             <div className={isSuspended ? 'opacity-60' : ''}>
+                               <span className="text-sm font-black text-slate-900 dark:text-slate-100">{user.name}</span>
+                               {isSuspended && <div className="mt-1 flex flex-wrap items-center gap-1.5"><span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">Suspended</span><span className="text-[9px] text-rose-600/80 dark:text-rose-300/70">Suspended by {user.statusChangedBy || 'manager'} · {user.statusChangedAt ? new Date(user.statusChangedAt).toLocaleDateString() : '—'}</span></div>}
+                             </div>
                           </td>)}
                           {visibleColumns.phone && (
                           <td className="px-6 py-6">
@@ -1023,6 +1060,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           {!readOnly && (
                             <td className="px-6 py-6">
                               <div className="flex items-center justify-center gap-1.5 flex-nowrap min-w-max">
+                                {/* Customer service status */}
+                                <button onClick={() => handleCustomerStatus(user, 'suspended')} disabled={isSuspended} title="Suspend Customer" aria-label={`Suspend ${user.name}`} className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 disabled:opacity-30 transition-all"><SuspendIcon className="w-4 h-4" /></button>
+                                <button onClick={() => handleCustomerStatus(user, 'active')} disabled={!isSuspended} title="Activate Customer" aria-label={`Activate ${user.name}`} className="p-2 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-30 transition-all"><ActivateIcon className="w-4 h-4" /></button>
+
                                 {/* Clear Balance */}
                                 <button onClick={() => handleClearBalance(user)} title="Clear Balance" className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-600 dark:text-slate-400 hover:text-white hover:bg-indigo-600 border border-slate-200 dark:border-white/10 transition-all">CLR</button>
 
