@@ -19,6 +19,9 @@ const EditGranularRights: React.FC<EditGranularRightsProps> = ({ agent, areas, o
   const [rights, setRights] = useState<Record<ModuleKey, AccessRights>>(
     agent.accessRights || getDefaultAccessRights(true)
   );
+  const [canEditCustomerStatus, setCanEditCustomerStatus] = useState(
+    Boolean((agent.accessRights as any)?.customers?.editStatus)
+  );
 
   const toggle = (mod: ModuleKey, action: keyof AccessRights) => {
     setRights(prev => ({
@@ -48,7 +51,7 @@ const EditGranularRights: React.FC<EditGranularRightsProps> = ({ agent, areas, o
   };
 
   const handleSave = () => {
-    onSave(agent.id, { assignedAreas, accessRights: rights });
+    onSave(agent.id, { assignedAreas, accessRights: { ...rights, customers: { editStatus: canEditCustomerStatus } } as any });
     onClose();
   };
 
@@ -91,6 +94,15 @@ const EditGranularRights: React.FC<EditGranularRightsProps> = ({ agent, areas, o
               </div>
             )}
           </div>
+
+          {/* Customer service status permission — explicit default-deny opt-in */}
+          <label className="flex items-start gap-3 rounded-xl border border-rose-100 dark:border-rose-500/20 bg-rose-50/60 dark:bg-rose-500/5 p-4 cursor-pointer">
+            <input type="checkbox" checked={canEditCustomerStatus} onChange={e => setCanEditCustomerStatus(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />
+            <span>
+              <span className="block text-xs font-bold text-slate-800 dark:text-white">Allow customer Suspend / Activate</span>
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Default off. This agent can change a customer&apos;s live service status only when explicitly enabled.</span>
+            </span>
+          </label>
 
           {/* Access Rights Matrix */}
           <div>
