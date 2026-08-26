@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import LocationTracker from './LocationTracker';
+import { supabase } from '../../lib/supabase';
 import { UserRecord, AppSettings, Receipt, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, calculateOvertimeMinutes } from '../../types';
 import TeamCommunication from './TeamCommunication';
 
@@ -25,6 +26,7 @@ interface SubManagerDashboardProps {
   canLogReceipts?: boolean; // Feature A — Access Rights: false hides "Issue Invoice" actions
   readOnly?: boolean; // Real Supabase Auth agents are read-only during Phase 1
   liveDutyStatus?: 'online' | 'offline' | null; // Server-backed status for real-auth agents
+  isRealAuthAgent?: boolean;
   onOpenSettings?: () => void;
 }
 
@@ -50,6 +52,7 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
   canLogReceipts = true,
   readOnly = false,
   liveDutyStatus = null,
+  isRealAuthAgent = false,
   onOpenSettings,
 }) => {
   const [activePortalTab, setActivePortalTab] = useState<'clients' | 'attendance' | 'complaints' | 'communication'>('clients');
@@ -120,10 +123,9 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
           location: agent?.lastLocation ? { lat: agent.lastLocation.lat, lng: agent.lastLocation.lng } : undefined
         });
       }
-      onUpdateAgent(agentId, updates);
+            if (!isRealAuthAgent) onUpdateAgent(agentId, updates);
     }
   };
-
   const handleApplyLeave = () => {
     if (readOnly || !agentId || !leaveReason.trim()) return;
     
@@ -134,12 +136,13 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
       reason: leaveReason
     })).catch(() => setDutyStatus('online'));
     
-    onUpdateAgent(agentId, {
-      dutyStatus: 'offline',
-      isLeave: true,
-      lastCheckOut: new Date().toISOString()
-    });
-    
+        if (!isRealAuthAgent) {
+      onUpdateAgent(agentId, {
+        dutyStatus: 'offline',
+        isLeave: true,
+        lastCheckOut: new Date().toISOString()
+      });
+    }
     setDutyStatus('offline');
     setLeaveReason('');
     setShowLeaveModal(false);
@@ -147,8 +150,21 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
 
   const handleLocationUpdate = (loc: { lat: number; lng: number; accuracy: number; timestamp: number }) => {
     if (readOnly) return;
+    if (isRealAuthAgent) {
+      void supabase.rpc('update_agent_location', {
+        p_location: {
+          lat: loc.lat,
+          lng: loc.lng,
+          accuracy: loc.accuracy,
+          timestamp: new Date(loc.timestamp || Date.now()).toISOString(),
+        },
+      }).then(({ error }) => {
+        if (error) console.warn('[location] update_agent_location failed:', error.message);
+      });
+      return;
+    }
     if (agentId) {
-      onUpdateAgent(agentId, { 
+      onUpdateAgent(agentId, {
         lastLocation: {
           lat: loc.lat,
           lng: loc.lng,
