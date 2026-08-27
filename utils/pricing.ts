@@ -16,15 +16,14 @@ export interface PricingPlan {
  */
 export const WHATSAPP_BOT_PLAN: PricingPlan = {
   name: 'WhatsApp Bot',
-  price: 'From Rs. 1,500',
+  price: 'From Rs. 500',
   period: 'month',
   color: '#22c55e',
   features: [
-    'Text-Only — Rs. 1,500/mo (1,750 messages)',
-    'Basic — Rs. 2,000/mo (2,500 msgs, text + voice)',
-    'Pro — Rs. 4,000/mo (5,000 msgs, text + voice)',
-    'Unlimited — Rs. 8,000/mo',
-    'Works standalone or alongside any ISP plan above',
+    'Text-Only — Rs. 500/mo (1,000 text messages)',
+    'Basic — Rs. 2,000/mo (1,000 text + 375 voice replies)',
+    'Pro — Rs. 4,000/mo (2,000 text + 750 voice replies, WhatsApp utility templates, auto-reminders)',
+    'Works standalone or alongside any ISP plan above — sold separately',
     'Meta WhatsApp Business setup included',
   ],
   cta: 'Get WhatsApp Bot',
