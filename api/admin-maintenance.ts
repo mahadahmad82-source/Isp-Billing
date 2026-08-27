@@ -22,12 +22,22 @@ const adminSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const QUOTA_MAP: Record<string, number> = {
-  basic:     2500,
-  pro:       5000,
+// Split text/voice — voice (Gemini TTS) is the real cost driver, text (Groq) is cheap.
+// Rs.0.50/text msg, Rs.4/voice msg — quotas below are sized to land on the
+// confirmed monthly price points (Text-Only Rs.500, Basic Rs.2,000, Pro Rs.4,000).
+const TEXT_QUOTA_MAP: Record<string, number> = {
+  text_only: 1000,
+  basic:     1000,
+  pro:       2000,
   unlimited: Number.MAX_SAFE_INTEGER,
   enterprise: Number.MAX_SAFE_INTEGER,
-  text_only: 1750,
+};
+const VOICE_QUOTA_MAP: Record<string, number> = {
+  text_only: 0,
+  basic:     375,
+  pro:       750,
+  unlimited: Number.MAX_SAFE_INTEGER,
+  enterprise: Number.MAX_SAFE_INTEGER,
 };
 
 export default async function handler(req: any, res: any) {
@@ -1175,8 +1185,9 @@ async function handleAddToken(req: any, res: any) {
 
   // 3. Compute quota + cycle dates
   // Enterprise is the product-facing label; whatsapp_configs stores it as unlimited.
-  const resolvedPlan  = plan_type === 'enterprise' ? 'unlimited' : (plan_type || 'basic');
-  const message_quota = QUOTA_MAP[resolvedPlan] ?? 1000;
+  const resolvedPlan = plan_type === 'enterprise' ? 'unlimited' : (plan_type || 'basic');
+  const text_quota    = TEXT_QUOTA_MAP[resolvedPlan] ?? 1000;
+  const voice_quota    = VOICE_QUOTA_MAP[resolvedPlan] ?? 0;
   const now           = new Date();
   const cycleStart    = now.toISOString().split('T')[0];
   const cycleEndDate  = new Date(now);
@@ -1200,8 +1211,10 @@ async function handleAddToken(req: any, res: any) {
         access_token:             encryptedToken,
         token_status:             tokenStatus,
         plan_type:                resolvedPlan,
-        message_quota,
-        messages_used_this_cycle: 0,
+        text_quota,
+        text_used_this_cycle:     0,
+        voice_quota,
+        voice_used_this_cycle:    0,
         cycle_start_date:         cycleStart,
         cycle_end_date:           cycleEnd,
         service_status:           'trial',
@@ -1221,7 +1234,8 @@ async function handleAddToken(req: any, res: any) {
       token_status:     tokenStatus,
       meta_user_id:     metaUserId,
       plan_type:        resolvedPlan,
-      message_quota,
+      text_quota,
+      voice_quota,
       cycle_start_date: cycleStart,
       cycle_end_date:   cycleEnd,
     });
@@ -1239,7 +1253,7 @@ async function handleResetQuota(req: any, res: any) {
   let rows: any[] = [];
   try {
     const fetchRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/whatsapp_configs?cycle_end_date=lte.${today}&service_status=in.(active,trial)&select=manager_id,cycle_end_date,messages_used_this_cycle,message_quota`,
+      `${SUPABASE_URL}/rest/v1/whatsapp_configs?cycle_end_date=lte.${today}&service_status=in.(active,trial)&select=manager_id,cycle_end_date,text_used_this_cycle,text_quota,voice_used_this_cycle,voice_quota`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     rows = await fetchRes.json();
@@ -1277,17 +1291,18 @@ async function handleResetQuota(req: any, res: any) {
             Prefer:         'return=minimal',
           },
           body: JSON.stringify({
-            messages_used_this_cycle: 0,
-            cycle_start_date:         newStartStr,
-            cycle_end_date:           newEndStr,
+            text_used_this_cycle:  0,
+            voice_used_this_cycle: 0,
+            cycle_start_date:      newStartStr,
+            cycle_end_date:        newEndStr,
           }),
         }
       );
 
       if (patchRes.ok) {
         reset++;
-        console.log(`[reset-quota] ✅ manager=${row.manager_id} was ${row.messages_used_this_cycle}/${row.message_quota} → reset. New cycle ${newStartStr}→${newEndStr}`);
-        details.push({ manager_id: row.manager_id, prev_used: row.messages_used_this_cycle, new_cycle_start: newStartStr, new_cycle_end: newEndStr });
+        console.log(`[reset-quota] ✅ manager=${row.manager_id} was text ${row.text_used_this_cycle}/${row.text_quota}, voice ${row.voice_used_this_cycle}/${row.voice_quota} → reset. New cycle ${newStartStr}→${newEndStr}`);
+        details.push({ manager_id: row.manager_id, prev_text_used: row.text_used_this_cycle, prev_voice_used: row.voice_used_this_cycle, new_cycle_start: newStartStr, new_cycle_end: newEndStr });
       } else {
         const err = await patchRes.text();
         console.error(`[reset-quota] ❌ manager=${row.manager_id}:`, err);
