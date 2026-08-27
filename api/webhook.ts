@@ -884,13 +884,16 @@ function getRelevantUpdate(rowData: any, incomingText: string, customer?: any, o
 }
 
 // ── Phase 2: Quota guard + usage tracking ─────────────────────────────────────
-// checkQuota: returns true if manager has hit their monthly message limit.
-// incrementUsage: increments messages_used_this_cycle + writes to bot_usage_logs.
+// checkQuota: returns true if manager has hit their monthly TEXT limit (hard stop).
+// Also sets CURRENT_VOICE_ALLOWED — voice quota running out doesn't stop the bot,
+// it just forces every reply to text for the rest of the cycle.
+// incrementUsage: increments text_used_this_cycle or voice_used_this_cycle (by
+// type) + writes to bot_usage_logs.
 // Both are fire-and-forget safe — a DB failure must never stop the bot reply.
 async function checkQuota(managerId: string): Promise<boolean> {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=messages_used_this_cycle,message_quota,service_status,plan_type,cycle_start_date,cycle_end_date`,
+      `${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}&select=text_used_this_cycle,text_quota,voice_used_this_cycle,voice_quota,service_status,plan_type,cycle_start_date,cycle_end_date`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     const rows: any[] = await res.json();
@@ -908,12 +911,13 @@ async function checkQuota(managerId: string): Promise<boolean> {
           'Content-Type': 'application/json',
           Prefer: 'return=minimal',
         },
-        body: JSON.stringify({ plan_type: 'unlimited', message_quota: 15000 }),
+        body: JSON.stringify({ plan_type: 'unlimited', text_quota: 2147483647, voice_quota: 2147483647 }),
       });
       if (ownerRes.ok) {
         console.warn(`[quota] normalized ${managerId} to Enterprise/unlimited`);
         cfg.plan_type = 'unlimited';
-        cfg.message_quota = 15000;
+        cfg.text_quota = 2147483647;
+        cfg.voice_quota = 2147483647;
       } else {
         console.error(`[quota] failed to normalize ${managerId}: ${ownerRes.status}`);
       }
@@ -921,6 +925,7 @@ async function checkQuota(managerId: string): Promise<boolean> {
     CURRENT_PLAN_TYPE = cfg.plan_type ?? null;
     if (cfg.service_status === 'suspended' || cfg.service_status === 'cancelled') {
       console.warn(`[quota] manager=${managerId} service_status=${cfg.service_status} — blocking`);
+      CURRENT_VOICE_ALLOWED = false;
       return true;
     }
     // Cron normally rolls cycles over, but a delayed/missed cron must never leave
@@ -944,30 +949,41 @@ async function checkQuota(managerId: string): Promise<boolean> {
           Prefer: 'return=minimal',
         },
         body: JSON.stringify({
-          messages_used_this_cycle: 0,
+          text_used_this_cycle: 0,
+          voice_used_this_cycle: 0,
           cycle_start_date: newStartStr,
           cycle_end_date: newEndStr,
         }),
       });
       if (resetRes.ok) {
         console.warn(`[quota] cycle rolled over for ${managerId}: ${cfg.cycle_end_date} -> ${newEndStr}`);
+        CURRENT_VOICE_ALLOWED = true;
         return false;
       }
       console.error(`[quota] cycle rollover failed for ${managerId}: ${resetRes.status}`);
     }
-    if (cfg.plan_type === 'unlimited') return false;
-    const over = (cfg.messages_used_this_cycle ?? 0) >= (cfg.message_quota ?? 1000);
-    if (over) console.warn(`[quota] manager=${managerId} quota hit: ${cfg.messages_used_this_cycle}/${cfg.message_quota}`);
-    return over;
+    if (cfg.plan_type === 'unlimited') { CURRENT_VOICE_ALLOWED = true; return false; }
+    // Voice runs out first in practice (it's the expensive resource) — that only
+    // disables voice replies (falls back to text), it does NOT stop the bot.
+    // Text running out stops the bot entirely, same as before.
+    const voiceOver = (cfg.voice_used_this_cycle ?? 0) >= (cfg.voice_quota ?? 0);
+    CURRENT_VOICE_ALLOWED = !voiceOver;
+    if (voiceOver) console.warn(`[quota] manager=${managerId} voice quota hit: ${cfg.voice_used_this_cycle}/${cfg.voice_quota} — falling back to text-only`);
+    const textOver = (cfg.text_used_this_cycle ?? 0) >= (cfg.text_quota ?? 1000);
+    if (textOver) console.warn(`[quota] manager=${managerId} text quota hit: ${cfg.text_used_this_cycle}/${cfg.text_quota} — blocking`);
+    return textOver;
   } catch (e: any) {
     console.error('[quota check]', e?.message);
+    CURRENT_VOICE_ALLOWED = true;
     return false; // fail-open: don't block bot if DB is unreachable
   }
 }
 
 async function incrementUsage(managerId: string, messageType: 'text' | 'audio' | 'image') {
   try {
-    // Atomic increment via Postgres RPC
+    // Atomic increment via Postgres RPC — routes to text_used_this_cycle or
+    // voice_used_this_cycle depending on type (image counts as text-equivalent,
+    // it's cheap/Groq-adjacent, not Gemini TTS).
     await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_bot_usage`, {
       method: 'POST',
       headers: {
@@ -975,7 +991,7 @@ async function incrementUsage(managerId: string, messageType: 'text' | 'audio' |
         Authorization: `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ p_manager_id: managerId }),
+      body: JSON.stringify({ p_manager_id: managerId, p_message_type: messageType }),
     });
     // Log per-type daily usage for dashboard graphs
     const today = new Date().toISOString().split('T')[0];
@@ -1299,6 +1315,16 @@ const voiceReplyTargets = new Set<string>();
 // Text-Only tier customers must never receive voice replies regardless of
 // voiceReplyTargets — see sendText/sendTextAndVoice below.
 let CURRENT_PLAN_TYPE: string | null = null;
+// true unless voice quota is exhausted this cycle (Text-Only tier also forces
+// this false via CURRENT_PLAN_TYPE check below — voice_quota=0 for that tier
+// already makes voiceOver true on the very first check, so this flag alone is
+// sufficient, but the explicit plan_type check stays as a second guard).
+let CURRENT_VOICE_ALLOWED = true;
+// Longer voice notes cost proportionally more (Gemini TTS bills per second of
+// audio) — cap reply length before converting to speech so a single verbose
+// reply can't blow past the per-message cost the Rs.4/voice-msg price assumes.
+// ~320 chars ≈ ~20-22 seconds of speech, keeping cost comfortably under Rs.4.
+const VOICE_REPLY_MAX_CHARS = 320;
 
 // Downloads a WhatsApp voice note, stores the original audio in Supabase Storage
 // (so mahadnet can actually listen to it in the Admin Inbox — previously only the
@@ -2815,8 +2841,11 @@ function normalizeOutboundText(body: string): string {
 async function sendText(to: string, body: string) {
   // Voice-in → voice-out: if this customer's message this turn was a transcribed
   // voice note, every sendText() call for the rest of this turn becomes a voice reply.
-  // Text-Only tier never gets voice, regardless of what the customer sent in.
-  if (voiceReplyTargets.has(to) && CURRENT_PLAN_TYPE !== 'text_only') {
+  // Skipped when: Text-Only tier, voice quota exhausted this cycle, or the reply
+  // is too long to keep the per-message TTS cost under what Rs.4/voice-msg assumes
+  // (falls back to text in all three cases — customer always gets the full content).
+  const eligibleForVoice = CURRENT_PLAN_TYPE !== 'text_only' && CURRENT_VOICE_ALLOWED && body.length <= VOICE_REPLY_MAX_CHARS;
+  if (voiceReplyTargets.has(to) && eligibleForVoice) {
     const audioUrl = await textToSpeech(body);
     if (audioUrl) { await sendAudio(to, audioUrl); return; }
     console.error('[sendText] TTS failed, falling back to text reply');
@@ -2856,7 +2885,8 @@ async function sendTextAndVoice(to: string, body: string) {
   const wasVoiceTurn = voiceReplyTargets.has(to);
   voiceReplyTargets.delete(to); // prevent sendText() below from converting this into a voice-only reply
   await sendText(to, body);
-  if (wasVoiceTurn && CURRENT_PLAN_TYPE !== 'text_only') {
+  const eligibleForVoice = CURRENT_PLAN_TYPE !== 'text_only' && CURRENT_VOICE_ALLOWED && body.length <= VOICE_REPLY_MAX_CHARS;
+  if (wasVoiceTurn && eligibleForVoice) {
     const audioUrl = await textToSpeech(body);
     if (audioUrl) await sendAudio(to, audioUrl);
     voiceReplyTargets.add(to); // restore in case more replies follow later this turn
@@ -2932,6 +2962,7 @@ export default async function handler(req: any, res: any) {
     const statuses: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.statuses || [];
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
     CURRENT_PLAN_TYPE = null; // defensive: never carry a previous invocation's plan_type
+    CURRENT_VOICE_ALLOWED = true; // defensive: reset until checkQuota() runs this invocation
     currentTtsVoice = null; // defensive: never carry a previous message's agent voice into this invocation
     currentTtsProvider = 'gemini';
     currentTtsGender = 'female';
