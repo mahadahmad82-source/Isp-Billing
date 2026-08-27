@@ -45,14 +45,14 @@ export const TIER_FEATURES: Record<PlanTier, {
     equipment: false, leads: false, area: false, suspension: false,
     outage: false, analytics: false, reports: true, aging: true,
     expenses: true, team: true, systemlogs: false,
-    customerLimit: 256, agentLimit: 1,
+    customerLimit: 150, agentLimit: 1,
     label: 'Starter', color: 'text-indigo-400',
   },
   business: {
     equipment: true, leads: true, area: true, suspension: true,
     outage: true, analytics: true, reports: true, aging: true,
     expenses: true, team: true, systemlogs: true,
-    customerLimit: 750, agentLimit: 3,
+    customerLimit: 500, agentLimit: 3,
     label: 'Business', color: 'text-purple-400',
   },
   pro: {
