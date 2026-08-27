@@ -21,32 +21,32 @@ interface LandingPageProps {
 const DEFAULT_PRICING_PLANS: PricingPlan[] = ensureWhatsAppBotPlan([
   {
     name: 'Free', price: 'Free', period: '', color: '#64748b',
-    features: ['Up to 75 customers', 'Core billing, receipts & recovery ledger', 'Manual WhatsApp reminders', 'Cloud sync', 'NetBot available as paid add-on'],
+    features: ['Up to 50 customers', 'Core billing, receipts & recovery ledger', 'Manual WhatsApp reminders', 'Cloud sync'],
     cta: 'Start Free', highlight: false,
   },
   {
-    name: 'Starter', price: 'Rs. 1,500', period: 'month', color: '#6366f1',
-    features: ['Up to 256 customers', '1 sub-manager account', 'Area Dashboard & Equipment Tracker', 'Leads Pipeline & Analytics', 'NetBot available as paid add-on'],
+    name: 'Starter', price: 'Rs. 1,000', period: 'month', color: '#6366f1',
+    features: ['Up to 150 customers', 'Area Dashboard & Equipment Tracker', 'Leads Pipeline & Analytics', 'Cloud sync & backups'],
     cta: 'Get Starter', highlight: false,
   },
   {
-    name: 'Growth', price: 'Rs. 2,500', period: 'month', color: '#8b5cf6',
-    features: ['Up to 512 customers', '2 sub-manager accounts', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics', 'NetBot AI Assistant — Text-Only tier included (1,750 msgs/mo)'],
+    name: 'Growth', price: 'Rs. 1,500', period: 'month', color: '#8b5cf6',
+    features: ['Up to 250 customers', 'Full manager toolset included', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics'],
     cta: 'Get Growth', highlight: false,
   },
   {
-    name: 'Business', price: 'Rs. 4,000', period: 'month', color: '#4f46e5',
-    features: ['Up to 750 customers', '3 sub-manager accounts', 'Full manager toolset included', 'NetBot AI Assistant — Basic tier included (2,500 msgs/mo, text + voice)'],
+    name: 'Business', price: 'Rs. 2,000', period: 'month', color: '#4f46e5',
+    features: ['Up to 500 customers', 'Full manager toolset included', 'Priority support'],
     cta: 'Get Business', highlight: true,
   },
   {
-    name: 'Enterprise', price: 'Rs. 6,000', period: 'month', color: '#06b6d4',
-    features: ['Up to 1,056 customers', '5 sub-manager accounts', 'Full manager toolset included', 'NetBot AI Assistant — Pro tier included (5,000 msgs/mo, text + voice)', 'Meta message templates built for you'],
+    name: 'Enterprise', price: 'Rs. 3,000', period: 'month', color: '#06b6d4',
+    features: ['Up to 1,000 customers', 'Full manager toolset included', 'Meta message templates built for you', 'Priority support'],
     cta: 'Get Enterprise', highlight: false,
   },
   {
     name: 'Custom', price: 'Custom', period: '', color: '#f59e0b',
-    features: ['Unlimited customers', 'Unlimited sub-manager accounts', 'NetBot AI Assistant — Unlimited tier included', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
+    features: ['Unlimited customers', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
     cta: 'Contact Us', highlight: false,
   },
 ]);
