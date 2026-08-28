@@ -22,6 +22,31 @@ function renderWhatsAppText(text: string): React.ReactNode[] {
   });
 }
 
+// Small usage bar for the Topup tab — used for both Text and Voice quotas.
+// Anything at/above Number.MAX_SAFE_INTEGER (how unlimited/enterprise plans
+// store their quota server-side, see api/admin-maintenance.ts QUOTA_MAP) is
+// rendered as "Unlimited" instead of a 0%-full bar.
+const QuotaBar: React.FC<{ label: string; used: number; limit: number }> = ({ label, used, limit }) => {
+  const unlimited = limit >= 999999999;
+  const pct = unlimited ? 0 : Math.min(100, limit > 0 ? Math.round((used / limit) * 100) : 100);
+  const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#00A884';
+  return (
+    <div className="rounded-2xl border border-slate-100 dark:border-white/5 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+        <span className="text-xs font-black text-slate-900 dark:text-white">
+          {unlimited ? 'Unlimited' : `${used.toLocaleString()} / ${limit.toLocaleString()}`}
+        </span>
+      </div>
+      {!unlimited && (
+        <div className="h-2 rounded-full bg-slate-100 dark:bg-white/5 overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface WAMessage {
   id: string;
   manager_id: string;
@@ -255,7 +280,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
   // ── Training (Confused Replies) tab state ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup'>('inbox');
   // Settings/navigation dropdown — Android's WABot app tucks Catalog/Templates/
   // Agents/Training behind a single ⋮ menu (HeaderMenu.tsx) instead of always-
   // visible tab buttons; this mirrors that so the PWA header matches.
@@ -338,6 +363,48 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+
+  // ── Topup tab state — message quota usage from whatsapp_configs (same table
+  // api/webhook.ts checkQuota() reads from, so this always matches what the
+  // bot itself is enforcing) ──
+  const [quota, setQuota] = useState<{
+    textUsed: number; textQuota: number;
+    voiceUsed: number; voiceQuota: number;
+    planType: string | null; serviceStatus: string | null; cycleEndDate: string | null;
+  } | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
+
+  const loadQuota = useCallback(async () => {
+    setQuotaLoading(true);
+    setQuotaError(null);
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_configs')
+        .select('text_used_this_cycle,text_quota,voice_used_this_cycle,voice_quota,plan_type,service_status,cycle_end_date')
+        .eq('manager_id', managerId)
+        .maybeSingle();
+      if (error) throw error;
+      setQuota({
+        textUsed: data?.text_used_this_cycle ?? 0,
+        textQuota: data?.text_quota ?? 0,
+        voiceUsed: data?.voice_used_this_cycle ?? 0,
+        voiceQuota: data?.voice_quota ?? 0,
+        planType: data?.plan_type ?? null,
+        serviceStatus: data?.service_status ?? null,
+        cycleEndDate: data?.cycle_end_date ?? null,
+      });
+    } catch (e: any) {
+      console.error('[WABotInbox] loadQuota', e);
+      setQuotaError('Quota load nahi ho saki. Dobara koshish karein.');
+    } finally {
+      setQuotaLoading(false);
+    }
+  }, [managerId]);
+
+  useEffect(() => {
+    if (view === 'topup') loadQuota();
+  }, [view, loadQuota]);
   const [personaDraft, setPersonaDraft] = useState(botPersonaNotes || '');
   const [ruleDraft, setRuleDraft] = useState({ trigger: '', response: '' });
   useEffect(() => { setPersonaDraft(botPersonaNotes || ''); }, [botPersonaNotes]);
@@ -1161,6 +1228,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
                   Voice &amp; Agents
                 </button>
+                <button
+                  onClick={() => { setView('topup'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 100 6h3.75A2.25 2.25 0 0021 13.5v-1.5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9.75V7.5a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 7.5v9a2.25 2.25 0 002.25 2.25h10.5A2.25 2.25 0 0018 16.5v-2.25" /></svg>
+                  Topup
+                </button>
                 <div className="h-px bg-slate-100 dark:bg-white/10 my-2" />
                 <div className="px-4 py-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Bot Name</span>
@@ -1195,7 +1269,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -1812,6 +1886,56 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               </div>
             )}
           </div>
+        </div>
+      ) : view === 'topup' ? (
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+          <div className="mb-6">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Message Quota</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1">Current billing cycle ka NetBot usage — text aur voice replies alag alag track hote hain.</p>
+          </div>
+
+          {quotaLoading ? (
+            <p className="text-xs text-slate-400 font-bold py-6 text-center">Loading...</p>
+          ) : quotaError ? (
+            <p className="text-xs text-rose-400 font-bold py-6 text-center">{quotaError}</p>
+          ) : quota ? (
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5 p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</span>
+                  {quota.serviceStatus && quota.serviceStatus !== 'active' && (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500">{quota.serviceStatus}</span>
+                  )}
+                </div>
+                <p className="text-sm font-black text-slate-900 dark:text-white capitalize">{(quota.planType || 'unknown').replace('_', ' ')}</p>
+                {quota.cycleEndDate && (
+                  <p className="text-[11px] text-slate-400 font-bold mt-1">Cycle ends: {quota.cycleEndDate}</p>
+                )}
+              </div>
+
+              <QuotaBar label="Text Messages" used={quota.textUsed} limit={quota.textQuota} />
+              {quota.voiceQuota > 0 ? (
+                <QuotaBar label="Voice Replies" used={quota.voiceUsed} limit={quota.voiceQuota} />
+              ) : (
+                <div className="rounded-2xl border border-slate-100 dark:border-white/5 p-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice Replies</span>
+                  <p className="text-xs text-slate-400 font-bold mt-1">Is plan mein voice replies included nahi hain.</p>
+                </div>
+              )}
+
+              <a
+                href={`https://wa.me/923042773453?text=${encodeURIComponent('Hello, I need NetBot credits/topup or plan upgrade.')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.38a9.9 9.9 0 004.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2z" /></svg>
+                Request Topup / Upgrade
+              </a>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 font-bold py-6 text-center">Koi quota data nahi mila.</p>
+          )}
         </div>
       ) : (
     <div className="flex flex-1 gap-4 min-h-0">
