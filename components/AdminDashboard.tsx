@@ -232,9 +232,8 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   // Static fallback (used before pricingPlans has loaded, or if the DB list is empty).
   // NOTE: "WhatsApp Bot" is intentionally NOT a base-tier option here — NetBot
   // access/quota is managed entirely separately in the WABot SaaS tab
-  // (whatsapp_configs.plan_type), independent of this ISP plan. A new manager's
-  // ISP tier only sets their NetBot starting default (see provision_netbot_default
-  // RPC) — admin can always manually give any manager more via WABot SaaS.
+  // (whatsapp_configs.plan_type / text_quota / voice_quota), fully independent
+  // of this ISP plan — no ISP tier grants NetBot access automatically.
   const SUBSCRIPTION_PLAN_OPTIONS_FALLBACK = [
   { value: 'free', label: 'Free', color: 'text-slate-400' },
   { value: 'starter', label: 'Starter', color: 'text-indigo-400' },
