@@ -1021,7 +1021,7 @@ async function incrementUsage(managerId: string, messageType: 'text' | 'audio' |
 async function logMessage(
   customerPhone: string,
   direction: 'in' | 'out',
-  type: 'text' | 'image' | 'audio' | 'voice' | 'document',
+  type: 'text' | 'image' | 'audio' | 'voice' | 'video' | 'document',
   content: string,
   opts: { flagged?: boolean; managerId?: string; waMessageId?: string; mediaUrl?: string | null; translatedContent?: string | null } = {}
 ) {
@@ -1122,6 +1122,7 @@ async function notifyPushTokens(
     type === 'text' ? (content || '').slice(0, 120)
     : type === 'image' ? '📷 Photo'
     : type === 'audio' || type === 'voice' ? '🎤 Voice message'
+    : type === 'video' ? 'Video'
     : type === 'document' ? '📄 Document'
     : 'New message';
 
@@ -3072,6 +3073,11 @@ export default async function handler(req: any, res: any) {
           const mediaId: string | undefined = msg?.audio?.id || msg?.voice?.id;
           const { transcript, mediaUrl } = mediaId ? await transcribeAudio(mediaId) : { transcript: null, mediaUrl: null };
           await logMessage(from, 'in', 'audio', transcript || '[voice note]', { mediaUrl });
+        } else if (type === 'video') {
+          const mediaId: string | undefined = msg?.video?.id;
+          const caption: string = msg?.video?.caption?.trim() || '';
+          const media = mediaId ? await downloadAndStoreMedia(mediaId) : null;
+          await logMessage(from, 'in', 'video', caption || '[video]', { mediaUrl: media?.url || null, waMessageId: msgId });
         }
         continue;
       }
@@ -3170,6 +3176,14 @@ export default async function handler(req: any, res: any) {
             ? tmpl('payment_screenshot_received_named', { name: found.user.name, details: readback })
             : tmpl('payment_screenshot_received_unnamed', { details: readback }));
         }
+        continue;
+      }
+
+      if (type === 'video') {
+        const mediaId: string | undefined = msg?.video?.id;
+        const caption: string = msg?.video?.caption?.trim() || '';
+        const media = mediaId ? await downloadAndStoreMedia(mediaId) : null;
+        await logMessage(from, 'in', 'video', caption || '[video]', { mediaUrl: media?.url || null, waMessageId: msgId });
         continue;
       }
 
