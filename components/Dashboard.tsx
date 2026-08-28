@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { UserRecord, Receipt, PaymentStatus, AppSettings, BusinessExpense } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
 import { shareToWhatsApp, sendWhatsAppDirect } from '../utils/whatsapp';
@@ -34,6 +34,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       ))}
     </div>
   );
+};
+
+const AnimatedRecoveryPercent = ({ value }: { value: number }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const startTime = performance.now();
+    const startValue = 0;
+    const duration = 950;
+    let frameId = 0;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(startValue + (value - startValue) * eased));
+      if (progress < 1) frameId = requestAnimationFrame(animate);
+    };
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [value]);
+
+  return <>{displayValue}%</>;
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, businessExpenses = [], onDeleteReceipt, setActiveTab, onSetUserFilter, onSetExpiredFilter, pendingRemindersCount = 0, onLogout, isAdmin = false, onUpdateUser }) => {
@@ -505,7 +526,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
         </div>
       </div>
 
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-slate-900"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="recovery-gauge relative h-36 w-36 shrink-0 animate-pulse"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#4f46e5" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} className="recovery-ring transition-[stroke-dashoffset] duration-1000 ease-out" /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-slate-900 dark:text-white">{recoveryPercent}%</span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
+      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-slate-900"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="recovery-gauge relative h-36 w-36 shrink-0"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#2563eb" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} style={{ transition: 'stroke-dashoffset 950ms cubic-bezier(0.22, 1, 0.36, 1)' }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-blue-600 dark:text-blue-400"><AnimatedRecoveryPercent value={recoveryPercent} /></span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
       {/* ── Modals ── */}
       {activeModal === 'BALANCE' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
