@@ -15,8 +15,10 @@ interface WABotClient {
   waba_id: string | null;
   token_status: 'active' | 'expired' | 'invalid' | 'not_set';
   plan_type: 'basic' | 'pro' | 'unlimited' | 'enterprise' | 'text_only';
-  message_quota: number;
-  messages_used_this_cycle: number;
+  text_quota: number;
+  text_used_this_cycle: number;
+  voice_quota: number;
+  voice_used_this_cycle: number;
   cycle_start_date: string | null;
   cycle_end_date: string | null;
   service_status: 'trial' | 'active' | 'suspended' | 'cancelled';
@@ -78,7 +80,7 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from('whatsapp_configs')
-      .select('id,manager_id,phone_number_id,waba_id,token_status,plan_type,message_quota,messages_used_this_cycle,cycle_start_date,cycle_end_date,service_status,last_token_check,business_verified')
+      .select('id,manager_id,phone_number_id,waba_id,token_status,plan_type,text_quota,text_used_this_cycle,voice_quota,voice_used_this_cycle,cycle_start_date,cycle_end_date,service_status,last_token_check,business_verified')
       .order('manager_id');
     if (!error && data) setClients(data as WABotClient[]);
     setLoading(false);
@@ -133,7 +135,10 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
   const totalClients = clients.length;
   const activeClients = clients.filter(c => c.service_status === 'active').length;
   const tokenIssues = clients.filter(c => c.token_status === 'invalid' || c.token_status === 'expired').length;
-  const nearQuota = clients.filter(c => c.message_quota > 0 && c.messages_used_this_cycle / c.message_quota >= 0.8).length;
+  const nearQuota = clients.filter(c =>
+    (c.text_quota > 0 && c.text_used_this_cycle / c.text_quota >= 0.8) ||
+    (c.voice_quota > 0 && c.voice_used_this_cycle / c.voice_quota >= 0.8)
+  ).length;
 
   return (
     <div className="space-y-5">
@@ -188,7 +193,8 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
             </thead>
             <tbody>
               {clients.map(c => {
-                const pct = c.message_quota > 0 ? Math.min(100, Math.round((c.messages_used_this_cycle / c.message_quota) * 100)) : 0;
+                const textPct  = c.text_quota  > 0 ? Math.min(100, Math.round((c.text_used_this_cycle  / c.text_quota)  * 100)) : 0;
+                const voicePct = c.voice_quota > 0 ? Math.min(100, Math.round((c.voice_used_this_cycle / c.voice_quota) * 100)) : 0;
                 const mgr = managers.find(m => m.username === c.manager_id);
                 return (
                   <tr key={c.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
@@ -205,12 +211,20 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
                       </div>
                       {c.last_token_check && <div className="text-[9px] text-slate-600 mt-0.5">checked {fmtDate(c.last_token_check)}</div>}
                     </td>
-                    <td className="px-4 py-3 min-w-[140px]">
+                    <td className="px-4 py-3 min-w-[160px] space-y-1.5">
                       <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-500 uppercase w-8 shrink-0">Text</span>
                         <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
+                          <div className={`h-full rounded-full ${textPct >= 90 ? 'bg-red-500' : textPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${textPct}%` }} />
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{c.messages_used_this_cycle}/{c.message_quota}</span>
+                        <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{c.text_used_this_cycle}/{c.text_quota}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-500 uppercase w-8 shrink-0">Voice</span>
+                        <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${voicePct >= 90 ? 'bg-red-500' : voicePct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${voicePct}%` }} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{c.voice_used_this_cycle}/{c.voice_quota}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" />{fmtDate(c.cycle_end_date)}</td>
