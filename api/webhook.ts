@@ -2267,8 +2267,11 @@ function fiberUpsellPitch(): string {
 // far more often than a router fault, so billing is confirmed clear first.
 function accountBillingBlockedReply(user: any): string | null {
   const bal = user.balance ?? 0;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const expired = user.expiryDate ? new Date(user.expiryDate) < today : false;
+  // Compare against the exact current moment, not midnight — expiry carries a
+  // specific time (network cuts users off at that exact time), so a midnight-only
+  // check kept treating already-cut-off customers as "not expired" for the rest
+  // of that day.
+  const expired = user.expiryDate ? new Date(user.expiryDate).getTime() < Date.now() : false;
   if (bal <= 0 && !expired) return null;
   const expDateStr = user.expiryDate
     ? new Date(user.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -2540,12 +2543,14 @@ function rechargeReply(user?: any, planPrices?: Record<string, number>): string 
 function isActiveUser(user: any): boolean {
   if (!user) return false;
   if (user.status === 'deleted' || user.status === 'pending') return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
+  const now = new Date();
+  const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(now);
   if (Array.isArray(user.activatedMonths) && user.activatedMonths.includes(currentMonth)) return true;
   if (!user.expiryDate) return false;
   const exp = new Date(user.expiryDate);
-  return !isNaN(exp.getTime()) && exp >= today;
+  // Exact-time compare (not midnight-truncated) — expiryDate carries the specific
+  // cutoff time, so a customer is only "active" until that precise moment.
+  return !isNaN(exp.getTime()) && exp.getTime() >= now.getTime();
 }
 
 // Customer says "recharge/card dalo" but their package hasn't actually expired yet —
