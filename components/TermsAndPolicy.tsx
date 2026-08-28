@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { logoBase64 } from '../utils/logoBase64';
 import VideoBackground from './landing/VideoBackground';
-import { ArrowLeft, Shield, FileText, CreditCard, Users, Lock, AlertTriangle, Globe, Mail } from 'lucide-react';
+import { ArrowLeft, Shield, FileText, CreditCard, Users, Lock, AlertTriangle, Globe, Mail, MessageCircle } from 'lucide-react';
 
 interface Section {
   id: string;
@@ -29,11 +29,23 @@ const SECTIONS: Section[] = [
     icon: <CreditCard className="w-4 h-4" />,
     title: 'Subscription & Payments',
     content: [
-      { heading: 'Plans and Limits', text: 'The Platform currently offers Free, Starter, Growth, Business, Enterprise, and Custom tiers. The signup screen currently describes these tiers as: Free up to 75 customers; Starter up to 256 customers and one sub-manager; Growth up to 512 customers with NetBot Text; Business up to 750 customers with NetBot Basic; Enterprise up to 1,056 customers with NetBot Pro; and Custom with limits and NetBot access agreed with the customer. The plan details shown at signup or confirmed by Bill Collector are controlling.' },
+      { heading: 'Plans and Limits', text: 'The Platform currently offers Free, Starter, Growth, Business, Enterprise, and Custom ISP tiers, each with its own customer limit and included features as shown at signup. NetBot (the WhatsApp bot) is a separate, optional service with its own pricing and is not bundled into any ISP tier — see the "NetBot / WhatsApp Bot" section below for its terms. The plan details shown at signup or confirmed by Bill Collector are controlling.' },
       { heading: 'Free Access or Trial', text: 'The Free tier is available according to the limits and features shown at signup. Free access does not guarantee access to every paid feature, higher limits, or NetBot capabilities included in paid tiers.' },
       { heading: 'Payment Methods and Manual Verification', text: 'Subscription fees are charged in Pakistani Rupees (PKR). Paid-plan payments may be made through the payment methods communicated by Bill Collector, including bank transfer, EasyPaisa, or JazzCash. Paid-plan activation is not completed through an automated card gateway: payment proof is submitted through the available signup flow and reviewed manually. Access, renewal, or an upgrade may remain pending until verification is complete.' },
       { heading: 'Refunds and Credits', text: 'Refunds, credits, cancellations, and adjustments are considered case by case after reviewing the account and payment status. Do not assume that a payment is refundable or transferable unless Bill Collector confirms it in writing.' },
       { heading: 'Suspension for Non-Payment or Other Reasons', text: 'An administrator may suspend an account, including for non-payment, suspected misuse, security concerns, or other account-related reasons. Suspension can restrict access to the Platform while account data may remain retained for service, security, backup, or legal purposes. Reactivation may occur after the relevant issue is resolved.' },
+    ],
+  },
+  {
+    id: 'netbot',
+    icon: <MessageCircle className="w-4 h-4" />,
+    title: 'NetBot / WhatsApp Bot',
+    content: [
+      { heading: 'A Separate, Optional Service', text: 'NetBot is Bill Collector\'s AI-powered WhatsApp customer-support bot. It is a standalone service with its own pricing tiers (Text-Only, Basic, and Pro) and its own monthly text and voice message quotas, priced and billed separately from your ISP plan. Enabling NetBot is optional and is not required to use the core Platform.' },
+      { heading: 'Your Own Meta/WhatsApp Business Account', text: 'To use NetBot, you must connect your own WhatsApp Business API credentials, generated through your own Meta Business (Facebook) account. You are solely responsible for creating, verifying, and maintaining that Meta Business account, including registering your business phone number and completing any verification Meta requires.' },
+      { heading: 'Meta\'s Charges Are Your Responsibility', text: 'Meta bills WhatsApp Business Platform usage (including conversation-based charges, template/utility message fees, and any other fees Meta charges) directly to the payment method you provide to Meta on your own Meta Business account. Bill Collector does not collect, process, forward, or reimburse any charges billed by Meta. Your NetBot subscription fee to Bill Collector is entirely separate from, and does not include, any amount Meta charges you.' },
+      { heading: 'No Liability for Meta\'s Actions', text: 'Bill Collector is not responsible for Meta\'s account verification decisions, policy enforcement, business account restrictions or suspensions, template approvals, rate limits, pricing changes, or service interruptions. Any issue with your Meta Business account, your payment method on file with Meta, or your WhatsApp number must be resolved directly with Meta.' },
+      { heading: 'Usage Limits', text: 'NetBot usage is limited to the text and voice message quotas included in your selected NetBot tier per billing cycle. Reaching your text quota pauses further bot replies until the next cycle or an upgrade. Reaching your voice quota does not stop the bot — it falls back to text-only replies for the remainder of that cycle. Longer voice replies may be shortened or sent as text to keep response costs predictable.' },
     ],
   },
   {
@@ -45,7 +57,7 @@ const SECTIONS: Section[] = [
       { heading: 'How Data Is Used', text: 'Bill Collector uses manager data to provide the billing, customer-management, receipt, reporting, account, team, support, and related features that you request. Bill Collector does not sell or rent your business data. You are responsible for ensuring that you have the right to collect and use your customers\' information.' },
       { heading: 'Local and Cloud Storage', text: 'The Platform uses browser localStorage as a local cache and synchronizes account data with its cloud database. Clearing browser data can remove the local cache; it does not by itself delete the corresponding cloud data. Cloud data may be retained for service operation, backup, security, support, and legal or operational requirements.' },
       { heading: 'Customer Data Responsibility', text: 'You are responsible for the accuracy and lawful collection of personal information that you enter, including names, phone numbers, addresses, CNIC details, balances, and service records. You should provide your customers with any notices or obtain any permissions required for your use of their information.' },
-      { heading: 'NetBot and WhatsApp Processing', text: 'NetBot is an optional WhatsApp customer-support bot add-on. If you enable it, WhatsApp messages from your own customers may be stored in the Platform inbox and processed by AI to classify requests, transcribe voice messages, and generate replies or other support responses. NetBot is intended to support your own customer communications; WhatsApp use is also subject to Meta/WhatsApp terms, availability, and policies.' },
+      { heading: 'NetBot and WhatsApp Processing', text: 'NetBot is an optional, separately-priced WhatsApp customer-support bot. If you enable it, WhatsApp messages from your own customers may be stored in the Platform inbox and processed by AI to classify requests, transcribe voice messages, and generate replies or other support responses. See the "NetBot / WhatsApp Bot" section below for your Meta/WhatsApp account and billing responsibilities.' },
     ],
   },
   {
@@ -56,7 +68,7 @@ const SECTIONS: Section[] = [
       { heading: 'Sub-Manager Accounts', text: 'You may create sub-manager or field-agent accounts up to the limit of your selected plan. The available plans may have different limits and permissions. The primary Manager can configure the access rights available to each authorized team member.' },
       { heading: 'Responsibility', text: 'The primary Manager is responsible for actions taken by sub-managers, field agents, and other authorized users under the account, including changes to customer records, receipts, collections, complaints, and activity records.' },
       { heading: 'Access to Manager Data', text: 'Sub-managers receive only the access configured for them. Manager data remains associated with the primary Manager account and is not shared with other managers merely because sub-managers or teams use the Platform.' },
-      { heading: 'Optional NetBot Add-On', text: 'If the Manager enables NetBot, the add-on supports WhatsApp customer service for that Manager\'s own customers. AI-generated replies may be used as part of this support workflow. NetBot does not authorize access to another Manager\'s customers or business data.' },
+      { heading: 'Optional NetBot Add-On', text: 'If the Manager enables NetBot, it supports WhatsApp customer service for that Manager\'s own customers using the Manager\'s own Meta/WhatsApp Business account (see the "NetBot / WhatsApp Bot" section below). AI-generated replies may be used as part of this support workflow. NetBot does not authorize access to another Manager\'s customers or business data.' },
     ],
   },
   {
@@ -156,8 +168,8 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
               </p>
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
                 <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">Bill Collector Platform</span>
-                <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">Effective August 18, 2026</span>
-                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-600">Version 2.1</span>
+                <span className="rounded-lg border border-slate-900/10 bg-white/70 px-3 py-1.5">Effective August 28, 2026</span>
+                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-600">Version 2.2</span>
               </div>
             </div>
 
