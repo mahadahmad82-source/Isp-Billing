@@ -384,7 +384,6 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       p_notes: updates.notes ?? null,
       p_customer_limit: updates.customer_limit ?? null,
       p_agent_limit: updates.agent_limit ?? null,
-      p_netbot_addon: updates.netbot_addon ?? null,
     });
     if (!error && data?.success) { await loadSubscriptions(); showSubToast('✅ Updated: ' + managerId); }
     else showSubToast('❌ Error: ' + (error?.message || data?.error || 'Update failed'));
