@@ -285,6 +285,16 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     });
   }, [users, receipts, settings]);
 
+  const recoveryStats = useMemo(() => {
+    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+    const assignedUsers = users.filter(user => user.status === 'active' && (!agentArea || !user.area || user.area === agentArea));
+    const target = assignedUsers.reduce((sum, user) => sum + (settings?.planPrices?.[user.plan || ''] || user.monthlyFee || 0), 0);
+    const recovered = receipts
+      .filter(receipt => receipt.period === currentPeriod && receipt.status === PaymentStatus.SUCCESS && assignedUsers.some(user => user.id === receipt.userId))
+      .reduce((sum, receipt) => sum + (receipt.paidAmount || 0), 0);
+    return { percent: target > 0 ? Math.min(100, Math.round((recovered / target) * 100)) : 0 };
+  }, [agentArea, receipts, settings, users]);
+
   const sortedUsers = useMemo(() => {
     const list = augmentedUsers.filter(u => {
       const nameSafe = String(u.name || '');
@@ -455,8 +465,16 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                 </h3>
                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">{dutyStatus === 'online' ? 'Tracking Active' : 'Off duty'}</p>
               </div>
+                        </div>
+            <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-slate-900">
+              <div className="flex flex-col items-center gap-4 sm:flex-row">
+                <div className="relative h-28 w-28 shrink-0">
+                  <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="48" fill="none" stroke="#2563eb" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 48} strokeDashoffset={2 * Math.PI * 48 * (1 - recoveryStats.percent / 100)} style={{ transition: 'stroke-dashoffset 950ms cubic-bezier(0.22, 1, 0.36, 1)' }} /></svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-2xl font-black text-blue-600 dark:text-blue-400">{recoveryStats.percent}%</span><span className="text-[8px] font-black uppercase tracking-widest text-slate-400">recovered</span></div>
+                </div>
+                <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Current month performance</p><h3 className="mt-1 text-lg font-black text-slate-900 dark:text-white">Recovery percentage</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Your assigned customers’ monthly recovery progress.</p></div>
+              </div>
             </div>
-
             <div className="grid lg:grid-cols-3 gap-6">
             {/* Main List */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
