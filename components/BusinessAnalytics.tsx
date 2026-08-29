@@ -250,6 +250,13 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
   const currentExpenses = expenses.filter(e => e.date?.startsWith(new Date().toISOString().slice(0,7)))
     .reduce((s, e) => s + e.amount, 0);
 
+  // Same company-price-per-active-user wholesale cost the Business Expenses
+  // screen already subtracts. This KPI was only doing Revenue - Expenses,
+  // so it silently ignored company cost and looked identical to Revenue
+  // whenever no manual expense had been logged yet for the month.
+  const currentCompanyPrice = companyPriceForPeriod(currentMonthLabel, users, receipts);
+  const currentGrossProfit = currentRevenue - currentExpenses - currentCompanyPrice;
+
   const activeCount = users.filter(u => isActiveUser(u)).length;
   const expiredCount = users.length - activeCount;
 
@@ -286,7 +293,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
             {[
               { label: 'Revenue', value: `Rs.${(Number(currentRevenue)||0).toLocaleString()}`, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 border-indigo-500/10' },
               { label: 'Expenses', value: `Rs.${(Number(currentExpenses)||0).toLocaleString()}`, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/10' },
-              { label: 'Gross Profit', value: `Rs.${((currentRevenue-(Number(currentExpenses)))||0).toLocaleString()}`, color: (currentRevenue - currentExpenses) >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: (currentRevenue - currentExpenses) >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10' },
+              { label: 'Gross Profit', value: `Rs.${(Number(currentGrossProfit)||0).toLocaleString()}`, color: currentGrossProfit >= 0 ? 'text-emerald-500' : 'text-rose-500', bg: currentGrossProfit >= 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10' },
               { label: 'Active / Expired', value: `${activeCount} / ${expiredCount}`, color: 'text-amber-500', bg: 'bg-amber-500/5 border-amber-500/10' },
             ].map(k => (
               <div key={k.label} className={`${k.bg} border rounded-2xl p-3 overflow-hidden`}>
