@@ -579,6 +579,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const now = new Date();
       if (receiptDate.toDateString() === now.toDateString()) {
         receiptDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+      } else {
+        // Anchor to midday (not midnight) so the chosen local calendar date
+        // survives the toISOString() UTC conversion below — at 00:00 local
+        // time in Pakistan (UTC+5) toISOString() would roll back to the
+        // previous day, silently misfiling backdated receipts by one day
+        // in any date-bucketed report (Daily Collection, Recovery Ledger, etc).
+        receiptDate.setHours(12, 0, 0, 0);
       }
 
       // The receipt and Meta payment template must use the exact expiry date
