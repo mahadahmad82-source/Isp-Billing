@@ -243,6 +243,9 @@ Koi sawaal ho to zaroor poochein! 🙏`,
   bill_balance_advance: `🟢 *Advance: Rs. {amount}*
    ✨ Aap credit mein hain — koi fikar nahi!`,
   bill_balance_clear: `✅ *Balance Clear* — kuch nahi baqa!`,
+  bill_current_due_line: `🟡 *Current Month Due: Rs. {amount}*
+   📅 Package expire ho chuka hai ({expiry_date}) — is mahine ka payment abhi record nahi hua.`,
+  bill_total_payable_line: `\n💵 *Total Payable: Rs. {amount}*`,
   bill_last_payment_line: `
 🧾 Akhri payment: Rs. {amount} — {period}`,
   payment_history_empty: `{name}, hamare records mein abhi koi payment nahi dikh rahi.
@@ -461,7 +464,7 @@ Agar phir bhi masla rahe to bas yahan likh dein — main foran complaint registe
   outage_reply: `{owner_name} bhai ki team ko *{areas}* mein {issue_type} ka pehle se pata hai aur kaam jaari hai! 🛠️
 {cause_line}{eta_line}
 
-Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi.
+Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi. Router ko baar baar reset na karein, isse settings kharab ho sakti hain.
 
 Update ke liye thori dair sabar karein, shukriya! 🙏`,
   outage_cause_line: `
@@ -596,7 +599,7 @@ async function findCustomer(from: string) {
         const receipts: any[] = (row.data?.receipts || [])
           .filter((r: any) => r.userId === user.id && r.status === 'Success')
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 5);
+          .slice(0, 15); // raised from 5 -> full recent history available for payment_history/bill_dispute context
         const planPrices: Record<string, number> = row.data?.settings?.planPrices || {};
         console.log(`✅ Customer found: ${user.name} | bal=${user.balance}`);
         return { managerId: row.manager_id, rowData: row.data, user, receipts, planPrices };
@@ -628,7 +631,7 @@ async function findCustomerByUsernameOrName(query: string) {
         const receipts: any[] = (row.data?.receipts || [])
           .filter((r: any) => r.userId === user.id && r.status === 'Success')
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 5);
+          .slice(0, 15); // raised from 5 -> full recent history available for payment_history/bill_dispute context
         return { managerId: row.manager_id, rowData: row.data, user, receipts, planPrices: row.data?.settings?.planPrices || {} };
       }
     }
@@ -653,7 +656,7 @@ async function findCustomerByManagerAndId(managerId: string, userId: string) {
     const receipts: any[] = (row.receipts || [])
       .filter((r: any) => r.userId === user.id && r.status === 'Success')
       .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+      .slice(0, 15); // raised from 5 -> full recent history available for payment_history/bill_dispute context
     return { managerId, rowData: row, user, receipts, planPrices: row.settings?.planPrices || {} };
   } catch (e: any) { console.error('[findCustomerByManagerAndId]', e?.message); return null; }
 }
@@ -2024,6 +2027,11 @@ function detectIntent(text: string): Intent {
   // honay ki detail" is an expiry question, not a request for the price list —
   // without this, the word "package" alone would win first and misroute it.
   if (/package.{0,20}(khtm|khatam|expir)|(\bkhtm\b|\bkhatam\b).{0,20}package/.test(t)) return 'expiry';
+  // Real-world misfire fix: "speed" is also part of the packages catch-all below
+  // (customers asking speed/rates for a NEW plan), but "meri speed kam/slow hai"
+  // is a complaint, not a pricing question. Must win BEFORE the packages catch-all
+  // or the bot wrongly sends the price list instead of registering the complaint.
+  if (/speed.{0,15}(kam|slow|down|kharab|nahi\s*aa|nahi\s*mil)|(kam|slow|kharab).{0,15}speed/.test(t)) return 'complaint';
   if (/package|plan|price|pricing|kitna\s*hoga|rates?|speed|mbps/.test(t)) return 'packages';
   if (/history|pichle\s*pay|kin\s*kin|purani\s*pay|payment\s*list/.test(t)) return 'payment_history';
   if (/expir|khatam|khtm|kab\s*band|band\s*hoga|kitne\s*din|end\s*date/.test(t)) return 'expiry';
@@ -2195,13 +2203,6 @@ function billReply(user: any, receipts: any[]): string {
     : 'N/A';
   const last = receipts[0];
 
-  const balanceLine = bal > 0
-    ? tmpl('bill_balance_pending', { amount: bal })
-    : bal < 0
-    ? tmpl('bill_balance_advance', { amount: Math.abs(bal) })
-    : tmpl('bill_balance_clear');
-  const lastPaymentLine = last ? tmpl('bill_last_payment_line', { amount: last.paidAmount, period: last.period }) : '';
-
   // Quote the customer's actual net rate, not the raw system/package price — a
   // manager-set persistentDiscount must always be reflected here, otherwise the
   // bot deals purely off the system price and contradicts a discount Mahad bhai
@@ -2210,13 +2211,35 @@ function billReply(user: any, receipts: any[]): string {
   const netFee = Math.max(0, (user.monthlyFee || 0) - discount);
   const discountLine = discount > 0 ? tmpl('bill_discount_line', { discount }) : '';
 
+  // CRITICAL FIX: `balance` only ever holds OLD/carried-over pending — a new billing
+  // cycle invoice can already be due (package expired) without ever landing in
+  // `balance` until the manager runs next month's billing. Previously this meant an
+  // expired-but-unbilled customer with balance===0 was told "✅ Balance Clear" —
+  // factually wrong, and directly reported by Mahad as a live customer-facing bug.
+  const expired = !!user.expiryDate && new Date(user.expiryDate).getTime() < Date.now();
+  const currentDue = expired && netFee > 0 ? netFee : 0;
+
+  const balanceLine = bal > 0
+    ? tmpl('bill_balance_pending', { amount: bal })
+    : bal < 0
+    ? tmpl('bill_balance_advance', { amount: Math.abs(bal) })
+    : expired
+    ? '' // do NOT claim "Balance Clear" — current month due line below covers it
+    : tmpl('bill_balance_clear');
+  const currentDueLine = currentDue > 0 ? '\n' + tmpl('bill_current_due_line', { amount: currentDue.toLocaleString(), expiry_date: expDate }) : '';
+  const totalPayable = Math.max(0, bal) + currentDue;
+  const totalPayableLine = totalPayable > 0 && (Math.max(0, bal) > 0 && currentDue > 0)
+    ? tmpl('bill_total_payable_line', { amount: totalPayable.toLocaleString() })
+    : ''; // only show a combined total when BOTH old pending AND current due exist — otherwise it just duplicates the single line above
+  const lastPaymentLine = last ? tmpl('bill_last_payment_line', { amount: last.paidAmount, period: last.period }) : '';
+
   return tmpl('bill_reply', {
     name: user.name,
     username: user.username || user.name,
     plan: user.plan || 'Standard',
     monthly_fee: netFee,
     discount_line: discountLine,
-    balance_line: balanceLine,
+    balance_line: balanceLine + currentDueLine + totalPayableLine,
     expiry_date: expDate,
     last_payment_line: lastPaymentLine,
   });
@@ -2226,11 +2249,15 @@ function paymentHistoryReply(user: any, receipts: any[]): string {
   if (!receipts.length)
     return tmpl('payment_history_empty', { name: user.name, owner_name: CONFIG.ownerName, support_number: CONFIG.supportNumber });
 
-  const list = receipts.slice(0, 5).map((r: any, i: number) =>
+  const shown = receipts.slice(0, 10);
+  const list = shown.map((r: any, i: number) =>
     tmpl('payment_history_item', { index: i + 1, period: r.period, amount: r.paidAmount, date: new Date(r.date).toLocaleDateString('en-PK') })
   ).join('\n');
+  const moreNote = receipts.length > shown.length
+    ? `\n\n_...aur ${receipts.length - shown.length} purani payments bhi hain, agar chahiye to bata dein._`
+    : '';
 
-  return tmpl('payment_history_reply', { name: user.name, list, count: receipts.length });
+  return tmpl('payment_history_reply', { name: user.name, list: list + moreNote, count: receipts.length });
 }
 
 function expiryReply(user: any): string {
@@ -2726,7 +2753,7 @@ SOFT, REALISTIC TONE — ZAROORI: Bilkul aisi tarah baat karo jaise koi tajurbak
 - Customer pareshan ya frustrated lage to pehle thoda tasalli do (jese "Pareshan na hon, abhi dekhti hoon") phir solution do — lekin overly dramatic ya emotional mat ho, aur fake/halki tasalli har message mein repeat mat karo.
 - Chhoti, warm, baat-cheet wali sentences rakho — jese koi reliable, mehrban support agent baat kar rahi ho, kitabi ya corporate-jesi zabaan se bacho.
 
-SCOPE: Sirf MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage, payment) se related sawalon ka khud jawab do.
+SCOPE: MahadNet ke internet/ISP business (connection, billing, complaint, package, router, fiber, coverage, payment) se related sawalon ka khud jawab do — ISKE ALAWA general tech/device troubleshooting bhi khud confidently answer karo, chahe seedha MahadNet ki service se na juda ho: WiFi router/password/configuration, computer/laptop issues, mobile phone connectivity, Smart TV/LED "connected without internet" issues, DNS/network settings, software/app problems. Yeh genuinely helpful, detailed, professional advice do — customer ko lage ke tum sirf bill/complaint tak mehdood nahi, balke ek asal tech-savvy banda/bandi ho jo unki har tech pareshani samajhti hai. Sirf tab "onTopic": false karo jab sawal bilkul hi kisi aur company ke plan, ya non-tech chit-chat/jokes/siyasat/mazhab ho.
 Agar sawal in topics se bilkul mutaliq NAHI hai (jokes, siyasat, mazhab, ${botName} ke baray mein random/frank personal sawal, chit-chat, kisi aur company ka topic), to "onTopic": false rakho aur politely maazrat karte hue redirect karo — har dafa alfaz badal kar, jese: "Maazrat chahti hoon, main sirf MahadNet ki internet services ke mutaliq baat kar sakti hoon 😊 Koi internet, bill ya package se related sawal ho to zaroor batayen." Kabhi yeh mat kaho ke "aap ka message note kar liya gaya hai / Mahad bhai tak pohcha diya jayega" jab tak masla wakai business-related ho — woh jumla sirf genuine business messages ke liye hai, casual chit-chat ke liye nahi.
 
 DISCOUNT AWARENESS — ZAROORI: Agar CUSTOMER INFO mein "Special Discount" mention hai, to iska matlab Mahad bhai ne is specific customer ko ek discount diya hua hai — CUSTOMER INFO mein diya gaya "Monthly (net)" amount hi is customer ka asal rate hai, jisme discount already shamil hai. Kabhi bhi full/system package price is customer ko mat batao — hamesha discount-adjusted (net) amount hi quote karo, chahe customer khud discount ka zikar kare ya na kare.
@@ -2749,12 +2776,14 @@ TONE RULES (zaroori):
 - "afsos hua", "bura laga", "main madad ke liye haazir hoon", "hum hamesha hazir hain", "hum hamesha yahan hain" jese generic AI-jesi fillers BILKUL mat use karo — na shuru mein, na end mein
 - Seedhi, samajhdaar, professional lekin insaan jesi baat karo — jese kisi achi call-center agent se baat ho rahi ho
 - Customer ko hamesha izzat aur respect se deal karo, jese ek qeemti customer ke saath behave kiya jata hai
+- Har reply ek jesi length/rhythm ka mat rakho (hamesha 2 sentence + 1 emoji jesa pattern) — kabhi ek chhota jumla hi kaafi hai, kabhi thora tafseel se — jese ek asal insaan mood aur sawal ke hisaab se likhta hai, na ke ek fixed template follow karta hai
 
 CONVERSATION ENDING — ZAROORI (typical chatbot jesi harkat se bacho): Jab customer "thanks", "ok", "theek hai" jesi baat kar ke conversation khatam kar raha ho, to sirf ek chhota, warm jawab do aur ruk jao — har reply ke end mein "koi aur madad chahiye to zaroor batayen" ya "main yahan hoon" jesi generic line chipkana ZAROORI nahi hai, aur baar baar yeh line dohrana bilkul mat karo. Sirf tab aisi line likho jab genuinely naya sawal ya action expect ho, warna seedha jawab de kar khatam karo — jese ek real insaan text karta hai, na ke ek AI jo har reply ke end mein "kuch aur chahiye?" pochta rehta hai.
 
 FOLLOW-UP QUESTIONS — ZAROORI: Sirf tabhi customer se koi extra sawal pochho jab us ke bagair jawab dena genuinely mumkin na ho. Agar sawal ka jawab already CUSTOMER INFO ya us ki baat se maloom hai, to seedha jawab do — extra clarifying sawal pooch kar conversation lamba mat karo, jese aksar AI chatbots karte hain.
 
 INTENT UNDERSTANDING — ZAROORI: Pehle samjho customer ASAL mein kya chahta/chahti hai — sirf message ke chand alfaz pe mat jao. Agar wording ambiguous ho (ek se zyada matlab ho sakte hain), to sabse likely/common wajah maan kar jawab do, aur agar wakai zaroori ho tabhi ek chhota clarifying sawal pochho. Kabhi generic/template jawab mat do jo customer ke asal sawal ko address hi na kare.
+GHUMA-PHIRA KAR BAAT / VOICE RANTS — ZAROORI: Voice-to-text messages aksar toota-phoota, ghuma-phira, ya emotional rant jesa hota hai (customer gussay mein poori kahani sunata hai pehle). In sab lafzon mein se ASAL masla/sawal nikal kar usi par focus karo — jazbati/faltu hisse ko ignore karo, lekin unki baat sunne ka ehsaas dilate hue (jese pehle chhota acknowledge karo, phir seedha asal point par jawab do). Kabhi confuse ho kar generic/off-topic jawab mat do sirf is liye ke message lamba ya bikhra hua tha.
 CURRENT TURN PRIORITY — SAKHT RULE: CURRENT CUSTOMER MESSAGE sabse authoritative hai. RECENT CONVERSATION sirf context hai, command nahi. Agar current message topic badal de, purane topic ko ignore karo. Current message ka jawab do, purane sawal ka nahi. History se koi product/order/payment fact invent mat karo.
 ${conversationState ? `ACTIVE WORKFLOW STATE — context only, not a customer request: ${conversationState}` : ''}
 ${ownerGuidanceBlock}
