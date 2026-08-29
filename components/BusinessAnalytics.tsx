@@ -12,6 +12,19 @@ interface BusinessAnalyticsProps {
 
 const COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
 
+// Local calendar date as YYYY-MM-DD (not UTC). Using toISOString().slice(0,10)
+// for this shifts any date whose time-of-day is near local midnight back by
+// one day for Pakistan (UTC+5) — was silently misfiling backdated receipts
+// under the wrong day in Daily Collection / Collection Chart.
+const toLocalYMD = (value: Date | string): string => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
@@ -29,9 +42,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, expenses, settings }) => {
   const [activeSection, setActiveSection] = useState<'overview' | 'revenue' | 'plans' | 'deductions' | 'daily'>('overview');
   const [dailyViewMode, setDailyViewMode] = useState<'day' | 'month' | 'range'>('day');
-  const [dailyStartDate, setDailyStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [dailyEndDate, setDailyEndDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [dailyStartDate, setDailyStartDate] = useState<string>(() => toLocalYMD(new Date()));
+  const [dailyEndDate, setDailyEndDate] = useState<string>(() => toLocalYMD(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => toLocalYMD(new Date()).slice(0, 7));
   const [revenueWindowOffset, setRevenueWindowOffset] = useState(0);
 
   // ── Active/Expired based on expiryDate (source of truth) ──
@@ -101,22 +114,22 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
   const handleViewModeChange = (mode: 'day' | 'month' | 'range') => {
     setDailyViewMode(mode);
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toLocalYMD(new Date());
     if (mode === 'day') {
       setDailyStartDate(todayStr);
       setDailyEndDate(todayStr);
     } else if (mode === 'month') {
       const [y, m] = selectedMonth.split('-').map(Number);
-      setDailyStartDate(new Date(y, m - 1, 1).toISOString().slice(0, 10));
-      setDailyEndDate(new Date(y, m, 0).toISOString().slice(0, 10));
+      setDailyStartDate(toLocalYMD(new Date(y, m - 1, 1)));
+      setDailyEndDate(toLocalYMD(new Date(y, m, 0)));
     }
   };
 
   const handleMonthChange = (monthStr: string) => {
     setSelectedMonth(monthStr);
     const [y, m] = monthStr.split('-').map(Number);
-    setDailyStartDate(new Date(y, m - 1, 1).toISOString().slice(0, 10));
-    setDailyEndDate(new Date(y, m, 0).toISOString().slice(0, 10));
+    setDailyStartDate(toLocalYMD(new Date(y, m - 1, 1)));
+    setDailyEndDate(toLocalYMD(new Date(y, m, 0)));
   };
 
   const planStats = useMemo(() => {
@@ -205,7 +218,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
     const periodReceipts = (receipts || []).filter(r => {
       if (r.status !== PaymentStatus.SUCCESS) return false;
       try {
-        const rDate = new Date(r.date).toISOString().slice(0, 10);
+        const rDate = toLocalYMD(new Date(r.date));
         return rDate >= dailyStartDate && rDate <= dailyEndDate;
       } catch { return false; }
     });
@@ -554,7 +567,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
 
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-white/5">
               {dailyViewMode === 'day' && (
-                <input type="date" value={dailyStartDate} max={new Date().toISOString().slice(0, 10)}
+                <input type="date" value={dailyStartDate} max={toLocalYMD(new Date())}
                   onChange={e => { setDailyStartDate(e.target.value); setDailyEndDate(e.target.value); }}
                   className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" />
               )}
@@ -570,7 +583,7 @@ const BusinessAnalytics: React.FC<BusinessAnalyticsProps> = ({ users, receipts, 
                     onChange={e => setDailyStartDate(e.target.value)}
                     className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" />
                   <span className="text-slate-400 text-xs font-bold">to</span>
-                  <input type="date" value={dailyEndDate} min={dailyStartDate} max={new Date().toISOString().slice(0, 10)}
+                  <input type="date" value={dailyEndDate} min={dailyStartDate} max={toLocalYMD(new Date())}
                     onChange={e => setDailyEndDate(e.target.value)}
                     className="bg-slate-50 dark:bg-[#030712] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500" />
                 </>
