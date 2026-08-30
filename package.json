@@ -17,6 +17,7 @@
     "@supabase/supabase-js": "^2.105.1",
     "@types/express": "^5.0.6",
     "@types/three": "^0.184.0",
+    "aws4fetch": "^1.0.20",
     "driver.js": "^1.4.0",
     "esbuild": "^0.28.0",
     "express": "^5.2.1",
