@@ -1028,10 +1028,15 @@ async function logMessage(
   content: string,
   opts: { flagged?: boolean; managerId?: string; waMessageId?: string; mediaUrl?: string | null; translatedContent?: string | null } = {}
 ) {
+  let insertedId: string | null = null;
+  let insertedCreatedAt: string | null = null;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      // return=representation (not minimal) so we get back the real DB id —
+      // needed to enrich the push notification payload below, which the
+      // Android app's background task uses to pre-cache this exact row.
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
       body: JSON.stringify({
         manager_id: opts.managerId || 'mahadnet',
         customer_phone: normPhone(customerPhone),
@@ -1042,6 +1047,12 @@ async function logMessage(
         wa_message_id: opts.waMessageId || null,
       }),
     });
+    if (res.ok) {
+      const rows: any = await res.json();
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      insertedId = row?.id || null;
+      insertedCreatedAt = row?.created_at || null;
+    }
   } catch (e: any) { console.error('[logMessage]', e?.message); }
 
   // Fire-and-forget push notification to the Wabot BillCollector Android app
@@ -1049,7 +1060,11 @@ async function logMessage(
   // so a push failure (or the push_tokens table being empty/missing) can
   // never affect message logging or the bot's reply flow above/below this.
   if (direction === 'in') {
-    notifyPushTokens(opts.managerId || 'mahadnet', customerPhone, type, content).catch((e: any) =>
+    notifyPushTokens(opts.managerId || 'mahadnet', customerPhone, type, content, {
+      messageId: insertedId,
+      createdAt: insertedCreatedAt,
+      mediaUrl: opts.mediaUrl || null,
+    }).catch((e: any) =>
       console.error('[notifyPushTokens]', e?.message)
     );
   }
@@ -1111,7 +1126,8 @@ async function notifyPushTokens(
   managerId: string,
   customerPhone: string,
   type: string,
-  content: string
+  content: string,
+  extra: { messageId: string | null; createdAt: string | null; mediaUrl: string | null } = { messageId: null, createdAt: null, mediaUrl: null }
 ) {
   const tokRes = await fetch(
     `${SUPABASE_URL}/rest/v1/push_tokens?manager_id=eq.${managerId}&select=token`,
@@ -1131,12 +1147,24 @@ async function notifyPushTokens(
 
   const displayName = await resolveDisplayName(managerId, customerPhone);
 
+  // messageId/createdAt let the Android app's background notification task
+  // pre-cache this exact row (same id useConversations.tsx's load() later
+  // merges on) so the chat shows it instantly on open, before any network
+  // round-trip. If insert failed and we have no real id, we still send the
+  // notification — the app just won't be able to pre-cache this one.
   const messages = rows.map((r) => ({
     to: r.token,
     sound: 'default',
     title: displayName,
     body: preview,
-    data: { phone: normPhone(customerPhone) },
+    data: {
+      phone: normPhone(customerPhone),
+      messageId: extra.messageId,
+      type,
+      content: type === 'text' ? (content || '').slice(0, 500) : null,
+      mediaUrl: extra.mediaUrl,
+      createdAt: extra.createdAt,
+    },
   }));
 
   await fetch('https://exp.host/--/api/v2/push/send', {
