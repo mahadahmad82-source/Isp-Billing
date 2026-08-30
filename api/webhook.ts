@@ -3,6 +3,7 @@
 
 import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
 import { uploadToR2 } from '../lib/r2.js';
+import { redisGetJSON, redisSetJSON, redisDel } from '../lib/redis.js';
 import * as lamejs from '@breezystack/lamejs';
 import { Jimp, JimpMime } from 'jimp';
 // Type-only import — erased at compile time, never becomes a runtime module
@@ -566,6 +567,18 @@ const OUTAGE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
 async function fetchManagerDataCached(managerIdFilter: string): Promise<any[]> {
   const cached = _managerDataCache[managerIdFilter];
   if (cached && (Date.now() - cached.ts) < MANAGER_DATA_CACHE_TTL_MS) return cached.rows;
+
+  // L2 — Redis, shared across every serverless instance/cold start. This is
+  // the layer that actually helps under real concurrent load: parallel
+  // instances spun up during a burst each start with an empty in-memory
+  // cache above, but all share this.
+  const redisKey = `manager_data:${managerIdFilter}`;
+  const fromRedis = await redisGetJSON<any[]>(redisKey);
+  if (fromRedis) {
+    _managerDataCache[managerIdFilter] = { rows: fromRedis, ts: Date.now() };
+    return fromRedis;
+  }
+
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=manager_id,data&manager_id=eq.${managerIdFilter}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
@@ -573,6 +586,7 @@ async function fetchManagerDataCached(managerIdFilter: string): Promise<any[]> {
     if (!res.ok) { console.error('[Supabase] fetch failed:', res.status); return cached?.rows || []; }
     const rows: any[] = await res.json();
     _managerDataCache[managerIdFilter] = { rows, ts: Date.now() };
+    redisSetJSON(redisKey, rows, 30).catch(() => {}); // fire-and-forget — never block the reply on a cache write
     return rows;
   } catch (e: any) {
     console.error('[fetchManagerDataCached]', e?.message);
@@ -582,6 +596,7 @@ async function fetchManagerDataCached(managerIdFilter: string): Promise<any[]> {
 
 function invalidateManagerDataCache(managerId: string) {
   delete _managerDataCache[managerId];
+  redisDel(`manager_data:${managerId}`).catch(() => {});
 }
 
 async function findCustomer(from: string) {
@@ -3037,11 +3052,18 @@ export default async function handler(req: any, res: any) {
     // get auto-replies from NetBot. Single-tenant for now, so always manager_id='mahadnet'.
     let pausedPhones: string[] = [];
     try {
-      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      });
-      const cfgRows: any[] = await cfgRes.json();
-      pausedPhones = cfgRows?.[0]?.paused_phones || [];
+      const pausedCacheKey = 'paused_phones:mahadnet';
+      const cachedPaused = await redisGetJSON<string[]>(pausedCacheKey);
+      if (cachedPaused) {
+        pausedPhones = cachedPaused;
+      } else {
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+        });
+        const cfgRows: any[] = await cfgRes.json();
+        pausedPhones = cfgRows?.[0]?.paused_phones || [];
+        redisSetJSON(pausedCacheKey, pausedPhones, 30).catch(() => {});
+      }
     } catch (e: any) { console.error('[pausedPhones fetch]', e?.message); }
 
     // Load admin-editable reply templates (WABot "Templates" tab) — every canned reply
