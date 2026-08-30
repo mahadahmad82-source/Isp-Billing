@@ -21,6 +21,16 @@ const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
 // that fails DNS resolution ("fetch failed") with no useful error otherwise.
 const R2_ENDPOINT = (process.env.R2_ENDPOINT || (R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '')).replace(/\/+$/, '');
 
+// The value copied from Cloudflare's per-bucket "S3 API" field is itself
+// already bucket-scoped (ends with /<bucket-name>) — appending the bucket
+// name again would double it up in the path and silently write/read the
+// wrong object key. Detect and handle both forms so this can't happen again
+// regardless of which form ends up in R2_ENDPOINT.
+function bucketBaseUrl(): string {
+  if (!R2_ENDPOINT) return '';
+  const suffix = `/${R2_BUCKET_NAME}`;
+  return R2_ENDPOINT.endsWith(suffix) ? R2_ENDPOINT : `${R2_ENDPOINT}${suffix}`;
+}
 const r2Client =
   R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY
     ? new AwsClient({
@@ -41,7 +51,7 @@ export async function uploadToR2(path: string, buffer: Buffer, contentType: stri
     return null;
   }
   try {
-    const res = await r2Client.fetch(`${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`, {
+    const res = await r2Client.fetch(`${bucketBaseUrl()}/${path}`, {
       method: 'PUT',
       headers: { 'Content-Type': contentType, 'Cache-Control': 'max-age=31536000' },
       body: buffer,
@@ -50,6 +60,7 @@ export async function uploadToR2(path: string, buffer: Buffer, contentType: stri
       console.error('[uploadToR2]', res.status, await res.text());
       return null;
     }
+    console.log('[uploadToR2] ok:', `${bucketBaseUrl()}/${path}`);
     return `${R2_PUBLIC_URL}/${path}`;
   } catch (e: any) {
     console.error('[uploadToR2]', e?.message, '| endpoint:', R2_ENDPOINT);
