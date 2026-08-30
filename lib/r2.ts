@@ -15,7 +15,11 @@ const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'mahadnet-whatsapp-media';
 const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
-const R2_ENDPOINT = R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '';
+// Prefer an explicit full endpoint (R2_ENDPOINT — copy-pasted verbatim from the
+// R2 bucket's "S3 API" field) over reconstructing it from R2_ACCOUNT_ID, since
+// a truncated/mis-extracted account ID silently produces a malformed hostname
+// that fails DNS resolution ("fetch failed") with no useful error otherwise.
+const R2_ENDPOINT = (process.env.R2_ENDPOINT || (R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '')).replace(/\/+$/, '');
 
 const r2Client =
   R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY
@@ -48,7 +52,7 @@ export async function uploadToR2(path: string, buffer: Buffer, contentType: stri
     }
     return `${R2_PUBLIC_URL}/${path}`;
   } catch (e: any) {
-    console.error('[uploadToR2]', e?.message);
+    console.error('[uploadToR2]', e?.message, '| endpoint:', R2_ENDPOINT);
     return null;
   }
 }
