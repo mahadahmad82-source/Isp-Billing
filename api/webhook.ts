@@ -2,6 +2,7 @@
 // Dynamic packages from Supabase + Router catalog with images + session state
 
 import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
+import { uploadToR2 } from '../lib/r2.js';
 import * as lamejs from '@breezystack/lamejs';
 import { Jimp, JimpMime } from 'jimp';
 // Type-only import — erased at compile time, never becomes a runtime module
@@ -1221,13 +1222,9 @@ async function downloadAndStoreMedia(mediaId: string): Promise<{ url: string; bu
     }
     const ext = storedMimeType.split('/')[1]?.split(';')[0] || 'jpg';
     const path = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
-    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
-      method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': storedMimeType, 'Cache-Control': 'max-age=31536000' },
-      body: storedBuf,
-    });
-    if (!upRes.ok) { console.error('[media upload]', upRes.status, await upRes.text()); return null; }
-    return { url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, buffer: storedBuf, mimeType: storedMimeType };
+    const url = await uploadToR2(path, storedBuf, storedMimeType);
+    if (!url) return null;
+    return { url, buffer: storedBuf, mimeType: storedMimeType };
   } catch (e: any) { console.error('[downloadAndStoreMedia]', e?.message); return null; }
 }
 
@@ -1403,13 +1400,7 @@ async function transcribeAudio(mediaId: string): Promise<{ transcript: string | 
     try {
       const ext = mimeType.split('/')[1]?.split(';')[0] || 'ogg';
       const path = `voice-notes/${Date.now()}-${mediaId}.${ext}`;
-      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': mimeType, 'Cache-Control': 'max-age=31536000' },
-        body: buf,
-      });
-      if (upRes.ok) mediaUrl = `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
-      else console.error('[transcribeAudio upload]', upRes.status, await upRes.text());
+      mediaUrl = await uploadToR2(path, buf, mimeType);
     } catch (e: any) { console.error('[transcribeAudio store]', e?.message); }
 
     // Primary: Gemini (better accuracy on Pakistani accents)
@@ -1503,13 +1494,7 @@ Output: Assalam o alaikum, internet kaam nahi kar raha`,
 // its public URL — shared by every TTS provider path below.
 async function uploadTtsAudio(mp3Buf: Buffer, prefix: string): Promise<string | null> {
   const path = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
-  const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=31536000' },
-    body: mp3Buf,
-  });
-  if (!upRes.ok) { console.error('[uploadTtsAudio]', upRes.status, await upRes.text()); return null; }
-  return `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`;
+  return uploadToR2(path, mp3Buf, 'audio/mpeg');
 }
 
 async function textToSpeechGemini(text: string): Promise<string | null> {
