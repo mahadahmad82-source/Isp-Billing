@@ -735,22 +735,25 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
     ? 'high' : /slow|thoda|kabhi/.test(t) ? 'low' : 'medium';
   const ticketId = `WA-${Date.now()}`;
   const inboundAt = new Date().toISOString();
-  const complaintTickets = [...(rowData.complaintTickets || []), {
+  const newTicket = {
     id: ticketId, customerId: user.id, customerName: user.name,
     customerPhone: user.phone, title: `WA: ${issue.slice(0, 60)}`,
     description: issue, status: 'open', priority,
     customerLastInboundAt: inboundAt, feedbackStatus: 'pending',
     createdAt: inboundAt, createdBy: 'netbot',
-  }];
+  };
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
-      method: 'PATCH',
+    // Atomic DB-level append (same jsonb_set pattern as append_manager_notification) —
+    // fixes the race where two complaints arriving close together via a stale rowData
+    // snapshot could silently overwrite each other instead of both being saved.
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/append_complaint_ticket`, {
+      method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ data: { ...rowData, complaintTickets } }),
+      body: JSON.stringify({ p_manager_id: managerId, p_ticket: newTicket }),
     });
     invalidateManagerDataCache(managerId);
     console.log(`✅ Complaint saved: ${ticketId} (${priority})`);
-    await notifyManager(managerId, { ...rowData, complaintTickets }, {
+    await notifyManager(managerId, rowData, {
       title: '🛠️ Nayi Complaint (WhatsApp)',
       message: `${user.name}: ${issue.slice(0, 100)}`,
       priority: priority === 'high' ? 'HIGH' : priority === 'low' ? 'LOW' : 'MEDIUM',
@@ -825,12 +828,13 @@ async function saveLead(managerId: string, rowData: any, lead: { name: string; p
     interestedPlan: lead.interestedPlan, status: 'new', note: lead.note,
     source: lead.source, createdAt: now, updatedAt: now,
   };
-  const leads = [...(rowData.leads || []), newLead];
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${managerId}`, {
-      method: 'PATCH',
+    // Atomic DB-level append (same jsonb_set pattern as append_manager_notification /
+    // append_complaint_ticket) — avoids losing a lead when two arrive close together.
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/append_lead`, {
+      method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ data: { ...rowData, leads } }),
+      body: JSON.stringify({ p_manager_id: managerId, p_lead: newLead }),
     });
     invalidateManagerDataCache(managerId);
   } catch (e: any) { console.error('[saveLead]', e?.message); }
