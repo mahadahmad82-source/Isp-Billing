@@ -789,12 +789,12 @@ async function notifyManager(managerId: string, rowData: any, notif: { title: st
       body: JSON.stringify({ p_manager_id: managerId, p_notif: newNotif }),
     });
   } catch (e: any) { console.error('[notifyManager]', e?.message); }
+  // Native Bill Collector Android push now happens inside the shared
+  // send-push-notification edge function itself (fans out to push_tokens
+  // for app='billcollector' alongside the VAPID push_subscriptions below),
+  // so every caller of that function — this one, App.tsx's attendance
+  // alerts, etc. — gets native coverage without each call site wiring it up.
   pushNotify(managerId, notif.title, notif.message.slice(0, 150), 'myisp-alert').catch(() => {});
-  // Native Bill Collector Android app — separate channel (Expo/FCM via push_tokens),
-  // independent of the PWA's VAPID push above. app='billcollector' keeps this out of
-  // the NetBot app, which only wants inbound WhatsApp message alerts (see below).
-  notifyPushTokens(managerId, '', 'complaint', notif.message.slice(0, 150), { title: notif.title, app: 'billcollector' })
-    .catch((e: any) => console.error('[notifyManager->notifyPushTokens]', e?.message));
   return newNotif;
 }
 
