@@ -3,7 +3,8 @@
 
 import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
 import { uploadToR2 } from '../lib/r2.js';
-import { redisGetJSON, redisSetJSON, redisDel } from '../lib/redis.js';
+import { redisGetJSON, redisSetJSON, redisDel, redisIncrWithWindow } from '../lib/redis.js';
+import crypto from 'crypto';
 import * as lamejs from '@breezystack/lamejs';
 import { Jimp, JimpMime } from 'jimp';
 // Type-only import — erased at compile time, never becomes a runtime module
@@ -23,6 +24,16 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role —
 // WhatsApp Business number (Phase 5 multi-tenant routing), not this one.
 const BOUND_MANAGER_ID = 'mahadnet';
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'mahadnet_netbot';
+// Meta App Secret (Meta App Dashboard → Settings → Basic → App Secret). Used
+// to verify X-Hub-Signature-256 on incoming POSTs. Currently running in
+// MONITOR MODE ONLY (logs a mismatch, does not reject) — see verifyMetaSignature()
+// below for why: Meta signs the exact raw request bytes, but this Vercel
+// function only has the already-JSON-parsed req.body, so the recomputed
+// signature isn't guaranteed to byte-match for every payload shape. Flip
+// ENFORCE_SIGNATURE to true only after a day or two of monitor-mode logs
+// show zero false mismatches on real traffic.
+const META_APP_SECRET = process.env.META_APP_SECRET || '';
+const ENFORCE_SIGNATURE = false;
 const IMG_BASE = 'https://raw.githubusercontent.com/mahadahmad82-source/Isp-Billing/main/public/whatsapp-images';
 
 // ══════════════════════════════════════════════════════
@@ -3021,8 +3032,40 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
+    // Signature check — MONITOR MODE (see META_APP_SECRET comment above). Never
+    // blocks a request yet; only logs so we can confirm it's reliable first.
+    if (META_APP_SECRET) {
+      try {
+        const sigHeader = req.headers?.['x-hub-signature-256'] as string | undefined;
+        const expected = 'sha256=' + crypto.createHmac('sha256', META_APP_SECRET).update(JSON.stringify(req.body || {})).digest('hex');
+        if (!sigHeader) {
+          console.warn('[sig-monitor] missing X-Hub-Signature-256 header');
+        } else if (sigHeader !== expected) {
+          console.warn('[sig-monitor] MISMATCH — if this keeps happening on genuine Meta traffic, do not enable ENFORCE_SIGNATURE without switching to raw-body verification first');
+        }
+        if (ENFORCE_SIGNATURE && sigHeader !== expected) {
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
+      } catch (e: any) { console.error('[sig-monitor]', e?.message); }
+    }
+
     const messages: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.messages || [];
     const statuses: any[] = req.body?.entry?.[0]?.changes?.[0]?.value?.statuses || [];
+
+    // Per-phone rate limit — 30 messages/minute. Fails OPEN (allows the message)
+    // if Redis is unreachable, since rate limiting must never be the reason the
+    // bot goes down for everyone.
+    const firstSenderPhone = messages?.[0]?.from;
+    if (firstSenderPhone) {
+      try {
+        const rlCount = await redisIncrWithWindow(`ratelimit:${firstSenderPhone}`, 60);
+        if (rlCount !== null && rlCount > 30) {
+          console.warn('[rate-limit] blocked', firstSenderPhone, 'count=', rlCount);
+          return res.status(200).json({ status: 'rate_limited' }); // 200 so Meta doesn't retry-storm us
+        }
+      } catch (e: any) { console.error('[rate-limit]', e?.message); }
+    }
+
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
     CURRENT_PLAN_TYPE = null; // defensive: never carry a previous invocation's plan_type
     CURRENT_VOICE_ALLOWED = true; // defensive: reset until checkQuota() runs this invocation
