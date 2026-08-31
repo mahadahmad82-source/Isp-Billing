@@ -16,8 +16,13 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role —
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { token, deviceName } = req.body || {};
+  const { token, deviceName, app } = req.body || {};
   if (!token) return res.status(400).json({ error: 'token is required' });
+  // Which native app registered this token — 'billcollector' or 'wabot' — so
+  // webhook.ts can target the right app instead of blasting every event to
+  // every installed app under this manager_id. Purely a routing tag, not an
+  // identity field, so it's safe to trust from the request body.
+  const appTag = app === 'billcollector' ? 'billcollector' : 'wabot';
 
   const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
   const bearerToken = String(authHeader).replace(/^Bearer\s+/i, '');
@@ -78,6 +83,7 @@ export default async function handler(req: any, res: any) {
         owner_username: ownerUsername,
         token,
         device_name: deviceName || null,
+        app: appTag,
         updated_at: new Date().toISOString(),
       }),
     });
