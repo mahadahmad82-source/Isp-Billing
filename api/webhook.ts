@@ -790,6 +790,11 @@ async function notifyManager(managerId: string, rowData: any, notif: { title: st
     });
   } catch (e: any) { console.error('[notifyManager]', e?.message); }
   pushNotify(managerId, notif.title, notif.message.slice(0, 150), 'myisp-alert').catch(() => {});
+  // Native Bill Collector Android app — separate channel (Expo/FCM via push_tokens),
+  // independent of the PWA's VAPID push above. app='billcollector' keeps this out of
+  // the NetBot app, which only wants inbound WhatsApp message alerts (see below).
+  notifyPushTokens(managerId, '', 'complaint', notif.message.slice(0, 150), { title: notif.title, app: 'billcollector' })
+    .catch((e: any) => console.error('[notifyManager->notifyPushTokens]', e?.message));
   return newNotif;
 }
 
@@ -1095,6 +1100,7 @@ async function logMessage(
       messageId: insertedId,
       createdAt: insertedCreatedAt,
       mediaUrl: opts.mediaUrl || null,
+      app: 'wabot',
     }).catch((e: any) =>
       console.error('[notifyPushTokens]', e?.message)
     );
@@ -1150,53 +1156,64 @@ async function resolveDisplayName(managerId: string, phone: string): Promise<str
   return `+92${norm}`;
 }
 
-// Looks up Expo push tokens registered by the mobile app (push_tokens table)
-// for this manager and sends a notification via Expo's push API. See
-// mahadahmad82-source/Wabot-Android for the app that registers these tokens.
+// Looks up Expo push tokens registered by the mobile apps (push_tokens table)
+// for this manager and sends a notification via Expo's push API. Filtered by
+// app ('wabot' | 'billcollector') so a NetBot chat message never pings the
+// Bill Collector app and vice versa — see mahadahmad82-source/Wabot-Android
+// and mahadahmad82-source/Billcollector-Android for the apps that register
+// these tokens (both tag their own registration with `app` at register time).
 async function notifyPushTokens(
   managerId: string,
   customerPhone: string,
   type: string,
   content: string,
-  extra: { messageId: string | null; createdAt: string | null; mediaUrl: string | null } = { messageId: null, createdAt: null, mediaUrl: null }
+  extra: { messageId?: string | null; createdAt?: string | null; mediaUrl?: string | null; title?: string; app?: 'wabot' | 'billcollector' } = {}
 ) {
+  const app = extra.app || 'wabot';
   const tokRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/push_tokens?manager_id=eq.${managerId}&select=token`,
+    `${SUPABASE_URL}/rest/v1/push_tokens?manager_id=eq.${managerId}&app=eq.${app}&select=token`,
     { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
   );
   if (!tokRes.ok) return;
   const rows: { token: string }[] = await tokRes.json();
   if (!rows.length) return;
 
-  const preview =
-    type === 'text' ? (content || '').slice(0, 120)
-    : type === 'image' ? '📷 Photo'
-    : type === 'audio' || type === 'voice' ? '🎤 Voice message'
-    : type === 'video' ? 'Video'
-    : type === 'document' ? '📄 Document'
-    : 'New message';
+  let title: string;
+  let body: string;
+  let data: Record<string, any>;
 
-  const displayName = await resolveDisplayName(managerId, customerPhone);
-
-  // messageId/createdAt let the Android app's background notification task
-  // pre-cache this exact row (same id useConversations.tsx's load() later
-  // merges on) so the chat shows it instantly on open, before any network
-  // round-trip. If insert failed and we have no real id, we still send the
-  // notification — the app just won't be able to pre-cache this one.
-  const messages = rows.map((r) => ({
-    to: r.token,
-    sound: 'default',
-    title: displayName,
-    body: preview,
-    data: {
+  if (app === 'billcollector') {
+    // Generic manager alert (complaint/lead) — no chat thread to deep-link into,
+    // just title + message as given by the caller.
+    title = extra.title || 'Bill Collector';
+    body = (content || '').slice(0, 150);
+    data = { kind: type };
+  } else {
+    const preview =
+      type === 'text' ? (content || '').slice(0, 120)
+      : type === 'image' ? '📷 Photo'
+      : type === 'audio' || type === 'voice' ? '🎤 Voice message'
+      : type === 'video' ? 'Video'
+      : type === 'document' ? '📄 Document'
+      : 'New message';
+    title = await resolveDisplayName(managerId, customerPhone);
+    body = preview;
+    // messageId/createdAt let the Android app's background notification task
+    // pre-cache this exact row (same id useConversations.tsx's load() later
+    // merges on) so the chat shows it instantly on open, before any network
+    // round-trip. If insert failed and we have no real id, we still send the
+    // notification — the app just won't be able to pre-cache this one.
+    data = {
       phone: normPhone(customerPhone),
-      messageId: extra.messageId,
+      messageId: extra.messageId ?? null,
       type,
       content: type === 'text' ? (content || '').slice(0, 500) : null,
-      mediaUrl: extra.mediaUrl,
-      createdAt: extra.createdAt,
-    },
-  }));
+      mediaUrl: extra.mediaUrl ?? null,
+      createdAt: extra.createdAt ?? null,
+    };
+  }
+
+  const messages = rows.map((r) => ({ to: r.token, sound: 'default', title, body, data }));
 
   await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
