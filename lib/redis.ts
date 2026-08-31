@@ -58,3 +58,18 @@ export async function redisSetJSON(key: string, value: any, ttlSeconds: number):
 export async function redisDel(key: string): Promise<void> {
   await redisCommand(['DEL', key]);
 }
+
+// Atomically increments a counter and sets its expiry only on the FIRST
+// increment (NX — won't reset the window on every message). Returns the new
+// count, or null if Redis is unreachable — callers should fail OPEN (allow
+// the message through) on null, since rate limiting must never be the thing
+// that breaks the bot.
+export async function redisIncrWithWindow(key: string, windowSeconds: number): Promise<number | null> {
+  if (!configured) return null;
+  const count = await redisCommand<number>(['INCR', key]);
+  if (count === 1) {
+    // Fire-and-forget — don't block the rate-limit check on this.
+    redisCommand(['EXPIRE', key, windowSeconds]).catch(() => {});
+  }
+  return count;
+}
