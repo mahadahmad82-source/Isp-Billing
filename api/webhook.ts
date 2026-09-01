@@ -474,6 +474,10 @@ Pehle yeh quick steps try kar lein, aksar isi se theek ho jata hai:
 {tips}
 
 Agar phir bhi masla rahe to bas yahan likh dein — main foran complaint register kar ke technical team ko bhej dungi! 👍{fiber_pitch}`,
+  diagnostic_password_guide_followup: `
+
+Yeh steps try kar ke bata dein — internet/WiFi theek ho gaya? 👍`,
+  diagnostic_unavailable_fallback: `Maazrat, thodi dair ke liye system slow ho gaya 🙏 Ek dafa dobara bata dein kya masla ho raha hai, ya call kar lein: {support_number}`,
   outage_reply: `{owner_name} bhai ki team ko *{areas}* mein {issue_type} ka pehle se pata hai aur kaam jaari hai! 🛠️
 {cause_line}{eta_line}
 
@@ -2887,6 +2891,231 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECEN
   return result;
 }
 
+// ── Diagnostic Engine (Technical Support Protocol) ──────────────────────────
+// Multi-turn interactive troubleshooting that runs BEFORE a complaint ticket is
+// ever registered — mirrors a real technician: pin down the symptom (device
+// scope, router lights, complete/intermittent/slow), walk through router
+// placement/antenna/interference and a speedtest.net comparison for slow-speed
+// complaints, and only escalate to a ticket for a confirmed hardware fault,
+// failed troubleshooting, or when the customer genuinely can't self-serve
+// (e.g. change their own WiFi password). Router IP/login facts are NEVER left
+// to the LLM to invent — see routerPasswordGuide() call site in the webhook
+// handler below, same "real facts come from code" rule this file already
+// follows for bank accounts/package prices.
+const DIAGNOSTIC_TURN_CAP = 5;
+
+function diagnosticGenderToneBlock(gender: 'male' | 'female'): string {
+  return gender === 'male'
+    ? `MALE TONE — ZAROORI (Urdu replies mein, kabhi female/larkiyon wale verb forms mat use karo):
+GHALAT (female) → SAHI (male):
+rahi hoon → raha hoon | karungi → karoon ga / karunga | dungi → doon ga / dunga
+lungi → loon ga / lunga | bhejungi → bhejoon ga | samajhti hoon → samajhta hoon
+rahungi → rahunga | sakti hoon → sakta hoon | thi → tha | hui thi → hua tha
+madad karti hoon → madad karta hoon | dekhti hoon → dekhta hoon`
+    : `FEMALE TONE — ZAROORI (Urdu replies mein, kabhi male/larko wale verb forms mat use karo):
+GHALAT (male) → SAHI (female):
+raha hoon → rahi hoon | karoon ga / karunga → karungi | doon ga / dunga → dungi
+loon ga / lunga → lungi | bhejoon ga → bhejungi | samajhta hoon → samajhti hoon
+rahunga → rahungi | sakta hoon → sakti hoon | tha → thi | hua tha → hui thi
+madad karta hoon → madad karti hoon | dekhta hoon → dekhti hoon`;
+}
+
+function diagnosticSystemPrompt(opts: {
+  botName: string; gender: 'male' | 'female'; connectionType: 'fiber' | 'local' | null;
+  custData: string; turnsUsed: number;
+}): string {
+  const { botName, gender, connectionType, custData, turnsUsed } = opts;
+  const connLine = connectionType
+    ? `Connection type maloom hai: *${connectionType === 'fiber' ? 'Fiber' : 'Local/UTP'}* — dobara mat poochna.`
+    : `Connection type (Fiber ya Local/UTP) abhi maloom nahi — zaroorat pare (router/signal wala masla ho) to poochh sakti ho, warna skip kar do.`;
+
+  return `Tu ${botName} hai — MahadNet ISP ki technical support executive, ek real Pakistani larki/larka jo customer ka internet issue diagnose kar rahi/raha hai. Tu kabhi khud ko AI, bot, model, ya assistant nahi kehti.
+
+${diagnosticGenderToneBlock(gender)}
+
+SCRIPT/LANGUAGE — ZAROORI: Customer jis script/zabaan mein likhe (Roman Urdu, English, ya Urdu/Nastaliq script), usi mein jawab do. Kabhi Urdu/Arabic script mat likhna jab tak customer ne khud usi script mein likha ho. Ek reply mein do zabanein mix mat karo.
+
+TUM EK TECHNICAL DIAGNOSTIC AGENT HO — YEH PROTOCOL SAKHTI SE FOLLOW KARO:
+
+QAIDA #1 — TICKET FOURAN MAT BANAO: Sirf 1-2 messages ke baad hi complaint ticket register NAHI karni. Pehle interactively diagnose aur guide karo, jaise neeche likha hai.
+
+QAIDA #2 — PEHLE SYMPTOM SAMJHO (jo abhi tak maloom nahi sirf wahi poocho, sab kuch ek sath mat poocho):
+- Masla sab devices/connections mein hai ya sirf ek device mein?
+- Router/ONU ki lights kya dikha rahi hain (Power, PON/LOS, LAN, Internet)? Koi light red ho ya bilkul na jal rahi ho to yeh HARDWARE fault ka strong sign hai.
+- Connection bilkul band hai, beech-beech mein cut hoti hai, ya sirf slow hai?
+${connLine}
+
+QAIDA #3 — AGAR SPEED SLOW KI COMPLAINT HO, yeh sequence follow karo (ek-ek step, sab ek message mein mat thoonso):
+a) Customer ka package/plan CUSTOMER INFO mein diya hua hai — usi se compare karo, dobara mat poocho.
+b) speedtest.net ya fast.com pe test karne ko bolo aur result maango.
+c) Result unke plan se compare karke batao normal hai ya kam.
+d) Router placement guide do: center/elevated jagah rakhein, mote concrete wall/metal cabinet/heavy appliance se door rakhein. Antenna ho to dono antenna alag-alag angle (ek seedha, ek 90-degree) pe rakhein. Kitne devices connected hain poocho — zyada devices se bandwidth divide hoti hai. Microwave/cordless phone/Bluetooth se router door rakhwao.
+
+QAIDA #4 — WIFI PASSWORD / UNKNOWN DEVICES KA MASLA: Password change karne ki salah do (unauthorized devices disconnect karne ke liye). Poocho khud change kar sakte hain ya nahi.
+- Agar HAAN, khud kar sakte hain: router ka BRAND/MODEL poocho (Huawei, China Mobile, Vsol — fiber ONU; ya TP-Link, MT-Link, Tenda — local router). Jaise hi customer brand bata de, action "need_router_brand" set karo — TUM KHUD koi IP address ya login credential MAT BATANA/INVENT MAT KARNA, system yeh exact steps khud bhej dega.
+- Agar NAHI kar sakte: naya password chat mein maango taake remote se update ho sake, YA agar wo bhi mumkin na ho to "escalate_cannot_selfserve" karo taake team follow-up kare.
+
+QAIDA #5 — ESCALATE SIRF TAB KARO JAB:
+- "escalate_hardware": physical/hardware fault confirm ho gaya (red/LOS light, fiber cable cut, damaged/burnt device, koi light hi na jal rahi ho)
+- "escalate_failed": upar wale troubleshooting steps de diye lekin customer confirm kare ke abhi bhi masla hai
+- "escalate_cannot_selfserve": customer khud koi zaroori step (jaise password change) nahi kar sakta aur remote/on-site madad chahiye
+- "resolved": customer confirm kare ke masla hal ho gaya
+- "need_router_brand": QAIDA #4 dekho
+- "continue": abhi bhi diagnose/guide kar rahe ho — zyada tar turns yehi honi chahiye
+${turnsUsed >= DIAGNOSTIC_TURN_CAP - 1 ? `\nNOTE: Is conversation mein kaafi turns ho chuke hain — agar ab bhi masla hal nahi hua to is baar "escalate_failed" ya "escalate_cannot_selfserve" choose karo, customer ko zyada dair loop mein mat rakho.\n` : ''}
+TONE: Chhoti, warm, natural Roman Urdu/English sentences (jaisa customer khud likh raha ho) — ek tajurbakar technician jesi, robotic nahi. Ek waqt mein ek hi sawal/step do, poora protocol ek message mein mat thoonso.
+
+OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence nahi:
+{"reply": "customer ko bhejne wala jawab — max 4-5 lines, 1-2 emoji max", "action": "continue ya need_router_brand ya escalate_hardware ya escalate_failed ya escalate_cannot_selfserve ya resolved", "summary": "sirf jab action escalate_* ho — 1-2 line internal note (root cause + kya try kiya) field technician ke liye, warna khali chor do"}
+
+CUSTOMER INFO: ${custData}
+COMPANY: MahadNet | Support: ${CONFIG.supportNumber}`;
+}
+
+async function callDiagnosticGroq(system: string, userMessage: string): Promise<{ reply: string; action: string; summary?: string }> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('No GROQ key');
+  const VALID_ACTIONS = new Set(['continue', 'need_router_brand', 'escalate_hardware', 'escalate_failed', 'escalate_cannot_selfserve', 'resolved']);
+  let lastError = 'unknown';
+  // Same model failover pair used by callGroqOnce elsewhere in this file.
+  for (const model of ['openai/gpt-oss-120b', 'openai/gpt-oss-20b']) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
+        temperature: 0.5,
+        max_completion_tokens: 400,
+        reasoning_effort: 'low',
+        response_format: { type: 'json_object' },
+      }),
+    });
+    if (!res.ok) {
+      lastError = `Groq ${model} ${res.status}: ${(await res.text()).slice(0, 300)}`;
+      console.error('[diagnosticEngine]', lastError);
+      continue;
+    }
+    const data = await res.json();
+    const raw = data?.choices?.[0]?.message?.content?.trim();
+    if (!raw) { lastError = `Groq ${model} empty response`; console.error('[diagnosticEngine]', lastError); continue; }
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        reply: sanitizeHindiWords(String(parsed.reply || '').trim()),
+        action: VALID_ACTIONS.has(parsed.action) ? parsed.action : 'continue',
+        summary: parsed.summary ? String(parsed.summary).trim().slice(0, 400) : undefined,
+      };
+    } catch {
+      return { reply: sanitizeHindiWords(raw), action: 'continue' };
+    }
+  }
+  throw new Error(lastError);
+}
+
+// One diagnostic turn: builds the protocol prompt, calls Groq, retries once if
+// an Urdu-script leak slips through (same guardrail askGroq uses), and falls
+// back to a safe generic reply if Groq is unreachable entirely — a diagnostic
+// flow can never leave the customer stuck with zero response.
+async function runDiagnosticTurn(opts: {
+  botName: string; gender: 'male' | 'female'; connectionType: 'fiber' | 'local' | null;
+  custData: string; transcript: string[]; turnsUsed: number;
+}, userMessage: string): Promise<{ reply: string; action: string; summary?: string }> {
+  const replyInUrduScript = containsUrduScript(userMessage);
+  const historyBlock = opts.transcript.length
+    ? `\n\nCONVERSATION SO FAR (ismein se dobara wahi sawal mat poochna jo pehle poocha ja chuka hai):\n${opts.transcript.slice(-10).join('\n')}`
+    : '';
+  const system = diagnosticSystemPrompt(opts) + historyBlock;
+
+  try {
+    let result = await callDiagnosticGroq(system, userMessage);
+    if (!replyInUrduScript && containsUrduScript(result.reply)) {
+      const strictSystem = `${system}\n\nCRITICAL CORRECTION: Pichli baar tumne Urdu/Nastaliq script mein jawab diya — GHALAT hai. Is dafa SIRF Roman/Latin letters mein likho, ek bhi Urdu/Arabic character nahi.`;
+      result = await callDiagnosticGroq(strictSystem, userMessage);
+    }
+    if (!replyInUrduScript && containsUrduScript(result.reply)) {
+      return { reply: tmpl('urdu_script_leak_fallback', { support_number: CONFIG.supportNumber }), action: 'continue' };
+    }
+    return result;
+  } catch (e: any) {
+    console.error('[runDiagnosticTurn]', e?.message);
+    return { reply: tmpl('diagnostic_unavailable_fallback', { support_number: CONFIG.supportNumber }), action: 'continue' };
+  }
+}
+
+// Interprets one diagnostic turn's action and either keeps the session alive
+// (continue / need_router_brand), closes it out with no ticket (resolved), or
+// escalates to a real complaint ticket via the existing registerComplaintAndReply
+// (unchanged) — the diagnostic summary + escalation reason are folded into the
+// issue text so the technician sees full context, same as any other ticket.
+async function handleDiagnosticAction(
+  from: string,
+  found: { managerId: string; rowData: any; user: any },
+  diag: { reply: string; action: string; summary?: string },
+  state: any,
+  opening?: string,
+) {
+  const openingBlock = opening ? `${opening}\n\n` : '';
+
+  if (diag.action === 'resolved') {
+    await setSession(from, null);
+    await sendText(from, `${openingBlock}${diag.reply || tmpl('complaint_resolved_ack')}`);
+    return;
+  }
+
+  if (String(diag.action).startsWith('escalate_')) {
+    await setSession(from, null);
+    if (diag.reply) await sendText(from, `${openingBlock}${diag.reply}`);
+    const connTag = state.connectionType === 'local' ? '[Local/UTP] ' : state.connectionType === 'fiber' ? '[Fiber] ' : '';
+    const reasonLabel = diag.action === 'escalate_hardware' ? 'Hardware fault'
+      : diag.action === 'escalate_cannot_selfserve' ? 'Customer cannot self-serve'
+      : 'Troubleshooting steps did not resolve';
+    const fullIssue = `${connTag}${state.issue}${diag.summary ? ` | ${diag.summary}` : ''} | ${reasonLabel}`;
+    await registerComplaintAndReply(from, found, fullIssue);
+    return;
+  }
+
+  // 'continue' / 'need_router_brand' — keep the diagnostic session alive
+  await setSession(from, 'diagnostic_flow', {
+    ...state,
+    subState: diag.action === 'need_router_brand' ? 'awaiting_brand' : null,
+  });
+  await sendText(from, `${openingBlock}${diag.reply}`);
+}
+
+// Starts a fresh diagnostic conversation for a brand-new complaint. Picks the
+// matched agent (multi-agent routing, e.g. a dedicated technical persona) the
+// same way the Groq-fallback path does, and locks that persona/voice into the
+// session so it stays consistent across every turn of this diagnosis.
+async function startDiagnosticFlow(
+  from: string,
+  found: { managerId: string; rowData: any; user: any },
+  issueText: string,
+  opening?: string,
+) {
+  const connectionType = mapDbConnectionType(found.user.connectionType);
+  const matchedAgent = selectAgent(found.rowData?.settings?.wabotAgents, issueText);
+  const botName = matchedAgent?.name || found.rowData?.settings?.ayeshaBotName || 'NetBot';
+  const ttsVoice = matchedAgent?.voice || found.rowData?.settings?.ttsVoice || null;
+  const ttsProvider = (matchedAgent?.ttsProvider as TtsProvider) || 'gemini';
+  const ttsGender = (matchedAgent?.gender as TtsGender) || 'female';
+  currentTtsVoice = ttsVoice;
+  currentTtsProvider = ttsProvider;
+  currentTtsGender = ttsGender;
+
+  const custData = `Customer: ${found.user.name}${connectionType ? ` | Connection: ${connectionType}` : ''}`;
+  const diag = await runDiagnosticTurn({
+    botName, gender: ttsGender, connectionType, custData, transcript: [], turnsUsed: 0,
+  }, issueText);
+
+  const transcript = [`Customer: ${issueText}`, `${botName}: ${diag.reply}`];
+  await handleDiagnosticAction(from, found, diag, {
+    issue: issueText, connectionType,
+    verifiedManagerId: found.managerId, verifiedUserId: found.user.id,
+    transcript, turns: 1, botName, ttsVoice, ttsProvider, ttsGender,
+  }, opening);
+}
+
 // Semantic layer for the complaint triage flow (Phase 2 — "semantic complaint handling").
 // Previously the FIRST reply to a detailed complaint was always the generic
 // connectionTypeQuestion() ("Theek hai, pehle yeh batayein...") — completely ignoring
@@ -3602,82 +3831,71 @@ export default async function handler(req: any, res: any) {
           if (outage) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
           if (billingBlock) { await sendText(from, billingBlock); continue; }
-          await registerComplaintAndReply(from, found, text);
+          await startDiagnosticFlow(from, found, text);
           continue;
         }
 
-        // Fiber vs Local(UTP) — branches which troubleshooting tips apply
-        if (session === 'awaiting_connection_type') {
-          const connType = detectConnectionType(text);
-          if (!connType) {
-            const t2 = text.toLowerCase().trim();
+        // Interactive multi-turn technical diagnosis (device scope, router lights,
+        // speed test, WiFi/router-brand steps) BEFORE any ticket is registered —
+        // see runDiagnosticTurn()/startDiagnosticFlow() further up this file.
+        if (session === 'diagnostic_flow') {
+          const stateD = sessionData || {};
+          // Restore this flow's fixed persona/voice (set once when the flow
+          // started) so it never silently switches agent/voice mid-conversation.
+          currentTtsVoice = stateD.ttsVoice || null;
+          currentTtsProvider = (stateD.ttsProvider as TtsProvider) || 'gemini';
+          currentTtsGender = (stateD.ttsGender as TtsGender) || 'female';
+          const botNameD = stateD.botName || 'NetBot';
+          const tD = text.toLowerCase().trim();
 
-            // Escape hatch #1: customer typed "8" / asked for the owner instead of
-            // answering Fiber/Local — route them to talk-to-owner instead of trapping
-            // them in a repeated "samajh nahi payi" loop.
-            if (/^8$/.test(t2) || /\bowner\b|\bmahad\s*bhai\b|\bmalik\b/.test(t2)) {
-              await setSession(from, 'awaiting_owner_message');
-              await sendText(from, tmpl('talk_to_owner_prompt', { owner_name: CONFIG.ownerName }));
-              continue;
-            }
-
-            // Escape hatch #2: customer sent a fresh "net down" style message instead
-            // of answering Fiber/Local (e.g. they moved on to a new complaint) —
-            // restart the complaint flow with this as the new issue instead of
-            // repeating "samajh nahi payi" forever.
-            if (/\b(net|internet|wifi)\b.{0,15}(off|band|nahi|slow|disconnect)|off\s*ho\s*gaya|band\s*ho\s*gaya/.test(t2)) {
-              let found2 = await findCustomer(from);
-              if (!found2 && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
-                found2 = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
-              }
-              if (!found2) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-              const outage2 = getRelevantUpdate(found2.rowData, text, found2.user, { complaint: true });
-              if (outage2) { await sendOutageResponse(from, outage2, found2.user, found2.rowData?.settings?.ayeshaBotName); continue; }
-              const billingBlock2 = accountBillingBlockedReply(found2.user);
-              if (billingBlock2) { await sendText(from, billingBlock2); continue; }
-              await registerComplaintAndReply(from, found2, text);
-              continue;
-            }
-
-            await sendText(from, tmpl('connection_type_not_understood'));
+          // Escape hatch: customer asks for the owner instead of continuing diagnosis
+          if (/^8$/.test(tD) || /\bowner\b|\bmahad\s*bhai\b|\bmalik\b/.test(tD)) {
+            await setSession(from, 'awaiting_owner_message');
+            await sendText(from, tmpl('talk_to_owner_prompt', { owner_name: CONFIG.ownerName }));
             continue;
           }
-          let foundByType = await findCustomer(from);
-          if (!foundByType && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
-            foundByType = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
-          }
-          if (!foundByType) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-          const outageByType = getRelevantUpdate(foundByType.rowData, text, foundByType.user, { complaint: true });
-          if (outageByType) { await sendOutageResponse(from, outageByType, foundByType.user, foundByType.rowData?.settings?.ayeshaBotName); continue; }
-          const billingBlockByType = accountBillingBlockedReply(foundByType.user);
-          if (billingBlockByType) { await sendText(from, billingBlockByType); continue; }
-          const issue = sessionData?.issue || text;
-          const connTag = connType === 'local' ? '[Local/UTP] ' : '[Fiber] ';
-          await registerComplaintAndReply(from, foundByType, `${connTag}${issue}`);
-          continue;
-        }
 
-        // After troubleshooting tips — confirm if resolved, else register the ticket
-        if (session === 'awaiting_complaint_confirm') {
-          await setSession(from, null);
-          const t = text.toLowerCase();
-          const resolved = /^(shukriya|thanks|theek\s*ho\s*gaya|fix\s*ho\s*gaya|ho\s*gaya|chal\s*gaya|sahi\s*ho\s*gaya|thank\s*you)/.test(t);
-          if (resolved) {
-            await sendText(from, tmpl('complaint_resolved_ack'));
+          let foundD = await findCustomer(from);
+          if (!foundD && stateD.verifiedManagerId && stateD.verifiedUserId) {
+            foundD = await findCustomerByManagerAndId(stateD.verifiedManagerId, stateD.verifiedUserId);
+          }
+          if (!foundD) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+
+          const outageD = getRelevantUpdate(foundD.rowData, text, foundD.user, { complaint: true });
+          if (outageD) { await sendOutageResponse(from, outageD, foundD.user, foundD.rowData?.settings?.ayeshaBotName); continue; }
+          const billingBlockD = accountBillingBlockedReply(foundD.user);
+          if (billingBlockD) { await sendText(from, billingBlockD); continue; }
+
+          // Customer replying with their router brand/model after we asked for it —
+          // send the EXACT deterministic IP/login steps (never LLM-generated, same
+          // rule as bank accounts/packages elsewhere), then keep the session alive
+          // to hear if it worked.
+          if (stateD.subState === 'awaiting_brand') {
+            const guide = routerPasswordGuide(text, stateD.connectionType);
+            const transcriptBrand = [...(stateD.transcript || []), `Customer: ${text}`, `${botNameD}: [router password guide sent]`].slice(-10);
+            await setSession(from, 'diagnostic_flow', { ...stateD, subState: null, transcript: transcriptBrand, turns: (stateD.turns || 1) + 1 });
+            await sendText(from, `${guide}${tmpl('diagnostic_password_guide_followup')}`);
             continue;
           }
-          let found = await findCustomer(from);
-          if (!found && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
-            found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
-          }
-          if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-          const outageAfterTips = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
-          if (outageAfterTips) { await sendOutageResponse(from, outageAfterTips, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
-          const billingBlockAfterTips = accountBillingBlockedReply(found.user);
-          if (billingBlockAfterTips) { await sendText(from, billingBlockAfterTips); continue; }
-          const connTag = sessionData?.connectionType === 'local' ? '[Local/UTP] ' : sessionData?.connectionType === 'fiber' ? '[Fiber] ' : '';
-          const combinedIssue = sessionData?.issue ? `${connTag}${sessionData.issue} | Follow-up: ${text}` : `${connTag}${text}`;
-          await registerComplaintAndReply(from, found, combinedIssue);
+
+          const turnsUsedD = stateD.turns || 1;
+          const diagD = await runDiagnosticTurn({
+            botName: botNameD, gender: currentTtsGender, connectionType: stateD.connectionType,
+            custData: `Customer: ${foundD.user.name}${stateD.connectionType ? ` | Connection: ${stateD.connectionType}` : ''}`,
+            transcript: stateD.transcript || [], turnsUsed: turnsUsedD,
+          }, text);
+
+          // Hard safety cap — never let this loop forever even if the model keeps
+          // choosing "continue".
+          const finalActionD = (turnsUsedD >= DIAGNOSTIC_TURN_CAP && diagD.action === 'continue') ? 'escalate_failed' : diagD.action;
+          const transcriptD = [...(stateD.transcript || []), `Customer: ${text}`, `${botNameD}: ${diagD.reply}`].slice(-10);
+
+          await handleDiagnosticAction(from, foundD, { ...diagD, action: finalActionD }, {
+            issue: stateD.issue, connectionType: stateD.connectionType,
+            verifiedManagerId: foundD.managerId, verifiedUserId: foundD.user.id,
+            transcript: transcriptD, turns: turnsUsedD + 1,
+            botName: botNameD, ttsVoice: stateD.ttsVoice, ttsProvider: stateD.ttsProvider, ttsGender: stateD.ttsGender,
+          });
           continue;
         }
       }
@@ -3955,21 +4173,12 @@ export default async function handler(req: any, res: any) {
         const billingBlock = accountBillingBlockedReply(user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         const ackLine3 = await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName);
-        // Connection type already on file (Connection Types feature) — skip the
-        // Fiber/Local question, go straight to correct troubleshooting tips (this is
-        // also what reliably triggers the fiber-upgrade pitch for Local customers).
-        const knownConnType3 = mapDbConnectionType(user.connectionType);
         const setupNote3 = routerSetupContextNote(text);
-        if (knownConnType3) {
-          await setSession(from, 'awaiting_complaint_confirm', { issue: text, connectionType: knownConnType3, verifiedManagerId: managerId, verifiedUserId: user.id });
-          const opening = [ackLine3, setupNote3].filter(Boolean).join('\n\n');
-          if (opening) await sendText(from, opening);
-          await sendText(from, troubleshootingReply(text, knownConnType3));
-          continue;
-        }
-        await setSession(from, 'awaiting_connection_type', { issue: text });
         const opening = [ackLine3, setupNote3].filter(Boolean).join('\n\n');
-        await sendText(from, connectionTypeQuestion(opening));
+        // Multi-turn technical diagnosis (device scope, router lights, speed test,
+        // WiFi/router-brand steps) BEFORE any ticket is registered — see
+        // startDiagnosticFlow() further up this file.
+        await startDiagnosticFlow(from, found, text, opening);
         continue;
       }
 
