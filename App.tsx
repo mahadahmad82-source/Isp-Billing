@@ -42,6 +42,10 @@ import WABotStandalone from './components/WABotStandalone';
 import CustomerPortal from './components/CustomerPortal';
 import LandingPage from './components/LandingPage';
 import TermsAndPolicy from './components/TermsAndPolicy';
+import AboutPage from './components/AboutPage';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import ContactPage from './components/ContactPage';
+import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import TourGuide, { WELCOME_STEPS, TAB_STEPS } from './components/TourGuide';
@@ -1645,6 +1649,10 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/portal" element={<CustomerPortal />} />
             <Route path="/terms" element={<TermsAndPolicy onBack={() => window.history.back()} />} />
+            <Route path="/about" element={<AboutPage onBack={() => window.history.back()} />} />
+            <Route path="/privacy" element={<PrivacyPolicy onBack={() => window.history.back()} />} />
+            <Route path="/contact" element={<ContactPage onBack={() => window.history.back()} />} />
+            <Route path="/faq" element={<FAQPage onBack={() => window.history.back()} />} />
             <Route path="*" element={
               showLanding ? (
                 <LandingPage 
