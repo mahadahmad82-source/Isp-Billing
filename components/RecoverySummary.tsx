@@ -208,13 +208,19 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     const actualUser = users.find(u => u.id === item.id || u.username === item.username);
     const monthlyFee = actualUser?.monthlyFee ?? 0;
     const discount   = actualUser?.persistentDiscount ?? 0;
+    const rawBalance = item.balance ?? 0;
 
-    // templateParams[1]: gross monthly fee minus persistent discount, floor 0.
-    const currentMonthPayable = Math.max(0, monthlyFee - discount);
+    // templateParams[1]: gross monthly fee minus persistent discount, then netted against
+    // any advance credit rolled over from a prior overpayment (rawBalance < 0), floor 0.
+    // Previously this ignored the credit entirely, so a customer who had already paid
+    // ahead was still asked for the full discounted fee again.
+    const netFee = Math.max(0, monthlyFee - discount);
+    const creditAvailable = rawBalance < 0 ? Math.abs(rawBalance) : 0;
+    const currentMonthPayable = Math.max(0, netFee - creditAvailable);
 
     // templateParams[2]: use ledger balance exactly as stored — no fallback to creditAmount.
-    // If balance is 0, send 0. Never invent a dues figure from creditAmount.
-    const pendingBalance = Math.max(0, item.balance ?? 0);
+    // If balance is 0 or negative (credit, already absorbed above), send 0. Never invent a dues figure.
+    const pendingBalance = Math.max(0, rawBalance);
 
     await sendPendingAmountTemplate(
       item.phone ?? '',
@@ -1735,13 +1741,18 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                   </h5>
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[420px]">
+                    <table className="w-full text-left min-w-[760px]">
                       <thead className="bg-slate-50 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-slate-500">
                         <tr>
                           <th className="px-6 py-4">Date</th>
                           <th className="px-6 py-4">Ref #</th>
                           <th className="px-6 py-4">Period</th>
-                          <th className="px-6 py-4 text-right">Amount</th>
+                          <th className="px-6 py-4">Method</th>
+                          <th className="px-6 py-4 text-right">Paid</th>
+                          <th className="px-6 py-4 text-right">Advance</th>
+                          <th className="px-6 py-4 text-right">Discount</th>
+                          <th className="px-6 py-4 text-right">Balance</th>
+                          <th className="px-6 py-4">Collected By</th>
                           <th className="px-6 py-4 text-center">Status</th>
                         </tr>
                       </thead>
@@ -1750,7 +1761,12 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                           receipts
                             .filter(r => r.userId === viewingLedgerUser.id)
                             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map(r => (
+                            .map(r => {
+                              const collectorSm = subManagers.find(sm => sm.id === r.collectedBy || sm.username === r.collectedBy);
+                              const collectorLabel = collectorSm ? collectorSm.name || collectorSm.username : (r.collectedBy || 'Manager');
+                              const collectorRole = collectorSm ? 'Sub-Manager' : 'Manager';
+                              const balanceVal = r.balanceAmount || 0;
+                              return (
                               <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                 <td className="px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300">
                                   {new Date(r.date).toLocaleDateString()}
@@ -1761,8 +1777,28 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                 <td className="px-6 py-4 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400">
                                   {r.period}
                                 </td>
+                                <td className="px-6 py-4 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+                                  {r.paymentMethod || '—'}
+                                </td>
                                 <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">
                                   {showAmounts ? `Rs. ${r.paidAmount.toLocaleString()}` : 'Rs. ••••••'}
+                                </td>
+                                <td className="px-6 py-4 text-right text-xs font-black text-indigo-600 dark:text-indigo-400">
+                                  {(r.advanceAmount || 0) > 0 ? (showAmounts ? `Rs. ${(r.advanceAmount || 0).toLocaleString()}` : 'Rs. ••••••') : '—'}
+                                </td>
+                                <td className="px-6 py-4 text-right text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                  {(r.discount || 0) > 0 ? (showAmounts ? `-Rs. ${(r.discount || 0).toLocaleString()}` : 'Rs. ••••••') : '—'}
+                                </td>
+                                <td className={`px-6 py-4 text-right text-xs font-black ${balanceVal > 0 ? 'text-rose-600' : balanceVal < 0 ? 'text-indigo-500' : 'text-slate-400'}`}>
+                                  {balanceVal === 0
+                                    ? '—'
+                                    : balanceVal < 0
+                                      ? (showAmounts ? `Credit Rs. ${Math.abs(balanceVal).toLocaleString()}` : 'Rs. ••••••')
+                                      : (showAmounts ? `Rs. ${balanceVal.toLocaleString()}` : 'Rs. ••••••')}
+                                </td>
+                                <td className="px-6 py-4 text-[10px]">
+                                  <span className="font-black text-slate-700 dark:text-slate-300 block">{collectorLabel}</span>
+                                  <span className={`font-bold uppercase tracking-wider ${collectorRole === 'Sub-Manager' ? 'text-amber-500' : 'text-indigo-500'}`}>{collectorRole}</span>
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                   <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
@@ -1774,10 +1810,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                                   </span>
                                 </td>
                               </tr>
-                            ))
+                              );
+                            })
                         ) : (
                           <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-slate-400 text-xs">No transaction history found.</td>
+                            <td colSpan={10} className="px-6 py-8 text-center text-slate-400 text-xs">No transaction history found.</td>
                           </tr>
                         )}
                       </tbody>
