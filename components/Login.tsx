@@ -812,7 +812,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
                 {/* Password */}
                 <div>
-                  <label className={labelCls}>Master Password</label>
+                  <label className={labelCls}>Password</label>
                   <InputField icon={<LockIcon />} type={showPassword ? 'text' : 'password'} placeholder="Enter password" value={password} onChange={e => setPassword(e.target.value)}
                     rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-indigo-400 transition-colors p-1">{showPassword ? <EyeOffIcon /> : <EyeIcon />}</button>} />
                 </div>
