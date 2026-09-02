@@ -21,6 +21,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const adminSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Split text/voice — voice (Gemini TTS) is the real cost driver, text (Groq) is cheap.
 // Rs.0.50/text msg, Rs.4/voice msg — quotas below are sized to land on the
@@ -857,7 +858,7 @@ async function handleAgentIssueReceipt(req: any, res: any) {
   const discountInput = body.discount === undefined ? undefined : Number(body.discount);
   const paymentMethod = String(body.paymentMethod || 'Cash').trim();
   const description = body.description === undefined || body.description === null ? '' : String(body.description);
-  const paymentDateInput = body.paymentDate || body.date;
+  const paymentDateInput = body.paymentDateTime || body.paymentDate || body.date;
   const requestedTransactionRef = String(body.transactionRef || '').trim();
 
   if (!userId || !Number.isFinite(paidAmount) || paidAmount < 0 || !Number.isFinite(advanceAmount) || advanceAmount < 0) {
@@ -1074,11 +1075,12 @@ function buildAgentReceipt(args: any): { receipt: any; updatedUser: any } {
   const totalPayable = (fee + balance) - resolvedDiscount;
   const calculatedBalance = totalPayable - (paidAmount + advanceAmount);
   const receiptDate = paymentDateInput && !Number.isNaN(new Date(paymentDateInput).getTime()) ? new Date(paymentDateInput) : new Date();
-  const configuredExpiryDate = user.expiryDate;
-  const parsedExpiryDate = configuredExpiryDate ? new Date(configuredExpiryDate) : null;
-  const hasValidConfiguredExpiry = !!parsedExpiryDate && !Number.isNaN(parsedExpiryDate.getTime());
-  const resolvedExpiryDate = hasValidConfiguredExpiry ? configuredExpiryDate : new Date().toISOString();
-  const resolvedRechargeDate = hasValidConfiguredExpiry ? parsedExpiryDate!.toISOString() : new Date().toISOString();
+  const configuredRechargeDate = user.expiryDate;
+  const parsedRechargeDate = configuredRechargeDate ? new Date(configuredRechargeDate) : null;
+  const hasValidConfiguredRecharge = !!parsedRechargeDate && !Number.isNaN(parsedRechargeDate.getTime());
+  const rechargeDate = hasValidConfiguredRecharge ? parsedRechargeDate! : receiptDate;
+  const resolvedRechargeDate = rechargeDate.toISOString();
+  const resolvedExpiryDate = new Date(rechargeDate.getTime() + THIRTY_DAYS_MS).toISOString();
   const existingRefs = new Set<string>((state.receipts || []).map((receipt: any) => receipt?.transactionRef).filter(Boolean));
   const transactionRef = resolveTransactionRef(settings, state.receipts || [], requestedTransactionRef, existingRefs);
   const receipt = {
