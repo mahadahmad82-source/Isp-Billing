@@ -5,7 +5,7 @@ import { BoltIcon, CloseIcon, ClipboardIcon, CheckboxIcon, BarChartIcon, CheckCi
 
 interface QuickActivateProps {
   users: UserRecord[];
-  onActivateUsers: (userIds: string[], expiryDate?: string) => void;
+  onActivateUsers: (targets: Array<{ userId: string; rechargeDate?: string }>) => void;
   onClose: () => void;
   theme: 'light' | 'dark';
   currentMonth: string;
@@ -17,12 +17,51 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
   const isDark = theme === 'dark';
   const [tab, setTab] = useState<'paste' | 'select' | 'excel'>('paste');
   const [pastedUsernames, setPastedUsernames] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
+  const [rechargeDate, setRechargeDate] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [result, setResult] = useState<{ found: string[]; notFound: string[] } | null>(null);
   const [excelLoading, setExcelLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const parseRechargeDate = (rawDate: string, rawTime?: string): string | null => {
+    const value = rawDate.trim();
+    const [datePart, embeddedTime] = value.split(/[T ]+/, 2);
+    const effectiveTime = rawTime || embeddedTime;
+    const excelSerial = Number(datePart);
+    if (/^\d+(\.\d+)?$/.test(datePart) && excelSerial > 20000) {
+      const excelDate = new Date((excelSerial - (25567 + 1)) * 86400 * 1000);
+      return isNaN(excelDate.getTime()) ? null : excelDate.toISOString();
+    }
+    const iso = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    const slash = datePart.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (!iso && !slash) {
+      const fallback = new Date(value);
+      return !isNaN(fallback.getTime()) && fallback.getFullYear() >= 2000 ? fallback.toISOString() : null;
+    }
+    let year = 0, month = 0, day = 0;
+    if (iso) { year = Number(iso[1]); month = Number(iso[2]); day = Number(iso[3]); }
+    else if (slash) {
+      if (Number(slash[1]) > 12) { day = Number(slash[1]); month = Number(slash[2]); year = Number(slash[3]); }
+      else { month = Number(slash[1]); day = Number(slash[2]); year = Number(slash[3]); }
+    } else return null;
+    const time = (effectiveTime || '').match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    const date = new Date(year, month - 1, day, time ? Number(time[1]) : 0, time ? Number(time[2]) : 0, time ? Number(time[3] || 0) : 0, 0);
+    if (isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return date.toISOString();
+  };
+  const parseActivationValues = (values: string[]): { identity: string; rechargeDate?: string } => {
+    const cleaned = values.map(value => String(value ?? '').trim()).filter(Boolean);
+    const dateIndex = cleaned.findIndex(value => !!parseRechargeDate(value));
+    const timeIndex = dateIndex >= 0 && dateIndex + 1 < cleaned.length && /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.test(cleaned[dateIndex + 1]) ? dateIndex + 1 : -1;
+    const parsedDate = dateIndex >= 0 ? parseRechargeDate(cleaned[dateIndex], timeIndex >= 0 ? cleaned[timeIndex] : undefined) : null;
+    const identityParts = cleaned.filter((_, index) => index !== dateIndex && index !== timeIndex);
+    return { identity: identityParts.join(' ').toLowerCase(), rechargeDate: parsedDate || undefined };
+  };
+  const findUserForIdentity = (identity: string): UserRecord | undefined => {
+    const normalized = identity.trim().toLowerCase();
+    return users.find(user => user.username.toLowerCase() === normalized || user.name.toLowerCase() === normalized);
+  };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,36 +72,24 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
     reader.onload = (evt) => {
       try {
         const data = evt.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        // Extract all cell values, flatten, clean
-        const allValues = rows
-          .flat()
-          .map((v: any) => String(v || '').trim().toLowerCase())
-          .filter(v => v && v !== 'username' && v !== 'user' && v !== 'id' && v !== 'name');
-
-        // Match against users
         const found: string[] = [];
         const notFound: string[] = [];
-        const toActivate: string[] = [];
-
-        allValues.forEach(val => {
-          const user = users.find(u =>
-            u.username.toLowerCase() === val ||
-            u.name.toLowerCase() === val
-          );
-          if (user) {
-            found.push(user.username);
-            if (!alreadyActiveIds.has(user.id)) toActivate.push(user.id);
-          } else {
-            notFound.push(val);
-          }
+        const targets: Array<{ userId: string; rechargeDate?: string }> = [];
+        rows.forEach((row: any[]) => {
+          const values = row.map(value => String(value ?? '').trim()).filter(Boolean);
+          if (!values.length || values.every(value => /^(username|user|id|name|recharge ?date)$/i.test(value))) return;
+          const parsed = parseActivationValues(values);
+          const user = findUserForIdentity(parsed.identity) || values.map(value => findUserForIdentity(value)).find(Boolean);
+          if (!user) { notFound.push(parsed.identity || values.join(' ')); return; }
+          found.push(user.username);
+          if (!alreadyActiveIds.has(user.id)) targets.push({ userId: user.id, rechargeDate: parsed.rechargeDate });
         });
-
         setResult({ found, notFound });
-        if (toActivate.length > 0) onActivateUsers(toActivate);
+        if (targets.length > 0) onActivateUsers(targets);
       } catch (err) {
         alert('Could not read the file — please check the Excel format');
       } finally {
@@ -96,33 +123,26 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
   );
 
   const handlePasteActivate = () => {
-    const lines = pastedUsernames.split(/[\n,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    const lines = pastedUsernames.split(/\n/).map(line => line.trim()).filter(Boolean);
     const found: string[] = [];
     const notFound: string[] = [];
-    const toActivate: string[] = [];
-
-    lines.forEach(uname => {
-      const user = users.find(u =>
-        u.username.toLowerCase() === uname ||
-        u.name.toLowerCase() === uname
-      );
-      if (user) {
-        found.push(user.username);
-        if (!alreadyActiveIds.has(user.id)) toActivate.push(user.id);
-      } else {
-        notFound.push(uname);
-      }
+    const targets: Array<{ userId: string; rechargeDate?: string }> = [];
+    lines.forEach(line => {
+      const parsed = parseActivationValues(line.split(/[\s,;\t]+/));
+      const user = findUserForIdentity(parsed.identity) || findUserForIdentity(line.trim());
+      if (!user) { notFound.push(parsed.identity || line); return; }
+      found.push(user.username);
+      if (!alreadyActiveIds.has(user.id)) targets.push({ userId: user.id, rechargeDate: parsed.rechargeDate || (rechargeDate ? parseRechargeDate(rechargeDate) || undefined : undefined) });
     });
-
     setResult({ found, notFound });
-    if (toActivate.length > 0) onActivateUsers(toActivate, expiryDate || undefined);
+    if (targets.length > 0) onActivateUsers(targets);
   };
 
   const handleSelectActivate = () => {
-    const toActivate = Array.from(selectedIds).filter(id => !alreadyActiveIds.has(id));
-    if (toActivate.length > 0) {
-      onActivateUsers(toActivate, expiryDate || undefined);
-      setResult({ found: toActivate.map(id => users.find(u => u.id === id)?.username || ''), notFound: [] });
+    const targets = Array.from(selectedIds).filter(id => !alreadyActiveIds.has(id)).map(userId => ({ userId, rechargeDate: rechargeDate ? parseRechargeDate(rechargeDate) || undefined : undefined }));
+    if (targets.length > 0) {
+      onActivateUsers(targets);
+      setResult({ found: targets.map(target => users.find(user => user.id === target.userId)?.username || ''), notFound: [] });
     }
   };
 
@@ -214,18 +234,18 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
             <div className="space-y-4">
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Paste usernames (one per line, or comma-separated)
+                  Paste username/name + recharge date (columns either order)
                 </label>
                 <textarea
                   value={pastedUsernames}
                   onChange={e => setPastedUsernames(e.target.value)}
-                  placeholder={`FC001\nFC002\nFC003\n\nOr:\nFC001, FC002, FC003`}
+                  placeholder={`FC001 2026-09-01 14:30\nFC002, 2026-09-02\n\nOr:\n2026-09-03 08:00 FC003`}
                   rows={8}
                   className={`w-full px-4 py-3 rounded-2xl border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none
                     ${isDark ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
                 />
                 <p className={`text-[10px] mt-1 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-                  {pastedUsernames.split(/[\n,;]+/).filter(s => s.trim()).length} usernames detected
+                  {pastedUsernames.split(/[\n]+/).filter(s => s.trim()).length} rows detected
                 </p>
               </div>
 
@@ -238,21 +258,21 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                 </ul>
               </div>
 
-              {/* Optional Expiry Date */}
+              {/* Optional Recharge Date */}
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Expiry Date (Optional)
+                  Recharge Date (Optional)
                 </label>
                 <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={e => setExpiryDate(e.target.value)}
+                  type="datetime-local"
+                  value={rechargeDate}
+                  onChange={e => setRechargeDate(e.target.value)}
                   className={`w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
                     ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
-                {expiryDate && (
+                {rechargeDate && (
                   <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                    Expires: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    Recharge: {new Date(rechargeDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })} · Expiry auto +30 days
                   </p>
                 )}
               </div>
@@ -309,28 +329,28 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                   <table className="w-full text-xs">
                     <thead className={`${isDark ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600'} font-black`}>
                       <tr>
-                        <th className="px-3 py-2 text-left">A (Username)</th>
-                        <th className="px-3 py-2 text-left">B (Optional)</th>
+                        <th className="px-3 py-2 text-left">Username / Name</th>
+                        <th className="px-3 py-2 text-left">Recharge Date</th>
                       </tr>
                     </thead>
                     <tbody className={`${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       <tr className={`border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
                         <td className="px-3 py-1.5 font-mono">FC001</td>
-                        <td className="px-3 py-1.5 text-slate-400">Ali Hassan</td>
+                        <td className="px-3 py-1.5 text-slate-400">2026-09-01 14:30</td>
                       </tr>
                       <tr className={`border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
-                        <td className="px-3 py-1.5 font-mono">FC002</td>
-                        <td className="px-3 py-1.5 text-slate-400">Sara Khan</td>
+                        <td className="px-3 py-1.5 font-mono">2026-09-02</td>
+                        <td className="px-3 py-1.5 text-slate-400">FC002</td>
                       </tr>
                       <tr className={`border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
                         <td className="px-3 py-1.5 font-mono">FC003</td>
-                        <td className="px-3 py-1.5 text-slate-400">Ahmed Ali</td>
+                        <td className="px-3 py-1.5 text-slate-400">2026-09-03</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
                 <p className={`text-[10px] mt-2 flex items-start gap-1.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-                  <BulbIcon className="w-3 h-3 flex-shrink-0 mt-0.5" /> Only usernames are needed — no extra info required. The system will match them automatically!
+                  <BulbIcon className="w-3 h-3 flex-shrink-0 mt-0.5" /> Use username/name with recharge date; date can come before or after the identity. Expiry is set automatically to recharge date + 30 days.
                 </p>
               </div>
             </div>
@@ -385,21 +405,21 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
                 ))}
               </div>
 
-              {/* Optional Expiry Date */}
+              {/* Optional Recharge Date */}
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Expiry Date (Optional)
+                  Recharge Date (Optional)
                 </label>
                 <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={e => setExpiryDate(e.target.value)}
+                  type="datetime-local"
+                  value={rechargeDate}
+                  onChange={e => setRechargeDate(e.target.value)}
                   className={`w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
                     ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
-                {expiryDate && (
+                {rechargeDate && (
                   <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                    Expires: {new Date(expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    Recharge: {new Date(rechargeDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })} · Expiry auto +30 days
                   </p>
                 )}
               </div>
