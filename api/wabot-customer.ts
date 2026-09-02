@@ -21,9 +21,18 @@ function formatDate(d: string | undefined | null): string {
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'GET or POST only' });
   const src = req.method === 'GET' ? req.query : req.body || {};
-  const managerId = src.managerId || 'mahadnet';
+  // SECURITY: this endpoint is unauthenticated (called by the Wabot-Android
+  // app before/without a session — see register-push-token.ts for the
+  // pattern used elsewhere once a Bearer token is available). It previously
+  // trusted a client-supplied managerId, which meant anyone who found this
+  // URL could read ANY manager's customer billing/balance data just by
+  // guessing a managerId — a full cross-tenant data leak. This endpoint has
+  // only ever been used for mahadnet's own bound WhatsApp number (see
+  // BOUND_MANAGER_ID in webhook.ts), so managerId is now fixed server-side
+  // and the caller's value (if any) is ignored entirely.
+  const managerId = 'mahadnet';
   const phone = normPhone(src.phone);
-  const username = (src.username || '').toString().trim().replace(/^@/, '').toLowerCase();
+  const username = (src.username || '').toString().trim().replace(/^@/, '').toLowerCase().slice(0, 100);
   if (!phone && !username) return res.status(400).json({ error: 'phone or username is required' });
 
   try {
