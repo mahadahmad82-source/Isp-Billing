@@ -29,6 +29,21 @@ type ViewMode = 'list' | 'create' | 'view';
 
 import { logoBase64 } from '../utils/logoBase64';
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const formatReceiptDateTime = (value?: string): string => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+};
+
 const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({ 
   users, 
   receipts, 
@@ -471,10 +486,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     if (!custUser?.phone) return;
     if (!wabotSubscribed) return;
     try {
-      const newExpiry = receipt.expiryDate ? new Date(receipt.expiryDate) : null;
-      const newExpiryFormatted = newExpiry && !isNaN(newExpiry.getTime())
-        ? newExpiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
-        : '';
+      const newExpiryFormatted = formatReceiptDateTime(receipt.expiryDate);
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
@@ -588,19 +600,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         receiptDate.setHours(12, 0, 0, 0);
       }
 
-      // The receipt and Meta payment template must use the exact expiry date
-      // configured on the customer. Do not calculate or add another month here.
-      const configuredExpiryDate = user.expiryDate;
-      const parsedExpiryDate = configuredExpiryDate ? new Date(configuredExpiryDate) : null;
-      const hasValidConfiguredExpiry = !!parsedExpiryDate && !isNaN(parsedExpiryDate.getTime());
-      const resolvedExpiryDate = hasValidConfiguredExpiry
-        ? configuredExpiryDate!
-        : new Date().toISOString();
       // Recharge Date = the configured expiry at the start of this billing
-      // cycle, not the payment date.
-      const resolvedRechargeDate = hasValidConfiguredExpiry
-        ? parsedExpiryDate!.toISOString()
-        : new Date().toISOString();
+      // cycle, not the payment date. The next expiry is exactly 30 days later
+      // and keeps the recharge timestamp unchanged.
+      const configuredRechargeDate = user.expiryDate;
+      const parsedRechargeDate = configuredRechargeDate ? new Date(configuredRechargeDate) : null;
+      const hasValidConfiguredRecharge = !!parsedRechargeDate && !isNaN(parsedRechargeDate.getTime());
+      const rechargeDate = hasValidConfiguredRecharge ? parsedRechargeDate! : receiptDate;
+      const resolvedRechargeDate = rechargeDate.toISOString();
+      const resolvedExpiryDate = new Date(rechargeDate.getTime() + THIRTY_DAYS_MS).toISOString();
 
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
@@ -837,10 +845,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     setLoadingMessage('🤖 Sending Payment Confirmation Template...');
 
     try {
-      const newExpiry = activeReceipt.expiryDate ? new Date(activeReceipt.expiryDate) : null;
-      const newExpiryFormatted = newExpiry && !isNaN(newExpiry.getTime())
-        ? newExpiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
-        : '';
+      const newExpiryFormatted = formatReceiptDateTime(activeReceipt.expiryDate);
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
@@ -917,18 +922,17 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     const rawExpiryDate = activeReceipt.expiryDate || currentSelectedUser?.expiryDate;
     const expiryDateObj = rawExpiryDate ? new Date(rawExpiryDate) : null;
     const hasValidExpiry = !!expiryDateObj && !isNaN(expiryDateObj.getTime());
-    const expiryDateDisplay = hasValidExpiry ? expiryDateObj!.toLocaleDateString() : 'N/A';
+    const expiryDateDisplay = hasValidExpiry ? formatReceiptDateTime(rawExpiryDate) : 'N/A';
     // Recharge Date = cycle-start date (previous expiry), NOT the payment date.
-    // Fallback for receipts saved before this field existed: derive as expiry - 1 month.
+    // Fallback for receipts saved before this field existed: derive as expiry - 30 days.
     let rechargeDateObj: Date | null = null;
     if (activeReceipt.rechargeDate) {
       rechargeDateObj = new Date(activeReceipt.rechargeDate);
     } else if (hasValidExpiry) {
-      rechargeDateObj = new Date(expiryDateObj!);
-      rechargeDateObj.setMonth(rechargeDateObj.getMonth() - 1);
+      rechargeDateObj = new Date(expiryDateObj!.getTime() - THIRTY_DAYS_MS);
     }
     const hasValidRecharge = !!rechargeDateObj && !isNaN(rechargeDateObj.getTime());
-    const rechargeDateDisplay = hasValidRecharge ? rechargeDateObj!.toLocaleDateString() : 'N/A';
+    const rechargeDateDisplay = hasValidRecharge ? formatReceiptDateTime(rechargeDateObj!.toISOString()) : 'N/A';
 
     // Common Ads component for all designs
     const AdsSection = ({ design }: { design: ReceiptDesign }) => {
@@ -1042,11 +1046,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                      </div>
                      <div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recharge Date</p>
-                        <p className="text-sm font-black uppercase">{hasValidRecharge ? rechargeDateObj!.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</p>
+                        <p className="text-sm font-black uppercase">{rechargeDateDisplay}</p>
                      </div>
                      <div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Expiry Date</p>
-                        <p className="text-sm font-black uppercase">{hasValidExpiry ? expiryDateObj!.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</p>
+                        <p className="text-sm font-black uppercase">{expiryDateDisplay}</p>
                      </div>
                   </div>
                </div>
@@ -1433,8 +1437,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                 <div className="mt-3 text-xs text-slate-500 space-y-0.5">
                   <p><span className="font-bold text-slate-700">INVOICE NO:</span> #{activeReceipt.transactionRef}</p>
                   <p><span className="font-bold text-slate-700">PAYMENT DATE:</span> {new Date(activeReceipt.date).toLocaleDateString('en-GB')}</p>
-                  <p><span className="font-bold text-slate-700">RECHARGE DATE:</span> {hasValidRecharge ? rechargeDateObj!.toLocaleDateString('en-GB') : 'N/A'}</p>
-                  <p><span className="font-bold text-slate-700">EXPIRY DATE:</span> {hasValidExpiry ? expiryDateObj!.toLocaleDateString('en-GB') : 'N/A'}</p>
+                  <p><span className="font-bold text-slate-700">RECHARGE DATE:</span> {rechargeDateDisplay}</p>
+                  <p><span className="font-bold text-slate-700">EXPIRY DATE:</span> {expiryDateDisplay}</p>
                   <p><span className="font-bold text-slate-700">PERIOD:</span> {activeReceipt.period}</p>
                 </div>
               </div>
