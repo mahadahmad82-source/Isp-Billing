@@ -190,13 +190,15 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       return isNaN(d.getTime()) ? null : d;
     };
 
-    // Sort by parsed PERIOD (not receipt creation date) to get true latest billing period
+    // Sort by parsed PERIOD (not receipt creation date) to get true latest billing period.
+    // If a period fails to parse (legacy-imported data), fall back to comparing raw receipt
+    // `date` so a malformed period string can't silently misorder which receipt is "latest".
     const previousReceipts = [...userReceipts]
       .filter(r => r.period && r.period !== currentBillingPeriod)
       .sort((a, b) => {
         const da = parseMonthYear(a.period);
         const db = parseMonthYear(b.period);
-        if (!da || !db) return 0;
+        if (!da || !db) return new Date(b.date).getTime() - new Date(a.date).getTime();
         return db.getTime() - da.getTime();
       });
     const latestPreviousReceipt = previousReceipts.length > 0 ? previousReceipts[0] : null;
@@ -226,7 +228,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           const mName = cursor.toLocaleString('en-US', { month: 'long' });
           const mYear = cursor.getFullYear().toString();
           const mPeriod = `${mName} ${mYear}`;
-          const hasPaid = userReceipts.some(r => r.period === mPeriod);
+          const hasPaid = userReceipts.some(r => r.period === mPeriod && r.status === PaymentStatus.SUCCESS);
           if (!hasPaid) missedMonthsArrears += Math.max(0, fee - persistentDisc);
           cursor.setMonth(cursor.getMonth() + 1);
         }
