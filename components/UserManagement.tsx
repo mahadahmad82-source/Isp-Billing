@@ -337,6 +337,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
     const dataToExport = filteredUsers.map(u => ({
       'Account ID': u.username,
+      'Recharge Date': u.lastPaymentDate ? new Date(u.lastPaymentDate).toLocaleString() : '',
       'Full Name': u.name,
       'Phone': u.phone,
       'Phone 2': u.phone2 || '',
@@ -365,6 +366,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       const template = [
         {
           'Account ID': 'user123',
+          'Recharge Date': new Date().toISOString().slice(0, 16).replace('T', ' '),
           'Full Name': 'John Doe',
           'Phone': '03001234567',
           'Phone 2': '03007654321',
@@ -515,15 +517,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleQuickActivate = (userIds: string[], expiryDate?: string) => {
+  const handleQuickActivate = (targets: Array<{ userId: string; rechargeDate?: string }>) => {
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     // Build all updates first, then save ONCE via onBulkUpdateUsers.
     // (Previously called onUpdateUser per-user in a loop, which fired N
     // separate Supabase saves in parallel — a slower/earlier request could
     // finish LAST and overwrite the DB with an incomplete state, silently
     // dropping some activations. Single batched save closes that race.)
     const updatedUsers: UserRecord[] = [];
-    userIds.forEach(id => {
-      const user = users.find(u => u.id === id);
+    targets.forEach(({ userId, rechargeDate }) => {
+      const user = users.find(u => u.id === userId);
       if (!user) return;
       const months = new Set(user.activatedMonths || []);
       months.add(currentMonth);
@@ -531,7 +534,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
         ...user,
         activatedMonths: Array.from(months),
         status: 'active',
-        ...(expiryDate ? { expiryDate } : {}),
+        ...(rechargeDate ? {
+          lastPaymentDate: rechargeDate,
+          expiryDate: new Date(new Date(rechargeDate).getTime() + THIRTY_DAYS_MS).toISOString(),
+        } : {}),
       });
     });
     if (updatedUsers.length > 0) onBulkUpdateUsers(updatedUsers);
