@@ -6,7 +6,7 @@ import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import ReceiptGenerator from './ReceiptGenerator';
-import { PhoneIcon } from './icons/UiIcons';
+import { PhoneIcon, PrinterIcon } from './icons/UiIcons';
 
 interface RecoverySummaryProps {
   users: UserRecord[];
@@ -77,6 +77,14 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [editForm, setEditForm] = useState<Partial<UserRecord>>({});
   const [viewingLedgerUser, setViewingLedgerUser] = useState<UserRecord | null>(null);
+
+  const handlePrintCustomerLedger = () => {
+    document.body.classList.add('printing-ledger');
+    const cleanup = () => document.body.classList.remove('printing-ledger');
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.requestAnimationFrame(() => window.print());
+    window.setTimeout(cleanup, 1500);
+  };
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   useEffect(() => { setSelectedIds(new Set()); }, [selectedMonth]);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -1677,7 +1685,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       {viewingLedgerUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setViewingLedgerUser(null)}></div>
-          <div className="bg-white dark:bg-[#0f172a] w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+          <div className="print-ledger-content bg-white dark:bg-[#0f172a] w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-white/5 rounded-t-[2.5rem]">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
@@ -1688,10 +1696,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Transaction History & Plan Details</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2"><button onClick={() => setShowAmounts(value => !value)} className="rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-500 dark:border-white/10">{showAmounts ? 'Hide amounts' : 'Show amounts'}</button><button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 dark:text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors">✕</button></div>
+              <div className="flex items-center gap-2 no-print">
+                <button onClick={handlePrintCustomerLedger} className="inline-flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl shadow-sm font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-colors" title="Print or save as PDF">
+                  <PrinterIcon className="w-4 h-4" /> Print / PDF
+                </button>
+                <button onClick={() => setShowAmounts(value => !value)} className="rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-500 dark:border-white/10">{showAmounts ? 'Hide amounts' : 'Show amounts'}</button>
+                <button onClick={() => setViewingLedgerUser(null)} className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 dark:text-slate-400 font-bold hover:bg-rose-50 hover:text-rose-500 transition-colors">✕</button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+            <div className="print-ledger-scroll flex-1 overflow-y-auto custom-scrollbar p-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/5 text-slate-900 dark:text-slate-100">
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Subscriber</p>
@@ -1825,7 +1839,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 rounded-b-[2.5rem] flex justify-end">
+            <div className="no-print p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 rounded-b-[2.5rem] flex justify-end">
               <button onClick={() => setViewingLedgerUser(null)} className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-transform">
                 Close Ledger
               </button>
