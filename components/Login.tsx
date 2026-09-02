@@ -110,6 +110,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     if (isLoading) return false;
     setIsLoading(true); setLoadingText('Authorising...'); setError('');
     try {
+      // Brute-force protection: block further attempts once an identifier
+      // has failed too many times in the last 15 minutes. Fails open (does
+      // not block) if the RPC itself errors, so this can never lock out
+      // real logins due to a network/RPC hiccup.
+      try {
+        const { data: rl } = await supabase.rpc('check_login_rate_limit', { p_identifier: username.trim() });
+        if (rl && rl.allowed === false) {
+          const mins = Math.ceil((rl.retry_after_seconds || 60) / 60);
+          throw new Error(`Too many login attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`);
+        }
+      } catch (rlErr: any) {
+        if (rlErr?.message?.startsWith('Too many login attempts')) throw rlErr;
+        // any other rate-limit check failure: fail open, proceed to normal auth
+      }
       const localAccounts = getAccounts();
       const localFound = localAccounts.find(a => (a.username === username || a.email === username || a.phone === username) && a.password === password);
       if (localFound && localFound.role === 'admin') {
@@ -267,7 +281,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         finishLogin(loginUser); return true;
       }
       throw new Error('Authentication failed.');
-    } catch (err: any) { showError(err.message || 'Authentication error occurred'); return false; }
+    } catch (err: any) {
+      if (!err?.message?.startsWith('Too many login attempts')) {
+        supabase.rpc('record_login_failure', { p_identifier: username.trim() }).catch(() => {});
+      }
+      showError(err.message || 'Authentication error occurred'); return false;
+    }
     finally { setIsLoading(false); }
   };
 
