@@ -260,9 +260,13 @@ export default function WABotStandalone() {
   if (!state) return null;
 
   const activeCompany = (state.companies || []).find(c => c.id === state.activeCompanyId) || state.companies?.[0];
-  const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'Bill Collector-BOT';
+  const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'NetBot';
   const routerCatalog: RouterCatalog | undefined = activeCompany?.settings?.routerCatalog || state.settings?.routerCatalog;
   const botTemplates: Record<string, BotTemplate> | undefined = activeCompany?.settings?.botTemplates || state.settings?.botTemplates;
+  const botPersonaNotes: string | undefined = (activeCompany?.settings as any)?.botPersonaNotes || (state.settings as any)?.botPersonaNotes;
+  const botBehaviorRules: any[] | undefined = (activeCompany?.settings as any)?.botBehaviorRules || (state.settings as any)?.botBehaviorRules;
+  const ttsVoice: string | undefined = (activeCompany?.settings as any)?.ttsVoice || (state.settings as any)?.ttsVoice;
+  const wabotAgents: any[] | undefined = (activeCompany?.settings as any)?.wabotAgents || (state.settings as any)?.wabotAgents;
   const filteredUsers = (state.users || []).filter(u => !u.companyId || u.companyId === activeCompany?.id);
 
   const handleUpdateBotName = (name: string) => {
@@ -307,6 +311,62 @@ export default function WABotStandalone() {
     });
   };
 
+  const handleUpdateBotPersonaNotes = (notes: string) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), botPersonaNotes: notes } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      saveStateToSupabase(username || 'mahadnet', newState);
+      return newState;
+    });
+  };
+
+  const handleUpdateBotBehaviorRules = (rules: any[]) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), botBehaviorRules: rules } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      saveStateToSupabase(username || 'mahadnet', newState);
+      return newState;
+    });
+  };
+
+  const handleUpdateTtsVoice = (voice: string) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), ttsVoice: voice } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      saveStateToSupabase(username || 'mahadnet', newState);
+      return newState;
+    });
+  };
+
+  const handleUpdateWabotAgents = (agents: any[]) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), wabotAgents: agents } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      saveStateToSupabase(username || 'mahadnet', newState);
+      return newState;
+    });
+  };
+
   const handleLogout = () => {
     setActiveSession(null);
     setUsername(null);
@@ -322,7 +382,7 @@ export default function WABotStandalone() {
         <Avatar size={36} />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm text-slate-900 truncate">{botName}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide">MahadNet WABot</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-wide">MahadNet NetBot</p>
         </div>
         <button
           onClick={handleLogout}
@@ -343,6 +403,14 @@ export default function WABotStandalone() {
           onUpdateRouterCatalog={handleUpdateRouterCatalog}
           botTemplates={botTemplates}
           onUpdateBotTemplates={handleUpdateBotTemplates}
+          botPersonaNotes={botPersonaNotes}
+          onUpdateBotPersonaNotes={handleUpdateBotPersonaNotes}
+          botBehaviorRules={botBehaviorRules}
+          onUpdateBotBehaviorRules={handleUpdateBotBehaviorRules}
+          ttsVoice={ttsVoice}
+          onUpdateTtsVoice={handleUpdateTtsVoice}
+          wabotAgents={wabotAgents}
+          onUpdateWabotAgents={handleUpdateWabotAgents}
         />
       </div>
     </div>
