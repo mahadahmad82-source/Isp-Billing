@@ -17,7 +17,10 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const { token, deviceName, app } = req.body || {};
-  if (!token) return res.status(400).json({ error: 'token is required' });
+  if (!token || typeof token !== 'string' || token.length < 8 || token.length > 500) {
+    return res.status(400).json({ error: 'token is required and must be a valid push token string' });
+  }
+  const safeDeviceName = typeof deviceName === 'string' ? deviceName.slice(0, 200) : null;
   // Which native app registered this token — 'billcollector' or 'wabot' — so
   // webhook.ts can target the right app instead of blasting every event to
   // every installed app under this manager_id. Purely a routing tag, not an
@@ -82,7 +85,7 @@ export default async function handler(req: any, res: any) {
         owner_role: ownerRole,
         owner_username: ownerUsername,
         token,
-        device_name: deviceName || null,
+        device_name: safeDeviceName,
         app: appTag,
         updated_at: new Date().toISOString(),
       }),
