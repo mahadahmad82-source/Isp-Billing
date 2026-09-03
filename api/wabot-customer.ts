@@ -4,6 +4,10 @@
 // instead of mahadnet typing every value in by hand.
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
+// Shared secret the Wabot-Android app sends as the x-wabot-secret header.
+// Fails CLOSED: if this env var isn't set on Vercel, every request is
+// rejected rather than silently allowed through unauthenticated.
+const WABOT_INTERNAL_SECRET = process.env.WABOT_INTERNAL_SECRET || '';
 
 function normPhone(p: string | undefined | null): string {
   return (p || '').replace(/\D/g, '').slice(-10);
@@ -20,14 +24,20 @@ function formatDate(d: string | undefined | null): string {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'GET or POST only' });
+  const providedSecret = req.headers['x-wabot-secret'];
+  if (!WABOT_INTERNAL_SECRET || providedSecret !== WABOT_INTERNAL_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   const src = req.method === 'GET' ? req.query : req.body || {};
-  // SECURITY: this endpoint is unauthenticated (called by the Wabot-Android
-  // app before/without a session — see register-push-token.ts for the
-  // pattern used elsewhere once a Bearer token is available). It previously
-  // trusted a client-supplied managerId, which meant anyone who found this
-  // URL could read ANY manager's customer billing/balance data just by
-  // guessing a managerId — a full cross-tenant data leak. This endpoint has
-  // only ever been used for mahadnet's own bound WhatsApp number (see
+  // SECURITY: gated above by a shared secret (x-wabot-secret) since there's
+  // no logged-in session available at this point in the Wabot-Android app —
+  // see register-push-token.ts for the Bearer-token pattern used once a
+  // session exists. Separately: this endpoint previously also trusted a
+  // client-supplied managerId, which meant anyone with the secret (or, before
+  // the secret was added, anyone who just found this URL) could read ANY
+  // manager's customer billing/balance data by guessing a managerId — a full
+  // cross-tenant data leak. This endpoint has only ever been used for
+  // mahadnet's own bound WhatsApp number (see
   // BOUND_MANAGER_ID in webhook.ts), so managerId is now fixed server-side
   // and the caller's value (if any) is ignored entirely.
   const managerId = 'mahadnet';
