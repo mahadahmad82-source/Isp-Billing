@@ -466,7 +466,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     { feature: "WhatsApp Reminders", billcollector: true, competitor1: false, competitor2: false },
     { feature: "Offline Mode", billcollector: true, competitor1: false, competitor2: true },
     { feature: "Equipment Tracker", billcollector: true, competitor1: false, competitor2: false },
-    { feature: "MikroTik Integration", billcollector: true, competitor1: true, competitor2: false },
     { feature: "Urdu Interface", billcollector: true, competitor1: false, competitor2: false },
     { feature: "Free Starter Plan", billcollector: true, competitor1: false, competitor2: false },
     { feature: "Aging Reports", billcollector: true, competitor1: true, competitor2: true },
