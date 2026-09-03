@@ -214,7 +214,7 @@ function DeliveryTicks({ status }: { status: string }) {
   );
 }
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules }) => {
   // WABot has its own theme, independent of the manager dashboard's dark/light
   // toggle, saved separately so it's remembered across visits. Defaults to
   // light (matching the brand look), but the eye-comfort toggle below lets it
