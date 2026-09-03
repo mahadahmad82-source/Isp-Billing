@@ -206,6 +206,93 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [pricingSaving, setPricingSaving] = useState(false);
   const [pricingMsg, setPricingMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // ── App Releases (Android APK downloads, admin-uploaded) ────────────────────
+  interface AppRelease {
+    id: string; app_key: 'wabot' | 'billcollector'; version: string;
+    apk_path: string; apk_url: string; release_notes: string | null;
+    file_size_mb: number | null; created_at: string; created_by: string | null;
+  }
+  const [appReleases, setAppReleases] = useState<AppRelease[]>([]);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releaseAppKey, setReleaseAppKey] = useState<'wabot' | 'billcollector'>('billcollector');
+  const [releaseVersion, setReleaseVersion] = useState('');
+  const [releaseNotes, setReleaseNotes] = useState('');
+  const [releaseFile, setReleaseFile] = useState<File | null>(null);
+  const [releaseUploading, setReleaseUploading] = useState(false);
+  const [releaseMsg, setReleaseMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const loadAppReleases = useCallback(async () => {
+    setReleasesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('app_releases')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setAppReleases((data as AppRelease[]) || []);
+    } catch (e: any) {
+      console.error('[loadAppReleases]', e?.message);
+    } finally {
+      setReleasesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { if (tab === 'app-releases') loadAppReleases(); }, [tab, loadAppReleases]);
+
+  const handleUploadRelease = async () => {
+    if (!releaseFile || !releaseVersion.trim()) {
+      setReleaseMsg({ ok: false, text: 'Version aur APK file dono required hain.' });
+      return;
+    }
+    setReleaseUploading(true);
+    setReleaseMsg(null);
+    try {
+      const safeVersion = releaseVersion.trim().replace(/[^a-zA-Z0-9._-]/g, '');
+      const path = `${releaseAppKey}/${safeVersion}-${Date.now()}.apk`;
+      const { error: uploadError } = await supabase.storage
+        .from('app-releases')
+        .upload(path, releaseFile, { contentType: 'application/vnd.android.package-archive', upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('app-releases').getPublicUrl(path);
+      const apkUrl = urlData.publicUrl;
+      const fileSizeMb = Math.round((releaseFile.size / (1024 * 1024)) * 10) / 10;
+
+      const { error: insertError } = await supabase.from('app_releases').insert({
+        app_key: releaseAppKey,
+        version: safeVersion,
+        apk_path: path,
+        apk_url: apkUrl,
+        release_notes: releaseNotes.trim() || null,
+        file_size_mb: fileSizeMb,
+        created_by: 'admin',
+      });
+      if (insertError) throw insertError;
+
+      setReleaseMsg({ ok: true, text: `${releaseAppKey === 'wabot' ? 'WABot' : 'Bill Collector'} v${safeVersion} upload ho gaya.` });
+      setReleaseVersion('');
+      setReleaseNotes('');
+      setReleaseFile(null);
+      loadAppReleases();
+    } catch (e: any) {
+      setReleaseMsg({ ok: false, text: e?.message || 'Upload fail ho gaya.' });
+    } finally {
+      setReleaseUploading(false);
+    }
+  };
+
+  const handleDeleteRelease = async (release: AppRelease) => {
+    if (!window.confirm(`Delete ${release.app_key} v${release.version}?`)) return;
+    try {
+      await supabase.storage.from('app-releases').remove([release.apk_path]);
+      const { error } = await supabase.from('app_releases').delete().eq('id', release.id);
+      if (error) throw error;
+      loadAppReleases();
+    } catch (e: any) {
+      console.error('[handleDeleteRelease]', e?.message);
+    }
+  };
+
   const storageComputed = useMemo(() => {
     if (!storageInfo) return null;
     const FREE_LIMIT_BYTES = 500 * 1024 * 1024;
@@ -1493,6 +1580,84 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {/* ══════════ WABOT SAAS (NetBot clients) ══════════ */}
       {tab === 'wabot-saas' && (
         <WABotAdminClients managers={managers.map(m => ({ username: m.username, business_name: m.business_name }))} />
+      )}
+
+      {/* ══════════ APP RELEASES (Android APK uploads) ══════════ */}
+      {tab === 'app-releases' && (
+        <div className="space-y-6">
+          <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[2rem] p-6">
+            <p className="font-black text-sm dark:text-white text-slate-900 mb-4">Upload New APK</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setReleaseAppKey('billcollector')}
+                  className={`py-2.5 rounded-xl text-xs font-black transition-all ${releaseAppKey === 'billcollector' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 dark:text-white text-slate-700'}`}>
+                  Bill Collector (Manager App)
+                </button>
+                <button onClick={() => setReleaseAppKey('wabot')}
+                  className={`py-2.5 rounded-xl text-xs font-black transition-all ${releaseAppKey === 'wabot' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 dark:text-white text-slate-700'}`}>
+                  WABot (Ayesha)
+                </button>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Version (e.g. 2.4.0)</label>
+                <input value={releaseVersion} onChange={e => setReleaseVersion(e.target.value)} placeholder="2.4.0"
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">Release Notes (optional)</label>
+                <textarea value={releaseNotes} onChange={e => setReleaseNotes(e.target.value)} rows={2} placeholder="What's new in this build..."
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK File</label>
+                <input type="file" accept=".apk" onChange={e => setReleaseFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-slate-600 dark:text-white/60 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-600 file:text-white" />
+                {releaseFile && <p className="text-[10px] dark:text-white/40 text-slate-400 mt-1">{releaseFile.name} — {Math.round(releaseFile.size / 1024 / 1024 * 10) / 10} MB</p>}
+              </div>
+              {releaseMsg && (
+                <p className={`text-xs font-bold ${releaseMsg.ok ? 'text-emerald-500' : 'text-rose-500'}`}>{releaseMsg.text}</p>
+              )}
+              <button onClick={handleUploadRelease} disabled={releaseUploading}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40">
+                <Upload className="w-4 h-4" /> {releaseUploading ? 'Uploading…' : 'Upload Release'}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[2rem] p-6">
+            <p className="font-black text-sm dark:text-white text-slate-900 mb-4">Published Releases</p>
+            {releasesLoading ? (
+              <p className="text-xs dark:text-white/40 text-slate-500">Loading…</p>
+            ) : appReleases.length === 0 ? (
+              <p className="text-xs dark:text-white/40 text-slate-500">Koi release upload nahi hui abhi.</p>
+            ) : (
+              <div className="space-y-2">
+                {appReleases.map(release => (
+                  <div key={release.id} className="flex items-center justify-between gap-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black dark:text-white text-slate-900 truncate">
+                        {release.app_key === 'wabot' ? 'WABot' : 'Bill Collector'} v{release.version}
+                        {appReleases.find(r => r.app_key === release.app_key) === release && (
+                          <span className="ml-2 text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 uppercase tracking-widest">Latest</span>
+                        )}
+                      </p>
+                      <p className="text-[10px] dark:text-white/40 text-slate-400 truncate">
+                        {fmtTime(release.created_at)} {release.file_size_mb ? `• ${release.file_size_mb} MB` : ''}
+                      </p>
+                      {release.release_notes && <p className="text-[10px] dark:text-white/30 text-slate-400 truncate">{release.release_notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a href={release.apk_url} target="_blank" rel="noreferrer"
+                        className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20"><Download className="w-4 h-4" /></a>
+                      <button onClick={() => handleDeleteRelease(release)}
+                        className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ══════════ RESET PASSWORD MODAL ══════════ */}
