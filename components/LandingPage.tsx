@@ -380,36 +380,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   const testimonials = [
     {
-      name: "Zain ul Abideen",
-      role: "Founder, Fiber One Broadband",
-      location: "Karachi",
-      text: "Collections and recovery once required hours of tiring manual work. Bill Collector now manages automated monthly WhatsApp reminders and professional ledgers for you. Payment recovery rates have increased by up to 90%.",
+      name: "Mahad Ahmad",
+      role: "Founder, Bill Collector & Owner-Operator, MahadNet",
+      location: "Pakistan",
+      text: "I built Bill Collector because I was running my own ISP, MahadNet, off scattered spreadsheets and WhatsApp chats. Now every subscriber, receipt, and recovery ledger for MahadNet runs through this same dashboard — and NetBot handles the routine 'when's my bill due' questions on WhatsApp so I don't have to answer them one by one.",
       rating: 5,
       avatarBg: "#6366f1"
     },
     {
-      name: "Mian Muhammad Bilal",
-      role: "CEO, Bilal Cable & Broadband",
-      location: "Faisalabad",
-      text: "Our field agents now collect dues and update ledgers on-the-go with limited agent access. The dashboard's aging report has helped us identify chronic non-payers in just one tap. Highly recommended for every cable and internet operator in Pakistan!",
+      name: "Humza Rao",
+      role: "Owner, Rajput Network",
+      location: "Pakistan",
+      text: "Rajput Network switched to Bill Collector for subscriber billing and WhatsApp renewal reminders. It's made tracking dues and staying on top of collections far less time-consuming for our team.",
       rating: 5,
       avatarBg: "#8b5cf6"
-    },
-    {
-      name: "Khurram Shahzad",
-      role: "IT Director, AirNet Communications",
-      location: "Lahore",
-      text: "Outstanding billing software for ISP networks. The equipment inventory tracking, suspension logs, and offline support work flawlessly. Real-time cloud sync gives me absolute peace of mind even if an agent's device gets lost.",
-      rating: 5,
-      avatarBg: "#06b6d4"
-    },
-    {
-      name: "Engr. Yasir Mahmood",
-      role: "Operations Head, SwiftSpeed Fiber",
-      location: "Rawalpindi",
-      text: "We migrated over 1,500 subscribers from legacy spreadsheets within an hour. The customer search is instant, payment receipt PDFs generate automatically, and optical fiber outage tracking saves us tons of customer support calls.",
-      rating: 5,
-      avatarBg: "#10b981"
     }
   ];
 
@@ -1912,7 +1896,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Platform</h4>
                 <ul className="space-y-4 text-sm font-bold text-slate-300">
-                  <li><Link to="/features" className="hover:text-indigo-400 transition-colors">Features</Link></li>
+                  <li><a href="#features" className="hover:text-indigo-400 transition-colors">Features</a></li>
                   <li><Link to="/about" className="hover:text-indigo-400 transition-colors">About</Link></li>
                   <li><a href="#pricing" className="hover:text-indigo-400 transition-colors">Pricing</a></li>
                   <li><a href="https://wa.me/923042773453" target="_blank" rel="noreferrer" className="hover:text-indigo-400 transition-colors">Contact</a></li>
@@ -1924,7 +1908,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 <ul className="space-y-4 text-sm font-bold text-slate-300">
                   <li><Link to="/privacy" className="hover:text-indigo-400 transition-colors">Privacy Policy</Link></li>
                   <li><Link to="/terms" className="hover:text-indigo-400 transition-colors">Terms of Service</Link></li>
-                  <li><Link to="/refund" className="hover:text-indigo-400 transition-colors">Refund Policy</Link></li>
+                  <li><Link to="/terms" className="hover:text-indigo-400 transition-colors">Refund Policy</Link></li>
                   <li>
                     <span className="inline-flex items-center gap-1.5 text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>

@@ -276,7 +276,7 @@ const TermsAndPolicy: React.FC<Props> = ({ onBack }) => {
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
                 <Link to="/privacy" className="transition-colors hover:text-indigo-600">Privacy Policy</Link>
-                <Link to="/refund" className="transition-colors hover:text-indigo-600">Refund Policy</Link>
+                <Link to="/faq" className="transition-colors hover:text-indigo-600">FAQ</Link>
                 <a href="mailto:support@billcollector.online" className="inline-flex items-center gap-2 transition-colors hover:text-cyan-600">
                   <Mail className="h-3.5 w-3.5" /> Support
                 </a>
