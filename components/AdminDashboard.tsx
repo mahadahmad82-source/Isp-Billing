@@ -1595,7 +1595,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                 </button>
                 <button onClick={() => setReleaseAppKey('wabot')}
                   className={`py-2.5 rounded-xl text-xs font-black transition-all ${releaseAppKey === 'wabot' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 dark:text-white text-slate-700'}`}>
-                  WABot (Ayesha)
+                  NetBot
                 </button>
               </div>
               <div>
