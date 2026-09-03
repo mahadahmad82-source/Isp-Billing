@@ -9,7 +9,7 @@ import {
   Check, ArrowRight, Shield, ChevronDown, CheckCircle, Activity, 
   Database, ShieldCheck, Mail, FileText, BarChart3, Calendar, Map, Radio,
   Play, Star, TrendingUp, Clock, CreditCard, MessageCircle, Eye, LockKeyhole,
-  ArrowUpRight, X, Menu, Wifi, Receipt, Bell, Fingerprint, HeadphonesIcon
+  ArrowUpRight, X, Menu, Wifi, Receipt, Bell, Fingerprint, HeadphonesIcon, Download
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -79,6 +79,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         }
       } catch {
         // Silently keep DEFAULT_PRICING_PLANS on any network/parse failure.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Latest Android app releases (admin-uploaded via AdminDashboard → App Releases)
+  interface AppReleaseInfo { app_key: 'wabot' | 'billcollector'; version: string; apk_url: string; file_size_mb: number | null; }
+  const [latestReleases, setLatestReleases] = useState<Record<string, AppReleaseInfo>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_releases')
+          .select('app_key,version,apk_url,file_size_mb,created_at')
+          .order('created_at', { ascending: false });
+        if (!cancelled && !error && Array.isArray(data)) {
+          const latest: Record<string, AppReleaseInfo> = {};
+          for (const row of data as any[]) {
+            if (!latest[row.app_key]) latest[row.app_key] = row;
+          }
+          setLatestReleases(latest);
+        }
+      } catch {
+        // Silently hide the download section if the fetch fails.
       }
     })();
     return () => { cancelled = true; };
@@ -1831,6 +1857,62 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </p>
           </div>
         </section>
+
+        {/* ── SECTION 9.5: DOWNLOAD APPS ── */}
+        {(latestReleases.billcollector || latestReleases.wabot) && (
+          <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="download-apps">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="badge mb-6 mx-auto">
+                <div className="dot"></div>
+                <span>Android Apps</span>
+              </div>
+              <h2 className="text-3xl sm:text-5xl font-black leading-none mb-6">
+                MANAGE ON THE GO —<br />
+                <span className="gradient">DOWNLOAD THE APP</span>
+              </h2>
+              <p className="max-w-lg mx-auto mb-12 text-slate-400 text-sm sm:text-base font-medium">
+                Native Android apps for your billing dashboard and NetBot inbox — no browser needed.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                {latestReleases.billcollector && (
+                  <a href={latestReleases.billcollector.apk_url} download
+                    className="group flex flex-col items-center gap-4 p-8 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95">
+                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+                      <Smartphone className="w-8 h-8 text-indigo-400" />
+                    </div>
+                    <div>
+                      <p className="font-black text-sm">Bill Collector Manager</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        v{latestReleases.billcollector.version}{latestReleases.billcollector.file_size_mb ? ` • ${latestReleases.billcollector.file_size_mb} MB` : ''}
+                      </p>
+                    </div>
+                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-400 group-hover:text-indigo-300">
+                      <Download className="w-4 h-4" /> Download APK
+                    </span>
+                  </a>
+                )}
+                {latestReleases.wabot && (
+                  <a href={latestReleases.wabot.apk_url} download
+                    className="group flex flex-col items-center gap-4 p-8 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95">
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
+                      <MessageCircle className="w-8 h-8 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="font-black text-sm">NetBot (WABot Inbox)</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        v{latestReleases.wabot.version}{latestReleases.wabot.file_size_mb ? ` • ${latestReleases.wabot.file_size_mb} MB` : ''}
+                      </p>
+                    </div>
+                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-emerald-400 group-hover:text-emerald-300">
+                      <Download className="w-4 h-4" /> Download APK
+                    </span>
+                  </a>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-500 mt-8">Direct APK download — enable "Install from unknown sources" if prompted.</p>
+            </div>
+          </section>
+        )}
 
         {/* ── SECTION 10: CTA SECTION ── */}
         <section className="cta-section" id="cta">
