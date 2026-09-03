@@ -1898,7 +1898,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                       <MessageCircle className="w-8 h-8 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="font-black text-sm">NetBot (WABot Inbox)</p>
+                      <p className="font-black text-sm">NetBot</p>
                       <p className="text-xs text-slate-500 mt-1">
                         v{latestReleases.wabot.version}{latestReleases.wabot.file_size_mb ? ` • ${latestReleases.wabot.file_size_mb} MB` : ''}
                       </p>
