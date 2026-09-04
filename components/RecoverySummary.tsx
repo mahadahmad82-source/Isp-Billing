@@ -108,15 +108,15 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Recovery Ledger — column visibility (hide/unhide), persisted per device
-  type LedgerColumnKey = 'serialNo' | 'username' | 'name' | 'status' | 'paidAmount' | 'advanceAmount' | 'balance' | 'expiryDate' | 'metaReminder' | 'actions' | 'date' | 'ref';
+  type LedgerColumnKey = 'serialNo' | 'username' | 'name' | 'status' | 'paidAmount' | 'advanceAmount' | 'balance' | 'rechargeDate' | 'expiryDate' | 'metaReminder' | 'actions' | 'date' | 'ref';
   const LEDGER_COLUMN_LABELS: Record<LedgerColumnKey, string> = {
     serialNo: 'Sr.#', username: 'Sub ID', name: 'Subscriber', status: 'Status',
     paidAmount: 'Paid Amount', advanceAmount: 'Advance Amount', balance: 'Balance Amount',
-    expiryDate: 'Expiry Date', metaReminder: 'Meta Reminder', actions: 'Actions', date: 'Payment Date', ref: 'Reference'
+    rechargeDate: 'Recharge Date', expiryDate: 'Expiry Date', metaReminder: 'Meta Reminder', actions: 'Actions', date: 'Payment Date', ref: 'Reference'
   };
   const DEFAULT_LEDGER_COLUMNS: Record<LedgerColumnKey, boolean> = {
     serialNo: true, username: true, name: true, status: true, paidAmount: true,
-    advanceAmount: true, balance: true, expiryDate: true, metaReminder: true, actions: true, date: true, ref: true
+    advanceAmount: true, balance: true, rechargeDate: true, expiryDate: true, metaReminder: true, actions: true, date: true, ref: true
   };
   const [visibleColumns, setVisibleColumns] = useState<Record<LedgerColumnKey, boolean>>(() => {
     try {
@@ -334,6 +334,14 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         ? (lastReceipt?.balanceAmount ?? 0)
         : (u.balance ?? 0);
 
+      // Recharge Date = cycle-start date, same convention as the receipt view:
+      // prefer the actual stored rechargeDate off the latest receipt this period,
+      // fall back to (expiry - 30 days) when no receipt carries it yet.
+      const THIRTY_DAYS_MS_LEDGER = 30 * 24 * 60 * 60 * 1000;
+      const rechargeDate = lastReceipt?.rechargeDate
+        ? lastReceipt.rechargeDate
+        : (u.expiryDate ? new Date(new Date(u.expiryDate).getTime() - THIRTY_DAYS_MS_LEDGER).toISOString() : undefined);
+
       return {
         id: u.id,
         username: u.username,
@@ -344,6 +352,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         paidAmount: paidSum,
         advanceAmount: advanceSum,
         balance: balanceSum,
+        rechargeDate,
         expiryDate: u.expiryDate,
         ref: hasPaid ? userReceipts.map(r => r.transactionRef).join(', ') : '-',
         date: hasPaid ? new Date(userReceipts[0].date).toLocaleDateString() : '-',
@@ -1266,6 +1275,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     Balance Amount {sortConfig?.key === 'balance' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                   </th>
                   )}
+                  {visibleColumns.rechargeDate && (
+                  <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('rechargeDate')}>
+                    Recharge Date {sortConfig?.key === 'rechargeDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                  </th>
+                  )}
                   {visibleColumns.expiryDate && (
                   <th className="px-8 py-5 cursor-pointer hover:text-indigo-600 transition-colors select-none" onClick={() => handleSort('expiryDate')}>
                     Expiry Date {sortConfig?.key === 'expiryDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
@@ -1336,6 +1350,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     {visibleColumns.balance && (
                     <td className="px-8 py-5">
                        <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. ${(item.balance || 0).toLocaleString()}</span>
+                    </td>
+                    )}
+                    {visibleColumns.rechargeDate && (
+                    <td className="px-8 py-5">
+                       <span className="text-xs font-black text-slate-500 dark:text-slate-400">{item.rechargeDate ? new Date(item.rechargeDate).toLocaleDateString() : '-'}</span>
                     </td>
                     )}
                     {visibleColumns.expiryDate && (
