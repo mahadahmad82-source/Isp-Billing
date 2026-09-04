@@ -724,9 +724,12 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     
     const currentSelectedUser = users.find(u => u.id === viewingReceipt.userId);
     const storedMonthlyFee = viewingReceipt.monthlyFee || (currentSelectedUser ? (settings.planPrices[currentSelectedUser.plan] || 0) : 0);
-    // FIXED: Use only explicitly stored arrears — no phantom auto-calculation
-    // Arrears = only what was in the imported Excel (balanceAmount field)
-    const arrears = 0; // No auto-calculated arrears — only show if explicitly in receipt
+    // Previous Arrears = totalAmount (fee + prior balance, pre-discount) + discount - this
+    // month's fee. This backs out the prior-period balance that was folded into totalAmount
+    // when the receipt was generated. Same formula ReceiptGenerator.tsx uses for the same
+    // receipt — was hardcoded to 0 here, which hid real arrears on every Recovery Ledger
+    // receipt view/download even when the receipt legitimately carried a balance forward.
+    const arrears = Math.max(0, (viewingReceipt.totalAmount || 0) + (viewingReceipt.discount || 0) - (storedMonthlyFee || 0));
     const nextMonthDue = (viewingReceipt.balanceAmount || 0) + (storedMonthlyFee - (viewingReceipt.discount || 0));
 
     const AdsSection = ({ design }: { design: ReceiptDesign }) => {
