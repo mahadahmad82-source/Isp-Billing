@@ -610,7 +610,16 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const hasValidConfiguredRecharge = !!parsedRechargeDate && !isNaN(parsedRechargeDate.getTime());
       const rechargeDate = hasValidConfiguredRecharge ? parsedRechargeDate! : receiptDate;
       const resolvedRechargeDate = rechargeDate.toISOString();
-      const resolvedExpiryDate = new Date(rechargeDate.getTime() + THIRTY_DAYS_MS).toISOString();
+      // Multi-Month Advance Extension: an advance payment that covers N extra
+      // months (net of this plan's discounted monthly fee) extends the cycle
+      // by N additional 30-day periods on top of the current period's own
+      // 30 days — not just a flat +30 days regardless of how much was paid.
+      const netMonthlyFeeForAdvance = Math.max(0, monthlyFee - discount);
+      const extraCyclesFromAdvance = (netMonthlyFeeForAdvance > 0 && (advanceAmount || 0) > 0)
+        ? Math.floor((advanceAmount || 0) / netMonthlyFeeForAdvance)
+        : 0;
+      const totalCycles = 1 + extraCyclesFromAdvance;
+      const resolvedExpiryDate = new Date(rechargeDate.getTime() + totalCycles * THIRTY_DAYS_MS).toISOString();
 
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
