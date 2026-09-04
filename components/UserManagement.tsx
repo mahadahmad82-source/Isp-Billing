@@ -55,6 +55,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [showQuickActivate, setShowQuickActivate] = useState(false);
   const [showAllUsers, setShowAllUsers] = useState(initialFilter === 'all');
 
+  // Recharge Date = cycle-start date, same convention used in ReceiptGenerator/RecoverySummary:
+  // prefer the actual stored rechargeDate off the user's most recent receipt, fall back to
+  // (expiry - 30 days) when no receipt carries it yet.
+  const THIRTY_DAYS_MS_DIRECTORY = 30 * 24 * 60 * 60 * 1000;
+  const getRechargeDate = (user: UserRecord): string | undefined => {
+    const userReceipts = receipts.filter(r => r.userId === user.id || r.username === user.username);
+    const latest = userReceipts.length
+      ? userReceipts.reduce((a, b) => (new Date(a.date).getTime() > new Date(b.date).getTime() ? a : b))
+      : null;
+    if (latest?.rechargeDate) return latest.rechargeDate;
+    if (user.expiryDate) return new Date(new Date(user.expiryDate).getTime() - THIRTY_DAYS_MS_DIRECTORY).toISOString();
+    return undefined;
+  };
+
   // ── Customer status filter from sidebar ──────────────────
   const statusFilteredUsers = React.useMemo(() => {
     if (!customerStatusFilter || customerStatusFilter === 'all') return users;
@@ -127,6 +141,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     { key: 'discount', label: 'Discount' },
     { key: 'connection_type', label: 'Connection Type' },
     { key: 'area', label: 'Area' },
+    { key: 'recharge', label: 'Recharge Date' },
     { key: 'expiry', label: 'Expiry' },
   ] as const;
 
@@ -135,7 +150,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const getDefaultVisibleColumns = (): Record<ColumnKey, boolean> => ({
     account_id: true, full_name: true, phone: true, phone2: false,
     address: false, plan: true, monthly_fee: true, status: false,
-    pay_exp: true, discount: false, connection_type: true, area: false, expiry: true,
+    pay_exp: true, discount: false, connection_type: true, area: false, recharge: true, expiry: true,
   });
 
   const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
@@ -934,6 +949,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       { key: 'discount', label: 'DISCOUNT', asc: null, desc: null, center: true },
                       { key: 'connection_type', label: 'CONNECTION TYPE', asc: null, desc: null, center: true },
                       { key: 'area', label: 'AREA', asc: null, desc: null },
+                      { key: 'recharge', label: 'RECHARGE DATE', asc: null, desc: null },
                       { key: 'expiry', label: 'EXPIRY', asc: 'expiry_asc', desc: 'expiry_desc' },
                     ] as { key: ColumnKey; label: string; asc: SortKey | null; desc: SortKey | null; center?: boolean }[])
                     .filter(col => visibleColumns[col.key])
@@ -1072,6 +1088,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           {visibleColumns.area && (
                           <td className="px-6 py-6">
                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user.area || '—'}</span>
+                          </td>)}
+                          {visibleColumns.recharge && (
+                          <td className="px-6 py-6">
+                             {(() => {
+                               const rechargeDate = getRechargeDate(user);
+                               return rechargeDate ? (
+                                 <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                   {new Date(rechargeDate).toLocaleDateString()}
+                                 </span>
+                               ) : <span className="text-[10px] text-slate-400">—</span>;
+                             })()}
                           </td>)}
                           {visibleColumns.expiry && (
                           <td className="px-6 py-6">
