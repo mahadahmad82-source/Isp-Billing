@@ -8,6 +8,24 @@ import html2canvas from 'html2canvas';
 import ReceiptGenerator from './ReceiptGenerator';
 import { PhoneIcon, PrinterIcon } from './icons/UiIcons';
 
+// Kept in sync with the same helper in ReceiptGenerator.tsx so recharge/expiry
+// display formatting is identical whether a receipt is viewed from there or
+// from the Recovery Ledger.
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const formatReceiptDateTime = (value?: string): string => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+};
+
 interface RecoverySummaryProps {
   users: UserRecord[];
   receipts: Receipt[];
@@ -731,6 +749,20 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     // receipt view/download even when the receipt legitimately carried a balance forward.
     const arrears = Math.max(0, (viewingReceipt.totalAmount || 0) + (viewingReceipt.discount || 0) - (storedMonthlyFee || 0));
     const nextMonthDue = (viewingReceipt.balanceAmount || 0) + (storedMonthlyFee - (viewingReceipt.discount || 0));
+    // Fall back to the customer's current expiry for receipts saved before this
+    // field was captured directly on the receipt — same fallback ReceiptGenerator uses.
+    const rawExpiryDate = viewingReceipt.expiryDate || currentSelectedUser?.expiryDate;
+    const expiryDateObj = rawExpiryDate ? new Date(rawExpiryDate) : null;
+    const hasValidExpiry = !!expiryDateObj && !isNaN(expiryDateObj.getTime());
+    const expiryDateDisplay = hasValidExpiry ? formatReceiptDateTime(rawExpiryDate) : 'N/A';
+    let rechargeDateObj: Date | null = null;
+    if (viewingReceipt.rechargeDate) {
+      rechargeDateObj = new Date(viewingReceipt.rechargeDate);
+    } else if (hasValidExpiry) {
+      rechargeDateObj = new Date(expiryDateObj!.getTime() - THIRTY_DAYS_MS);
+    }
+    const hasValidRecharge = !!rechargeDateObj && !isNaN(rechargeDateObj.getTime());
+    const rechargeDateDisplay = hasValidRecharge ? formatReceiptDateTime(rechargeDateObj!.toISOString()) : 'N/A';
 
     const AdsSection = ({ design }: { design: ReceiptDesign }) => {
       const hasImage = !!settings.billAdsImage;
@@ -807,6 +839,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                   <p className="text-xs md:text-sm font-bold uppercase text-slate-800 break-words">{viewingReceipt.userAddress || 'ADDRESS RECORD NOT PROVIDED'}</p>
                </div>
             </div>
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-0 border-[3px] border-slate-900 mb-6 rounded-[1.5rem] overflow-hidden">
+               <div className="p-4 border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-slate-900">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Recharge Date</p>
+                  <p className="text-sm font-black uppercase">{rechargeDateDisplay}</p>
+               </div>
+               <div className="p-4">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Expiry Date</p>
+                  <p className="text-sm font-black uppercase text-rose-600">{expiryDateDisplay}</p>
+               </div>
+            </div>
             <div className="overflow-x-auto w-full mb-6 relative rounded-[1.5rem] border-[3px] border-slate-900">
               <table className="w-full text-left border-collapse min-w-[300px]">
                 <thead className="bg-slate-900 text-white text-[10px] md:text-[11px] uppercase font-black tracking-[0.1em]">
@@ -865,6 +907,8 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               <div className="flex justify-between"><span className="font-bold">DATE:</span><span>{new Date(viewingReceipt.date).toLocaleDateString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">NAME:</span><span className="font-black truncate ml-2">{viewingReceipt.userName}</span></div>
               <div className="flex justify-between"><span className="font-bold">PERIOD:</span><span>{viewingReceipt.period}</span></div>
+              <div className="flex justify-between"><span className="font-bold">RECHARGE:</span><span>{rechargeDateDisplay}</span></div>
+              <div className="flex justify-between"><span className="font-bold">EXPIRY:</span><span className="text-red-600">{expiryDateDisplay}</span></div>
             </div>
             <div className="w-full text-left space-y-1 text-[10px] mb-4">
               <div className="flex justify-between"><span>Monthly Bill:</span><span>Rs. {storedMonthlyFee.toLocaleString()}</span></div>
@@ -911,6 +955,8 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               </div>
               <div className="space-y-2 text-sm w-full">
                 <div className="flex justify-between"><span>Subscription</span><span className="font-black text-right pl-2">Rs. {storedMonthlyFee.toLocaleString()}</span></div>
+                <div className="flex justify-between text-slate-500"><span>Recharge Date</span><span className="font-black text-right pl-2 text-slate-700">{rechargeDateDisplay}</span></div>
+                <div className="flex justify-between text-slate-500"><span>Expiry Date</span><span className="font-black text-right pl-2 text-rose-500">{expiryDateDisplay}</span></div>
                 {arrears > 0 && <div className="flex justify-between text-rose-500"><span>Arrears</span><span className="font-black text-right pl-2">Rs. {arrears.toLocaleString()}</span></div>}
                 <div className="flex justify-between bg-slate-50 p-4 rounded-xl mt-4 max-w-full">
                   <span className="text-[10px] font-black text-slate-400 uppercase">Paid</span>
@@ -958,6 +1004,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
               <div className="text-right">
                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Billing Period</p>
                 <p className="text-sm font-bold">{viewingReceipt.period}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Recharge Date</p>
+                <p className="text-sm font-bold">{rechargeDateDisplay}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Expiry Date</p>
+                <p className="text-sm font-bold text-rose-600">{expiryDateDisplay}</p>
               </div>
             </div>
             <div className="bg-slate-50 rounded-2xl p-6 mb-6">
