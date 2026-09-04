@@ -418,6 +418,39 @@ const App: React.FC = () => {
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(flush); document.removeEventListener('visibilitychange', onVisible); };
   }, [activeManager]);
+
+  // Periodic remote pull — smartLoadAndSync's full merge only ever ran once,
+  // in the login bootstrap above. A tab left open/logged-in (or reopened
+  // straight into an existing session, no fresh login) never re-fetched
+  // Supabase after that, so records written from another device — e.g. a
+  // receipt generated on the Android app — didn't show up here until an
+  // explicit logout/login. This mirrors the flushPendingSync interval above,
+  // but pulls instead of pushes, and always merges (mergeById) so it can
+  // never drop anything the tab itself has queued locally.
+  useEffect(() => {
+    if (!activeManager || activeManager === 'admin') return;
+    const pullRemote = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const account = getAccounts().find(a => a.username === activeManager);
+      const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
+      const isSubManagerNow = account?.role === 'sub-manager' || userRole === 'sub-manager';
+      try {
+        const finalState = await smartLoadAndSync(dataOwner, stateRef.current, { forceRemote: isSubManagerNow });
+        applySyncedState(finalState, dataOwner);
+      } catch (error) {
+        console.warn('[Sync] Periodic remote pull failed:', error);
+      }
+    };
+    const interval = setInterval(pullRemote, 90000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void pullRemote(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [activeManager, userRole]);
   
   const lastActivityRef = useRef<number>(Date.now());
 
@@ -426,6 +459,32 @@ const App: React.FC = () => {
   // already-shown notifications because it read `state` captured at mount)
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+
+  // Shared by the login bootstrap and the periodic re-sync below so both
+  // apply the exact same defaults and never drift out of sync with each other.
+  const applySyncedState = (finalState: AppState, dataOwner: string) => {
+    setState(prev => ({
+      ...prev,
+      ...finalState,
+      archives: finalState.archives || [],
+      dismissedNotificationIds: finalState.dismissedNotificationIds || [],
+      pendingManagerNotifications: finalState.pendingManagerNotifications || [],
+      shownManagerNotificationIds: finalState.shownManagerNotificationIds || [],
+      agentPendingNotifications: finalState.agentPendingNotifications || {},
+      companies: finalState.companies || [],
+      activeCompanyId: finalState.activeCompanyId || '',
+      currentManager: dataOwner,
+      systemLogs: finalState.systemLogs || [],
+      equipmentRecords: finalState.equipmentRecords || [],
+      dealerProducts: finalState.dealerProducts || [],
+      dealerPurchases: finalState.dealerPurchases || [],
+      dealerSales: finalState.dealerSales || [],
+      leads: finalState.leads || [],
+      suspensionLogs: finalState.suspensionLogs || [],
+      outageLogs: finalState.outageLogs || [],
+      planHistory: finalState.planHistory || [],
+    }));
+  };
 
   const refreshTeamMessages = useCallback(async () => {
     const account = activeManager ? getAccounts().find(candidate => candidate.username === activeManager) : undefined;
@@ -545,26 +604,7 @@ const App: React.FC = () => {
         setIsSyncing(true);
         smartLoadAndSync(dataOwner, localState, { forceRemote: isSubManager }).then(finalState => {
           if (cancelled) return;
-          setState({
-            ...finalState,
-            archives: finalState.archives || [],
-            dismissedNotificationIds: finalState.dismissedNotificationIds || [],
-            pendingManagerNotifications: finalState.pendingManagerNotifications || [],
-            shownManagerNotificationIds: finalState.shownManagerNotificationIds || [],
-            agentPendingNotifications: finalState.agentPendingNotifications || {},
-            companies: finalState.companies || [],
-            activeCompanyId: finalState.activeCompanyId || '',
-            currentManager: dataOwner,
-            systemLogs: finalState.systemLogs || [],
-          equipmentRecords: finalState.equipmentRecords || [],
-          dealerProducts: finalState.dealerProducts || [],
-          dealerPurchases: finalState.dealerPurchases || [],
-          dealerSales: finalState.dealerSales || [],
-          leads: finalState.leads || [],
-            suspensionLogs: finalState.suspensionLogs || [],
-            outageLogs: finalState.outageLogs || [],
-            planHistory: finalState.planHistory || [],
-          });
+          applySyncedState(finalState, dataOwner);
         }).catch((err: any) => {
           if (err?.message === 'ACCOUNT_SUSPENDED') {
             alert('Aapka account admin ne suspend kar diya hai. Apne provider se rabta karein.');
