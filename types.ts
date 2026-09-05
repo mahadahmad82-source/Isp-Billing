@@ -343,7 +343,7 @@ export type ModuleKey =
   | 'dashboard' | 'users' | 'receipts' | 'recoveries' | 'expiries'
   | 'reports' | 'systemlogs' | 'settings' | 'team' | 'expenses'
   | 'analytics' | 'outage' | 'area' | 'equipment' | 'leads'
-  | 'reminders' | 'templates' | 'wabot';
+  | 'reminders' | 'templates' | 'wabot' | 'payment-verify';
 
 export interface AccessRights {
   view: boolean;
@@ -360,6 +360,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   expenses: 'Expenses', analytics: 'Analytics', outage: 'Outage',
   area: 'Area', equipment: 'Equipment', leads: 'Leads',
   reminders: 'Reminders', templates: 'Message Templates', wabot: 'WABot',
+  'payment-verify': 'Payment Verifications',
 };
 
 export interface SubManagerAccount {
@@ -457,6 +458,27 @@ export interface LeadRecord {
   followUpDate?: string;     // ISO date
   source?: string;           // walk-in, referral, social media, etc.
   referredBy?: string;       // customer name who referred
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── PENDING PAYMENTS (WhatsApp payment screenshot verification queue) ──────
+export type PendingPaymentStatus = 'pending' | 'approved' | 'dismissed';
+
+export interface PendingPaymentRecord {
+  id: string;
+  phone: string;             // last-10-digit normalized sender number
+  customerId?: string;       // matched UserRecord.id, if the sender was recognized
+  customerName?: string;     // matched customer name, if recognized
+  amount?: string;           // OCR-extracted amount (as read from the screenshot)
+  bank?: string;
+  trxId?: string;
+  dateTime?: string;         // OCR-extracted date/time text from the screenshot
+  senderName?: string;       // OCR-extracted sender name on the bank slip
+  caption?: string;          // WhatsApp caption sent with the image, if any
+  mediaUrl?: string;         // Supabase Storage URL of the screenshot
+  status: PendingPaymentStatus;
+  resolvedReceiptId?: string; // linked Receipt.id once a receipt is generated from this entry
   createdAt: string;
   updatedAt: string;
 }
@@ -612,6 +634,7 @@ export interface AppState {
   dealerPurchases?: DealerPurchase[];
   dealerSales?: DealerSale[];
   leads?: LeadRecord[];
+  pendingPayments?: PendingPaymentRecord[];
   suspensionLogs?: SuspensionLog[];
   outageLogs?: OutageLog[];
   planHistory?: PlanChange[];
