@@ -1405,11 +1405,11 @@ async function handleTokenHealth(req: any, res: any) {
 // reach the client; only the signed URL + the resulting public URL do.
 async function handleR2PresignUpload(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucket = process.env.R2_BUCKET_NAME;
-  const publicBase = process.env.R2_PUBLIC_URL; // e.g. https://pub-xxxx.r2.dev
+  const accountId = process.env.R2_APK_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_APK_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_APK_SECRET_ACCESS_KEY;
+  const bucket = process.env.R2_APK_BUCKET_NAME;
+  const publicBase = process.env.R2_APK_PUBLIC_URL; // e.g. https://pub-xxxx.r2.dev
   if (!accountId || !accessKeyId || !secretAccessKey || !bucket || !publicBase) {
     return res.status(500).json({ error: 'R2 is not configured on the server (missing env vars).' });
   }
