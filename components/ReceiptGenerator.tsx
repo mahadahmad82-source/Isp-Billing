@@ -331,6 +331,18 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
 
         setViewMode('create');
         syncUserAmounts(user.id, monthParts.length === 2 ? monthParts[0] : undefined, monthParts.length === 2 ? monthParts[1] : undefined);
+
+        // Preset from Payment Verifications "Generate Receipt" action — the OCR-extracted
+        // amount/bank/TRX-ID reference, so mahad doesn't retype what the bot already read
+        // off the screenshot. Applied AFTER syncUserAmounts so it isn't overwritten by the
+        // plan-price auto-calc; still fully editable before saving, same as any other field.
+        if ((preSelectUser as any).amount) {
+          setAmountPaid((preSelectUser as any).amount);
+        }
+        if ((preSelectUser as any).note) {
+          setDescription((preSelectUser as any).note);
+        }
+
         justPreselectedRef.current = true;
         onPreSelectConsumed?.();
       }
