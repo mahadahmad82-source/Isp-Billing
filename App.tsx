@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
-import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById } from './utils/supabaseSync';
+import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById, getRemoteUpdatedAt } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { getWabotAuthHeaders } from './utils/whatsapp';
@@ -437,6 +437,19 @@ const App: React.FC = () => {
       const dataOwner = (account?.role === 'sub-manager' && account.managerUsername) ? account.managerUsername : activeManager;
       const isSubManagerNow = account?.role === 'sub-manager' || userRole === 'sub-manager';
       try {
+        // Egress fix: skip the full manager_data blob pull (900KB-2MB+) when
+        // nothing changed remotely. Sub-managers keep the old always-pull
+        // behavior (forceRemote) since they rely on it for cross-device
+        // freshness — see BUG FIX note in smartLoadAndSync. For a regular
+        // manager, a cheap updated_at check runs first; if the remote row is
+        // no newer than our last synced timestamp, this cycle is a no-op.
+        if (!isSubManagerNow) {
+          const localTs = new Date((stateRef.current as any)?._syncedAt || localStorage.getItem(`${dataOwner}_syncedAt`) || 0).getTime();
+          const remoteUpdatedAt = await getRemoteUpdatedAt(dataOwner);
+          if (remoteUpdatedAt && new Date(remoteUpdatedAt).getTime() <= localTs) {
+            return; // nothing new remotely — don't pull the full blob
+          }
+        }
         const finalState = await smartLoadAndSync(dataOwner, stateRef.current, { forceRemote: isSubManagerNow });
         applySyncedState(finalState, dataOwner);
       } catch (error) {
