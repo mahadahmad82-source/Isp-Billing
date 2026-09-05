@@ -32,6 +32,7 @@ import AreaDashboard from './components/AreaDashboard';
 import EquipmentTracker from './components/EquipmentTracker';
 import DealerSales from './components/DealerSales';
 import LeadsPipeline from './components/LeadsPipeline';
+import PaymentVerifications from './components/PaymentVerifications';
 
 import BulkReminder from './components/BulkReminder';
 import MessageTemplatesTab from './components/MessageTemplatesTab';
@@ -103,6 +104,7 @@ const App: React.FC = () => {
       dealerPurchases: loaded.dealerPurchases || [],
       dealerSales: loaded.dealerSales || [],
       leads: loaded.leads || [],
+      pendingPayments: loaded.pendingPayments || [],
       suspensionLogs: loaded.suspensionLogs || [],
       outageLogs: loaded.outageLogs || [],
       planHistory: loaded.planHistory || [],
@@ -135,7 +137,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -150,7 +152,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -171,7 +173,7 @@ const App: React.FC = () => {
   const [tourFirstLoginTs, setTourFirstLoginTs] = useState<number | null>(null);
   const [userFilter, setUserFilter] = useState<'all' | 'current_month'>('current_month');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string; ts: number} | null>(null);
+  const [preSelectReceiptUser, setPreSelectReceiptUser] = useState<{userId: string; month: string; ts: number; amount?: number; note?: string} | null>(null);
   const [receiptMountKey, setReceiptMountKey] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -278,9 +280,9 @@ const App: React.FC = () => {
   // Listen for custom event from RecoverySummary
   useEffect(() => {
     const handler = (e: Event) => {
-      const { userId, month, ts } = (e as CustomEvent).detail;
+      const { userId, month, ts, amount, note } = (e as CustomEvent).detail;
       if (userId) {
-        setPreSelectReceiptUser({ userId, month: month || '', ts: ts || Date.now() });
+        setPreSelectReceiptUser({ userId, month: month || '', ts: ts || Date.now(), amount, note });
         setReceiptMountKey(k => k + 1); // guarantees a clean ReceiptGenerator mount every click, no stale state
       }
       setActiveTab('receipts');
@@ -480,6 +482,7 @@ const App: React.FC = () => {
       dealerPurchases: finalState.dealerPurchases || [],
       dealerSales: finalState.dealerSales || [],
       leads: finalState.leads || [],
+      pendingPayments: finalState.pendingPayments || [],
       suspensionLogs: finalState.suspensionLogs || [],
       outageLogs: finalState.outageLogs || [],
       planHistory: finalState.planHistory || [],
@@ -2249,6 +2252,40 @@ const App: React.FC = () => {
                   const ns = { ...prev, users: [...prev.users, newUser], leads: updatedLeads };
                   saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
                 });
+              }}
+            />
+          )}
+
+          {!tabLoading && activeTab === 'payment-verify' && userRole !== 'sub-manager' && (
+            <PaymentVerifications
+              payments={state.pendingPayments || []}
+              users={filteredUsers}
+              onApprove={(id) => setState(prev => {
+                const ns = { ...prev, pendingPayments: (prev.pendingPayments || []).map(p => p.id === id ? { ...p, status: 'approved' as const, updatedAt: new Date().toISOString() } : p) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDismiss={(id) => setState(prev => {
+                const ns = { ...prev, pendingPayments: (prev.pendingPayments || []).map(p => p.id === id ? { ...p, status: 'dismissed' as const, updatedAt: new Date().toISOString() } : p) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onDelete={(id) => setState(prev => {
+                const ns = { ...prev, pendingPayments: (prev.pendingPayments || []).filter(p => p.id !== id) };
+                saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
+              })}
+              onGenerateReceipt={(payment) => {
+                const amountNum = payment.amount ? parseInt(String(payment.amount).replace(/[^0-9]/g, ''), 10) || undefined : undefined;
+                const noteParts = [payment.bank, payment.trxId ? `TRX: ${payment.trxId}` : ''].filter(Boolean).join(' — ');
+                if (payment.customerId) {
+                  setPreSelectReceiptUser({
+                    userId: payment.customerId,
+                    month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+                    ts: Date.now(),
+                    amount: amountNum,
+                    note: noteParts || undefined,
+                  });
+                  setReceiptMountKey(k => k + 1);
+                }
+                setActiveTab('receipts');
               }}
             />
           )}
