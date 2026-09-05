@@ -850,6 +850,42 @@ async function saveLead(managerId: string, rowData: any, lead: { name: string; p
   return newLead.id;
 }
 
+// Saves an OCR-extracted payment screenshot as a reviewable record inside the manager's
+// own data (mirrors saveLead's atomic jsonb-append pattern) — so it shows up in the
+// Payment Verifications tab for manual approve/dismiss/generate-receipt, instead of only
+// existing as a fire-and-forget notification + whatsapp_messages log row.
+async function savePendingPayment(managerId: string, payment: {
+  phone: string; customerId?: string; customerName?: string;
+  amount?: string; bank?: string; trxId?: string; dateTime?: string;
+  senderName?: string; caption?: string; mediaUrl?: string | null;
+}) {
+  const now = new Date().toISOString();
+  const newPayment = {
+    id: `paypf-${Date.now()}`,
+    phone: payment.phone,
+    customerId: payment.customerId,
+    customerName: payment.customerName,
+    amount: payment.amount,
+    bank: payment.bank,
+    trxId: payment.trxId,
+    dateTime: payment.dateTime,
+    senderName: payment.senderName,
+    caption: payment.caption,
+    mediaUrl: payment.mediaUrl || undefined,
+    status: 'pending',
+    createdAt: now, updatedAt: now,
+  };
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/append_pending_payment`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ p_manager_id: managerId, p_payment: newPayment }),
+    });
+    invalidateManagerDataCache(managerId);
+  } catch (e: any) { console.error('[savePendingPayment]', e?.message); }
+  return newPayment.id;
+}
+
 // Saves any stray WhatsApp text as a new-connection lead against the main 'mahadnet' manager.
 async function saveStrayLead(from: string, text: string, note?: string) {
   try {
@@ -3523,6 +3559,21 @@ export default async function handler(req: any, res: any) {
             message: `${found?.user?.name || from} (${from}) ne payment screenshot bheja hai.${caption ? `\nCaption: ${caption}` : ''}${detailsText}${mediaUrl ? `\n${mediaUrl}` : ''}`,
             priority: 'MEDIUM',
           });
+          // Also store as a structured, reviewable record (Payment Verifications tab) so
+          // mahadnet can approve/dismiss or one-click generate a receipt, instead of only
+          // seeing a transient notification.
+          await savePendingPayment(managerId, {
+            phone: normPhone(from),
+            customerId: found?.user?.id,
+            customerName: found?.user?.name,
+            amount: receiptDetails?.amount,
+            bank: receiptDetails?.bank,
+            trxId: receiptDetails?.trxId,
+            dateTime: receiptDetails?.dateTime,
+            senderName: receiptDetails?.senderName,
+            caption: caption || undefined,
+            mediaUrl,
+          }).catch((e: any) => console.error('[savePendingPayment call]', e?.message));
           // Instant readback of what the OCR actually saw (amount/bank/TRX ID) so the
           // customer gets real confirmation their specific payment was received, not
           // just a generic "verifying" line — this is a READ-BACK only, it does NOT
