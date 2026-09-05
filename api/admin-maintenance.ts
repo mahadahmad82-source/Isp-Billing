@@ -1405,11 +1405,11 @@ async function handleTokenHealth(req: any, res: any) {
 // reach the client; only the signed URL + the resulting public URL do.
 async function handleR2PresignUpload(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const accountId = process.env.R2_APK_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_APK_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_APK_SECRET_ACCESS_KEY;
-  const bucket = process.env.R2_APK_BUCKET_NAME;
-  const publicBase = process.env.R2_APK_PUBLIC_URL; // e.g. https://pub-xxxx.r2.dev
+  const accountId = (process.env.R2_APK_ACCOUNT_ID || '').trim();
+  const accessKeyId = (process.env.R2_APK_ACCESS_KEY_ID || '').trim();
+  const secretAccessKey = (process.env.R2_APK_SECRET_ACCESS_KEY || '').trim();
+  const bucket = (process.env.R2_APK_BUCKET_NAME || '').trim();
+  const publicBase = (process.env.R2_APK_PUBLIC_URL || '').trim(); // e.g. https://pub-xxxx.r2.dev
   if (!accountId || !accessKeyId || !secretAccessKey || !bucket || !publicBase) {
     return res.status(500).json({ error: 'R2 is not configured on the server (missing env vars).' });
   }
@@ -1424,6 +1424,7 @@ async function handleR2PresignUpload(req: any, res: any) {
     const objectUrl = `${r2Url}/${bucket}/${key}?X-Amz-Expires=600`;
     const signed = await client.sign(new Request(objectUrl, { method: 'PUT' }), { aws: { signQuery: true } });
     const publicUrl = `${publicBase.replace(/\/$/, '')}/${key}`;
+    console.log('[r2-presign-upload] generated', { objectUrl, signedUrl: signed.url, publicUrl });
     return res.status(200).json({ success: true, uploadUrl: signed.url, publicUrl, key });
   } catch (e: any) {
     console.error('[r2-presign-upload]', e?.message);
