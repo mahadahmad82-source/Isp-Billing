@@ -218,6 +218,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   const [releaseVersion, setReleaseVersion] = useState('');
   const [releaseNotes, setReleaseNotes] = useState('');
   const [releaseFile, setReleaseFile] = useState<File | null>(null);
+  const [releaseUrl, setReleaseUrl] = useState('');
   const [releaseUploading, setReleaseUploading] = useState(false);
   const [releaseMsg, setReleaseMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -240,28 +241,49 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
   useEffect(() => { if (tab === 'app-releases') loadAppReleases(); }, [tab, loadAppReleases]);
 
   const handleUploadRelease = async () => {
-    if (!releaseFile || !releaseVersion.trim()) {
-      setReleaseMsg({ ok: false, text: 'Version aur APK file dono required hain.' });
+    const pastedUrl = releaseUrl.trim();
+    if (!releaseVersion.trim() || (!releaseFile && !pastedUrl)) {
+      setReleaseMsg({ ok: false, text: 'Version aur (APK file ya APK URL) required hain.' });
+      return;
+    }
+    // Supabase free-tier storage has a hard 50MB global cap — anything bigger must
+    // be hosted externally (e.g. GitHub Releases) and only the link stored here.
+    const MAX_DIRECT_UPLOAD_MB = 45;
+    if (releaseFile && !pastedUrl && releaseFile.size / (1024 * 1024) > MAX_DIRECT_UPLOAD_MB) {
+      setReleaseMsg({
+        ok: false,
+        text: `Ye file ${Math.round(releaseFile.size / 1024 / 1024)} MB ki hai — Supabase free plan sirf ${MAX_DIRECT_UPLOAD_MB}MB tak direct upload allow karta hai. GitHub Release banao, APK wahan upload karo, phir uska asset link "APK URL" field me paste karo.`,
+      });
       return;
     }
     setReleaseUploading(true);
     setReleaseMsg(null);
     try {
       const safeVersion = releaseVersion.trim().replace(/[^a-zA-Z0-9._-]/g, '');
-      const path = `${releaseAppKey}/${safeVersion}-${Date.now()}.apk`;
-      const { error: uploadError } = await supabase.storage
-        .from('app-releases')
-        .upload(path, releaseFile, { contentType: 'application/vnd.android.package-archive', upsert: false });
-      if (uploadError) throw uploadError;
+      let apkUrl: string;
+      let apkPath: string;
+      let fileSizeMb: number | null;
 
-      const { data: urlData } = supabase.storage.from('app-releases').getPublicUrl(path);
-      const apkUrl = urlData.publicUrl;
-      const fileSizeMb = Math.round((releaseFile.size / (1024 * 1024)) * 10) / 10;
+      if (pastedUrl) {
+        apkUrl = pastedUrl;
+        apkPath = 'external';
+        fileSizeMb = releaseFile ? Math.round((releaseFile.size / (1024 * 1024)) * 10) / 10 : null;
+      } else {
+        const path = `${releaseAppKey}/${safeVersion}-${Date.now()}.apk`;
+        const { error: uploadError } = await supabase.storage
+          .from('app-releases')
+          .upload(path, releaseFile as File, { contentType: 'application/vnd.android.package-archive', upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('app-releases').getPublicUrl(path);
+        apkUrl = urlData.publicUrl;
+        apkPath = path;
+        fileSizeMb = Math.round(((releaseFile as File).size / (1024 * 1024)) * 10) / 10;
+      }
 
       const { error: insertError } = await supabase.from('app_releases').insert({
         app_key: releaseAppKey,
         version: safeVersion,
-        apk_path: path,
+        apk_path: apkPath,
         apk_url: apkUrl,
         release_notes: releaseNotes.trim() || null,
         file_size_mb: fileSizeMb,
@@ -269,10 +291,11 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       });
       if (insertError) throw insertError;
 
-      setReleaseMsg({ ok: true, text: `${releaseAppKey === 'wabot' ? 'WABot' : 'Bill Collector'} v${safeVersion} upload ho gaya.` });
+      setReleaseMsg({ ok: true, text: `${releaseAppKey === 'wabot' ? 'NetBot' : 'Bill Collector'} v${safeVersion} upload ho gaya.` });
       setReleaseVersion('');
       setReleaseNotes('');
       setReleaseFile(null);
+      setReleaseUrl('');
       loadAppReleases();
     } catch (e: any) {
       setReleaseMsg({ ok: false, text: e?.message || 'Upload fail ho gaya.' });
@@ -1609,10 +1632,28 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK File</label>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK File (max ~45 MB — direct upload)</label>
                 <input type="file" accept=".apk" onChange={e => setReleaseFile(e.target.files?.[0] || null)}
                   className="w-full text-xs text-slate-600 dark:text-white/60 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-600 file:text-white" />
-                {releaseFile && <p className="text-[10px] dark:text-white/40 text-slate-400 mt-1">{releaseFile.name} — {Math.round(releaseFile.size / 1024 / 1024 * 10) / 10} MB</p>}
+                {releaseFile && (
+                  <p className={`text-[10px] mt-1 ${releaseFile.size / 1024 / 1024 > 45 ? 'text-amber-500 font-bold' : 'dark:text-white/40 text-slate-400'}`}>
+                    {releaseFile.name} — {Math.round(releaseFile.size / 1024 / 1024 * 10) / 10} MB
+                    {releaseFile.size / 1024 / 1024 > 45 ? ' — bohat badi hai, neeche APK URL field use karo' : ''}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-white/10" />
+                <span className="text-[10px] font-black uppercase tracking-widest dark:text-white/30 text-slate-400">OR — bade APK ke liye</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-white/10" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK URL (GitHub Release asset link)</label>
+                <input value={releaseUrl} onChange={e => setReleaseUrl(e.target.value)} placeholder="https://github.com/.../releases/download/v1.0/app.apk"
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
+                <p className="text-[10px] dark:text-white/30 text-slate-400 mt-1">
+                  45MB se badi APK ke liye: GitHub repo → Releases → Draft a new release → APK attach karo → publish → asset ka link yahan paste karo.
+                </p>
               </div>
               {releaseMsg && (
                 <p className={`text-xs font-bold ${releaseMsg.ok ? 'text-emerald-500' : 'text-rose-500'}`}>{releaseMsg.text}</p>
