@@ -1875,7 +1875,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </p>
               <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 {latestReleases.billcollector && (
-                  <a href={latestReleases.billcollector.apk_url} download
+                  <a href={latestReleases.billcollector.apk_url} target="_blank" rel="noopener noreferrer"
                     className="group flex flex-col items-center gap-4 p-8 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95">
                     <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
                       <Smartphone className="w-8 h-8 text-indigo-400" />
@@ -1892,7 +1892,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </a>
                 )}
                 {latestReleases.wabot && (
-                  <a href={latestReleases.wabot.apk_url} download
+                  <a href={latestReleases.wabot.apk_url} target="_blank" rel="noopener noreferrer"
                     className="group flex flex-col items-center gap-4 p-8 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95">
                     <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
                       <MessageCircle className="w-8 h-8 text-emerald-400" />
