@@ -3,6 +3,7 @@
 // 12-serverless-function limit). Action is chosen via ?action= query param:
 //
 //   POST /api/admin-maintenance?action=add-token    → add/verify/encrypt a client's WhatsApp token
+//   POST /api/admin-maintenance?action=r2-presign-upload → admin-only: signed PUT URL for Cloudflare R2 (large file uploads)
 //   GET  /api/admin-maintenance?action=reset-quota   → daily cron: reset expired billing cycles
 //   GET  /api/admin-maintenance?action=token-health  → daily cron: verify all stored tokens with Meta
 //
@@ -13,6 +14,7 @@
 //    frontend bundle, so this action cannot use the CRON_SECRET path.
 
 import { createClient } from '@supabase/supabase-js';
+import { AwsClient } from 'aws4fetch';
 import { encryptToken, decryptToken } from '../lib/whatsappCrypto.js';
 import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
 
@@ -46,7 +48,7 @@ export default async function handler(req: any, res: any) {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
 
-  if (action === 'add-token') {
+  if (action === 'add-token' || action === 'r2-presign-upload') {
     // Browser path: only an authenticated admin may use this action.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
@@ -73,6 +75,8 @@ export default async function handler(req: any, res: any) {
   switch (action) {
     case 'add-token':
       return handleAddToken(req, res);
+    case 'r2-presign-upload':
+      return handleR2PresignUpload(req, res);
     case 'migrate-legacy-sub-manager-auth':
       return handleMigrateLegacySubManagerAuth(req, res);
     case 'create-sub-manager-auth':
@@ -1394,7 +1398,40 @@ async function handleTokenHealth(req: any, res: any) {
   return res.status(200).json({ checked: rows.length, results });
 }
 
-async function updateTokenStatus(managerId: string, status: string): Promise<void> {
+// ── Action: r2-presign-upload ────────────────────────────────────────────────
+// Admin-only. Generates a short-lived presigned PUT URL so the browser can
+// upload large files (e.g. Android APKs) directly to Cloudflare R2 — bypassing
+// Vercel's serverless request-body size limit entirely. Credentials never
+// reach the client; only the signed URL + the resulting public URL do.
+async function handleR2PresignUpload(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucket = process.env.R2_BUCKET_NAME;
+  const publicBase = process.env.R2_PUBLIC_URL; // e.g. https://pub-xxxx.r2.dev
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucket || !publicBase) {
+    return res.status(500).json({ error: 'R2 is not configured on the server (missing env vars).' });
+  }
+
+  const rawName = String(req.body?.fileName || 'file.apk').replace(/[^a-zA-Z0-9._-]/g, '');
+  const folder = String(req.body?.folder || 'misc').replace(/[^a-zA-Z0-9_-]/g, '') || 'misc';
+  const key = `${folder}/${Date.now()}-${rawName || 'file'}`;
+
+  try {
+    const client = new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto' });
+    const r2Url = `https://${accountId}.r2.cloudflarestorage.com`;
+    const objectUrl = `${r2Url}/${bucket}/${key}?X-Amz-Expires=600`;
+    const signed = await client.sign(new Request(objectUrl, { method: 'PUT' }), { aws: { signQuery: true } });
+    const publicUrl = `${publicBase.replace(/\/$/, '')}/${key}`;
+    return res.status(200).json({ success: true, uploadUrl: signed.url, publicUrl, key });
+  } catch (e: any) {
+    console.error('[r2-presign-upload]', e?.message);
+    return res.status(500).json({ error: 'Could not generate an upload URL.' });
+  }
+}
+
+
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}`, {
       method: 'PATCH',
