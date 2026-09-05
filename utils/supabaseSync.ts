@@ -244,6 +244,26 @@ export const mergeById = <T extends { id?: string }>(a: T[] = [], b: T[] = []): 
   return Array.from(map.values());
 };
 
+// ─── Public: cheap remote-changed check ───────────────────────────────────────
+// Egress fix: the periodic tab-visibility/focus/90s pull in App.tsx used to call
+// smartLoadAndSync unconditionally, which pulls the ENTIRE manager_data JSONB
+// blob (900KB-2MB+ for an active manager) every single time, even when nothing
+// changed remotely. This reads only the tiny `updated_at` scalar column first
+// so the caller can skip the full pull entirely on the (very common) no-op case.
+// Returns null if the row doesn't exist yet or the check fails — callers should
+// treat null as "unknown, proceed with the full pull" to preserve old behavior.
+export const getRemoteUpdatedAt = async (managerId: string): Promise<string | null> => {
+  if (!managerId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('manager_data').select('updated_at').eq('manager_id', managerId).maybeSingle();
+    if (error || !data?.updated_at) return null;
+    return data.updated_at as string;
+  } catch {
+    return null;
+  }
+};
+
 // ─── Public: smart sync on login ─────────────────────────────────────────────
 export const smartLoadAndSync = async (
   managerId: string,
