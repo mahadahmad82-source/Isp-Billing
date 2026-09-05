@@ -1860,7 +1860,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
         {/* ── SECTION 9.5: DOWNLOAD APPS ── */}
         {(latestReleases.billcollector || latestReleases.wabot) && (
-          <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="download-apps">
+          <section className="py-24 px-6 border-t border-white/5" id="download-apps">
             <div className="max-w-4xl mx-auto text-center">
               <div className="badge mb-6 mx-auto">
                 <div className="dot"></div>
