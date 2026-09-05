@@ -246,16 +246,6 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       setReleaseMsg({ ok: false, text: 'Version aur (APK file ya APK URL) required hain.' });
       return;
     }
-    // Supabase free-tier storage has a hard 50MB global cap — anything bigger must
-    // be hosted externally (e.g. GitHub Releases) and only the link stored here.
-    const MAX_DIRECT_UPLOAD_MB = 45;
-    if (releaseFile && !pastedUrl && releaseFile.size / (1024 * 1024) > MAX_DIRECT_UPLOAD_MB) {
-      setReleaseMsg({
-        ok: false,
-        text: `Ye file ${Math.round(releaseFile.size / 1024 / 1024)} MB ki hai — Supabase free plan sirf ${MAX_DIRECT_UPLOAD_MB}MB tak direct upload allow karta hai. GitHub Release banao, APK wahan upload karo, phir uska asset link "APK URL" field me paste karo.`,
-      });
-      return;
-    }
     setReleaseUploading(true);
     setReleaseMsg(null);
     try {
@@ -269,14 +259,24 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
         apkPath = 'external';
         fileSizeMb = releaseFile ? Math.round((releaseFile.size / (1024 * 1024)) * 10) / 10 : null;
       } else {
-        const path = `${releaseAppKey}/${safeVersion}-${Date.now()}.apk`;
-        const { error: uploadError } = await supabase.storage
-          .from('app-releases')
-          .upload(path, releaseFile as File, { contentType: 'application/vnd.android.package-archive', upsert: false });
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('app-releases').getPublicUrl(path);
-        apkUrl = urlData.publicUrl;
-        apkPath = path;
+        // Direct-to-Cloudflare-R2 upload via a short-lived presigned URL — the
+        // file bytes never pass through Vercel, so there's no size cap here.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Admin session expired — please log in again.');
+
+        const presignRes = await fetch('/api/admin-maintenance?action=r2-presign-upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: `${safeVersion}.apk`, folder: releaseAppKey }),
+        });
+        const presignData = await presignRes.json();
+        if (!presignRes.ok || !presignData?.uploadUrl) throw new Error(presignData?.error || 'Upload URL could not be created.');
+
+        const putRes = await fetch(presignData.uploadUrl, { method: 'PUT', body: releaseFile as File });
+        if (!putRes.ok) throw new Error('R2 upload failed — check bucket CORS settings.');
+
+        apkUrl = presignData.publicUrl;
+        apkPath = presignData.key;
         fileSizeMb = Math.round(((releaseFile as File).size / (1024 * 1024)) * 10) / 10;
       }
 
@@ -1632,27 +1632,26 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                   className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK File (max ~45 MB — direct upload)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK File (Cloudflare R2 — no size limit)</label>
                 <input type="file" accept=".apk" onChange={e => setReleaseFile(e.target.files?.[0] || null)}
                   className="w-full text-xs text-slate-600 dark:text-white/60 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-600 file:text-white" />
                 {releaseFile && (
-                  <p className={`text-[10px] mt-1 ${releaseFile.size / 1024 / 1024 > 45 ? 'text-amber-500 font-bold' : 'dark:text-white/40 text-slate-400'}`}>
+                  <p className="text-[10px] dark:text-white/40 text-slate-400 mt-1">
                     {releaseFile.name} — {Math.round(releaseFile.size / 1024 / 1024 * 10) / 10} MB
-                    {releaseFile.size / 1024 / 1024 > 45 ? ' — bohat badi hai, neeche APK URL field use karo' : ''}
                   </p>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-px bg-slate-200 dark:bg-white/10" />
-                <span className="text-[10px] font-black uppercase tracking-widest dark:text-white/30 text-slate-400">OR — bade APK ke liye</span>
+                <span className="text-[10px] font-black uppercase tracking-widest dark:text-white/30 text-slate-400">OR paste a link</span>
                 <div className="flex-1 h-px bg-slate-200 dark:bg-white/10" />
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK URL (GitHub Release asset link)</label>
-                <input value={releaseUrl} onChange={e => setReleaseUrl(e.target.value)} placeholder="https://github.com/.../releases/download/v1.0/app.apk"
+                <label className="text-[10px] font-black uppercase tracking-widest dark:text-white/40 text-slate-500 block mb-1">APK URL (external link, optional)</label>
+                <input value={releaseUrl} onChange={e => setReleaseUrl(e.target.value)} placeholder="https://.../app.apk"
                   className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500" />
                 <p className="text-[10px] dark:text-white/30 text-slate-400 mt-1">
-                  45MB se badi APK ke liye: GitHub repo → Releases → Draft a new release → APK attach karo → publish → asset ka link yahan paste karo.
+                  Agar kahin aur (GitHub Release, etc.) se pehle se hosted APK hai to seedha yahan link paste kar do — file upload skip ho jayegi.
                 </p>
               </div>
               {releaseMsg && (
