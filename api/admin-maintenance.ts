@@ -1432,6 +1432,7 @@ async function handleR2PresignUpload(req: any, res: any) {
 }
 
 
+async function updateTokenStatus(managerId: string, status: string): Promise<void> {
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.${managerId}`, {
       method: 'PATCH',
