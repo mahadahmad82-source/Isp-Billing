@@ -12,9 +12,17 @@ import { GoogleGenAI } from '@google/genai';
 // to new users") for newly-created API keys as of Aug 2026 -- dropped from
 // the default chain. Older keys that still have access can pass it in via
 // overrideModels if needed.
+// gemini-2.0-flash was ALSO retired (404 NOT_FOUND, confirmed live in
+// production runtime errors: "This model models/gemini-2.0-flash is no
+// longer available... use models/gemini-3.6-flash"). Until this fix the
+// fallback chain had ZERO real redundancy -- if gemini-3.5-flash hit a
+// quota error, the only "fallback" (2.0-flash) was a guaranteed second 404,
+// so the whole call (image classify/extract, transcription, TTS) failed
+// outright. Replaced with gemini-3.6-flash, the model Google's own error
+// message told us to use.
 export const GEMINI_FALLBACK_MODELS = [
   'gemini-3.5-flash',
-  'gemini-2.0-flash'
+  'gemini-3.6-flash'
 ] as const;
 
 export type GeminiModel = typeof GEMINI_FALLBACK_MODELS[number] | 'gemini-3.5-flash' | 'gemini-3.1-flash-tts-preview' | 'gemini-2.5-flash-preview-tts' | string;
