@@ -1749,13 +1749,16 @@ async function getApprovedKnowledge(managerId: string = 'mahadnet', currentMessa
 // message is a separate serverless invocation. Keep only a short, recent window,
 // exclude the current inbound turn (which is already passed separately to the model),
 // and include the message id so the same turn is never duplicated in context.
-async function getRecentHistory(phone: string, managerId: string, limit = 8, excludeWaMessageId?: string): Promise<string> {
+async function getRecentHistory(phone: string, managerId: string, limit = 20, excludeWaMessageId?: string): Promise<string> {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/whatsapp_messages?manager_id=eq.${managerId}&customer_phone=eq.${normPhone(phone)}&order=created_at.desc&limit=20&select=direction,content,created_at,wa_message_id`;
+    const url = `${SUPABASE_URL}/rest/v1/whatsapp_messages?manager_id=eq.${managerId}&customer_phone=eq.${normPhone(phone)}&order=created_at.desc&limit=50&select=direction,content,created_at,wa_message_id`;
     const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
     if (!r.ok) return '';
     const rows: any[] = await r.json();
-    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    // Widened from 2h/8msgs to 24h/20msgs (v4.0 upgrade) so a customer returning
+    // later same-day doesn't get treated as a stranger. Raw fetch limit raised to
+    // 50 to give the post-filter dedup/slice enough rows to still land on `limit`.
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     const usable = rows.filter(row => {
       if (excludeWaMessageId && row?.wa_message_id === excludeWaMessageId) return false;
       const created = new Date(row?.created_at || 0).getTime();
@@ -2895,6 +2898,9 @@ Hindi ke ye words BILKUL FORBIDDEN hain:
 dhanyawad→shukriya | kripya→meherbani | samasya→masla | samadhan→hal | seva→khidmat | uplabdh→available | sunishchit→pakka | jankaari→baat | turant→foran | vyavastha→intezam | prayas→koshish | uttar→jawab | pradan→dena | sahayata/sahyta→madad | vyakti→shaks | samay→waqt | yogdaan→hissa | nirdesh→hidayat | anurodh→darkhwast
 
 SAHI WORDS: shukriya, haan ji, acha, theek hai, bilkul, zaroor, foran, masla, hal, batao, dekhti hoon, chalo
+
+ENGLISH CORPORATE/AI PHRASES — YEH BHI FORBIDDEN HAIN (kabhi na likho, chahe kitna bhi natural lage):
+"how can I help you", "I understand your concern", "I'd be happy to help", "sure thing", "please note", "as per my knowledge", "based on the information provided", "to summarize", "in conclusion", "I apologize for the inconvenience", "thank you for your patience", "I would like to clarify", "let me explain", "kindly", "at your earliest convenience", "please feel free to", "don't hesitate to", "I'm here to help", "we value your feedback", "I hope this helps", "is there anything else", "have a great day", "best regards" — inn sab ki jagah seedha, natural Roman Urdu jawab likho.
 
 OUTPUT: Hamesha SIRF valid JSON return karo, kuch aur nahi, koi markdown fence nahi:
 {"onTopic": true ya false, "reply": "tumhari reply yahan — max 4-5 lines, 1-2 emoji max"}
@@ -4250,7 +4256,7 @@ ${packagesListForGroq}
 
 Naya connection ki installation hamesha FREE hai. Fiber cable Rs.${CONFIG.fiberPricePerMeter}/meter hai (2-core, length site visit pe measure hoti hai) — yeh charge installation se alag hai.`;
       try {
-        const recentHistory = await getRecentHistory(from, managerId, 8, msgId);
+        const recentHistory = await getRecentHistory(from, managerId, 20, msgId);
         const knowledgeContext = await getApprovedKnowledge(managerId, text);
         // Multi-agent routing: pick a specialized agent (e.g. Bilal for technical, NetBot
         // for billing) by keyword match; falls back to the single default persona/voice
