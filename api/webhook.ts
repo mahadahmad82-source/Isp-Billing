@@ -2328,7 +2328,7 @@ async function updateConversationState(managerId: string, phone: string, intent:
     if (turnCount % 5 === 0) {
       try {
         const history = await getRecentHistory(phone, managerId, 20);
-        const sumSystem = `Neeche ek MahadNet ISP customer support WhatsApp conversation ka hissa hai. Ise 2-3 short Roman Urdu lines mein summarize karo — sirf zaroori facts (masla kya tha, kya kiya gaya, resolve hua ya nahi). Sirf plain text return karo, JSON nahi, koi extra commentary nahi.`;
+        const sumSystem = `Neeche ek MahadNet ISP customer support WhatsApp conversation ka hissa hai. Ise 2-3 short Roman Urdu lines mein summarize karo — sirf zaroori facts (masla kya tha, kya kiya gaya, resolve hua ya nahi).\nOUTPUT: Hamesha SIRF valid JSON return karo, koi markdown fence nahi: {"reply": "yahan summary likho"}`;
         const sumResult = await callGroqOnce(sumSystem, history.slice(0, 3000));
         const summaryText = sumResult?.reply ? sumResult.reply.slice(0, 500) : '';
         if (summaryText) {
@@ -3121,6 +3121,30 @@ COMPANY: MahadNet | Support: ${CONFIG.supportNumber}${recentHistory ? `\n\nRECEN
 // handler below, same "real facts come from code" rule this file already
 // follows for bank accounts/package prices.
 const DIAGNOSTIC_TURN_CAP = 5;
+
+// Deterministic burnt/physically-destroyed hardware override (v4.0 fix, Sep 6
+// 2026) — never trust the model's judgment on this unambiguous safety-critical
+// case. Real incident: customer said "mera router jal gaya hai" (burnt) and the
+// model kept asking about LED lights for 3+ more turns instead of escalating,
+// despite QAIDA #5 below explicitly listing "damaged/burnt device" as a trigger.
+const BURNT_HARDWARE_RE = /\b(jal\s*gaya|jal\s*gyi|jal\s*chuka|jala\s*hua|jali\s*hui|jal\s*raha|phat\s*gaya|phad\s*gaya|dhuwa|dhuan|burn(t|ing)?|smoke|spark(ing)?)\b/i;
+
+// Simple word-overlap similarity check — used to detect when the diagnostic model
+// asks essentially the same question twice in a row (stuck-loop breaker at the
+// diagnostic_flow continuation site further below). Real incident: the same
+// LED-status question was asked 3+ turns running despite the customer answering
+// each time — the model just wasn't reliably using the transcript it was given.
+function isRepeatDiagnosticQuestion(newReply: string, transcript: string[], botName: string): boolean {
+  const lastBotLine = [...transcript].reverse().find(l => l.startsWith(`${botName}:`));
+  if (!lastBotLine) return false;
+  const lastReply = lastBotLine.slice(botName.length + 1).trim();
+  const norm = (s: string) => new Set(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(w => w.length > 3));
+  const a = norm(newReply), b = norm(lastReply);
+  if (a.size === 0 || b.size === 0) return false;
+  let intersection = 0;
+  for (const w of a) if (b.has(w)) intersection++;
+  return (intersection / Math.min(a.size, b.size)) >= 0.6;
+}
 
 function diagnosticGenderToneBlock(gender: 'male' | 'female'): string {
   return gender === 'male'
@@ -4109,6 +4133,40 @@ export default async function handler(req: any, res: any) {
             continue;
           }
 
+          // Purchase-pivot exit (v4.0 fix, Sep 6 2026): if the customer clearly pivots
+          // to "I want to BUY a router/package/new connection" mid-diagnosis, the
+          // diagnostic script has no business continuing to ask about LED lights —
+          // exit the flow and answer what they're actually asking now. Uses the
+          // AI-first classification already computed earlier this turn (aiClass),
+          // no extra Groq call. Real incident: customer said "mujhy router khareedna
+          // hai" TWICE and the diagnostic script ignored it both times, kept asking
+          // about lights.
+          if (aiClass?.intent && (aiClass.confidence || 0) >= 0.85) {
+            if (aiClass.intent === 'router_recommend') {
+              await setSession(from, null);
+              const mbps = extractRouterRecommendMbps(text);
+              const band: '2.4g' | '5g' = mbps > 20 ? '5g' : '2.4g';
+              await sendText(from, routerRecommendReply(mbps, isEnglishText(text)));
+              await sendRouterCatalog(from, band);
+              await setSession(from, 'router_catalog_shown', { band });
+              continue;
+            }
+            if (aiClass.intent === 'packages' || aiClass.intent === 'menu_packages') {
+              await setSession(from, null);
+              const foundPk = await findCustomer(from);
+              const planPricesPk = foundPk?.planPrices && Object.keys(foundPk.planPrices).length ? foundPk.planPrices : await getAnyPlanPrices();
+              await sendText(from, packagesReply(planPricesPk));
+              continue;
+            }
+            if (aiClass.intent === 'new_conn' || aiClass.intent === 'menu_new_conn') {
+              await setSession(from, null);
+              const planPricesNc = await getAnyPlanPrices();
+              await sendText(from, newConnReply(planPricesNc));
+              await setSession(from, 'lead_awaiting_details');
+              continue;
+            }
+          }
+
           let foundD = await findCustomer(from);
           if (!foundD && stateD.verifiedManagerId && stateD.verifiedUserId) {
             foundD = await findCustomerByManagerAndId(stateD.verifiedManagerId, stateD.verifiedUserId);
@@ -4133,11 +4191,36 @@ export default async function handler(req: any, res: any) {
           }
 
           const turnsUsedD = stateD.turns || 1;
-          const diagD = await runDiagnosticTurn({
-            botName: botNameD, gender: currentTtsGender, connectionType: stateD.connectionType,
-            custData: `Customer: ${foundD.user.name}${stateD.connectionType ? ` | Connection: ${stateD.connectionType}` : ''}`,
-            transcript: stateD.transcript || [], turnsUsed: turnsUsedD,
-          }, text);
+          let diagD: { reply: string; action: string; summary?: string };
+          if (BURNT_HARDWARE_RE.test(text)) {
+            // Deterministic override — see BURNT_HARDWARE_RE comment above. Skips the
+            // AI call entirely for this turn; there's nothing to "diagnose" once the
+            // customer says the device is physically burnt/damaged.
+            diagD = {
+              reply: currentTtsGender === 'male'
+                ? `Samajh gaya — hardware damage lag raha hai, isay directly hamari technical team ko bhej raha hoon.`
+                : `Samajh gayi — hardware damage lag raha hai, isay directly hamari technical team ko bhej rahi hoon.`,
+              action: 'escalate_hardware',
+              summary: `Customer reported burnt/physically damaged router hardware ("${text.slice(0, 150)}")`,
+            };
+          } else {
+            diagD = await runDiagnosticTurn({
+              botName: botNameD, gender: currentTtsGender, connectionType: stateD.connectionType,
+              custData: `Customer: ${foundD.user.name}${stateD.connectionType ? ` | Connection: ${stateD.connectionType}` : ''}`,
+              transcript: stateD.transcript || [], turnsUsed: turnsUsedD,
+            }, text);
+
+            // Stuck-loop breaker — see isRepeatDiagnosticQuestion() comment above.
+            if (diagD.action === 'continue' && isRepeatDiagnosticQuestion(diagD.reply, stateD.transcript || [], botNameD)) {
+              diagD = {
+                reply: currentTtsGender === 'male'
+                  ? `Lagta hai mujhe samajhne mein masla ho raha hai — is issue ko direct hamari technical team ko bhej raha hoon, wo jaldi contact karenge.`
+                  : `Lagta hai mujhe samajhne mein masla ho raha hai — is issue ko direct hamari technical team ko bhej rahi hoon, wo jaldi contact karenge.`,
+                action: 'escalate_failed',
+                summary: `Diagnostic loop detected — bot repeated a near-identical question after the customer had already answered it. Original issue: ${stateD.issue || text}`,
+              };
+            }
+          }
 
           // Hard safety cap — never let this loop forever even if the model keeps
           // choosing "continue".
