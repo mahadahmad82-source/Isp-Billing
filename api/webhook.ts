@@ -4146,13 +4146,17 @@ export default async function handler(req: any, res: any) {
           }
           await setSession(from, null);
           const typedFound = { ...foundType, user: { ...foundType.user, connectionType: selectedType === 'fiber' ? 'Fiber' : 'Local' } };
-          if (selectedType === 'local') {
-            const localOutage = getRelevantUpdate(typedFound.rowData, originalIssue, typedFound.user, { complaint: true });
-            if (localOutage && outageConnectionScope(localOutage) === 'local') {
-              await sendOutageResponse(from, localOutage, typedFound.user, typedFound.rowData?.settings?.ayeshaBotName);
-              continue;
-            }
+          // Check for a relevant outage regardless of fiber/local — getRelevantUpdate
+          // already scopes internally (a local-scoped schedule only matches local
+          // customers, a fiber-scoped one only matches fiber), so this covers both,
+          // not just the local case.
+          const outageType = getRelevantUpdate(typedFound.rowData, originalIssue, typedFound.user, { complaint: true });
+          if (outageType) {
+            await sendOutageResponse(from, outageType, typedFound.user, typedFound.rowData?.settings?.ayeshaBotName);
+            continue;
           }
+          const billingBlockType = accountBillingBlockedReply(typedFound.user);
+          if (billingBlockType) { await sendText(from, billingBlockType); continue; }
           const ackType = await acknowledgeIssue(originalIssue, typedFound.rowData?.settings?.ayeshaBotName);
           await startDiagnosticFlow(from, typedFound, originalIssue, ackType);
           continue;
@@ -4165,16 +4169,14 @@ export default async function handler(req: any, res: any) {
             found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
           }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-          if (!mapDbConnectionType(found.user.connectionType)) {
-            await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
-            await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, found.rowData?.settings?.ayeshaBotName)));
-            continue;
-          }
-          const outage = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
-          if (outage) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
-          const billingBlock = accountBillingBlockedReply(found.user);
-          if (billingBlock) { await sendText(from, billingBlock); continue; }
-          await startDiagnosticFlow(from, found, text);
+          // Always ask fiber-vs-local fresh on every new complaint — the stored
+          // user.connectionType field is frequently stale/wrong (confirmed in prod:
+          // customers marked "Fiber" in the DB who explicitly told the bot "Mera
+          // local area connection hai" and never got asked because a value already
+          // existed). Trusting that field silently skipped this question and also
+          // silently skipped the local-outage-schedule reply. Ask every time instead.
+          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
+          await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, found.rowData?.settings?.ayeshaBotName)));
           continue;
         }
 
@@ -4237,6 +4239,14 @@ export default async function handler(req: any, res: any) {
             foundD = await findCustomerByManagerAndId(stateD.verifiedManagerId, stateD.verifiedUserId);
           }
           if (!foundD) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+          // The diagnostic session already captured the customer's answered
+          // fiber/local type (stateD.connectionType) at the start of this flow —
+          // that answer must win over whatever is (possibly stale) stored on the
+          // DB record, otherwise a local-scoped outage schedule would never match
+          // a customer we just confirmed is on Local a moment ago.
+          if (stateD.connectionType) {
+            foundD = { ...foundD, user: { ...foundD.user, connectionType: stateD.connectionType === 'fiber' ? 'Fiber' : 'Local' } };
+          }
 
           const outageD = getRelevantUpdate(foundD.rowData, text, foundD.user, { complaint: true });
           if (outageD) { await sendOutageResponse(from, outageD, foundD.user, foundD.rowData?.settings?.ayeshaBotName); continue; }
@@ -4506,8 +4516,13 @@ export default async function handler(req: any, res: any) {
 
       if (intent === 'menu_complaint') {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+        // Only surface an outage here if it applies regardless of connection type
+        // (unscoped, e.g. a general "UPS Down"/all-area power outage). A fiber/local
+        // -scoped schedule can't be reliably matched yet at this stage — the stored
+        // connectionType may be stale — so scoped outages wait until the connection
+        // type is freshly (re)confirmed a couple steps below in the complaint flow.
         const outage = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
-        if (outage) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
+        if (outage && !outageConnectionScope(outage)) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
         const billingBlock = accountBillingBlockedReply(found.user);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         // Carry the resolved identity forward so the rest of the complaint flow (which
@@ -4570,22 +4585,11 @@ export default async function handler(req: any, res: any) {
       if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
       if (intent === 'complaint') {
-        if (!mapDbConnectionType(user.connectionType)) {
-          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: managerId, verifiedUserId: user.id });
-          await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName)));
-          continue;
-        }
-        const outage = getRelevantUpdate(rowData, text, user, { complaint: true });
-        if (outage) { await sendOutageResponse(from, outage, user, rowData?.settings?.ayeshaBotName); continue; }
-        const billingBlock = accountBillingBlockedReply(user);
-        if (billingBlock) { await sendText(from, billingBlock); continue; }
-        const ackLine3 = await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName);
-        const setupNote3 = routerSetupContextNote(text);
-        const opening = [ackLine3, setupNote3].filter(Boolean).join('\n\n');
-        // Multi-turn technical diagnosis (device scope, router lights, speed test,
-        // WiFi/router-brand steps) BEFORE any ticket is registered — see
-        // startDiagnosticFlow() further up this file.
-        await startDiagnosticFlow(from, found, text, opening);
+        // Always ask fiber-vs-local fresh on every new complaint — see matching
+        // comment in the 'awaiting_complaint_text' session handler above for why
+        // the stored user.connectionType field is no longer trusted here.
+        await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: managerId, verifiedUserId: user.id });
+        await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName)));
         continue;
       }
 
