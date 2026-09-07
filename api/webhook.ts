@@ -941,6 +941,12 @@ function getRelevantUpdate(rowData: any, incomingText: string, customer?: any, o
       // active outage status takes precedence over trigger keywords (e.g. an admin may log
       // "UPS down" while customers naturally write only "mera net nahi chal raha"). Area
       // targeting remains enforced so a local outage is not shown to unrelated customers.
+      const scope = outageConnectionScope(update);
+      const customerConnection = mapDbConnectionType(customer?.connectionType);
+      // A technology-scoped schedule must only reach the matching connection type.
+      // If the customer's type is not recorded yet, return the update so the caller
+      // can ask Fiber vs Local before sharing the notice.
+      if (scope && customerConnection && scope !== customerConnection) return false;
       const keywordMatch = options.complaint === true
         ? true
         : !keywords.length || keywords.some((keyword: string) => message.includes(keyword));
@@ -2614,6 +2620,18 @@ function mapDbConnectionType(dbType?: string): 'fiber' | 'local' | null {
   return dbType.toLowerCase() === 'fiber' ? 'fiber' : 'local';
 }
 
+// Outage schedules can be scoped to a connection technology (for example, a
+// local-area/UTP network outage). Keep fiber customers on normal diagnostics;
+// do not show them a local-network notice just because they reported "net band".
+function outageConnectionScope(outage: any): 'fiber' | 'local' | null {
+  const source = [outage?.title, outage?.description, outage?.cause, outage?.customerMessage,
+    outage?.incidentType, ...(Array.isArray(outage?.triggerKeywords) ? outage.triggerKeywords : [])]
+    .filter(Boolean).join(' ').toLowerCase();
+  if (/local|utp|ethernet|lan|wires*wala|taars*wala|areas*connection/.test(source)) return 'local';
+  if (/fiber|fibre|optic/.test(source)) return 'fiber';
+  return null;
+}
+
 function troubleshootingReply(issue: string, connectionType?: 'fiber' | 'local'): string {
   const t = issue.toLowerCase();
   const isWifiAuth = /password|connect\s*nahi|wifi\s*(nahi|disconnect)/.test(t);
@@ -4098,6 +4116,32 @@ export default async function handler(req: any, res: any) {
         }
 
         // Complaint described via menu option 1 → check outage/billing, then ask connection type
+        if (session === 'awaiting_connection_type') {
+          const selectedType = detectConnectionType(text);
+          const originalIssue = sessionData?.issue || text;
+          let foundType = await findCustomer(from);
+          if (!foundType && sessionData?.verifiedManagerId && sessionData?.verifiedUserId) {
+            foundType = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
+          }
+          if (!foundType) { await setSession(from, null); await sendText(from, unknownCustomerReply()); continue; }
+          if (!selectedType) {
+            await sendText(from, tmpl('connection_type_not_understood'));
+            continue;
+          }
+          await setSession(from, null);
+          const typedFound = { ...foundType, user: { ...foundType.user, connectionType: selectedType === 'fiber' ? 'Fiber' : 'Local' } };
+          if (selectedType === 'local') {
+            const localOutage = getRelevantUpdate(typedFound.rowData, originalIssue, typedFound.user, { complaint: true });
+            if (localOutage && outageConnectionScope(localOutage) === 'local') {
+              await sendOutageResponse(from, localOutage, typedFound.user, typedFound.rowData?.settings?.ayeshaBotName);
+              continue;
+            }
+          }
+          const ackType = await acknowledgeIssue(originalIssue, typedFound.rowData?.settings?.ayeshaBotName);
+          await startDiagnosticFlow(from, typedFound, originalIssue, ackType);
+          continue;
+        }
+
         if (session === 'awaiting_complaint_text') {
           await setSession(from, null);
           let found = await findCustomer(from);
@@ -4105,6 +4149,11 @@ export default async function handler(req: any, res: any) {
             found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
           }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+          if (!mapDbConnectionType(found.user.connectionType)) {
+            await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
+            await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, found.rowData?.settings?.ayeshaBotName)));
+            continue;
+          }
           const outage = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
           if (outage) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
           const billingBlock = accountBillingBlockedReply(found.user);
@@ -4505,6 +4554,11 @@ export default async function handler(req: any, res: any) {
       if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
       if (intent === 'complaint') {
+        if (!mapDbConnectionType(user.connectionType)) {
+          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: managerId, verifiedUserId: user.id });
+          await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName)));
+          continue;
+        }
         const outage = getRelevantUpdate(rowData, text, user, { complaint: true });
         if (outage) { await sendOutageResponse(from, outage, user, rowData?.settings?.ayeshaBotName); continue; }
         const billingBlock = accountBillingBlockedReply(user);
