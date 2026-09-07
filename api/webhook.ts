@@ -492,6 +492,12 @@ Service restore hote hi connection khud theek ho jayega — dobara complaint reg
   outage_reminder_reply_alt: `Ji {name}, abhi tak *{areas}* mein {issue_type} par maintenance jaari hai. {eta_line}
 
 Team isay resolve kar rahi hai; network normal hote hi service wapas aa jayegi. 🙏`,
+  outage_fiber_upsell_note: `
+
+🌐 *Suggestion:* Local (wire) connection mein is tarah ki scheduled downtime kabhi kabhi aa sakti hai. Agar aap chahte hain ke service hamesha *24/7* chalti rahe, to *Fiber Optic* connection le sakte hain — yeh hamesha 24/7 on rehta hai. Shift karna chahein to bata dein, free survey kar dete hain!`,
+  outage_load_shedding_note: `
+
+⚡ *Notice:* Filhal area mein bijli sirf takreeban 1 ghante ke liye aati hai — is ke bawajood hum apni taraf se jitna ho sake utna backup dene ki koshish kar rahe hain load shedding ke doran.`,
   complaint_tip_router: `
 💡 *Quick tip:* Router ek baar off karke 30 sec baad on karein — aksar theek ho jata hai!`,
   complaint_urgent_line: `
@@ -2705,12 +2711,21 @@ ETA: ${String(outage.estimatedResolution || 'N/A').slice(0, 120)}`;
 
 async function outageReply(outage: any, botName: string = 'NetBot'): Promise<string> {
   const kind = outage.kind || 'incident';
+  // Local (wire/UTP) scoped outages get two extra notes appended after the core
+  // update, regardless of whether the reply came from the AI rewrite or the
+  // deterministic fallback: (1) a fiber-optic upsell pitch, since fiber stays
+  // 24/7 and is unaffected by this kind of scheduled local downtime, and (2) a
+  // load-shedding/backup note. Fiber-scoped and untyped outages don't get these.
+  const localExtra = outageConnectionScope(outage) === 'local'
+    ? `${tmpl('outage_fiber_upsell_note')}${tmpl('outage_load_shedding_note')}`
+    : '';
   if (kind !== 'incident') {
     const title = sanitizeHindiWords(outage.title || 'Important update');
     const details = outage.description ? `\n${sanitizeHindiWords(outage.description)}` : '';
     const etaLine = outage.estimatedResolution ? `\nAndazatan update: ${sanitizeHindiWords(outage.estimatedResolution)}` : '';
     const fallback = sanitizeHindiWords(`📢 ${title}${details}${etaLine}`);
-    return formatOutageCustomerMessage(outage, fallback, botName);
+    const base = await formatOutageCustomerMessage(outage, fallback, botName);
+    return `${base}${localExtra}`;
   }
   const fields = outageFields(outage);
   const fallback = tmpl('outage_reply', {
@@ -2720,7 +2735,8 @@ async function outageReply(outage: any, botName: string = 'NetBot'): Promise<str
     cause_line: fields.causeLine,
     eta_line: fields.etaLine ? `\n${fields.etaLine}` : '',
   });
-  return formatOutageCustomerMessage(outage, fallback, botName);
+  const base = await formatOutageCustomerMessage(outage, fallback, botName);
+  return `${base}${localExtra}`;
 }
 
 function outageReminderReply(outage: any, user: any, reminderCount: number): string {
