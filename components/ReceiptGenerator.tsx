@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign, SubManagerAccount } from '../types';
 import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
-import { shareToWhatsApp, getWabotAuthHeaders } from '../utils/whatsapp';
+import { shareToWhatsApp, getWabotAuthHeaders, uploadMediaToR2 } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
 import { supabase } from '../lib/supabase';
 
@@ -447,7 +447,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     return `92${digits.slice(-10)}`;
   };
 
-  // Generates the receipt PNG and stores it in Supabase Storage (whatsapp-media bucket),
+  // Generates the receipt PNG and stores it in Cloudflare R2 (was Supabase Storage — migrated Sep 2026, see PROJECT_KNOWLEDGE.md),
   // saving the public URL on the receipt record. This runs regardless of WABA send status,
   // so the image is always ready for WABot to instantly share whenever the customer asks
   // for it later (within the 24-hour customer-service window).
@@ -478,10 +478,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         if (!blob) return;
         try {
           const path = `receipts/${Date.now()}-${(receipt.transactionRef || receipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
-          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png', cacheControl: '31536000' });
-          if (upErr) throw upErr;
-          const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-          onUpdateReceipt({ ...receipt, receiptImageUrl: pub.publicUrl });
+          const publicUrl = await uploadMediaToR2(path, blob, 'image/png');
+          onUpdateReceipt({ ...receipt, receiptImageUrl: publicUrl });
         } catch (e) {
           console.error('[ReceiptGenerator] receipt image store failed', e);
         }
@@ -565,16 +563,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         if (!blob) { setAutoSendStatus('failed'); clearSoon(); return; }
         try {
           const path = `receipts/${Date.now()}-${(receipt.transactionRef || receipt.id || '').replace(/[^a-zA-Z0-9-]/g, '')}.png`;
-          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, blob, { contentType: 'image/png', cacheControl: '31536000' });
-          if (upErr) throw upErr;
-          const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+          const publicUrl = await uploadMediaToR2(path, blob, 'image/png');
           const balance = receipt.balanceAmount || 0;
           const advanceLine = (receipt.advanceAmount || 0) > 0 ? `Advance Paid: Rs. ${(receipt.advanceAmount || 0).toLocaleString()}\n` : '';
           const caption = `*${settings.businessName} RECEIPT*\nRef: ${receipt.transactionRef}\n${advanceLine}Amount Paid: Rs. ${(receipt.paidAmount || 0).toLocaleString()}\nRemaining Balance: Rs. ${balance.toLocaleString()}\n\nShukriya! ✅`;
           await fetch('/api/wabot-send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
-            body: JSON.stringify({ to: normalizePhoneForWa(receipt.userPhone), managerId, type: 'image', mediaUrl: pub.publicUrl, caption }),
+            body: JSON.stringify({ to: normalizePhoneForWa(receipt.userPhone), managerId, type: 'image', mediaUrl: publicUrl, caption }),
           });
           setAutoSendStatus('sent');
         } catch (e) {
