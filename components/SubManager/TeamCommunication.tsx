@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SubManagerAccount, TeamMessage } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { uploadMediaToR2 } from '../../utils/whatsapp';
 
 interface TeamCommunicationProps {
   managerId: string;
@@ -149,13 +150,8 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
         try {
           const extension = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm';
           const path = `team-voice/${managerId}/${Date.now()}.${extension}`;
-          const { error } = await supabase.storage.from('whatsapp-media').upload(path, blob, {
-            contentType: blob.type || 'audio/webm',
-            cacheControl: '31536000',
-          });
-          if (error) throw error;
-          const { data } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-          const sent = await sendMessage({ voiceUrl: data.publicUrl, voiceMimeType: blob.type || 'audio/webm' });
+          const publicUrl = await uploadMediaToR2(path, blob, blob.type || 'audio/webm');
+          const sent = await sendMessage({ voiceUrl: publicUrl, voiceMimeType: blob.type || 'audio/webm' });
           if (!sent) alert('Voice note save nahi hui.');
         } catch (error: any) {
           alert(`Voice note upload nahi hua: ${error?.message || 'Unknown error'}`);
