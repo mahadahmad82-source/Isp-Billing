@@ -21,6 +21,32 @@ export async function getWabotAuthHeaders(): Promise<Record<string, string>> {
 }
 
 /**
+ * Uploads a file/blob DIRECTLY to Cloudflare R2 from the browser (zero egress
+ * fees, unlike Supabase Storage's 5GB/month cap) and returns its public URL.
+ * Gets a short-lived presigned PUT URL from api/wabot-send.ts (action:
+ * 'getUploadUrl'), then PUTs the bytes straight to R2 — the actual file never
+ * passes through our own serverless function, so there's no Vercel body-size
+ * limit to worry about for larger files (gallery videos/documents etc).
+ * Replaces every direct `supabase.storage.from('whatsapp-media')...` call —
+ * see PROJECT_KNOWLEDGE.md for why (Sep 2026 egress investigation).
+ */
+export async function uploadMediaToR2(path: string, blob: Blob, contentType: string): Promise<string> {
+  const urlRes = await fetch('/api/wabot-send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
+    body: JSON.stringify({ action: 'getUploadUrl', path }),
+  });
+  if (!urlRes.ok) {
+    const err = await urlRes.json().catch(() => ({}));
+    throw new Error(err?.error || `Could not get upload URL: HTTP ${urlRes.status}`);
+  }
+  const { uploadUrl, publicUrl } = await urlRes.json();
+  const putRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: blob });
+  if (!putRes.ok) throw new Error(`R2 upload failed: HTTP ${putRes.status}`);
+  return publicUrl as string;
+}
+
+/**
  * Formats a phone number for WhatsApp (International format without +)
  * Assumes Pakistan (92) if it starts with 0 or 3
  */
@@ -102,32 +128,16 @@ export const sendReceiptViaWABot = async (
   try {
     const formattedPhone = formatWhatsAppPhone(phone);
 
-    // 1. Upload PNG to Supabase Storage
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    // 1. Upload PNG directly to R2 (was Supabase Storage — see uploadMediaToR2 doc)
     const fileName = `receipts/${managerId}/${receiptRef}_${Date.now()}.png`;
-    const uploadRes = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${fileName}`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'image/png',
-          'cache-control': '31536000',
-        },
-        body: pngBlob,
-      }
-    );
-
-    if (!uploadRes.ok) {
-      const err = await uploadRes.json().catch(() => ({}));
-      return { success: false, error: `Storage upload failed: ${err?.message || uploadRes.status}` };
+    let mediaUrl: string;
+    try {
+      mediaUrl = await uploadMediaToR2(fileName, pngBlob, 'image/png');
+    } catch (e: any) {
+      return { success: false, error: `Storage upload failed: ${e?.message || 'Unknown error'}` };
     }
 
     // 2. Send image via wabot-send endpoint
-    const mediaUrl = `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${fileName}`;
-
     const sendRes = await fetch('/api/wabot-send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
