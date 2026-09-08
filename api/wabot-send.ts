@@ -3,6 +3,7 @@
 // auto-pauses NetBot on that thread (so the bot doesn't collide with a human
 // reply mid-conversation).
 import { callGeminiWithFailover } from '../lib/geminiFailover.js';
+import { uploadToR2, getPresignedUploadUrl, getR2PublicUrl } from '../lib/r2.js';
 import * as lamejs from '@breezystack/lamejs';
 // NOTE: synthesizeNonGemini is imported lazily inside handlePreviewVoice() below,
 // NOT at top-level. A top-level import of lib/ttsProviders crashed this ENTIRE
@@ -107,6 +108,19 @@ export default async function handler(req: any, res: any) {
     const authCheck = await verifyCaller(req, 'view');
     if (!authCheck.ok) return res.status(401).json({ error: 'Unauthorized' });
     return handlePreviewVoice(req, res);
+  }
+
+  // ── Presigned R2 upload URL (Sep 2026 egress fix) ──
+  // Frontend components (ReceiptGenerator, WABotInbox, TeamCommunication,
+  // Login signup-proof) used to upload straight to Supabase Storage, which is
+  // what was blowing through the 5GB/month egress cap — see PROJECT_KNOWLEDGE.md.
+  // This hands back a short-lived presigned PUT URL so the browser uploads
+  // DIRECTLY to R2 (zero egress fees, and no Vercel function body-size limit
+  // for larger files like gallery videos/documents).
+  if (req.body?.action === 'getUploadUrl') {
+    const authCheck = await verifyCaller(req, 'create');
+    if (!authCheck.ok) return res.status(401).json({ error: 'Unauthorized' });
+    return handleGetUploadUrl(req, res);
   }
 
   const authCheck = await verifyCaller(req, 'create');
@@ -252,6 +266,25 @@ export default async function handler(req: any, res: any) {
   return res.status(200).json({ success: true, wamid });
 }
 
+// ── Presigned upload URL handler (called via action: 'getUploadUrl') ──
+// `path` must be a caller-supplied R2 object key (e.g. 'receipts/169...-ref.png').
+// Basic traversal guard only — this endpoint is auth-gated (verifyCaller above),
+// same trust level the old direct-to-Supabase uploads had.
+async function handleGetUploadUrl(req: any, res: any) {
+  try {
+    const { path } = req.body || {};
+    if (!path || typeof path !== 'string' || path.includes('..') || path.startsWith('/')) {
+      return res.status(400).json({ error: 'Valid path required' });
+    }
+    const uploadUrl = await getPresignedUploadUrl(path);
+    if (!uploadUrl) return res.status(502).json({ error: 'Could not generate upload URL — check R2 env vars' });
+    return res.status(200).json({ uploadUrl, publicUrl: getR2PublicUrl(path) });
+  } catch (e: any) {
+    console.error('[wabot-send getUploadUrl]', e?.message);
+    return res.status(500).json({ error: e?.message || 'Unknown error' });
+  }
+}
+
 // ── Voice preview handler (called via action: 'previewVoice') ──
 // Generates a short Gemini TTS sample for a given voice name so mahadnet can
 // audition voices from WABot Settings before assigning one to an agent. Same
@@ -281,13 +314,9 @@ async function handlePreviewVoice(req: any, res: any) {
       const result = await synthesizeNonGemini(text, provider, effectiveGender);
       if (!result) return res.status(502).json({ error: `${provider === 'azure' ? 'Azure' : 'Edge-TTS'} se audio generate nahi hua. Azure ke liye AZURE_SPEECH_KEY/AZURE_SPEECH_REGION set hain?` });
       const path = `tts-previews/${provider}-${effectiveGender}-${Date.now()}.mp3`;
-      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
-        body: result.buffer,
-      });
-      if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
-      return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, providerUsed: result.providerUsed, azureError: result.azureError });
+      const url = await uploadToR2(path, result.buffer, 'audio/mpeg');
+      if (!url) return res.status(502).json({ error: 'Upload failed — check R2 env vars' });
+      return res.status(200).json({ url, providerUsed: result.providerUsed, azureError: result.azureError });
     }
 
     if (!voice || !GEMINI_VALID_VOICES.has(voice)) {
@@ -327,14 +356,10 @@ async function handlePreviewVoice(req: any, res: any) {
     const mp3Buf = Buffer.concat(mp3Chunks.map((c) => Buffer.from(c)));
 
     const path = `tts-previews/${voice}-${Date.now()}.mp3`;
-    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/whatsapp-media/${path}`, {
-      method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=604800' },
-      body: mp3Buf,
-    });
-    if (!upRes.ok) return res.status(502).json({ error: 'Upload failed', detail: await upRes.text() });
+    const url = await uploadToR2(path, mp3Buf, 'audio/mpeg');
+    if (!url) return res.status(502).json({ error: 'Upload failed — check R2 env vars' });
 
-    return res.status(200).json({ url: `${SUPABASE_URL}/storage/v1/object/public/whatsapp-media/${path}`, providerUsed: 'gemini' });
+    return res.status(200).json({ url, providerUsed: 'gemini' });
   } catch (e: any) {
     console.error('[wabot-send previewVoice]', e?.message);
     return res.status(500).json({ error: e?.message || 'Unknown error' });
