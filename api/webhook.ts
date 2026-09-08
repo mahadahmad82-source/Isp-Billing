@@ -956,11 +956,23 @@ function getRelevantUpdate(rowData: any, incomingText: string, customer?: any, o
       const keywordMatch = options.complaint === true
         ? true
         : !keywords.length || keywords.some((keyword: string) => message.includes(keyword));
-      const configuredAreas = Array.isArray(update.targetAreas) && update.targetAreas.length
+      const configuredAreasRaw = Array.isArray(update.targetAreas) && update.targetAreas.length
         ? update.targetAreas
         : Array.isArray(update.areasAffected) && update.areasAffected.length
           ? update.areasAffected
           : [];
+      // Admins sometimes type a connection-type description into "Areas Affected"
+      // (e.g. "Only LocalArea Connections LAN") instead of an actual named area/
+      // zone. That text will never appear inside a real customer address, so area
+      // -matching would silently exclude every customer from ever seeing the
+      // notice. When every configured "area" is really just describing the
+      // connection type already captured by `scope` above, drop area filtering
+      // instead of treating it as a literal (unmatchable) zone name.
+      const looksLikeConnectionTypeLabel = (area: string) =>
+        /local|utp|ethernet|\blan\b|wires*wala|taars*wala|areas*connection|fiber|fibre|optic/.test(normalize(area));
+      const configuredAreas = scope && configuredAreasRaw.length && configuredAreasRaw.every(looksLikeConnectionTypeLabel)
+        ? []
+        : configuredAreasRaw;
       const areaMatch = !configuredAreas.length || configuredAreas.some((area: string) => {
         const normalizedArea = normalize(area);
         return normalizedArea && customerContext.includes(normalizedArea);
