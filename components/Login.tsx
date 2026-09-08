@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
+import { uploadMediaToR2 } from '../utils/whatsapp';
 import { logoBase64 } from '../utils/logoBase64';
 import VideoBackground from './landing/VideoBackground';
 import LanguageToggle from './LanguageToggle';
@@ -390,12 +391,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     try {
       const ext = proofFile.name.split('.').pop() || 'jpg';
       const path = `signup-proofs/${phone}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, proofFile, {
-        contentType: proofFile.type || 'image/jpeg', cacheControl: '31536000',
-      });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-      await supabase.rpc('submit_signup_payment_proof', { p_proof_url: pub.publicUrl });
+      const publicUrl = await uploadMediaToR2(path, proofFile, proofFile.type || 'image/jpeg');
+      await supabase.rpc('submit_signup_payment_proof', { p_proof_url: publicUrl });
       setProofSubmitted(true);
     } catch (err: any) {
       showError(err?.message || 'Proof upload failed, try again.');
