@@ -41,6 +41,36 @@ const r2Client =
       })
     : null;
 
+// Builds the public URL for a given object path — deterministic, no network
+// call needed. Shared by uploadToR2 and the presigned-upload flow below so
+// both server-side and client-side (presigned) upload paths return the exact
+// same URL shape.
+export function getR2PublicUrl(path: string): string {
+  return `${R2_PUBLIC_URL}/${path}`;
+}
+
+// Generates a short-lived presigned PUT URL so a browser can upload a file
+// DIRECTLY to R2 — bypassing our serverless function's request-body-size limit
+// entirely (Vercel caps a function's body around 4.5MB; receipts are usually
+// fine, but gallery videos/documents from WABotInbox are not). Content-Type is
+// intentionally NOT included in the signature, so the client is free to send
+// any Content-Type header at PUT time without invalidating the signature.
+export async function getPresignedUploadUrl(path: string, expiresInSeconds = 300): Promise<string | null> {
+  if (!r2Client || !R2_ENDPOINT) {
+    console.error('[getPresignedUploadUrl] R2 env vars missing — check R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY');
+    return null;
+  }
+  try {
+    const url = new URL(`${bucketBaseUrl()}/${path}`);
+    url.searchParams.set('X-Amz-Expires', String(expiresInSeconds));
+    const signed = await r2Client.sign(new Request(url, { method: 'PUT' }), { aws: { signQuery: true } });
+    return signed.url;
+  } catch (e: any) {
+    console.error('[getPresignedUploadUrl]', e?.message, '| endpoint:', R2_ENDPOINT);
+    return null;
+  }
+}
+
 // Uploads a buffer to the R2 bucket and returns its public URL, or null on
 // any failure/misconfiguration. Callers must fall back gracefully (e.g. to a
 // text-only reply) — a storage hiccup must never break the whole message,
