@@ -530,6 +530,7 @@ export interface SuspensionLog {
 // ─── NETWORK OUTAGE LOG ───────────────────────────────────────
 export type OutageSeverity = 'partial' | 'full' | 'degraded';
 export type OutageIncidentType = 'outage' | 'slow' | 'maintenance' | 'fiber-cut' | 'power' | 'other';
+export type OutageConnectionScope = 'all' | 'fiber' | 'local';
 
 export interface OutageLog {
   id: string;
@@ -537,6 +538,10 @@ export interface OutageLog {
   description?: string;
   incidentType?: OutageIncidentType;
   severity: OutageSeverity;
+  // Which connection type this outage/schedule affects. Kept separate from
+  // areasAffected (geographic zones) so NetBot can reliably match a customer's
+  // fiber/local status without guessing from free-text area names.
+  connectionType?: OutageConnectionScope;
   areasAffected: string[];
   startTime: string;
   expiresAt?: string;
