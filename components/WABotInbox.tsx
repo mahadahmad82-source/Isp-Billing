@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent, WABotBehaviorRule } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
-import { getWabotAuthHeaders } from '../utils/whatsapp';
+import { getWabotAuthHeaders, uploadMediaToR2 } from '../utils/whatsapp';
 import * as lamejs from '@breezystack/lamejs';
 
 // WhatsApp's own text formatting (*bold*, _italic_, ~strikethrough~) is stored
@@ -1027,10 +1027,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         outBlob = blob;
       }
       const path = `admin-voice/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, outBlob, { contentType: outMime, cacheControl: '31536000' });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-      const mediaUrl = pub.publicUrl;
+      const mediaUrl = await uploadMediaToR2(path, outBlob, outMime);
       const optimistic: WAMessage = {
         id: `temp-${Date.now()}`, manager_id: managerId, customer_phone: selectedPhone,
         direction: 'out', type: 'audio', content: mediaUrl, media_url: mediaUrl,
@@ -1067,10 +1064,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       const folder = isImage ? 'admin-images' : isVideo ? 'admin-videos' : 'admin-documents';
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${folder}/${Date.now()}-${safeName}`;
-      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, file, { contentType: file.type || 'application/octet-stream', cacheControl: '31536000' });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
-      const mediaUrl = pub.publicUrl;
+      const mediaUrl = await uploadMediaToR2(path, file, file.type || 'application/octet-stream');
       const optimistic: WAMessage = {
         id: `temp-${Date.now()}`, manager_id: managerId, customer_phone: selectedPhone,
         direction: 'out', type: sendType, content: mediaUrl, media_url: mediaUrl,
