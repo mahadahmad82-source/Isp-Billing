@@ -919,7 +919,7 @@ function getRelevantUpdate(rowData: any, incomingText: string, customer?: any, o
   const fingerprint = liveLogs.map((log: any) => JSON.stringify({
     id: log?.id, endTime: log?.endTime, expiresAt: log?.expiresAt, updatedAt: log?.updatedAt,
     notifyBot: log?.notifyBot, title: log?.title, incidentType: log?.incidentType,
-    severity: log?.severity, areasAffected: log?.areasAffected, targetAreas: log?.targetAreas,
+    severity: log?.severity, connectionType: log?.connectionType, areasAffected: log?.areasAffected, targetAreas: log?.targetAreas,
     triggerKeywords: log?.triggerKeywords, cause: log?.cause,
     estimatedResolution: log?.estimatedResolution, customerMessage: log?.customerMessage,
   })).join('|');
@@ -2642,6 +2642,13 @@ function mapDbConnectionType(dbType?: string): 'fiber' | 'local' | null {
 // local-area/UTP network outage). Keep fiber customers on normal diagnostics;
 // do not show them a local-network notice just because they reported "net band".
 function outageConnectionScope(outage: any): 'fiber' | 'local' | null {
+  // The admin panel now has a dedicated Connection Type box (separate from
+  // Areas Affected) that writes outage.connectionType directly — 'fiber' |
+  // 'local' | 'all'. Trust that explicit value first; only fall back to
+  // guessing from the free-text fields for older records saved before that
+  // field existed.
+  if (outage?.connectionType === 'fiber' || outage?.connectionType === 'local') return outage.connectionType;
+  if (outage?.connectionType === 'all') return null;
   const source = [outage?.title, outage?.description, outage?.cause, outage?.customerMessage,
     outage?.incidentType, ...(Array.isArray(outage?.triggerKeywords) ? outage.triggerKeywords : [])]
     .filter(Boolean).join(' ').toLowerCase();
