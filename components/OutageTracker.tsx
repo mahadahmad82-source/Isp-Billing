@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useIsDark } from '../hooks/useIsDark';
-import { OutageIncidentType, OutageLog, OutageSeverity } from '../types';
+import { OutageIncidentType, OutageLog, OutageSeverity, OutageConnectionScope } from '../types';
 import { CheckIcon, DotIcon, GlobeIcon, MapPinIcon, UsersIcon } from './icons/UiIcons';
 
 interface Props {
@@ -27,6 +27,18 @@ const INCIDENT_TYPES: Record<OutageIncidentType, string> = {
   other: 'Other Network Issue',
 };
 
+const CONNECTION_TYPES: Record<OutageConnectionScope, string> = {
+  all: 'All Connections (Fiber + Local)',
+  fiber: 'Fiber Optic',
+  local: 'Local Area (UTP/LAN/Ethernet)',
+};
+
+const CONNECTION_TYPE_LABEL: Record<OutageConnectionScope, string> = {
+  all: 'All Connections',
+  fiber: 'Fiber Only',
+  local: 'Local Area Only',
+};
+
 ;
 
 const genId = () => `OUT-${Date.now()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
@@ -36,7 +48,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'detail'>('list');
   const [detail, setDetail] = useState<OutageLog | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, areasAffected: '', cause: '', estimatedResolution: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
+  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, connectionType: 'all' as OutageConnectionScope, areasAffected: '', cause: '', estimatedResolution: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
   const [resolveNote, setResolveNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string|null>(null);
   const [toast, setToast] = useState<string|null>(null);
@@ -67,6 +79,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       description: form.description.trim() || undefined,
       incidentType: form.incidentType,
       severity: form.severity,
+      connectionType: form.connectionType,
       areasAffected: form.areasAffected.split(',').map(a => a.trim()).filter(Boolean),
       cause: form.cause.trim() || undefined,
       estimatedResolution: form.estimatedResolution.trim() || undefined,
@@ -79,7 +92,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       createdBy: currentUser,
     };
     onAdd(log);
-    setForm({ title:'', description:'', incidentType:'outage', severity:'full', areasAffected:'', cause:'', estimatedResolution:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
+    setForm({ title:'', description:'', incidentType:'outage', severity:'full', connectionType:'all', areasAffected:'', cause:'', estimatedResolution:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
     showToast('Outage logged!');
     setView('list');
   };
@@ -108,13 +121,10 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
         </div>
 
-        <div>
-          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
-          <select value={form.incidentType} onChange={e => setForm(p=>({...p,incidentType:e.target.value as OutageIncidentType}))}
-            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}>
-            {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
+
+
+
+
 
         <div>
           <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
@@ -123,31 +133,14 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
-
         <div>
-          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
-          <select value={form.incidentType} onChange={e => setForm(p=>({...p,incidentType:e.target.value as OutageIncidentType}))}
+          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Connection Type</label>
+          <select value={form.connectionType} onChange={e => setForm(p=>({...p,connectionType:e.target.value as OutageConnectionScope}))}
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}>
-            {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            {Object.entries(CONNECTION_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          <p className={`text-[11px] mt-1 ${isDark ? 'text-white/35' : 'text-slate-400'}`}>Kis connection type ko ye asar kar raha hai — NetBot isi se decide karta hai kisay ye notice bhejni hai.</p>
         </div>
-
-        <div>
-          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
-          <select value={form.incidentType} onChange={e => setForm(p=>({...p,incidentType:e.target.value as OutageIncidentType}))}
-            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}>
-            {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Update Type</label>
-          <select value={form.incidentType} onChange={e => setForm(p=>({...p,incidentType:e.target.value as OutageIncidentType}))}
-            className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}>
-            {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Severity</label>
@@ -167,8 +160,9 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
         <div>
           <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Areas Affected (comma separated)</label>
           <input value={form.areasAffected} onChange={e => setForm(p=>({...p,areasAffected:e.target.value}))}
-            placeholder="Gulshan, DHA, Clifton"
+            placeholder="Gulshan, DHA, Clifton — leave blank if not area-specific"
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
+          <p className={`text-[11px] mt-1 ${isDark ? 'text-white/35' : 'text-slate-400'}`}>Sirf asal jagah/zone ke naam yahan likhein (jaise Gulshan, DHA). Connection type (Fiber/Local) upar wale box se select karein.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -243,7 +237,12 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 mr-3">
               <h2 className="text-xl font-black">{detail.title}</h2>
-              <p className={`text-xs mt-1 ${isDark ? 'text-white/45' : 'text-slate-500'}`}>{INCIDENT_TYPES[detail.incidentType || 'outage']}</p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className={`text-xs ${isDark ? 'text-white/45' : 'text-slate-500'}`}>{INCIDENT_TYPES[detail.incidentType || 'outage']}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${(detail.connectionType || 'all') === 'all' ? (isDark ? 'bg-white/10 border-white/15 text-white/60' : 'bg-slate-100 border-slate-200 text-slate-600') : 'bg-sky-500/15 border-sky-500/30 text-sky-500'}`}>
+                  {CONNECTION_TYPE_LABEL[detail.connectionType || 'all']}
+                </span>
+              </div>
             </div>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${cfg.bg} ${cfg.color}`}><DotIcon color={cfg.iconColor} />{cfg.label}</span>
           </div>
@@ -439,6 +438,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
                 <div className={`flex gap-3 text-xs ${isDark ? 'text-white/40' : 'text-slate-500'} flex-wrap`}>
                   <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />{duration(o.startTime)}</span>
                   <span>{INCIDENT_TYPES[o.incidentType || 'outage']}</span>
+                  {(o.connectionType && o.connectionType !== 'all') && <span className="inline-flex items-center gap-1 text-sky-500">{CONNECTION_TYPE_LABEL[o.connectionType]}</span>}
                   {o.affectedCount && <span className="inline-flex items-center gap-1"><UsersIcon className="w-3 h-3" />{o.affectedCount} users</span>}
                   {o.areasAffected.length > 0 && <span className="inline-flex items-center gap-1"><MapPinIcon className="w-3 h-3" />{o.areasAffected.slice(0,2).join(', ')}{o.areasAffected.length > 2 ? '...' : ''}</span>}
                 </div>
