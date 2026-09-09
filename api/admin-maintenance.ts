@@ -26,8 +26,9 @@ const adminSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Split text/voice — voice (Gemini TTS) is the real cost driver, text (Groq) is cheap.
-// Rs.0.50/text msg, Rs.4/voice msg — quotas below are sized to land on the
-// confirmed monthly price points (Text-Only Rs.500, Basic Rs.2,000, Pro Rs.4,000).
+// Rs.1/text msg, Rs.4/voice msg — quotas below are sized to land on the
+// confirmed monthly price points (Text-Only Rs.1,000 for 1,000 msgs/30-day
+// validity, Basic Rs.2,000, Pro Rs.4,000).
 const TEXT_QUOTA_MAP: Record<string, number> = {
   text_only: 1000,
   basic:     1000,
