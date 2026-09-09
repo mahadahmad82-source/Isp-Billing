@@ -33,7 +33,7 @@ interface Props {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  basic: 'Basic — Rs.2,000', pro: 'Pro — Rs.4,000', unlimited: 'Unlimited — Rs.8,000', enterprise: 'Enterprise — Unlimited', text_only: 'Text-Only — Rs.1,000',
+  basic: 'Basic — Rs.2,500', pro: 'Pro — Rs.5,000', unlimited: 'Unlimited — Rs.8,000', enterprise: 'Enterprise — Unlimited', text_only: 'Text-Only — Rs.1,000',
 };
 
 const fmtDate = (iso: string | null) => {
