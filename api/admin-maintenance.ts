@@ -28,7 +28,8 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 // Split text/voice — voice (Gemini TTS) is the real cost driver, text (Groq) is cheap.
 // Rs.1/text msg, Rs.4/voice msg — quotas below are sized to land on the
 // confirmed monthly price points (Text-Only Rs.1,000 for 1,000 msgs/30-day
-// validity, Basic Rs.2,000, Pro Rs.4,000).
+// validity, Basic Rs.2,500 [1,000 text + 375 voice], Pro Rs.5,000 [2,000 text
+// + 750 voice]).
 const TEXT_QUOTA_MAP: Record<string, number> = {
   text_only: 1000,
   basic:     1000,
