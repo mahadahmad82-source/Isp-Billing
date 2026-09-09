@@ -36,6 +36,12 @@ const PLAN_LABELS: Record<string, string> = {
   basic: 'Basic — Rs.2,500', pro: 'Pro — Rs.5,000', unlimited: 'Unlimited — Rs.8,000', enterprise: 'Enterprise — Unlimited', text_only: 'Text-Only — Rs.1,000',
 };
 
+// Unlimited/Enterprise are retired for new clients (not sold anymore) — kept
+// in PLAN_LABELS above only so legacy/internal rows (e.g. the owner's own
+// account, auto-normalized to 'unlimited' in api/webhook.ts) still display a
+// readable label. New clients can only be onboarded on these 3 tiers.
+const SELECTABLE_PLANS: Array<'text_only' | 'basic' | 'pro'> = ['text_only', 'basic', 'pro'];
+
 const fmtDate = (iso: string | null) => {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }); }
@@ -278,7 +284,7 @@ const WABotAdminClients: React.FC<Props> = ({ managers }) => {
                 <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Plan</label>
                 <select value={form.plan_type} onChange={e => setForm(f => ({ ...f, plan_type: e.target.value }))}
                   className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-indigo-500">
-                  {Object.entries(PLAN_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {SELECTABLE_PLANS.map(k => <option key={k} value={k}>{PLAN_LABELS[k]}</option>)}
                 </select>
               </div>
             </div>
