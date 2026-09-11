@@ -7,7 +7,6 @@ import AgentAttendance from './AgentAttendance';
 import ActivityLogs from './ActivityLogs';
 import AgentPerformanceReport from './AgentPerformanceReport';
 import EditGranularRights from './EditGranularRights';
-import TeamCommunication from './TeamCommunication';
 
 // Lazy load LiveTracking so map issues don't crash the whole Team Hub
 const LiveTracking = lazy(() => import('./LiveTracking'));
@@ -46,7 +45,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
   complaintTickets = [], onResolveComplaint, users = [],
   onAddComplaint, onUpdateComplaint, onDeleteComplaint, teamMessages = [], onSendTeamMessage, onRefreshTeamMessages, areas = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance' | 'complaints' | 'communication'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'payroll' | 'overrides' | 'attendance' | 'logs' | 'tracking' | 'performance'>('team');
   const [showRecruitModal, setShowRecruitModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
@@ -236,8 +235,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
     { id: 'performance', label: 'Performance' },
     { id: 'tracking', label: 'Live Tracking' },
     { id: 'overrides', label: 'Field Ops' },
-    { id: 'complaints', label: 'Complaints' },
-    { id: 'communication', label: 'Communication' },
+    // Complaints & Communication moved to top-level Hamburger menu tabs — no longer nested here.
   ] as const;
 
   return (
@@ -700,24 +698,7 @@ const SubManagerManagement: React.FC<SubManagerManagementProps> = ({
         </div>
       )}
 
-      {/* ── COMMUNICATION TAB ── */}
-      {activeTab === 'communication' && (
-        <TeamCommunication managerId={managerId} managerUsername={managerId} currentUsername={managerId} currentRole="manager" subManagers={subManagers} messages={teamMessages} onSend={message => onSendTeamMessage?.(message)} onRefresh={onRefreshTeamMessages} />
-      )}
-      {/* ── COMPLAINTS TAB ── */}
-      {activeTab === 'complaints' && (
-        <Suspense fallback={<div className="text-center py-12 text-slate-400 text-sm">Loading...</div>}>
-          <ComplaintManager
-            tickets={complaintTickets}
-            subManagers={subManagers}
-            users={users}
-            managerId={managerId}
-            onAddTicket={(t) => onAddComplaint?.(t)}
-            onUpdateTicket={(id, updates) => onUpdateComplaint?.(id, updates)}
-            onDeleteTicket={(id) => onDeleteComplaint?.(id)}
-          />
-        </Suspense>
-      )}
+      {/* Complaints & Communication moved to top-level Hamburger menu tabs — see Layout.tsx / App.tsx. */}
 
       {/* ── ACCESS RIGHTS MODAL (Feature A) ── */}
       {rightsAgentId && (() => {
