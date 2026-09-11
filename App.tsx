@@ -22,6 +22,7 @@ import AdminDashboard from './components/AdminDashboard';
 import SystemLogs from './components/SystemLogs';
 import SubManagerDashboard from './components/SubManager/SubManagerDashboard';
 import SubManagerManagement from './components/SubManager/SubManagerManagement';
+import TeamCommunication from './components/SubManager/TeamCommunication';
 import SubManagerSettings from './components/SubManager/SubManagerSettings';
 import ComplaintManager from './components/ComplaintManager';
 import BusinessExpenses from './components/BusinessExpenses';
@@ -137,7 +138,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -152,7 +153,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -2128,6 +2129,18 @@ const App: React.FC = () => {
                   saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
                 });
               }}
+            />
+          )}
+          {!tabLoading && activeTab === 'communication' && userRole !== 'sub-manager' && (
+            <TeamCommunication
+              managerId={activeManager || ''}
+              managerUsername={activeManager || ''}
+              currentUsername={activeManager || ''}
+              currentRole="manager"
+              subManagers={state.subManagers || []}
+              messages={state.teamMessages || []}
+              onSend={message => handleSendTeamMessage(message)}
+              onRefresh={refreshTeamMessages}
             />
           )}
           {!tabLoading && activeTab === 'expenses' && userRole !== 'sub-manager' && (
