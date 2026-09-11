@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useIsDark } from '../hooks/useIsDark';
 import { LeadRecord, LeadStatus, UserRecord } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   leads: LeadRecord[];
   users: UserRecord[];
   subManagers: { id: string; username: string; name: string }[];
   settings: { monthlyFee?: number; availablePlans?: { name: string; price: number }[] };
+  managerId: string;
   onAdd: (lead: LeadRecord) => void;
   onUpdate: (id: string, updates: Partial<LeadRecord>) => void;
   onDelete: (id: string) => void;
@@ -29,7 +31,7 @@ const emptyForm = (): Partial<LeadRecord> => ({
   status: 'new', assignedTo: '', note: '', source: 'Walk-in', referredBy: '', followUpDate: '',
 });
 
-const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, onAdd, onUpdate, onDelete, onConvertToCustomer }) => {
+const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, managerId, onAdd, onUpdate, onDelete, onConvertToCustomer }) => {
   const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'edit' | 'detail'>('list');
   const [form, setForm] = useState<Partial<LeadRecord>>(emptyForm());
@@ -40,6 +42,32 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmConvert, setConfirmConvert] = useState<LeadRecord | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Bot interaction thread for the lead currently open in detail view — matched
+  // by last-10-digit phone (same normalization rule used across the app) since
+  // whatsapp_messages.customer_phone may be stored with/without country code.
+  const [chatThread, setChatThread] = useState<any[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  useEffect(() => {
+    if (view !== 'detail' || !detail?.phone || !managerId) { setChatThread([]); return; }
+    let cancelled = false;
+    const last10 = detail.phone.replace(/\D/g, '').slice(-10);
+    if (!last10) { setChatThread([]); return; }
+    setChatLoading(true);
+    supabase
+      .from('whatsapp_messages')
+      .select('id, content, direction, media_url, type, created_at, customer_phone')
+      .eq('manager_id', managerId)
+      .ilike('customer_phone', `%${last10}`)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setChatThread((data || []).slice().reverse());
+        setChatLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [view, detail?.phone, managerId]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
@@ -243,6 +271,27 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
           {detail.note && <div className={`mt-3 ${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3 text-sm ${isDark ? 'text-white/60' : 'text-slate-500'} italic`}>"{detail.note}"</div>}
         </div>
 
+        {/* Bot interaction / chat history — full lead details alongside the conversation, in one place */}
+        <div className={`${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-3xl p-4 mb-4`}>
+          <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs uppercase tracking-wider font-bold mb-2`}>💬 Bot Interaction</p>
+          {chatLoading ? (
+            <p className={`text-xs ${isDark ? 'text-white/30' : 'text-slate-400'} py-4 text-center`}>Loading conversation...</p>
+          ) : chatThread.length === 0 ? (
+            <p className={`text-xs ${isDark ? 'text-white/30' : 'text-slate-400'} py-4 text-center`}>No WhatsApp conversation found for this number yet.</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {chatThread.map(m => (
+                <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-xs font-medium ${m.direction === 'out' ? 'bg-indigo-600 text-white rounded-br-sm' : `${isDark ? 'bg-white/10' : 'bg-slate-100'} ${isDark ? 'text-white' : 'text-slate-800'} rounded-bl-sm`}`}>
+                    <p className="whitespace-pre-wrap break-words">{m.media_url ? '📎 Media message' : (m.content || '')}</p>
+                    <p className={`text-[9px] mt-1 ${m.direction === 'out' ? 'text-white/60' : (isDark ? 'text-white/30' : 'text-slate-400')}`}>{new Date(m.created_at).toLocaleString('en-PK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* WhatsApp quick contact */}
         <a href={`https://wa.me/92${detail.phone.replace(/^0/, '')}`} target="_blank" rel="noreferrer"
           className="flex items-center justify-center gap-2 w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-2xl font-black text-sm uppercase tracking-widest transition-all active:scale-95 mb-3">
@@ -338,26 +387,28 @@ const LeadsPipeline: React.FC<Props> = ({ leads, users, subManagers, settings, o
           <p className="text-sm mt-1">Pehla inquiry add karo</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {filtered.map(lead => {
             const cfg = STATUS_CONFIG[lead.status];
             const isFollowUpToday = lead.followUpDate === new Date().toISOString().split('T')[0];
             return (
               <button key={lead.id} onClick={() => { setDetail(lead); setView('detail'); }}
-                className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} hover:${isDark ? 'bg-white/8' : 'bg-slate-50'} rounded-2xl p-4 text-left transition-all active:scale-[0.98]`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-black text-base">{lead.name}</p>
-                      {isFollowUpToday && <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full font-bold">Follow-up Today</span>}
-                    </div>
-                    <p className={`${isDark ? 'text-white/50' : 'text-slate-500'} text-sm`}>{lead.phone}</p>
-                    {lead.area && <p className={`${isDark ? 'text-white/30' : 'text-slate-400'} text-xs mt-1`}>📍 {lead.area}</p>}
-                    {lead.interestedPlan && <p className="text-indigo-400 text-xs mt-1">📦 {lead.interestedPlan}</p>}
+                className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} hover:${isDark ? 'bg-white/8' : 'bg-slate-50'} rounded-2xl px-4 py-3 text-left transition-all active:scale-[0.98]`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="font-black text-sm truncate">{lead.name}</p>
+                    <span className={`${isDark ? 'text-white/40' : 'text-slate-400'} text-xs shrink-0`}>{lead.phone}</span>
                   </div>
-                  <span className={`ml-3 px-2.5 py-1 rounded-full text-[10px] font-black border whitespace-nowrap ${cfg.bg} ${cfg.color}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border whitespace-nowrap shrink-0 ${cfg.bg} ${cfg.color}`}>
                     {cfg.emoji} {cfg.label.replace(' ✅','')}
                   </span>
+                </div>
+                <div className="flex items-center flex-wrap gap-1.5 mt-1.5">
+                  {lead.area && <span className={`text-[10px] px-2 py-0.5 rounded-full ${isDark ? 'bg-white/5 text-white/50' : 'bg-slate-100 text-slate-500'}`}>📍 {lead.area}</span>}
+                  {lead.interestedPlan && <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400">📦 {lead.interestedPlan}</span>}
+                  {lead.source && <span className={`text-[10px] px-2 py-0.5 rounded-full ${isDark ? 'bg-white/5 text-white/40' : 'bg-slate-100 text-slate-400'}`}>{lead.source}</span>}
+                  {isFollowUpToday && <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full font-bold">⏰ Follow-up Today</span>}
+                  {lead.assignedTo && <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400">👤 {lead.assignedTo}</span>}
                 </div>
               </button>
             );
