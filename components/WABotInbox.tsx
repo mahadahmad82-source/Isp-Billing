@@ -58,7 +58,7 @@ interface WAMessage {
   translated_content?: string | null;
   flagged_payment_proof: boolean;
   is_read: boolean;
-  status: 'sent' | 'delivered' | 'read' | 'failed';
+  status: 'uploading' | 'sent' | 'delivered' | 'read' | 'failed';
   created_at: string;
 }
 
@@ -195,6 +195,7 @@ function avatarColor(seed: string): string {
 }
 
 function DeliveryTicks({ status }: { status: string }) {
+  if (status === 'uploading') return null;
   if (status === 'read') {
     return (
       <svg className="w-4 h-3 inline-block text-sky-300" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5.5L8.5 9L15 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -211,6 +212,19 @@ function DeliveryTicks({ status }: { status: string }) {
   // sent (single tick)
   return (
     <svg className="w-4 h-3 inline-block text-white/70" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  );
+}
+
+// WhatsApp-style circular spinner shown over a media thumbnail while it's
+// still uploading/sending — matches the platform's familiar loading affordance.
+function UploadSpinner() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
+      <svg className="w-7 h-7 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+        <path className="opacity-90" d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </div>
   );
 }
 
@@ -1014,6 +1028,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const sendRecordedAudio = async (blob: Blob, mimeType: string) => {
     if (!selectedPhone) return;
     setUploading(true);
+    // Show the bubble immediately with a local blob preview + spinner, instead
+    // of waiting for the R2 upload to finish — matches WhatsApp's own
+    // "uploading" bubble state rather than the message popping in only once sent.
+    const tempId = `temp-${Date.now()}`;
+    const localPreviewUrl = URL.createObjectURL(blob);
+    const optimistic: WAMessage = {
+      id: tempId, manager_id: managerId, customer_phone: selectedPhone,
+      direction: 'out', type: 'audio', content: null, media_url: localPreviewUrl,
+      flagged_payment_proof: false, is_read: true, status: 'uploading', created_at: new Date().toISOString(),
+    };
+    setThread(prev => [...prev, optimistic]);
     try {
       let outBlob = blob;
       let ext = 'mp3';
@@ -1028,22 +1053,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       }
       const path = `admin-voice/${Date.now()}.${ext}`;
       const mediaUrl = await uploadMediaToR2(path, outBlob, outMime);
-      const optimistic: WAMessage = {
-        id: `temp-${Date.now()}`, manager_id: managerId, customer_phone: selectedPhone,
-        direction: 'out', type: 'audio', content: mediaUrl, media_url: mediaUrl,
-        flagged_payment_proof: false, is_read: true, status: 'sent', created_at: new Date().toISOString(),
-      };
-      setThread(prev => [...prev, optimistic]);
+      setThread(prev => prev.map(m => m.id === tempId ? { ...m, content: mediaUrl, media_url: mediaUrl, status: 'sent' } : m));
       const res = await fetch('/api/wabot-send', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({ to: `92${selectedPhone}`, managerId, type: 'audio', mediaUrl }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
         alert(`Voice message send nahi hua: ${err?.error || 'unknown error'}`);
       }
       if (!pausedPhones.includes(selectedPhone)) setPausedPhones(prev => [...prev, selectedPhone]);
     } catch (e: any) {
+      setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
       alert('Voice message upload nahi hua: ' + (e?.message || ''));
     } finally {
       setUploading(false);
@@ -1057,30 +1079,35 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     e.target.value = '';
     if (!file || !selectedPhone) return;
     setUploading(true);
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const sendType: 'image' | 'video' | 'document' = isImage ? 'image' : isVideo ? 'video' : 'document';
+    const tempId = `temp-${Date.now()}`;
+    const localPreviewUrl = URL.createObjectURL(file);
+    const optimistic: WAMessage = {
+      id: tempId, manager_id: managerId, customer_phone: selectedPhone,
+      direction: 'out', type: sendType, content: null, media_url: localPreviewUrl,
+      flagged_payment_proof: false, is_read: true, status: 'uploading', created_at: new Date().toISOString(),
+    };
+    setThread(prev => [...prev, optimistic]);
     try {
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-      const sendType: 'image' | 'video' | 'document' = isImage ? 'image' : isVideo ? 'video' : 'document';
       const folder = isImage ? 'admin-images' : isVideo ? 'admin-videos' : 'admin-documents';
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${folder}/${Date.now()}-${safeName}`;
       const mediaUrl = await uploadMediaToR2(path, file, file.type || 'application/octet-stream');
-      const optimistic: WAMessage = {
-        id: `temp-${Date.now()}`, manager_id: managerId, customer_phone: selectedPhone,
-        direction: 'out', type: sendType, content: mediaUrl, media_url: mediaUrl,
-        flagged_payment_proof: false, is_read: true, status: 'sent', created_at: new Date().toISOString(),
-      };
-      setThread(prev => [...prev, optimistic]);
+      setThread(prev => prev.map(m => m.id === tempId ? { ...m, content: mediaUrl, media_url: mediaUrl, status: 'sent' } : m));
       const res = await fetch('/api/wabot-send', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
         body: JSON.stringify({ to: `92${selectedPhone}`, managerId, type: sendType, mediaUrl, filename: sendType === 'document' ? file.name : undefined }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
         alert(`File send nahi hua: ${err?.error || 'unknown error'}`);
       }
       if (!pausedPhones.includes(selectedPhone)) setPausedPhones(prev => [...prev, selectedPhone]);
     } catch (e: any) {
+      setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
       alert('File upload nahi hua: ' + (e?.message || ''));
     } finally {
       setUploading(false);
@@ -2042,18 +2069,27 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm font-semibold ${m.direction === 'out' ? 'bg-[#00A884] text-white rounded-br-sm' : 'bg-white dark:bg-[#1F2C34] text-slate-900 dark:text-white rounded-bl-sm border border-slate-100 dark:border-white/5'}`}>
                       {m.type === 'image' && mediaSrc ? (
-                        <a href={mediaSrc} target="_blank" rel="noreferrer">
+                        <a href={m.status === 'uploading' ? undefined : mediaSrc} target="_blank" rel="noreferrer" className="relative block">
                           <img src={mediaSrc} alt="attachment" className="rounded-xl max-w-[220px] mb-1" />
+                          {m.status === 'uploading' && <UploadSpinner />}
                         </a>
                       ) : m.type === 'video' && mediaSrc ? (
-                        <video controls src={mediaSrc} className="rounded-xl max-w-[220px] mb-1" />
+                        <div className="relative">
+                          <video controls={m.status !== 'uploading'} src={mediaSrc} className="rounded-xl max-w-[220px] mb-1" />
+                          {m.status === 'uploading' && <UploadSpinner />}
+                        </div>
                       ) : m.type === 'document' && mediaSrc ? (
                         <a href={mediaSrc} target="_blank" rel="noreferrer" className="flex items-center gap-2 underline mb-1">
-                          📄 Document dekhein
+                          {m.status === 'uploading' ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin inline-block" /> : '📄'} Document dekhein
                         </a>
                       ) : m.type === 'audio' || m.type === 'voice' ? (
                         <div>
-                          {mediaSrc && <audio controls src={mediaSrc} className="max-w-[220px] mb-1.5" />}
+                          {m.status === 'uploading' ? (
+                            <div className="flex items-center gap-2 max-w-[220px] mb-1.5 py-1">
+                              <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin inline-block opacity-80" />
+                              <span className="text-[12px] opacity-80">Uploading voice note…</span>
+                            </div>
+                          ) : mediaSrc && <audio controls src={mediaSrc} className="max-w-[220px] mb-1.5" />}
                           {m.content && !isPlaceholderText && !m.content.startsWith('http') && (
                             <p className="whitespace-pre-wrap break-words text-[13px] opacity-90">
                               {renderWhatsAppText(showTranslated[m.id] && hasTranslation ? (m.translated_content || '') : m.content)}
