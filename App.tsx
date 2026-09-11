@@ -2234,6 +2234,7 @@ const App: React.FC = () => {
               users={filteredUsers}
               subManagers={(state.subManagers || []).map(sm => ({ id: sm.id, username: sm.username, name: sm.name }))}
               settings={{ availablePlans: Object.entries(currentSettings.planPrices || {}).map(([name, price]) => ({ name, price: price as number })) }}
+              managerId={activeManager || ''}
               onAdd={(lead) => setState(prev => {
                 const ns = { ...prev, leads: [...(prev.leads || []), lead] };
                 saveState(ns); saveStateToSupabase(activeManager || '', ns); return ns;
