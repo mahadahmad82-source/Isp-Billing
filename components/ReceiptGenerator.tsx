@@ -30,6 +30,17 @@ type ViewMode = 'list' | 'create' | 'view';
 import { logoBase64 } from '../utils/logoBase64';
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Mirrors META_TEMPLATES.payment_success_official in api/wabot-send.ts — the
+// wording/structure is Meta-approved and fixed, only the {{n}} values change.
+// Kept here purely so this preview can show exactly what will actually be
+// sent, without calling the API. If the approved template wording is ever
+// changed on the Meta side, update both this copy and api/wabot-send.ts.
+const META_PAYMENT_TEMPLATE_BODY =
+  '[Official] Asalam-o-Alaikum ap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Dear {{1}}, aap ka total payment PKR {{2}} kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team {{7}} shukriya.';
+
+const renderMetaTemplateBody = (params: string[]): string =>
+  params.reduce((text, val, i) => text.split(`{{${i + 1}}}`).join(val ?? ''), META_PAYMENT_TEMPLATE_BODY);
 const formatReceiptDateTime = (value?: string): string => {
   if (!value) return 'N/A';
   const date = new Date(value);
@@ -139,6 +150,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   const [transactionRef, setTransactionRef] = useState('');
   const [activeReceipt, setActiveReceipt] = useState<Receipt | null>(null);
   const [showRechargeExpiryDates, setShowRechargeExpiryDates] = useState(false);
+  // Controls whether the New Expiry Date value inside the Meta-approved
+  // "Payment Confirmation" template is the real date or hidden as 'N/A'.
+  // The template's own wording/structure is fixed (Meta-approved) — this only
+  // swaps the value that fills the {{6}} New Expiry Date slot.
+  const [sendExpiryInMetaTemplate, setSendExpiryInMetaTemplate] = useState(true);
   const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [smsTemplate, setSmsTemplate] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -499,7 +515,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     if (!custUser?.phone) return;
     if (!wabotSubscribed) return;
     try {
-      const newExpiryFormatted = formatReceiptDateTime(receipt.expiryDate);
+      const newExpiryFormatted = sendExpiryInMetaTemplate ? formatReceiptDateTime(receipt.expiryDate) : 'N/A';
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
@@ -627,7 +643,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const extraCyclesFromAdvance = (netMonthlyFeeForAdvance > 0 && (advanceAmount || 0) > 0)
         ? Math.floor((advanceAmount || 0) / netMonthlyFeeForAdvance)
         : 0;
-      const totalCycles = 1 + extraCyclesFromAdvance;
+      // Double-advance guard: if this exact period's expiry was already advanced
+      // elsewhere (e.g. Quick Activate ran for this same month before this receipt
+      // was generated), don't add another 30 days on top — that was the source of
+      // the "expiry ek month agay" bug. This receipt still saves fine as the paper
+      // record; it just doesn't push expiry further than it already is.
+      const currentBillingPeriodKey = `${billingMonth} ${billingYear}`;
+      const alreadyAdvancedThisPeriod = user.lastExpiryAdvancePeriod === currentBillingPeriodKey;
+      const totalCycles = alreadyAdvancedThisPeriod ? 0 : (1 + extraCyclesFromAdvance);
       const resolvedExpiryDate = new Date(rechargeDate.getTime() + totalCycles * THIRTY_DAYS_MS).toISOString();
 
       const newReceipt: Receipt = {
@@ -677,7 +700,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
           expiryDate: resolvedExpiryDate,
           status: 'active',
           balance: calculatedBalance || 0,
-          persistentDiscount: discount || 0
+          persistentDiscount: discount || 0,
+          lastExpiryAdvancePeriod: currentBillingPeriodKey
         });
       } catch (userUpdateError) {
         // Receipt is already saved and on screen — a failure here must not
@@ -865,7 +889,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     setLoadingMessage('🤖 Sending Payment Confirmation Template...');
 
     try {
-      const newExpiryFormatted = formatReceiptDateTime(activeReceipt.expiryDate);
+      const newExpiryFormatted = sendExpiryInMetaTemplate ? formatReceiptDateTime(activeReceipt.expiryDate) : 'N/A';
       const res = await fetch('/api/wabot-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
@@ -901,6 +925,23 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     } finally {
       setIsSendingToWABot(false);
     }
+  };
+
+  // Builds the exact text the Meta "Payment Confirmation" template will send for
+  // the active receipt, so it can be shown in a preview box before actually
+  // sending — same param order as handleSendReceiptToWABot/autoSendPaymentTemplate.
+  const getMetaTemplatePreviewText = (): string => {
+    if (!activeReceipt) return '';
+    const newExpiryFormatted = sendExpiryInMetaTemplate ? formatReceiptDateTime(activeReceipt.expiryDate) : 'N/A';
+    return renderMetaTemplateBody([
+      activeReceipt.userName || 'Customer',
+      String(activeReceipt.paidAmount || 0),
+      activeReceipt.plan || 'N/A',
+      String(activeReceipt.balanceAmount || 0),
+      String(activeReceipt.advanceAmount || 0),
+      newExpiryFormatted || 'N/A',
+      settings.businessName || 'MahadNet',
+    ]);
   };
 
   const filteredReceipts = receipts.filter(r => {
@@ -1835,6 +1876,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <div><p className="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">Show Recharge & Expiry Dates</p><p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{showRechargeExpiryDates ? 'Dates will appear on receipt, print and PDF' : 'Dates hidden from receipt, print and PDF'}</p></div>
                   <button type="button" role="switch" aria-checked={showRechargeExpiryDates} onClick={() => setShowRechargeExpiryDates(value => !value)} className={`relative h-7 w-12 rounded-full transition-colors ${showRechargeExpiryDates ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${showRechargeExpiryDates ? 'translate-x-6' : 'translate-x-1'}`} /></button>
                 </div>
+                <div className="no-print flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
+                  <div><p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Send Expiry Date in Meta Template</p><p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{sendExpiryInMetaTemplate ? 'Real expiry date sent in Payment Confirmation template' : 'Expiry date hidden — sent as N/A in the template'}</p></div>
+                  <button type="button" role="switch" aria-checked={sendExpiryInMetaTemplate} onClick={() => setSendExpiryInMetaTemplate(value => !value)} className={`relative h-7 w-12 rounded-full transition-colors ${sendExpiryInMetaTemplate ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${sendExpiryInMetaTemplate ? 'translate-x-6' : 'translate-x-1'}`} /></button>
+                </div>
                 <div id="receipt-download-area" className={`bg-white p-4 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-200 overflow-x-hidden ${settings.receiptDesign === ReceiptDesign.THERMAL ? 'max-w-[350px] mx-auto rounded-none border-0 p-1 sm:p-1' : 'w-full lg:max-w-4xl mx-auto'}`}>
                     {renderReceiptBody()}
                 </div>
@@ -1882,6 +1927,32 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                   <div className="mt-4 flex gap-2">
                     <button onClick={handleWhatsAppShare} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Quick WhatsApp</button>
                     <button onClick={() => window.location.href = `sms:${activeReceipt.userPhone}?body=${encodeURIComponent(shareMessage.replace(/\*/g, ''))}`} className="flex-1 bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Quick SMS</button>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-[#0a1120] p-6 rounded-[2rem] shadow-xl border border-amber-200/70 dark:border-amber-800/40 no-print w-full">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                      </div>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Meta Template Preview</h4>
+                    </div>
+                    <span className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-500/10 px-2 py-1 rounded">Meta-Approved · Read-Only</span>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-3">Yeh exactly wahi text hai jo "Payment Confirmation" button dabane par Meta template se customer ko jayega — wording fixed/approved hai, sirf values yahan se update hoti hain.</p>
+                  <div className="w-full p-4 bg-white dark:bg-[#030712] border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed min-h-[150px]">
+                    {getMetaTemplatePreviewText()}
+                  </div>
+                  <div className="mt-4">
+                    <button onClick={handleSendReceiptToWABot} disabled={isSendingToWABot} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                      {isSendingToWABot ? (
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                      )}
+                      {isSendingToWABot ? 'Sending...' : 'Send Meta Template'}
+                    </button>
                   </div>
                 </div>
             </div>
