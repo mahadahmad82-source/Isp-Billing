@@ -163,6 +163,11 @@ export interface UserRecord {
   createdAt: string;
   lastReminderSentAt?: string;
   activatedMonths?: string[]; // Array of strings like "January 2024"
+  // Tracks the exact billing period (e.g. "August 2026") that expiryDate was last
+  // advanced (+30 days) for. Both Quick Activate and Receipt Generator check this
+  // before adding another cycle — prevents the customer silently getting a free
+  // extra month when both actions fire for the same period.
+  lastExpiryAdvancePeriod?: string;
   status: 'active' | 'suspended' | 'expired' | 'pending' | 'deleted';
   statusReason?: string;
   statusChangedBy?: string;
