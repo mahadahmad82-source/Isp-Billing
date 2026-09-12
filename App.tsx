@@ -362,7 +362,7 @@ const App: React.FC = () => {
     };
 
     void loadLiveTeamStatus();
-    const interval = window.setInterval(() => { void loadLiveTeamStatus(); }, 30000);
+    const interval = window.setInterval(() => { void loadLiveTeamStatus(); }, 180000); // TEMP: raised from 30s — Supabase disk-IO budget exhausted (nano compute throttled), cutting poll frequency to ease DB load. Revert to 30000 once stable / upgraded.
     const onVisible = () => {
       if (document.visibilityState === 'visible') void loadLiveTeamStatus();
     };
@@ -415,7 +415,7 @@ const App: React.FC = () => {
   // Background flush every 45s — retries any failed saves
   useEffect(() => {
     if (!activeManager || activeManager === 'admin') return;
-    const flush = setInterval(() => { flushPendingSync(); }, 45000);
+    const flush = setInterval(() => { flushPendingSync(); }, 120000); // TEMP: raised from 45s — Supabase disk-IO budget exhausted, reducing write frequency. Revert to 45000 once stable / upgraded.
     // Also flush immediately on tab becoming visible (user switches back to app)
     const onVisible = () => { if (document.visibilityState === 'visible') flushPendingSync(); };
     document.addEventListener('visibilitychange', onVisible);
@@ -457,7 +457,7 @@ const App: React.FC = () => {
         console.warn('[Sync] Periodic remote pull failed:', error);
       }
     };
-    const interval = setInterval(pullRemote, 90000);
+    const interval = setInterval(pullRemote, 240000); // TEMP: raised from 90s — Supabase disk-IO budget exhausted, reducing remote pull frequency. Revert to 90000 once stable / upgraded.
     const onVisible = () => { if (document.visibilityState === 'visible') void pullRemote(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
@@ -945,7 +945,7 @@ const App: React.FC = () => {
       Notification.requestPermission();
     }
 
-    const pollInterval = setInterval(pollNotifications, 30000);
+    const pollInterval = setInterval(pollNotifications, 120000); // TEMP: raised from 30s — Supabase disk-IO budget exhausted, reducing poll frequency. Revert to 30000 once stable / upgraded.
     return () => clearInterval(pollInterval);
   }, [activeManager, userRole]);
 
@@ -1051,7 +1051,7 @@ const App: React.FC = () => {
         });
     };
     checkDevice(); // immediate heartbeat on mount, don't wait 45s
-    const interval = setInterval(checkDevice, 45000);
+    const interval = setInterval(checkDevice, 120000); // TEMP: raised from 45s — Supabase disk-IO budget exhausted, this fires 2 RPCs each tick so cutting frequency helps most. Revert to 45000 once stable / upgraded.
     const onFocus = () => checkDevice();
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
