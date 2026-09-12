@@ -545,13 +545,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
       if (!user) return;
       const months = new Set(user.activatedMonths || []);
       months.add(currentMonth);
+      // Guard: if expiry was already advanced for this exact period (e.g. a proper
+      // Receipt was already generated for this customer this month), don't add
+      // another 30 days on top here — that silently gives a free extra month.
+      const alreadyAdvancedThisPeriod = user.lastExpiryAdvancePeriod === currentMonth;
       updatedUsers.push({
         ...user,
         activatedMonths: Array.from(months),
         status: 'active',
-        ...(rechargeDate ? {
+        ...(rechargeDate && !alreadyAdvancedThisPeriod ? {
           lastPaymentDate: rechargeDate,
           expiryDate: new Date(new Date(rechargeDate).getTime() + THIRTY_DAYS_MS).toISOString(),
+          lastExpiryAdvancePeriod: currentMonth,
         } : {}),
       });
     });
