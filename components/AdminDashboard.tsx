@@ -550,32 +550,43 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
     setOnlineMap(map);
   }, [managers, subManagerAccounts]);
 
-  // ── Realtime ────────────────────────────────────────────────────────────────
+  // ── Live manager presence (lightweight poll) ─────────────────────────────────
+  // Was a Realtime subscription on `manager_data` — but that table isn't in the
+  // supabase_realtime publication (only manager_subscriptions/whatsapp_messages/
+  // whatsapp_configs are), so it silently connected (showing "Live") without ever
+  // receiving an actual change event. Replaced with a direct poll of just the
+  // small scalar columns (last_seen_at/active_device_id/updated_at) — never
+  // touches the large `data` JSONB, so it's cheap even every 60s, and it actually
+  // works.
   useEffect(() => {
-    const channel = supabase.channel('admin-manager-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'manager_data' }, (payload) => {
-        const row = payload.new as any;
-        if (!row?.manager_id) return;
-        const username = row.manager_id;
-        const updatedAt = row.updated_at || null;
-        const seenAt = row.last_seen_at || null;
-        setOnlineMap(prev => ({ ...prev, [username]: { status: getOnlineStatus(seenAt), updatedAt: seenAt } }));
-        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT')
-          setManagers(prev => prev.map(m => m.username !== username ? m : { ...m, data_updated_at: updatedAt, last_seen: seenAt }));
-        if (payload.eventType === 'DELETE') {
-          const deletedId = (payload.old as any)?.manager_id;
-          if (deletedId) setManagers(prev => prev.filter(m => m.username !== deletedId));
-        }
-      })
-      .subscribe((status) => setRealtimeActive(status === 'SUBSCRIBED'));
-    const ticker = setInterval(() => {
-      setOnlineMap(prev => {
-        const u = { ...prev };
-        for (const k of Object.keys(u)) u[k] = { ...u[k], status: getOnlineStatus(u[k].updatedAt) };
-        return u;
-      });
-    }, 60_000);
-    return () => { supabase.removeChannel(channel); clearInterval(ticker); };
+    let mounted = true;
+    const refreshPresence = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('manager_data')
+          .select('manager_id, last_seen_at, active_device_id, updated_at');
+        if (error || !mounted) { if (mounted) setRealtimeActive(false); return; }
+        setOnlineMap(prev => {
+          const next = { ...prev };
+          for (const row of (data || []) as any[]) {
+            if (!row?.manager_id) continue;
+            next[row.manager_id] = { status: getOnlineStatus(row.last_seen_at || null), updatedAt: row.last_seen_at || null };
+          }
+          return next;
+        });
+        setManagers(prev => prev.map(m => {
+          const row = (data || []).find((r: any) => r.manager_id === m.username) as any;
+          if (!row) return m;
+          return { ...m, data_updated_at: row.updated_at || m.data_updated_at, last_seen: row.last_seen_at || m.last_seen };
+        }));
+        setRealtimeActive(true);
+      } catch {
+        if (mounted) setRealtimeActive(false);
+      }
+    };
+    refreshPresence();
+    const interval = setInterval(refreshPresence, 60_000);
+    return () => { mounted = false; clearInterval(interval); };
   }, []);
 
   // ── Load All Customers ──────────────────────────────────────────────────────
