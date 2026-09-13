@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SubManagerAccount, TeamMessage } from '../../types';
-import { supabase } from '../../lib/supabase';
 import { uploadMediaToR2 } from '../../utils/whatsapp';
 
 interface TeamCommunicationProps {
@@ -49,15 +48,15 @@ const TeamCommunication: React.FC<TeamCommunicationProps> = ({
       Promise.resolve(refreshRef.current()).catch(() => {}).finally(() => { inFlight = false; });
     };
     pullLatest();
-    const channel = supabase
-      .channel(`team-chat-${managerId}-${currentUsername}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'manager_data', filter: `manager_id=eq.${managerId}` }, pullLatest)
-      .subscribe();
+    // Was also subscribed to Realtime postgres_changes on `manager_data` here —
+    // but that table isn't in the supabase_realtime publication, so the
+    // subscription silently never received an event; this 15s poll was already
+    // doing all the real work. Removed the dead channel (one less idle
+    // websocket per open chat) and kept the poll exactly as-is.
     const fallback = window.setInterval(pullLatest, 15000);
     return () => {
       mounted = false;
       window.clearInterval(fallback);
-      void supabase.removeChannel(channel);
     };
   }, [managerId, currentUsername, onRefresh]);
 
