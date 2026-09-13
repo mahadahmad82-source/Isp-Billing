@@ -17,6 +17,12 @@ export const onSyncStatus = (fn: StatusListener) => { listeners.push(fn); return
 const emit = (s: SyncStatus) => listeners.forEach(fn => fn(s));
 let tierLimitAlertedThisSession = false; // debounce repeat plan-limit alerts (see upsertWithRetry)
 
+// ─── Circuit breaker (see saveStateToSupabaseImmediate) ───────────────────────
+let consecutiveFullFailures = 0;
+let circuitOpenUntil = 0; // epoch ms; 0 = closed
+const CIRCUIT_TRIP_THRESHOLD = 3; // 3 separate calls each exhausting all attempts
+const CIRCUIT_COOLDOWN_MS = 30000;
+
 // ─── Pending queue (survives page reload) ────────────────────────────────────
 const QUEUE_KEY = '__supabase_pending_sync__';
 interface PendingItem { managerId: string; stateJson: string; ts: string; }
@@ -73,6 +79,8 @@ const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts =
       if (!error) {
         localStorage.setItem(`${managerId}_syncedAt`, stateWithTs._syncedAt);
         dequeue(managerId);
+        consecutiveFullFailures = 0;
+        circuitOpenUntil = 0;
         emit('saved');
         console.log(`[Supabase] ✅ Saved (attempt ${attempt})`);
         return true;
@@ -97,12 +105,21 @@ const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts =
     }
     if (attempt < maxAttempts) await new Promise(r => setTimeout(r, attempt * 2000)); // 2s, 4s backoff
   }
+  consecutiveFullFailures++;
+  if (consecutiveFullFailures >= CIRCUIT_TRIP_THRESHOLD) {
+    circuitOpenUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+    console.warn(`[Supabase] Circuit breaker tripped — pausing live attempts for ${CIRCUIT_COOLDOWN_MS / 1000}s`);
+  }
   emit('failed');
   return false;
 };
 
-// ─── Public: save state ───────────────────────────────────────────────────────
-export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
+// ─── Public: save state — IMMEDIATE (no debounce) ─────────────────────────────
+// Used internally by smartLoadAndSync (login-time merge — correctness matters
+// more than write-coalescing here, and it only runs once per login, not on
+// every keystroke) and exported for any future caller that genuinely needs to
+// know the write finished before proceeding.
+export const saveStateToSupabaseImmediate = async (managerId: string, state: AppState): Promise<void> => {
   if (!managerId || isRealAuthSubManagerSession()) return;
 
   const userCount    = state?.users?.length    || 0;
@@ -127,8 +144,58 @@ export const saveStateToSupabase = async (managerId: string, state: AppState): P
     } catch { return; }
   }
 
+  // Circuit breaker: if the DB has been failing repeatedly (e.g. an outage
+  // like Sep 13 2026's disk-IO exhaustion), stop hammering it with fresh
+  // attempts + retries for a cool-off window — every blocked attempt still
+  // queues normally, so nothing is lost, it just waits instead of piling on.
+  if (Date.now() < circuitOpenUntil) {
+    console.warn('[Supabase] Circuit open — skipping live attempt, queuing instead');
+    enqueue(managerId, state);
+    return;
+  }
+
   const ok = await upsertWithRetry(managerId, state, 3);
   if (!ok) enqueue(managerId, state); // queue for later retry
+};
+
+// ─── Debounce layer ────────────────────────────────────────────────────────────
+// App.tsx calls saveStateToSupabase on ~50 different actions, fire-and-forget,
+// with no debounce — a burst of quick edits was firing one full ~2MB blob
+// upsert per action. This collapses rapid-fire calls per manager into a single
+// write after a short quiet period, without changing behavior for any caller
+// (none of them await the result or depend on write timing).
+const DEBOUNCE_MS = 2000;
+const pendingDebounce = new Map<string, { state: AppState; timer: ReturnType<typeof setTimeout> }>();
+
+const runDebouncedFlush = (managerId: string) => {
+  const entry = pendingDebounce.get(managerId);
+  if (!entry) return;
+  pendingDebounce.delete(managerId);
+  void saveStateToSupabaseImmediate(managerId, entry.state);
+};
+
+// Force-flush anything still pending — called on tab hide / page unload so a
+// quick action-then-navigate-away doesn't lose the debounce window. The state
+// is already safe in localStorage via saveState() at the call site either way;
+// this only affects how fresh the *remote* copy is.
+export const flushAllDebouncedSaves = (): void => {
+  for (const managerId of Array.from(pendingDebounce.keys())) runDebouncedFlush(managerId);
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushAllDebouncedSaves);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushAllDebouncedSaves();
+  });
+}
+
+// ─── Public: save state (debounced) ────────────────────────────────────────────
+export const saveStateToSupabase = async (managerId: string, state: AppState): Promise<void> => {
+  if (!managerId || isRealAuthSubManagerSession()) return;
+  const existing = pendingDebounce.get(managerId);
+  if (existing) clearTimeout(existing.timer);
+  const timer = setTimeout(() => runDebouncedFlush(managerId), DEBOUNCE_MS);
+  pendingDebounce.set(managerId, { state, timer });
 };
 
 // ─── Public: flush pending queue (call every 30–60s from App.tsx) ─────────────
@@ -306,7 +373,7 @@ export const smartLoadAndSync = async (
 
   // No Supabase data → use local and push
   if (!supabaseState || remoteScore === 0) {
-    if (localScore > 0) await saveStateToSupabase(managerId, localState);
+    if (localScore > 0) await saveStateToSupabaseImmediate(managerId, localState);
     return localState;
   }
 
@@ -344,7 +411,7 @@ export const smartLoadAndSync = async (
   // Push merged state back if it differs from what Supabase currently has, or
   // if local was newer — this keeps both sides converged instead of drifting.
   if (recovered || localTs > remoteTs) {
-    await saveStateToSupabase(managerId, merged);
+    await saveStateToSupabaseImmediate(managerId, merged);
   }
   return merged;
 };
