@@ -155,6 +155,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // The template's own wording/structure is fixed (Meta-approved) — this only
   // swaps the value that fills the {{6}} New Expiry Date slot.
   const [sendExpiryInMetaTemplate, setSendExpiryInMetaTemplate] = useState(true);
+  // Manual expiry correction — lets the admin type the correct date directly
+  // when the auto-calculated cycle chain has drifted (e.g. from historical
+  // data issues), fixing the receipt, the customer record, and what the Meta
+  // template sends, all in one save.
+  const [expiryOverrideInput, setExpiryOverrideInput] = useState('');
   const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [smsTemplate, setSmsTemplate] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -771,6 +776,12 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       });
       setShareMessage(textMessage);
       setSmsTemplate(textMessage.replace(/\*/g, ''));
+      // Pre-fill the manual correction input with the receipt's current expiry
+      // (YYYY-MM-DD for the date input) so it starts in sync, not blank.
+      if (activeReceipt.expiryDate) {
+        const d = new Date(activeReceipt.expiryDate);
+        if (!isNaN(d.getTime())) setExpiryOverrideInput(d.toISOString().slice(0, 10));
+      }
     }
   }, [activeReceipt, settings.businessName]);
 
@@ -930,6 +941,24 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
   // Builds the exact text the Meta "Payment Confirmation" template will send for
   // the active receipt, so it can be shown in a preview box before actually
   // sending — same param order as handleSendReceiptToWABot/autoSendPaymentTemplate.
+  // Saves a manually-typed expiry date correction to: this receipt, the local
+  // view state, and the customer's own record — so a drifted/wrong expiry can
+  // be fixed in one place and the fix becomes the new source of truth for the
+  // next cycle (also updates lastExpiryAdvancePeriod so the next receipt or
+  // Quick Activate for this same period doesn't advance again on top of it).
+  const handleCorrectExpiry = () => {
+    if (!activeReceipt || !expiryOverrideInput) return;
+    const newExpiryISO = new Date(`${expiryOverrideInput}T12:00:00`).toISOString();
+    if (newExpiryISO === activeReceipt.expiryDate) return;
+    const updatedReceipt = { ...activeReceipt, expiryDate: newExpiryISO };
+    setActiveReceipt(updatedReceipt);
+    onUpdateReceipt(updatedReceipt);
+    onUpdateUser(activeReceipt.userId, {
+      expiryDate: newExpiryISO,
+      lastExpiryAdvancePeriod: activeReceipt.period,
+    });
+  };
+
   const getMetaTemplatePreviewText = (): string => {
     if (!activeReceipt) return '';
     const newExpiryFormatted = sendExpiryInMetaTemplate ? formatReceiptDateTime(activeReceipt.expiryDate) : 'N/A';
@@ -1938,12 +1967,25 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                       </div>
                       <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Meta Template Preview</h4>
                     </div>
-                    <span className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-500/10 px-2 py-1 rounded">Meta-Approved · Read-Only</span>
+                    <span className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-500/10 px-2 py-1 rounded">Meta-Approved Wording</span>
                   </div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-3">Yeh exactly wahi text hai jo "Payment Confirmation" button dabane par Meta template se customer ko jayega — wording fixed/approved hai, sirf values yahan se update hoti hain.</p>
                   <div className="w-full p-4 bg-white dark:bg-[#030712] border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed min-h-[150px]">
                     {getMetaTemplatePreviewText()}
                   </div>
+                  <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-end gap-3 p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-amber-200/60 dark:border-amber-800/30">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest ml-1">Expiry Date Galat Hai? Yahan Sahi Karain</label>
+                      <input
+                        type="date"
+                        value={expiryOverrideInput}
+                        onChange={e => setExpiryOverrideInput(e.target.value)}
+                        className="w-full p-3 rounded-xl border-2 border-amber-200 dark:border-amber-800/50 bg-white dark:bg-[#030712] font-black text-sm text-slate-900 dark:text-white outline-none shadow-inner"
+                      />
+                    </div>
+                    <button onClick={handleCorrectExpiry} className="bg-slate-800 hover:bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap">Save Correction</button>
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-2 ml-1">Save Correction dabane se receipt aur customer ka expiry dono update ho jayenge — template preview upar automatically nayi date show karega.</p>
                   <div className="mt-4">
                     <button onClick={handleSendReceiptToWABot} disabled={isSendingToWABot} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                       {isSendingToWABot ? (
