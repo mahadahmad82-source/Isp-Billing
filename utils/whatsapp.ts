@@ -115,6 +115,41 @@ export const sendWhatsAppDirect = async (
 };
 
 /**
+ * Sends the Meta-approved "Package Expiry — Official" template message via
+ * NetBot's Cloud API number. Unlike sendWhatsAppDirect, this works even
+ * outside the 24-hour customer service window since it's an approved
+ * template (see api/wabot-send.ts META_TEMPLATES.package_expiry_official).
+ */
+export const sendExpiryTemplate = async (
+  phone: string,
+  name: string,
+  expiryDate: string,
+  plan: string,
+  managerId: string = 'mahadnet'
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const res = await fetch('/api/wabot-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
+      body: JSON.stringify({
+        to: formatWhatsAppPhone(phone),
+        managerId,
+        type: 'template',
+        templateName: 'package_expiry_official',
+        templateParams: [name, expiryDate, plan],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err?.error || `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Network error' };
+  }
+};
+
+/**
  * Sends receipt PNG image directly via NetBot's Meta Cloud API
  * — no template needed, works within 24-hour customer service window.
  * Uploads PNG to Supabase Storage, gets public URL, sends via /api/wabot-send.
