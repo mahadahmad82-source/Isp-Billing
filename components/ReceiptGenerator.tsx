@@ -1007,9 +1007,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     const storedMonthlyFee = activeReceipt.monthlyFee || (currentSelectedUser ? (settings.planPrices[currentSelectedUser.plan] || 0) : 0);
     const arrears = Math.max(0, (activeReceipt.totalAmount || 0) + (activeReceipt.discount || 0) - (storedMonthlyFee || 0));
     const nextMonthDue = (activeReceipt.balanceAmount || 0) + (storedMonthlyFee - (activeReceipt.discount || 0));
-    // Fall back to the customer's current expiry for receipts generated before
-    // this field was captured directly on the receipt.
-    const rawExpiryDate = activeReceipt.expiryDate || currentSelectedUser?.expiryDate;
+    // Customer Directory is the single source of truth: always show the
+    // customer's CURRENT expiryDate first (so if it changes after this
+    // receipt was generated — via UserManagement, QuickActivate, WABot
+    // renewal, etc. — the receipt reflects it automatically, no manual
+    // regeneration needed). Fall back to the receipt's own stored snapshot
+    // only when the live value is unavailable (customer hard-deleted, or a
+    // legacy receipt saved before this field existed on the record).
+    const rawExpiryDate = currentSelectedUser?.expiryDate || activeReceipt.expiryDate;
     const expiryDateObj = rawExpiryDate ? new Date(rawExpiryDate) : null;
     const hasValidExpiry = !!expiryDateObj && !isNaN(expiryDateObj.getTime());
     const expiryDateDisplay = hasValidExpiry ? formatReceiptDateTime(rawExpiryDate) : 'N/A';
