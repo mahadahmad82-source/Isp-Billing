@@ -362,7 +362,7 @@ const App: React.FC = () => {
     };
 
     void loadLiveTeamStatus();
-    const interval = window.setInterval(() => { void loadLiveTeamStatus(); }, 180000); // TEMP: raised from 30s — Supabase disk-IO budget exhausted (nano compute throttled), cutting poll frequency to ease DB load. Revert to 30000 once stable / upgraded.
+    const interval = window.setInterval(() => { void loadLiveTeamStatus(); }, 30000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void loadLiveTeamStatus();
     };
@@ -415,7 +415,7 @@ const App: React.FC = () => {
   // Background flush every 45s — retries any failed saves
   useEffect(() => {
     if (!activeManager || activeManager === 'admin') return;
-    const flush = setInterval(() => { flushPendingSync(); }, 120000); // TEMP: raised from 45s — Supabase disk-IO budget exhausted, reducing write frequency. Revert to 45000 once stable / upgraded.
+    const flush = setInterval(() => { flushPendingSync(); }, 45000);
     // Also flush immediately on tab becoming visible (user switches back to app)
     const onVisible = () => { if (document.visibilityState === 'visible') flushPendingSync(); };
     document.addEventListener('visibilitychange', onVisible);
@@ -457,7 +457,7 @@ const App: React.FC = () => {
         console.warn('[Sync] Periodic remote pull failed:', error);
       }
     };
-    const interval = setInterval(pullRemote, 240000); // TEMP: raised from 90s — Supabase disk-IO budget exhausted, reducing remote pull frequency. Revert to 90000 once stable / upgraded.
+    const interval = setInterval(pullRemote, 90000);
     const onVisible = () => { if (document.visibilityState === 'visible') void pullRemote(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
@@ -945,7 +945,7 @@ const App: React.FC = () => {
       Notification.requestPermission();
     }
 
-    const pollInterval = setInterval(pollNotifications, 120000); // TEMP: raised from 30s — Supabase disk-IO budget exhausted, reducing poll frequency. Revert to 30000 once stable / upgraded.
+    const pollInterval = setInterval(pollNotifications, 30000);
     return () => clearInterval(pollInterval);
   }, [activeManager, userRole]);
 
@@ -1051,7 +1051,7 @@ const App: React.FC = () => {
         });
     };
     checkDevice(); // immediate heartbeat on mount, don't wait 45s
-    const interval = setInterval(checkDevice, 120000); // TEMP: raised from 45s — Supabase disk-IO budget exhausted, this fires 2 RPCs each tick so cutting frequency helps most. Revert to 45000 once stable / upgraded.
+    const interval = setInterval(checkDevice, 45000);
     const onFocus = () => checkDevice();
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
@@ -1488,7 +1488,18 @@ const App: React.FC = () => {
   }, [activeManager]);
 
   const handleUpdateUser = (userId: string, update: Partial<UserRecord>) => {
-    setState(prev => ({ ...prev, users: prev.users.map(u => u.id === userId ? { ...u, ...update } : u) }));
+    setState(prev => {
+      const ns = { ...prev, users: prev.users.map(u => u.id === userId ? { ...u, ...update } : u) };
+      // Was in-memory-only before — Receipt Generator's expiry/lastPaymentDate
+      // update went through this exact function and never reached Supabase or
+      // localStorage, so the next poll/reload silently reverted the customer's
+      // expiry back to its pre-receipt value. The next receipt then re-advanced
+      // from that stale base, making expiry drift forward inconsistently over
+      // time — this was the real source of the recurring expiry bug.
+      saveState(ns);
+      saveStateToSupabase(activeManager || '', ns);
+      return ns;
+    });
   };
 
   const handleFullUpdateUser = (user: UserRecord) => {
