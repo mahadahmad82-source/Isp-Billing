@@ -2028,6 +2028,7 @@ const App: React.FC = () => {
               onLogout={handleLogout}
               isAdmin={isAdmin}
               onUpdateUser={handleFullUpdateUser}
+              managerId={activeManager || state.currentManager || ''}
             />
           )}
           {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} managerId={activeManager || state.currentManager || ''} subManagers={state.subManagers || []} />}
