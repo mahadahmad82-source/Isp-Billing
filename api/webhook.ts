@@ -2801,6 +2801,18 @@ function outageReminderReply(outage: any, user: any, reminderCount: number): str
   });
 }
 
+// Same "no restriction" rule as identified customers, just with no customer
+// record to match connection type or area against — so this only ever finds
+// an outage with NO connection-type/area restriction (a scoped one still
+// requires a known customer, since we can't tell fiber/local or zone from an
+// unregistered number).
+async function activeUnscopedOutageFor(text: string): Promise<{ outage: any; rowData: any } | null> {
+  const rowData = await getManagerRow(BOUND_MANAGER_ID);
+  const outage = getRelevantUpdate(rowData, text, undefined, { complaint: true });
+  if (!outage || outageConnectionScope(outage)) return null;
+  return { outage, rowData };
+}
+
 async function sendOutageResponse(to: string, outage: any, user?: any, botName: string = 'NetBot') {
   const session = await getSession(to);
   const previous = session?.outageNotice;
@@ -4566,7 +4578,11 @@ export default async function handler(req: any, res: any) {
       }
 
       if (intent === 'menu_complaint') {
-        if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
+        if (!found) {
+          const unknownHit = await activeUnscopedOutageFor(text);
+          if (unknownHit) { await sendOutageResponse(from, unknownHit.outage, undefined, unknownHit.rowData?.settings?.ayeshaBotName); continue; }
+          await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue;
+        }
         // Only surface an outage here if it applies regardless of connection type
         // (unscoped, e.g. a general "UPS Down"/all-area power outage). A fiber/local
         // -scoped schedule can't be reliably matched yet at this stage — the stored
@@ -4596,6 +4612,10 @@ export default async function handler(req: any, res: any) {
 
       if (!found) {
         if (intent === 'personal') { await sendText(from, personalReply()); continue; }
+        if (intent === 'complaint') {
+          const unknownHit = await activeUnscopedOutageFor(text);
+          if (unknownHit) { await sendOutageResponse(from, unknownHit.outage, undefined, unknownHit.rowData?.settings?.ayeshaBotName); continue; }
+        }
         await sendText(from, unknownCustomerReply());
         await setSession(from, 'awaiting_unknown_details');
         continue;
