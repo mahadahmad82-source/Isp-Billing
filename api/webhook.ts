@@ -970,7 +970,18 @@ function getRelevantUpdate(rowData: any, incomingText: string, customer?: any, o
       // instead of treating it as a literal (unmatchable) zone name.
       const looksLikeConnectionTypeLabel = (area: string) =>
         /local|utp|ethernet|\blan\b|wires*wala|taars*wala|areas*connection|fiber|fibre|optic/.test(normalize(area));
-      const configuredAreas = scope && configuredAreasRaw.length && configuredAreasRaw.every(looksLikeConnectionTypeLabel)
+      // Same problem, different admin habit: typing a "no restriction" phrase
+      // ("All Over", "All Areas", "Everywhere") into Areas Affected to mean the
+      // outage isn't limited to one zone, instead of leaving the field blank. That
+      // text won't appear in any real customer address either, so it silently
+      // excluded EVERY customer (confirmed in prod: a general "All Over" outage
+      // got zero bot replies). Unlike the connection-type-label case, this applies
+      // regardless of `scope`.
+      const looksLikeNoRestrictionLabel = (area: string) =>
+        /^(all|all\s*over|all\s*areas?|everywhere|entire\s*(city|area|network)|poora\s*(shehar|area|ilaka)|har\s*(jaga|ilaka|area))$/.test(normalize(area));
+      const configuredAreas = configuredAreasRaw.length && configuredAreasRaw.every((area: string) =>
+        looksLikeNoRestrictionLabel(area) || (scope && looksLikeConnectionTypeLabel(area))
+      )
         ? []
         : configuredAreasRaw;
       const areaMatch = !configuredAreas.length || configuredAreas.some((area: string) => {
