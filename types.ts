@@ -534,7 +534,7 @@ export interface SuspensionLog {
 
 // ─── NETWORK OUTAGE LOG ───────────────────────────────────────
 export type OutageSeverity = 'partial' | 'full' | 'degraded';
-export type OutageIncidentType = 'outage' | 'slow' | 'maintenance' | 'fiber-cut' | 'power' | 'other';
+export type OutageIncidentType = 'outage' | 'slow' | 'maintenance' | 'fiber-cut' | 'power' | 'equipment' | 'backend' | 'other';
 export type OutageConnectionScope = 'all' | 'fiber' | 'local';
 
 export interface OutageLog {
@@ -555,6 +555,10 @@ export interface OutageLog {
   resolutionNote?: string;
   cause?: string;
   estimatedResolution?: string;
+  // Only meaningful when incidentType === 'backend' — the upstream/bandwidth
+  // provider the fault actually sits with, so NetBot can name them explicitly
+  // and make clear the issue isn't MahadNet's local infrastructure.
+  backendProvider?: string;
   customerMessage?: string;
   notifyBot?: boolean;
   affectedCount?: number;
