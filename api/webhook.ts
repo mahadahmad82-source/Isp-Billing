@@ -4604,6 +4604,19 @@ export default async function handler(req: any, res: any) {
       if (intent === 'expiry')          { await sendText(from, expiryReply(user)); continue; }
 
       if (intent === 'complaint') {
+        // Only surface an outage here if it applies regardless of connection type
+        // (unscoped, e.g. a general "UPS Down"/all-area power outage) — same rule
+        // as the menu_complaint path above. A fiber/local-scoped schedule can't be
+        // reliably matched yet at this stage, so scoped outages still wait until
+        // connection type is freshly confirmed via the question below. Without this
+        // check, every natural-language complaint ("mera net nahi chal raha") was
+        // gated behind the fiber/local question before ever reaching getRelevantUpdate
+        // — so an active unscoped outage never got surfaced on this (the most common) path.
+        const outageC = getRelevantUpdate(rowData, text, user, { complaint: true });
+        if (outageC && !outageConnectionScope(outageC)) {
+          await sendOutageResponse(from, outageC, user, rowData?.settings?.ayeshaBotName);
+          continue;
+        }
         // Always ask fiber-vs-local fresh on every new complaint — see matching
         // comment in the 'awaiting_complaint_text' session handler above for why
         // the stored user.connectionType field is no longer trusted here.
