@@ -24,6 +24,8 @@ const INCIDENT_TYPES: Record<OutageIncidentType, string> = {
   maintenance: 'Maintenance',
   'fiber-cut': 'Fiber Cut',
   power: 'Power Issue',
+  equipment: 'Equipment Fault (ISP Premises)',
+  backend: 'Backend / Upstream Provider Issue',
   other: 'Other Network Issue',
 };
 
@@ -48,7 +50,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'detail'>('list');
   const [detail, setDetail] = useState<OutageLog | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, connectionType: 'all' as OutageConnectionScope, areasAffected: '', cause: '', estimatedResolution: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
+  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, connectionType: 'all' as OutageConnectionScope, areasAffected: '', cause: '', estimatedResolution: '', backendProvider: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
   const [resolveNote, setResolveNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string|null>(null);
   const [toast, setToast] = useState<string|null>(null);
@@ -83,6 +85,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       areasAffected: form.areasAffected.split(',').map(a => a.trim()).filter(Boolean),
       cause: form.cause.trim() || undefined,
       estimatedResolution: form.estimatedResolution.trim() || undefined,
+      backendProvider: form.incidentType === 'backend' ? (form.backendProvider.trim() || undefined) : undefined,
       customerMessage: form.customerMessage.trim() || undefined,
       notifyBot: form.notifyBot,
       affectedCount: form.affectedCount ? Number(form.affectedCount) : undefined,
@@ -92,7 +95,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       createdBy: currentUser,
     };
     onAdd(log);
-    setForm({ title:'', description:'', incidentType:'outage', severity:'full', connectionType:'all', areasAffected:'', cause:'', estimatedResolution:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
+    setForm({ title:'', description:'', incidentType:'outage', severity:'full', connectionType:'all', areasAffected:'', cause:'', estimatedResolution:'', backendProvider:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
     showToast('Outage logged!');
     setView('list');
   };
@@ -133,6 +136,15 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             {Object.entries(INCIDENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
+        {form.incidentType === 'backend' && (
+          <div>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Backend Company Name</label>
+            <input value={form.backendProvider} onChange={e => setForm(p=>({...p,backendProvider:e.target.value}))}
+              placeholder="e.g. PTCL, Transworld, Multinet"
+              className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
+            <p className={`text-[11px] mt-1 ${isDark ? 'text-white/35' : 'text-slate-400'}`}>NetBot customer ko batayega ke masla yahan se hai, local network ka nahi — complaint already lodge ho chuki hai.</p>
+          </div>
+        )}
         <div>
           <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Connection Type</label>
           <select value={form.connectionType} onChange={e => setForm(p=>({...p,connectionType:e.target.value as OutageConnectionScope}))}
@@ -167,7 +179,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>Expected Update / ETA</label>
+            <label className={`text-xs font-bold ${isDark ? 'text-white/50' : 'text-slate-500'} uppercase tracking-wider block mb-2`}>{form.incidentType === 'backend' ? 'Backend Company ka ETA' : 'Expected Update / ETA'}</label>
             <input value={form.estimatedResolution} onChange={e => setForm(p=>({...p,estimatedResolution:e.target.value}))}
               placeholder="e.g. Aaj 8 baje tak"
               className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-xl px-3 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500`}/>
@@ -287,38 +299,14 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             </div>
             {detail.estimatedResolution && !detail.endTime && (
               <div className="bg-amber-500/10 rounded-xl p-3">
-                <p className="text-amber-400 text-xs">Expected Update</p>
+                <p className="text-amber-400 text-xs">{detail.incidentType === 'backend' ? 'Backend Company ka ETA' : 'Expected Update'}</p>
                 <p className="font-semibold mt-1 text-xs">{detail.estimatedResolution}</p>
               </div>
             )}
-            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
-              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>NetBot</p>
-              <p className={`font-semibold mt-1 text-xs ${detail.notifyBot === false ? 'text-slate-400' : 'text-emerald-400'}`}>{detail.notifyBot === false ? 'Not using update' : 'Using update'}</p>
-            </div>
-            {detail.estimatedResolution && !detail.endTime && (
-              <div className="bg-amber-500/10 rounded-xl p-3">
-                <p className="text-amber-400 text-xs">Expected Update</p>
-                <p className="font-semibold mt-1 text-xs">{detail.estimatedResolution}</p>
-              </div>
-            )}
-            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
-              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>NetBot</p>
-              <p className={`font-semibold mt-1 text-xs ${detail.notifyBot === false ? 'text-slate-400' : 'text-emerald-400'}`}>{detail.notifyBot === false ? 'Not using update' : 'Using update'}</p>
-            </div>
-            {detail.estimatedResolution && !detail.endTime && (
-              <div className="bg-amber-500/10 rounded-xl p-3">
-                <p className="text-amber-400 text-xs">Expected Update</p>
-                <p className="font-semibold mt-1 text-xs">{detail.estimatedResolution}</p>
-              </div>
-            )}
-            <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
-              <p className={`${isDark ? 'text-white/40' : 'text-slate-500'} text-xs`}>NetBot</p>
-              <p className={`font-semibold mt-1 text-xs ${detail.notifyBot === false ? 'text-slate-400' : 'text-emerald-400'}`}>{detail.notifyBot === false ? 'Not using update' : 'Using update'}</p>
-            </div>
-            {detail.estimatedResolution && !detail.endTime && (
-              <div className="bg-amber-500/10 rounded-xl p-3">
-                <p className="text-amber-400 text-xs">Expected Update</p>
-                <p className="font-semibold mt-1 text-xs">{detail.estimatedResolution}</p>
+            {detail.incidentType === 'backend' && detail.backendProvider && (
+              <div className="bg-sky-500/10 rounded-xl p-3">
+                <p className="text-sky-400 text-xs">Backend Company</p>
+                <p className="font-semibold mt-1 text-xs">{detail.backendProvider}</p>
               </div>
             )}
             <div className={`${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>
@@ -343,14 +331,6 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             )}
           </div>
           {detail.description && <p className={`mt-3 text-sm ${isDark ? 'text-white/60' : 'text-slate-500'} ${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>{detail.description}</p>}
-          {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
-          {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
-          {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
-          {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
-          {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
-          {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
-          {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
-          {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
           {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
           {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
         </div>
