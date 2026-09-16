@@ -433,7 +433,12 @@ export const DEFAULT_BOT_TEMPLATES: Record<string, BotTemplate> = {
   "outage_reply": {
     "category": "Troubleshooting & Complaints",
     "label": "Outage Reply",
-    "text": "{owner_name} bhai ki team ko *{areas}* mein network outage ka pehle se pata hai aur kaam jaari hai! 🛠️\n{cause_line}\n\nJaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi.\n\nUpdate ke liye thori dair sabar karein, shukriya! 🙏"
+    "text": "{owner_name} bhai ki team ko *{areas}* mein {issue_type} ka pehle se pata hai aur kaam jaari hai! 🛠️\n{cause_line}{eta_line}\n\nJaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi. Router ko baar baar reset na karein, isse settings kharab ho sakti hain.\n\nUpdate ke liye thori dair sabar karein, shukriya! 🙏"
+  },
+  "outage_reply_backend": {
+    "category": "Troubleshooting & Complaints",
+    "label": "Outage Reply — Backend/Upstream Issue",
+    "text": "Yeh masla hamare local network ka nahi hai — iska source hamari upstream company *{backend_provider}* hai, jahan se hum internet supply lete hain. 📡\n{cause_line}{eta_line}\n\n{owner_name} bhai ki team ne unko is masle ki complaint pehle hi lodge kar di hai aur unki taraf se resolution ka intezar hai — team unke sath regularly follow-up kar rahi hai.\n\nJaise hi unki taraf se update milta hai, foran inform kar denge. Sabar ke liye shukriya! 🙏"
   },
   "outage_cause_line": {
     "category": "Troubleshooting & Complaints",
