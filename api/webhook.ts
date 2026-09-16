@@ -484,6 +484,12 @@ Yeh steps try kar ke bata dein — internet/WiFi theek ho gaya? 👍`,
 Jaise hi network theek hota hai, service automatically restore ho jayegi — alag se complaint karne ki zarurat nahi. Router ko baar baar reset na karein, isse settings kharab ho sakti hain.
 
 Update ke liye thori dair sabar karein, shukriya! 🙏`,
+  outage_reply_backend: `Yeh masla hamare local network ka nahi hai — iska source hamari upstream company *{backend_provider}* hai, jahan se hum internet supply lete hain. 📡
+{cause_line}{eta_line}
+
+{owner_name} bhai ki team ne unko is masle ki complaint pehle hi lodge kar di hai aur unki taraf se resolution ka intezar hai — team unke sath regularly follow-up kar rahi hai.
+
+Jaise hi unki taraf se update milta hai, foran inform kar denge. Sabar ke liye shukriya! 🙏`,
   outage_cause_line: `
 Wajah: {cause}`,
   outage_reminder_reply: `Ji {name}, *{areas}* mein {issue_type} ka network update abhi bhi active hai aur team kaam kar rahi hai. {eta_line}
@@ -2692,7 +2698,8 @@ function outageFields(outage: any) {
   const areas = (outage.areasAffected || []).join(', ') || 'aap ke area';
   const issueType: Record<string, string> = {
     outage: 'network outage', slow: 'speed slow ka issue', maintenance: 'maintenance',
-    'fiber-cut': 'fiber line ka issue', power: 'power ka issue', other: 'network issue',
+    'fiber-cut': 'fiber line ka issue', power: 'power ka issue', equipment: 'equipment ka masla',
+    backend: 'backend/upstream provider ka masla', other: 'network issue',
   };
   return {
     areas,
@@ -2758,6 +2765,20 @@ async function outageReply(outage: any, botName: string = 'NetBot'): Promise<str
     return `${base}${localExtra}`;
   }
   const fields = outageFields(outage);
+  // Backend/upstream-caused outages always get a fixed, deterministic template —
+  // never routed through the AI customerMessage rewrite — so the "this isn't our
+  // local fault, we've already escalated to <provider>, awaiting their fix"
+  // messaging is guaranteed correct and consistent, never softened or reworded
+  // by the LLM. The fiber-upsell/load-shedding local notes don't apply here
+  // either, since an upstream outage affects fiber and local customers equally.
+  if (outage.incidentType === 'backend') {
+    return tmpl('outage_reply_backend', {
+      owner_name: CONFIG.ownerName,
+      backend_provider: outage.backendProvider || 'hamari upstream company',
+      cause_line: fields.causeLine,
+      eta_line: fields.etaLine ? `\n${fields.etaLine}` : '',
+    });
+  }
   const fallback = tmpl('outage_reply', {
     owner_name: CONFIG.ownerName,
     areas: fields.areas,
