@@ -2405,6 +2405,8 @@ const App: React.FC = () => {
               onUpdateBotPersonaNotes={(notes) => handleUpdateSettings({ ...currentSettings, botPersonaNotes: notes })}
               botBehaviorRules={currentSettings.botBehaviorRules}
               onUpdateBotBehaviorRules={(rules) => handleUpdateSettings({ ...currentSettings, botBehaviorRules: rules })}
+              theme={state.theme || 'light'}
+              onToggleTheme={handleToggleTheme}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (

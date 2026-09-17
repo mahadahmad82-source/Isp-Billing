@@ -44,23 +44,17 @@ export default function WABotStandalone() {
   const [loginError, setLoginError] = useState('');
 
   // Swap manifest + title while this screen is mounted, restore on unmount.
-  // Also force LIGHT theme regardless of the main dashboard's saved theme —
-  // /wabot always uses its own light brand look, independent of the manager's
-  // dashboard dark/light preference.
   useEffect(() => {
     const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
     const prevHref = link?.getAttribute('href') || 'manifest.json';
     const prevTitle = document.title;
-    const hadDarkClass = document.documentElement.classList.contains('dark');
 
     if (link) link.setAttribute('href', '/wabot-manifest.json');
     document.title = 'Bill Collector-BOT — WABot';
-    document.documentElement.classList.remove('dark');
 
     return () => {
       if (link) link.setAttribute('href', prevHref);
       document.title = prevTitle;
-      if (hadDarkClass) document.documentElement.classList.add('dark');
     };
   }, []);
 
@@ -411,6 +405,16 @@ export default function WABotStandalone() {
           onUpdateTtsVoice={handleUpdateTtsVoice}
           wabotAgents={wabotAgents}
           onUpdateWabotAgents={handleUpdateWabotAgents}
+          theme={state?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light')}
+          onToggleTheme={() => {
+            const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+            document.documentElement.classList.toggle('dark', next === 'dark');
+            if (state) {
+              const ns = { ...state, theme: next };
+              setState(ns);
+              saveState(ns);
+            }
+          }}
         />
       </div>
     </div>

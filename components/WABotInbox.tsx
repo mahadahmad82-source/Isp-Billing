@@ -103,6 +103,8 @@ interface WABotInboxProps {
   onUpdateBotPersonaNotes?: (notes: string) => void;
   botBehaviorRules?: WABotBehaviorRule[];
   onUpdateBotBehaviorRules?: (rules: WABotBehaviorRule[]) => void;
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
 // All 30 Gemini TTS prebuilt voices, with their official one-word style descriptor —
@@ -228,28 +230,33 @@ function UploadSpinner() {
   );
 }
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules }) => {
-  // WABot has its own theme, independent of the manager dashboard's dark/light
-  // toggle, saved separately so it's remembered across visits. Defaults to
-  // light (matching the brand look), but the eye-comfort toggle below lets it
-  // go dark. We strip/restore the dashboard's own .dark class on mount/unmount
-  // so leaving WABot doesn't leave the rest of the dashboard in the wrong mode.
-  const [wabotDark, setWabotDark] = useState<boolean>(() => {
-    try { return localStorage.getItem('wabot_theme') === 'dark'; } catch { return false; }
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme }) => {
+  // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
+  const isDarkControlled = typeof theme !== 'undefined';
+  const [internalDark, setInternalDark] = useState<boolean>(() => {
+    try {
+      return document.documentElement.classList.contains('dark') || localStorage.getItem('theme') === 'dark' || localStorage.getItem('wabot_theme') === 'dark';
+    } catch {
+      return false;
+    }
   });
 
-  useEffect(() => {
-    const hadDark = document.documentElement.classList.contains('dark');
-    document.documentElement.classList.toggle('dark', wabotDark);
-    return () => { document.documentElement.classList.toggle('dark', hadDark); };
-  }, [wabotDark]);
+  const wabotDark = isDarkControlled ? theme === 'dark' : internalDark;
 
   const toggleWabotTheme = () => {
-    setWabotDark(prev => {
-      const next = !prev;
-      try { localStorage.setItem('wabot_theme', next ? 'dark' : 'light'); } catch {}
-      return next;
-    });
+    if (onToggleTheme) {
+      onToggleTheme();
+    } else {
+      setInternalDark(prev => {
+        const next = !prev;
+        document.documentElement.classList.toggle('dark', next);
+        try {
+          localStorage.setItem('theme', next ? 'dark' : 'light');
+          localStorage.setItem('wabot_theme', next ? 'dark' : 'light');
+        } catch {}
+        return next;
+      });
+    }
   };
 
   const [allMessages, setAllMessages] = useState<WAMessage[]>([]);
@@ -1152,8 +1159,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   return (
     <div
-      className="flex flex-col h-full min-h-0 gap-3 p-3 rounded-2xl"
-      style={{ background: wabotDark ? '#000000' : 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)' }}
+      className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100dvh-5.5rem)] min-h-[520px] max-h-[100dvh] gap-3 p-3 rounded-2xl overflow-hidden shadow-sm"
+      style={{ background: wabotDark ? '#0C1317' : '#F0F2F5' }}
     >
       {/* ── Header — single line like Android's "Wabot BillCollector" bar, with
           Training/Catalog/Templates/Agents & Voice + Bot Name tucked behind a
@@ -1959,23 +1966,23 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           )}
         </div>
       ) : (
-    <div className="flex flex-1 gap-4 min-h-0">
+    <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
-      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[340px] flex-shrink-0 bg-white dark:bg-black rounded-2xl border border-slate-100 dark:border-white/5 flex-col overflow-hidden`}>
-        <div className="p-5 border-b border-slate-100 dark:border-white/5">
+      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm`}>
+        <div className="p-3.5 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0">
           <div className="flex items-center gap-2">
             <input
-              placeholder="Search..."
+              placeholder="Search or start new chat"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="flex-1 min-w-0 p-3 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/5 text-sm font-bold outline-none text-slate-900 dark:text-white"
+              className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0]"
             />
             {totalUnread > 0 && (
-              <span className="flex-shrink-0 bg-[#00A884] text-white text-[10px] font-black px-2.5 py-1 rounded-full">{totalUnread}</span>
+              <span className="flex-shrink-0 bg-[#25D366] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full">{totalUnread}</span>
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50">
           {conversations.length === 0 ? (
             <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-10">Koi WhatsApp conversation nahi hai abhi.</p>
           ) : (
@@ -1983,7 +1990,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               <button
                 key={c.phone}
                 onClick={() => openConversation(c.phone)}
-                className={`w-full text-left p-4 border-b border-slate-50 dark:border-white/5 flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[#00A884]/10 dark:bg-[#00A884]/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
               >
                 <div
                   className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
@@ -1993,15 +2000,15 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-black text-sm text-slate-900 dark:text-white truncate">{c.name}</p>
-                    <span className="text-[10px] text-slate-400 font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
+                    <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</p>
+                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate">
+                  <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold truncate">
                     {typePreview(c.lastType) || c.lastMessage}
                   </p>
                 </div>
                 {c.unreadCount > 0 && (
-                  <span className="bg-[#00A884] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{c.unreadCount}</span>
+                  <span className="bg-[#25D366] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{c.unreadCount}</span>
                 )}
               </button>
             ))
@@ -2010,18 +2017,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       </div>
 
       {/* ── Thread — takes over full screen on mobile when a chat is open ── */}
-      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-white dark:bg-black rounded-2xl border border-slate-100 dark:border-white/5 flex-col overflow-hidden`}>
+      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-[#EFEAE2] dark:bg-[#0B141A] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm min-w-0`}>
         {!selectedConv ? (
           <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold">
             Koi conversation select karein
           </div>
         ) : (
           <>
-            <div className="p-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between gap-3">
+            <div className="p-3.5 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between gap-3 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => setSelectedPhone(null)}
-                  className="sm:hidden p-2 -ml-2 text-slate-500 dark:text-slate-300 flex-shrink-0"
+                  className="sm:hidden p-2 -ml-2 text-[#667781] dark:text-[#8696A0] flex-shrink-0"
                   aria-label="Back to chat list"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
@@ -2035,12 +2042,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         onChange={e => setContactNameInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveContactName(); if (e.key === 'Escape') setEditingContactName(false); }}
                         placeholder={selectedConv.name}
-                        className="text-sm font-black bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1 outline-none text-slate-900 dark:text-white w-36"
+                        className="text-sm font-black bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] rounded-lg px-2 py-1 outline-none text-[#111B21] dark:text-[#E9EDEF] w-36"
                       />
                       <button onClick={saveContactName} className="text-[#00A884] flex-shrink-0" aria-label="Save">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
                       </button>
-                      <button onClick={() => setEditingContactName(false)} className="text-slate-400 flex-shrink-0" aria-label="Cancel">
+                      <button onClick={() => setEditingContactName(false)} className="text-[#667781] dark:text-[#8696A0] flex-shrink-0" aria-label="Cancel">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
@@ -2050,24 +2057,24 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       className="flex items-center gap-1.5 group"
                       title="Contact ka naam edit karein"
                     >
-                      <p className="font-black text-slate-900 dark:text-white truncate">{selectedConv.name}</p>
+                      <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{selectedConv.name}</p>
                       <svg className="w-3.5 h-3.5 text-slate-300 dark:text-slate-500 group-hover:text-[#00A884] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
                   )}
-                  <p className="text-xs text-slate-400 font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
+                  <p className="text-xs text-[#667781] dark:text-[#8696A0] font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0" />
             </div>
 
-            <div ref={threadContainerRef} className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50/50 dark:bg-black">
+            <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A]">
               {thread.map(m => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
                 const isPlaceholderText = m.content === '[voice note — transcription unavailable]';
                 return (
                   <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm font-semibold ${m.direction === 'out' ? 'bg-[#00A884] text-white rounded-br-sm' : 'bg-white dark:bg-[#1F2C34] text-slate-900 dark:text-white rounded-bl-sm border border-slate-100 dark:border-white/5'}`}>
+                    <div className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
                       {m.type === 'image' && mediaSrc ? (
                         <a href={m.status === 'uploading' ? undefined : mediaSrc} target="_blank" rel="noreferrer" className="relative block">
                           <img src={mediaSrc} alt="attachment" className="rounded-xl max-w-[220px] mb-1" />
@@ -2108,7 +2115,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       ) : (
                         <p className="whitespace-pre-wrap break-words">{renderWhatsAppText(m.content || '')}</p>
                       )}
-                      <p className={`text-[10px] mt-1 font-bold flex items-center gap-1 ${m.direction === 'out' ? 'text-white/70 justify-end' : 'text-slate-400'}`}>
+                      <p className={`text-[10px] mt-1 font-bold flex items-center gap-1 ${m.direction === 'out' ? 'text-[#111B21]/60 dark:text-[#E9EDEF]/60 justify-end' : 'text-[#667781] dark:text-[#8696A0]'}`}>
                         {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         {m.flagged_payment_proof ? ' • 🧾 Payment proof' : ''}
                         {m.direction === 'out' && <DeliveryTicks status={m.status} />}
@@ -2127,18 +2134,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               onChange={handleFilePick}
               className="hidden"
             />
-            <div className="p-4 border-t border-slate-100 dark:border-white/5 flex items-center gap-2">
+            <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-[#E9EDEF] dark:border-[#222D34] flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || recording}
                 title="Photo, video ya document bhejein"
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 disabled:opacity-40 active:scale-95 transition-all"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#2A3942] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] disabled:opacity-40 active:scale-95 transition-all shadow-sm"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
               </button>
 
               {recording ? (
-                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
+                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
                   <span className="text-sm font-bold text-rose-600 dark:text-rose-300 flex-1">
                     Recording... {String(Math.floor(recSeconds / 60)).padStart(2, '0')}:{String(recSeconds % 60).padStart(2, '0')}
@@ -2152,7 +2159,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
                   placeholder="Type a message..."
                   disabled={uploading}
-                  className="flex-1 min-w-0 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/5 text-sm font-semibold outline-none text-slate-900 dark:text-white disabled:opacity-50"
+                  className="flex-1 min-w-0 p-3 rounded-xl bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0] disabled:opacity-50"
                 />
               )}
 
