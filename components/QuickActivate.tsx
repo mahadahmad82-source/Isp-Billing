@@ -86,7 +86,7 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
           const user = findUserForIdentity(parsed.identity) || values.map(value => findUserForIdentity(value)).find(Boolean);
           if (!user) { notFound.push(parsed.identity || values.join(' ')); return; }
           found.push(user.username);
-          if (!alreadyActiveIds.has(user.id)) targets.push({ userId: user.id, rechargeDate: parsed.rechargeDate });
+          if (!alreadyActiveIds.has(user.id) || parsed.rechargeDate) targets.push({ userId: user.id, rechargeDate: parsed.rechargeDate });
         });
         setResult({ found, notFound });
         if (targets.length > 0) onActivateUsers(targets);
@@ -132,14 +132,23 @@ const QuickActivate: React.FC<QuickActivateProps> = ({
       const user = findUserForIdentity(parsed.identity) || findUserForIdentity(line.trim());
       if (!user) { notFound.push(parsed.identity || line); return; }
       found.push(user.username);
-      if (!alreadyActiveIds.has(user.id)) targets.push({ userId: user.id, rechargeDate: parsed.rechargeDate || (rechargeDate ? parseRechargeDate(rechargeDate) || undefined : undefined) });
+      const resolvedRecharge = parsed.rechargeDate || (rechargeDate ? parseRechargeDate(rechargeDate) || undefined : undefined);
+      // An explicit recharge date is always applied, even for a user already
+      // marked active this month — it may be a correction to a wrong expiry.
+      // handleQuickActivate's own lastExpiryAdvancePeriod guard (not this
+      // activatedMonths flag) is what actually prevents a real double-advance.
+      // Only a bare re-click with no date at all is skipped as a no-op.
+      if (!alreadyActiveIds.has(user.id) || resolvedRecharge) targets.push({ userId: user.id, rechargeDate: resolvedRecharge });
     });
     setResult({ found, notFound });
     if (targets.length > 0) onActivateUsers(targets);
   };
 
   const handleSelectActivate = () => {
-    const targets = Array.from(selectedIds).filter(id => !alreadyActiveIds.has(id)).map(userId => ({ userId, rechargeDate: rechargeDate ? parseRechargeDate(rechargeDate) || undefined : undefined }));
+    const resolvedRecharge = rechargeDate ? parseRechargeDate(rechargeDate) || undefined : undefined;
+    const targets = Array.from(selectedIds)
+      .filter(id => !alreadyActiveIds.has(id) || resolvedRecharge)
+      .map(userId => ({ userId, rechargeDate: resolvedRecharge }));
     if (targets.length > 0) {
       onActivateUsers(targets);
       setResult({ found: targets.map(target => users.find(user => user.id === target.userId)?.username || ''), notFound: [] });
