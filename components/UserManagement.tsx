@@ -64,7 +64,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const latest = userReceipts.length
       ? userReceipts.reduce((a, b) => (new Date(a.date).getTime() > new Date(b.date).getTime() ? a : b))
       : null;
-    if (latest?.rechargeDate) return latest.rechargeDate;
+    // A receipt's stored rechargeDate is only authoritative if it's still the
+    // MOST RECENT billing action on this customer. Quick Activate (and other
+    // non-receipt actions) can move lastPaymentDate/expiryDate forward
+    // without creating a receipt — if that happened after this receipt, the
+    // receipt is stale and we fall back to deriving recharge from the live
+    // expiryDate instead, so this column doesn't show an old snapshot.
+    const receiptIsCurrent = !!latest && (!user.lastPaymentDate || new Date(latest.date).getTime() >= new Date(user.lastPaymentDate).getTime());
+    if (receiptIsCurrent && latest?.rechargeDate) return latest.rechargeDate;
     if (user.expiryDate) return new Date(new Date(user.expiryDate).getTime() - THIRTY_DAYS_MS_DIRECTORY).toISOString();
     return undefined;
   };
