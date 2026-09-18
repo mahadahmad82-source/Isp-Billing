@@ -226,9 +226,159 @@ function UploadSpinner() {
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
         <path className="opacity-90" d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
-    </div>
-  );
+// ── Canned quick replies for the /slash command palette ──
+interface CannedReply {
+  cmd: string;
+  title: string;
+  desc: string;
+  text: string;
 }
+
+const CANNED_REPLIES: CannedReply[] = [
+  {
+    cmd: '/bank',
+    title: 'Bank Account Details',
+    desc: 'Bank account number, title aur IBAN',
+    text: '🏦 *Bank Account Details:*\nBank: Meezan Bank\nAccount Title: MahadNet ISP\nAccount No: 02840105829101\nIBAN: PK23MEZN0002840105829101\n\n_Payment kar ke screenshot yahan share kar dein taake foran update kar diya jaye._',
+  },
+  {
+    cmd: '/jazzcash',
+    title: 'JazzCash Account Details',
+    desc: 'JazzCash mobile account details',
+    text: '📱 *JazzCash Payment Details:*\nAccount Title: MahadNet\nJazzCash No: 03001234567\n\n_Payment ke baad TID ya screenshot zaroor send karein._',
+  },
+  {
+    cmd: '/easypaisa',
+    title: 'EasyPaisa Account Details',
+    desc: 'EasyPaisa mobile account details',
+    text: '💳 *EasyPaisa Payment Details:*\nAccount Title: MahadNet\nEasyPaisa No: 03001234567\n\n_Screenshot bhej dein activation foran ho jaye gi._',
+  },
+  {
+    cmd: '/reboot',
+    title: 'Router Restart Guide',
+    desc: 'Router ko band kar ke on karne ka tareeqa',
+    text: '🔌 *Router Restart Guidance:*\n1. Router ka power adapter switch se nikalen.\n2. 2 minute intezar karein taake session reset ho jaye.\n3. Dobara on karein aur 3 minute wait karein jab tak Internet light stable na ho jaye.\n\nAgar phir bhi issue ho to batayein, team visit schedule kar dete hain.',
+  },
+  {
+    cmd: '/los',
+    title: 'Red LOS Light / Fiber Cut',
+    desc: 'Router par red light blinking guide',
+    text: '🔴 *Router par Red LOS Light:*\nIska matlab fiber optical wire mein signal drop ya cut hai. Baraye meharbani wire ko zor se mat khenchein. Humari field team ko alert bhej diya gaya hai, jald se jald check kar rahe hain.',
+  },
+  {
+    cmd: '/dns',
+    title: 'Speed / DNS Troubleshooting',
+    desc: 'Google DNS 8.8.8.8 setting guide',
+    text: '🌐 *Internet Speed / Browsing Check:*\nBaraye meharbani device ke Wi-Fi settings mein ja kar DNS ko *8.8.8.8* aur secondary *8.8.4.4* par set karein, aur direct test karein.',
+  },
+  {
+    cmd: '/grace',
+    title: '24-Hour Grace Period',
+    desc: 'Bill payment ke liye 24 ghante ka time',
+    text: '⏳ *Grace Period Extended:*\nAapki connection 24 ghante ke liye temporarily restore kar di gayi hai. Baraye meharbani kal sham se pehle apna bill clear kar dein taake service suspend na ho. Shukriya!',
+  },
+];
+
+// ── System Updates & Changelog for NetBot Settings ──
+interface ChangelogFeature {
+  tag: string;
+  title: string;
+  desc: string;
+}
+
+interface ChangelogRelease {
+  version: string;
+  date: string;
+  title: string;
+  badge: string;
+  badgeColor: string;
+  features: ChangelogFeature[];
+}
+
+const CHANGELOG_ITEMS: ChangelogRelease[] = [
+  {
+    version: 'v2.4',
+    date: '17 September 2026',
+    title: 'WhatsApp Web Redesign & Workflow Speedup',
+    badge: 'Latest',
+    badgeColor: 'bg-[#00A884]',
+    features: [
+      {
+        tag: 'UI/UX',
+        title: 'Desktop Viewport Lock & Pinned Composer',
+        desc: 'Chat kholne par browser page scroll hona band; left chat directory aur right conversation thread alag alag independent scroll hote hain, aur message input bar screen ke bottom par pinned rehta hai.',
+      },
+      {
+        tag: 'Theme',
+        title: 'Official WhatsApp Web Color Palette & Unified Sync',
+        desc: 'Original WhatsApp Web hex colors (#efeae2 canvas, #d9fdd3 outgoing, #00a884 accent) apply kiye gaye aur Manager Dashboard ke sath dark/light mode ek sath sync kar diya gaya.',
+      },
+      {
+        tag: 'Speed',
+        title: 'Smart Filter Tabs (All / Unread / Payment Slips / Paused)',
+        desc: 'Bina scroll kiye 1 click par unread messages ya payment slips filter karne ki sahulat.',
+      },
+      {
+        tag: 'Shortcuts',
+        title: 'Canned Quick Replies (/slash commands)',
+        desc: 'Input box mein / likhte hi /bank, /jazzcash, /reboot, /los, /dns, /grace ki palette khul jati hai, bar bar bank details type karne ki zaroorat nahi.',
+      },
+      {
+        tag: 'Verification',
+        title: 'In-App Media Lightbox & Screenshot Zoom Viewer',
+        desc: 'Customer ke payment screenshot ko bina new tab khole chat ke andar hi zoom aur rotate kar ke 1 click mein receipt generate karne ka button.',
+      },
+    ],
+  },
+  {
+    version: 'v2.3',
+    date: '16 September 2026',
+    title: 'Outage Management & Realtime Reliability',
+    badge: 'Performance',
+    badgeColor: 'bg-indigo-500',
+    features: [
+      {
+        tag: 'Automation',
+        title: 'Unregistered Number Outage Scoping',
+        desc: 'Agar customer ka number system mein register na bhi ho, tab bhi area/backend outage par NetBot foran automatic outage alert bhejti hai.',
+      },
+      {
+        tag: 'Database',
+        title: 'Aggregated Conversation Summaries RPC',
+        desc: 'Chat list row-cap khatam; database-level aggregate RPC se chats load hoti hain jisse high traffic par koi contact miss nahi hota.',
+      },
+      {
+        tag: 'Egress',
+        title: 'Network Egress Optimization',
+        desc: 'Background 60s poll se unnecessary heavy payload cut kar ke fast sync implement kiya gaya.',
+      },
+    ],
+  },
+  {
+    version: 'v2.2',
+    date: '14 September 2026',
+    title: 'NetBot AI Persona & Training Studio',
+    badge: 'AI Engine',
+    badgeColor: 'bg-purple-500',
+    features: [
+      {
+        tag: 'AI',
+        title: 'Teach NetBot & Situation Handling Rules',
+        desc: 'Bot ko specific customer situations ke liye custom rules aur preferred handling sikhane ka visual manager panel.',
+      },
+      {
+        tag: 'Voice',
+        title: 'Gemini TTS Voice Studio',
+        desc: '30 prebuilt Gemini AI natural voices aur custom style descriptors ke sath live voice preview.',
+      },
+      {
+        tag: 'Inventory',
+        title: 'Interactive Router Catalog',
+        desc: 'Single band aur dual band routers ki images, specifications aur live pricing ka managed catalog.',
+      },
+    ],
+  },
+];
 
 const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
@@ -300,12 +450,20 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [botNameInput, setBotNameInput] = useState(botName || 'MYISP-BOT');
   useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
 
-  // ── Training (Confused Replies) tab state ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup'>('inbox');
-  // Settings/navigation dropdown — Android's WABot app tucks Catalog/Templates/
-  // Agents/Training behind a single ⋮ menu (HeaderMenu.tsx) instead of always-
-  // visible tab buttons; this mirrors that so the PWA header matches.
+  // ── Tab views & settings navigation ──
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // ── Smart filter tabs (All / Unread / Payment Slips / Paused) ──
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'proofs' | 'paused'>('all');
+
+  // ── In-App Media Lightbox state (Payment proof zoom & verification) ──
+  const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video'; timestamp?: string; sender?: string } | null>(null);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxRotate, setLightboxRotate] = useState(0);
+
+  // ── Canned quick replies (/slash commands) palette state ──
+  const [showSlashPalette, setShowSlashPalette] = useState(false);
 
   // ── Agents & Voice tab state ──
   const [selectedVoice, setSelectedVoice] = useState<string>(ttsVoice || 'Kore');
@@ -728,6 +886,28 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   }, [conversationSummaries, customerByPhone, pausedPhones, contactNames, search]);
 
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
+
+  const filteredConversations = useMemo(() => {
+    return conversations.filter(c => {
+      if (chatFilter === 'unread') return c.unreadCount > 0;
+      if (chatFilter === 'paused') return c.paused;
+      if (chatFilter === 'proofs') {
+        const isImgOrDoc = c.lastType === 'image' || c.lastType === 'document';
+        const textHasProof = /proof|slip|payment|paid|screen\s*shot|receipt|ada|bhej\s*di/i.test(c.lastMessage);
+        return isImgOrDoc || textHasProof;
+      }
+      return true;
+    });
+  }, [conversations, chatFilter]);
+
+  const filterCounts = useMemo(() => {
+    return {
+      all: conversations.length,
+      unread: conversations.filter(c => c.unreadCount > 0).length,
+      proofs: conversations.filter(c => (c.lastType === 'image' || c.lastType === 'document') || /proof|slip|payment|paid|receipt/i.test(c.lastMessage)).length,
+      paused: conversations.filter(c => c.paused).length,
+    };
+  }, [conversations]);
 
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
@@ -1263,6 +1443,16 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 100 6h3.75A2.25 2.25 0 0021 13.5v-1.5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9.75V7.5a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 7.5v9a2.25 2.25 0 002.25 2.25h10.5A2.25 2.25 0 0018 16.5v-2.25" /></svg>
                   Topup
                 </button>
+                <button
+                  onClick={() => { setView('updates'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 text-[#00A884] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  <div className="flex-1 flex items-center justify-between text-left">
+                    <span>Updates &amp; Changelog</span>
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-[#00A884]/15 text-[#00A884]">New</span>
+                  </div>
+                </button>
                 <div className="h-px bg-slate-100 dark:bg-white/10 my-2" />
                 <div className="px-4 py-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Bot Name</span>
@@ -1297,7 +1487,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -1965,28 +2155,117 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <p className="text-xs text-slate-400 font-bold py-6 text-center">Koi quota data nahi mila.</p>
           )}
         </div>
+      ) : view === 'updates' ? (
+        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-[#E9EDEF] dark:border-[#222D34] pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-black text-[#111B21] dark:text-[#E9EDEF] uppercase tracking-tight">NetBot System Updates &amp; Changelog</h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#00A884]/15 text-[#00A884] font-black text-[10px] uppercase tracking-wider">Live</span>
+              </div>
+              <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold mt-1">
+                NetBot aur WABot inbox ke naye features, UI improvements, aur performance updates yahan track hote hain.
+              </p>
+            </div>
+            <button
+              onClick={() => setView('inbox')}
+              className="px-3.5 py-2 rounded-xl bg-[#00A884] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#008069] transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              Open Inbox
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {CHANGELOG_ITEMS.map((release) => (
+              <div key={release.version} className="relative pl-6 border-l-2 border-[#00A884]/40 dark:border-[#00A884]/30 space-y-3">
+                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#00A884] border-2 border-white dark:border-[#111B21]" />
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono font-black text-sm text-[#00A884]">{release.version}</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider text-white ${release.badgeColor}`}>
+                    {release.badge}
+                  </span>
+                  <span className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0]">{release.date}</span>
+                </div>
+                <h4 className="text-base font-bold text-[#111B21] dark:text-[#E9EDEF]">{release.title}</h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  {release.features.map((feat, fIdx) => (
+                    <div key={fIdx} className="p-3.5 rounded-xl bg-[#F0F2F5]/80 dark:bg-[#202C33]/60 border border-[#E9EDEF] dark:border-[#222D34] space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-white dark:bg-[#111B21] text-[#00A884] border border-[#E9EDEF] dark:border-[#222D34]">
+                          {feat.tag}
+                        </span>
+                        <h5 className="text-xs font-bold text-[#111B21] dark:text-[#E9EDEF] truncate">{feat.title}</h5>
+                      </div>
+                      <p className="text-[11px] text-[#667781] dark:text-[#8696A0] leading-relaxed font-medium">
+                        {feat.desc}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
     <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
       <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm`}>
-        <div className="p-3.5 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0">
+        <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0 space-y-2">
           <div className="flex items-center gap-2">
             <input
               placeholder="Search or start new chat"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0]"
+              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0]"
             />
             {totalUnread > 0 && (
-              <span className="flex-shrink-0 bg-[#25D366] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full">{totalUnread}</span>
+              <span className="flex-shrink-0 bg-[#25D366] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
             )}
+          </div>
+          {/* ── Smart Filter Pills ── */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
+            <button
+              onClick={() => setChatFilter('all')}
+              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+            >
+              All
+              <span className="text-[10px] opacity-80">({filterCounts.all})</span>
+            </button>
+            <button
+              onClick={() => setChatFilter('unread')}
+              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+            >
+              Unread
+              {filterCounts.unread > 0 && <span className="bg-[#25D366] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.unread}</span>}
+            </button>
+            <button
+              onClick={() => setChatFilter('proofs')}
+              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+            >
+              Payment Slips
+              {filterCounts.proofs > 0 && <span className="bg-amber-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.proofs}</span>}
+            </button>
+            <button
+              onClick={() => setChatFilter('paused')}
+              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+            >
+              Paused
+              {filterCounts.paused > 0 && <span className="bg-orange-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
+            </button>
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50">
-          {conversations.length === 0 ? (
-            <p className="text-sm text-slate-400 dark:text-slate-500 font-bold text-center py-10">Koi WhatsApp conversation nahi hai abhi.</p>
+          {filteredConversations.length === 0 ? (
+            <div className="text-center py-10 px-4">
+              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold">Koi WhatsApp conversation nahi mili.</p>
+              {chatFilter !== 'all' && (
+                <button onClick={() => setChatFilter('all')} className="mt-2 text-xs text-[#00A884] font-bold underline">Show all chats</button>
+              )}
+            </div>
           ) : (
-            conversations.map(c => (
+            filteredConversations.map(c => (
               <button
                 key={c.phone}
                 onClick={() => openConversation(c.phone)}
@@ -2076,10 +2355,23 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
                       {m.type === 'image' && mediaSrc ? (
-                        <a href={m.status === 'uploading' ? undefined : mediaSrc} target="_blank" rel="noreferrer" className="relative block">
-                          <img src={mediaSrc} alt="attachment" className="rounded-xl max-w-[220px] mb-1" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLightboxMedia({ url: mediaSrc, type: 'image', timestamp: m.created_at, sender: selectedConv?.name });
+                            setLightboxZoom(1);
+                            setLightboxRotate(0);
+                          }}
+                          className="relative block text-left group cursor-zoom-in"
+                          title="Click to zoom / verify payment"
+                        >
+                          <img src={mediaSrc} alt="attachment" className="rounded-xl max-w-[220px] mb-1 group-hover:opacity-95 transition-all" />
                           {m.status === 'uploading' && <UploadSpinner />}
-                        </a>
+                          <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" /></svg>
+                            Zoom
+                          </span>
+                        </button>
                       ) : m.type === 'video' && mediaSrc ? (
                         <div className="relative">
                           <video controls={m.status !== 'uploading'} src={mediaSrc} className="rounded-xl max-w-[220px] mb-1" />
@@ -2153,14 +2445,51 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <button onClick={cancelRecording} className="text-xs font-black uppercase tracking-widest text-slate-400">Cancel</button>
                 </div>
               ) : (
-                <input
-                  value={inputText}
-                  onChange={e => setInputText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
-                  placeholder="Type a message..."
-                  disabled={uploading}
-                  className="flex-1 min-w-0 p-3 rounded-xl bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0] disabled:opacity-50"
-                />
+                <div className="flex-1 min-w-0 relative">
+                  {showSlashPalette && (
+                    <div className="absolute bottom-full mb-3 left-0 w-full max-w-md bg-white dark:bg-[#202C33] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="p-2.5 bg-[#F0F2F5] dark:bg-[#111B21] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">Quick Replies (/commands)</span>
+                        <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] hover:text-[#00A884]">Close (Esc)</button>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50">
+                        {CANNED_REPLIES.filter(cr => !inputText.slice(1) || cr.cmd.includes(inputText.toLowerCase()) || cr.title.toLowerCase().includes(inputText.toLowerCase())).map(cr => (
+                          <button
+                            key={cr.cmd}
+                            type="button"
+                            onClick={() => { setInputText(cr.text); setShowSlashPalette(false); }}
+                            className="w-full text-left p-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#2A3942] transition-colors flex items-start gap-2.5 group"
+                          >
+                            <span className="px-2 py-0.5 rounded-md bg-[#00A884]/15 text-[#00A884] font-mono font-bold text-xs shrink-0 mt-0.5">{cr.cmd}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-[#111B21] dark:text-[#E9EDEF] truncate">{cr.title}</p>
+                              <p className="text-[10px] text-[#667781] dark:text-[#8696A0] truncate">{cr.desc}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    value={inputText}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setInputText(val);
+                      if (val.startsWith('/') && val.length <= 15) {
+                        setShowSlashPalette(true);
+                      } else if (!val.startsWith('/')) {
+                        setShowSlashPalette(false);
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') setShowSlashPalette(false);
+                      if (e.key === 'Enter' && !showSlashPalette) handleSend();
+                    }}
+                    placeholder="Type a message or / for quick replies..."
+                    disabled={uploading}
+                    className="w-full p-3 rounded-xl bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0] disabled:opacity-50"
+                  />
+                </div>
               )}
 
               {recording ? (
@@ -2193,7 +2522,106 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </>
         )}
       </div>
-    </div>
+      {/* ── In-App Media Lightbox Modal (Payment screenshot zoom & verification) ── */}
+      {lightboxMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0" onClick={() => setLightboxMedia(null)} />
+          <div className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#111B21] rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+            {/* Header bar */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#202C33] border-b border-white/10 shrink-0">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white truncate">
+                  {lightboxMedia.sender || 'Attachment'}
+                </p>
+                <p className="text-[11px] text-[#8696A0]">
+                  {lightboxMedia.timestamp ? new Date(lightboxMedia.timestamp).toLocaleString() : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLightboxZoom(z => Math.max(0.5, z - 0.25))}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  title="Zoom out"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg>
+                </button>
+                <span className="text-xs font-mono text-white/80 w-10 text-center">{Math.round(lightboxZoom * 100)}%</span>
+                <button
+                  type="button"
+                  onClick={() => setLightboxZoom(z => Math.min(3, z + 0.25))}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  title="Zoom in"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxRotate(r => (r + 90) % 360)}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  title="Rotate 90°"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+                <a
+                  href={lightboxMedia.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  title="Download / Open original"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightboxMedia(null)}
+                  className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all"
+                  title="Close"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Media canvas */}
+            <div className="flex-1 min-h-[350px] max-h-[70vh] overflow-auto flex items-center justify-center p-4 bg-black/40">
+              <img
+                src={lightboxMedia.url}
+                alt="Attachment preview"
+                className="max-w-full max-h-full object-contain transition-transform duration-200"
+                style={{ transform: `scale(${lightboxZoom}) rotate(${lightboxRotate}deg)` }}
+              />
+            </div>
+
+            {/* Footer action bar */}
+            <div className="px-4 py-3 bg-[#202C33] border-t border-white/10 flex items-center justify-between shrink-0">
+              <span className="text-xs text-[#8696A0]">Payment slip verify karein ya receipt banayein</span>
+              <div className="flex items-center gap-2">
+                {selectedConv && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLightboxMedia(null);
+                      onOpenReceiptGenerator?.(selectedConv.userId);
+                    }}
+                    className="px-4 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Verify &amp; Generate Receipt
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setLightboxMedia(null)}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
