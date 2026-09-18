@@ -25,7 +25,7 @@ const CIRCUIT_COOLDOWN_MS = 30000;
 
 // ─── Pending queue (survives page reload) ────────────────────────────────────
 const QUEUE_KEY = '__supabase_pending_sync__';
-interface PendingItem { managerId: string; stateJson: string; ts: string; }
+interface PendingItem { managerId: string; stateJson: string; ts: string; attempts?: number; }
 
 const getQueue = (): PendingItem[] => {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
@@ -210,6 +210,12 @@ export const flushPendingSync = async (): Promise<void> => {
     if (!session) await supabase.auth.refreshSession();
   } catch { /* proceed regardless */ }
 
+  // A queue item that still can't save after this many flush cycles is
+  // permanently stuck — e.g. leftover from a manager_id this session/device
+  // doesn't own (switched accounts on a shared device, old test login, etc.),
+  // which RLS will block forever. Retrying it every 45s indefinitely was
+  // burning a full GET+POST cycle on a doomed request forever. Bound it.
+  const MAX_FLUSH_ATTEMPTS = 10;
   for (const item of q) {
     try {
       const staleState = JSON.parse(item.stateJson) as AppState;
@@ -230,7 +236,16 @@ export const flushPendingSync = async (): Promise<void> => {
         businessExpenses: mergeById(staleState.businessExpenses, currentRemote.businessExpenses),
       } : staleState;
       const ok = await upsertWithRetry(item.managerId, stateToPush, 2);
-      if (!ok) console.warn('[Supabase] Flush failed for', item.managerId);
+      if (!ok) {
+        const attempts = (item.attempts || 0) + 1;
+        if (attempts >= MAX_FLUSH_ATTEMPTS) {
+          console.error(`[Supabase] Giving up on stuck queue item for ${item.managerId} after ${attempts} failed flushes — dropping (this session likely doesn't own that manager_id)`);
+          dequeue(item.managerId);
+        } else {
+          setQueue(getQueue().map(x => x.managerId === item.managerId ? { ...x, attempts } : x));
+          console.warn('[Supabase] Flush failed for', item.managerId, `(attempt ${attempts}/${MAX_FLUSH_ATTEMPTS})`);
+        }
+      }
     } catch (e) {
       console.error('[Supabase] Flush parse error:', e);
     }
@@ -415,3 +430,4 @@ export const smartLoadAndSync = async (
   }
   return merged;
 };
+
