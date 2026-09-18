@@ -511,6 +511,15 @@ const App: React.FC = () => {
       ? account?.managerUsername || stateRef.current.currentManager || ''
       : activeManager || '';
     if (!managerId) return;
+    // Egress fix (Sep 2026 audit): TeamCommunication polls this every 15s
+    // while its tab is open — tighter than every other sync interval in the
+    // app (90s/45s/30s) — and it was pulling the ENTIRE manager_data blob
+    // (900KB-2MB+) unconditionally every single time just to read
+    // teamMessages. This was the single worst egress source found. Same
+    // cheap updated_at gate used by the periodic pull below.
+    const localTs = new Date((stateRef.current as any)?._syncedAt || localStorage.getItem(`${managerId}_syncedAt`) || 0).getTime();
+    const remoteUpdatedAt = await getRemoteUpdatedAt(managerId);
+    if (remoteUpdatedAt && new Date(remoteUpdatedAt).getTime() <= localTs) return;
     const remote = await loadStateFromSupabase(managerId);
     if (!remote) return;
     setState(previous => ({
