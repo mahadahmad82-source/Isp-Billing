@@ -439,17 +439,19 @@ const App: React.FC = () => {
       const isSubManagerNow = account?.role === 'sub-manager' || userRole === 'sub-manager';
       try {
         // Egress fix: skip the full manager_data blob pull (900KB-2MB+) when
-        // nothing changed remotely. Sub-managers keep the old always-pull
-        // behavior (forceRemote) since they rely on it for cross-device
-        // freshness — see BUG FIX note in smartLoadAndSync. For a regular
-        // manager, a cheap updated_at check runs first; if the remote row is
-        // no newer than our last synced timestamp, this cycle is a no-op.
-        if (!isSubManagerNow) {
-          const localTs = new Date((stateRef.current as any)?._syncedAt || localStorage.getItem(`${dataOwner}_syncedAt`) || 0).getTime();
-          const remoteUpdatedAt = await getRemoteUpdatedAt(dataOwner);
-          if (remoteUpdatedAt && new Date(remoteUpdatedAt).getTime() <= localTs) {
-            return; // nothing new remotely — don't pull the full blob
-          }
+        // nothing changed remotely. This used to only apply to regular
+        // managers — sub-managers always skipped straight to forceRemote,
+        // meaning every open sub-manager tab re-pulled the entire blob every
+        // 90s forever, changed or not (the actual biggest egress driver).
+        // forceRemote's job is "skip merge/push-back, trust Supabase exactly"
+        // (see BUG FIX note in smartLoadAndSync) — that's a separate concern
+        // from "always refetch even when nothing changed". So run the same
+        // cheap updated_at check for everyone; only forceRemote's
+        // merge-skipping stays sub-manager-only.
+        const localTs = new Date((stateRef.current as any)?._syncedAt || localStorage.getItem(`${dataOwner}_syncedAt`) || 0).getTime();
+        const remoteUpdatedAt = await getRemoteUpdatedAt(dataOwner);
+        if (remoteUpdatedAt && new Date(remoteUpdatedAt).getTime() <= localTs) {
+          return; // nothing new remotely — don't pull the full blob
         }
         const finalState = await smartLoadAndSync(dataOwner, stateRef.current, { forceRemote: isSubManagerNow });
         applySyncedState(finalState, dataOwner);
