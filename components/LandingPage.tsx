@@ -1367,6 +1367,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="dot"></div>
               <span>Trusted by 150+ Pakistani ISPs</span>
             </div>
+            <div className="badge scroll-reveal" style={{ background: 'rgba(16,185,129,0.14)', borderColor: 'rgba(16,185,129,0.4)' }}>
+              <div className="dot" style={{ background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)' }}></div>
+              <span style={{ color: '#34d399' }}>Free for 50 Customers · No Card Required</span>
+            </div>
             <h1 className="scroll-reveal">
               THE FUTURE OF<br/>
               <span className="gradient">ISP BILLING</span><br/>
