@@ -83,6 +83,18 @@ const upsertWithRetry = async (managerId: string, state: AppState, maxAttempts =
         circuitOpenUntil = 0;
         emit('saved');
         console.log(`[Supabase] ✅ Saved (attempt ${attempt})`);
+        // Egress migration stage 2 (Sep 2026): dual-write receipts into their
+        // own indexed table via save_receipts RPC, alongside the existing
+        // blob save — read paths still use state.receipts unchanged, this
+        // only builds up the new table so stage 3 can switch reads off the
+        // ~1MB blob. Fire-and-forget: must never block/slow the real save,
+        // and a dropped dual-write here just means the next successful save
+        // (or a re-run of the stage-1 backfill) catches it up.
+        if (Array.isArray(stateWithTs.receipts) && stateWithTs.receipts.length > 0) {
+          supabase.rpc('save_receipts', { p_manager_id: managerId, p_receipts: stateWithTs.receipts })
+            .then(({ error: recErr }: { error: any }) => { if (recErr) console.error('[Supabase] receipts dual-write failed:', recErr.message); })
+            .catch((err: any) => console.error('[Supabase] receipts dual-write exception:', err));
+        }
         return true;
       }
       console.error(`[Supabase] Attempt ${attempt} error:`, error.message);
