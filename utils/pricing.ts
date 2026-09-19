@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 export interface PricingPlan {
   name: string;
   price: string;
@@ -73,4 +75,67 @@ export const ensureWhatsAppBotPlan = (plans: PricingPlan[]): PricingPlan[] => {
   const existingNames = new Set(withoutLegacyCard.map((plan) => plan.name.trim().toLowerCase()));
   const missing = WHATSAPP_BOT_PLANS.filter((plan) => !existingNames.has(plan.name.trim().toLowerCase()));
   return [...withoutLegacyCard, ...missing.map((plan) => ({ ...plan, features: [...plan.features] }))];
+};
+
+/**
+ * Fallback ISP billing tiers — used until (or unless) admin-edited plans load
+ * from Supabase, and whenever that fetch fails, so pricing never goes blank.
+ * Single source of truth for the *default* copy; the live, admin-edited
+ * values always come from `site_settings.pricing_plans` via fetchPricingPlans().
+ */
+export const DEFAULT_ISP_PLANS: PricingPlan[] = [
+  {
+    name: 'Free', price: 'Free', period: '', color: '#64748b',
+    features: ['Up to 50 customers', 'Core billing, receipts & recovery ledger', 'Manual WhatsApp reminders', 'Cloud sync'],
+    cta: 'Start Free', highlight: false,
+  },
+  {
+    name: 'Starter', price: 'Rs. 1,000', period: 'month', color: '#6366f1',
+    features: ['Up to 150 customers', 'Area Dashboard & Equipment Tracker', 'Leads Pipeline & Analytics', 'Cloud sync & backups'],
+    cta: 'Get Starter', highlight: false,
+  },
+  {
+    name: 'Growth', price: 'Rs. 1,500', period: 'month', color: '#8b5cf6',
+    features: ['Up to 250 customers', 'Full manager toolset included', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics'],
+    cta: 'Get Growth', highlight: false,
+  },
+  {
+    name: 'Business', price: 'Rs. 2,000', period: 'month', color: '#4f46e5',
+    features: ['Up to 500 customers', 'Full manager toolset included', 'Priority support'],
+    cta: 'Get Business', highlight: true,
+  },
+  {
+    name: 'Enterprise', price: 'Rs. 3,000', period: 'month', color: '#06b6d4',
+    features: ['Up to 1,000 customers', 'Full manager toolset included', 'Meta message templates built for you', 'Priority support'],
+    cta: 'Get Enterprise', highlight: false,
+  },
+  {
+    name: 'Custom', price: 'Custom', period: '', color: '#f59e0b',
+    features: ['Unlimited customers', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
+    cta: 'Contact Us', highlight: false,
+  },
+];
+
+/**
+ * Fetches the admin-edited ISP billing plans from Supabase
+ * `site_settings.pricing_plans` — the exact same row the public landing
+ * page's pricing section reads. Falls back to DEFAULT_ISP_PLANS on any
+ * network/parse failure or empty result. Both the landing page AND the
+ * post-signup tier-selection screen call this, so the two can never show
+ * different tiers/prices again.
+ */
+export const fetchPricingPlans = async (): Promise<PricingPlan[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('pricing_plans')
+      .eq('id', 'default')
+      .maybeSingle();
+    if (!error && Array.isArray(data?.pricing_plans) && data.pricing_plans.length > 0) {
+      return ensureWhatsAppBotPlan(data.pricing_plans as PricingPlan[]);
+    }
+  } catch {
+    // Network/parse failure — fall through to defaults below.
+  }
+  return ensureWhatsAppBotPlan(DEFAULT_ISP_PLANS);
 };
