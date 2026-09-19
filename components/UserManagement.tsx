@@ -531,7 +531,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       // number is fully migrated to Meta Cloud API (wa.me deep links need a regular
       // WhatsApp app logged into that number on this device, which won't be true
       // post-migration). Falls back to the old deep link only if the API send fails.
-      const result = await sendWhatsAppDirect(user.phone, msg);
+      const result = await sendWhatsAppDirect(user.phone, msg, managerId);
       if (!result.success) {
         console.error('[UserManagement] direct send failed, falling back to wa.me', result.error);
         shareToWhatsApp(user.phone, msg);
