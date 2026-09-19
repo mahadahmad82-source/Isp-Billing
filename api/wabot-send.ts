@@ -45,11 +45,28 @@ async function verifyCaller(req: any, action: 'view' | 'create'): Promise<{ ok: 
   }
 
   // Not UUID-shaped — try as a real Supabase Auth JWT (manager/admin session).
+  // Security fix (Sep 19 2026): managerId is now resolved from the authenticated
+  // session's OWN profile (profiles.username, keyed by the JWT's auth user id) —
+  // never trusted from the request body anymore. Previously any manager JWT could
+  // send via ANY managerId placed in the body, so a client-side bug (or a
+  // deliberately crafted request) could fire messages through another manager's
+  // NetBot number/identity. Now a manager's NetBot can only ever send as that
+  // manager — no cross-manager sends possible, by construction.
   try {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
     });
-    if (r.ok) return { ok: true }; // managerId trusted from request body, as before
+    if (!r.ok) return { ok: false };
+    const authUser = await r.json();
+    if (!authUser?.id) return { ok: false };
+    const pr = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${authUser.id}&select=username`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await pr.json();
+    const ownManagerId = rows?.[0]?.username;
+    if (!ownManagerId) return { ok: false }; // no resolvable manager identity — deny, never fall back
+    return { ok: true, managerId: ownManagerId };
   } catch (e: any) { console.error('[wabot-send auth: jwt]', e?.message); }
   return { ok: false };
 }
@@ -129,7 +146,10 @@ export default async function handler(req: any, res: any) {
   const { to, body, managerId: bodyManagerId, type, mediaUrl, caption, filename, templateName, templateParams } = req.body || {};
   // Agent-token callers are locked to the manager_id their token was minted for —
   // prevents a sub-manager token from being replayed against a different manager_id.
-  const managerId = authCheck.managerId || bodyManagerId;
+  // Strictly bound to the authenticated caller's own manager identity — bodyManagerId
+  // is no longer used for authorization (kept destructured above only so older payload
+  // shapes don't throw); both auth branches above always set authCheck.managerId on ok:true.
+  const managerId = authCheck.managerId;
   const sendType: SendType = (type as SendType) || 'text';
   if (!to) return res.status(400).json({ error: 'to is required' });
   if (sendType === 'text' && !body) return res.status(400).json({ error: 'body is required for text' });
