@@ -8,6 +8,7 @@ import { logoBase64 } from '../utils/logoBase64';
 import VideoBackground from './landing/VideoBackground';
 import LanguageToggle from './LanguageToggle';
 import { Language, getStoredLanguage, setStoredLanguage } from '../utils/i18n';
+import { fetchPricingPlans, DEFAULT_ISP_PLANS, WHATSAPP_BOT_PLANS, ensureWhatsAppBotPlan, type PricingPlan } from '../utils/pricing';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -15,7 +16,7 @@ interface LoginProps {
 }
 
 const ADMIN_USERNAME = 'admin';
-type ViewType = 'recent' | 'login' | 'signup' | 'signup-otp' | 'signup-tier' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
+type ViewType = 'recent' | 'login' | 'signup' | 'signup-otp' | 'signup-tier' | 'signup-netbot' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
 
 // ── Icons (outside component to prevent re-render remounting) ──
 const EyeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>);
@@ -91,11 +92,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [proofSubmitted, setProofSubmitted] = useState(false);
   const [tierBusy, setTierBusy] = useState(false);
   const [pendingSignupEmail, setPendingSignupEmail] = useState('');
+  // Same Supabase site_settings.pricing_plans row LandingPage.tsx reads —
+  // keeps this screen's tiers/prices in sync with whatever is currently
+  // live on the public landing page (never a separately-maintained copy).
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>(ensureWhatsAppBotPlan(DEFAULT_ISP_PLANS));
 
   useEffect(() => {
     const loadedAccounts = getAccounts();
     setAccounts(loadedAccounts);
     setView(loadedAccounts.length > 0 ? 'recent' : 'login');
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const plans = await fetchPricingPlans();
+      if (!cancelled) setPricingPlans(plans);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
@@ -362,21 +376,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     setView('signup-tier');
   };
 
-  const PLAN_TIERS = [
-    { tier: 'free', label: 'Free', price: 'Free', desc: 'Up to 75 customers, core billing tools' },
-    { tier: 'starter', label: 'Starter', price: 'Rs. 1,500/mo', desc: 'Up to 256 customers, +1 sub-manager' },
-    { tier: 'growth', label: 'Growth', price: 'Rs. 2,500/mo', desc: 'Up to 512 customers, +NetBot Text tier' },
-    { tier: 'business', label: 'Business', price: 'Rs. 4,000/mo', desc: 'Up to 750 customers, +NetBot Basic tier' },
-    { tier: 'enterprise', label: 'Enterprise', price: 'Rs. 6,000/mo', desc: 'Up to 1,056 customers, +NetBot Pro tier' },
-    { tier: 'custom', label: 'Custom', price: 'Contact Us', desc: 'Unlimited everything, NetBot Unlimited tier' },
-  ];
+  // Built from live pricingPlans (NetBot cards excluded — that's now its own
+  // step below) so this list always matches whatever's currently set on the
+  // landing page's pricing section, instead of a separate hardcoded copy.
+  const PLAN_TIERS = pricingPlans
+    .filter(p => !p.name.trim().toLowerCase().startsWith('netbot'))
+    .map(p => ({
+      tier: p.name.trim().toLowerCase(),
+      label: p.name,
+      price: p.period ? `${p.price}/mo` : (p.price === 'Custom' ? 'Contact Us' : p.price),
+      desc: p.features.slice(0, 2).join(' · '),
+    }));
 
   const handleSelectTier = async (tier: string, label: string) => {
     setTierBusy(true);
     try {
       await supabase.rpc('select_signup_tier', { p_tier: tier });
       if (tier === 'free') {
-        onLogin(phone);
+        setView('signup-netbot');
       } else {
         setTierPaymentPending({ tier, label });
       }
@@ -384,6 +401,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       setTierBusy(false);
     }
   };
+
+  // NetBot is a standalone product, sold separately from the ISP tier and
+  // fully optional — there's no signup-time RPC for it (activation needs
+  // manual Meta WhatsApp Business setup per manager). Selecting a tier just
+  // opens WhatsApp with the request; skipping goes straight to the dashboard.
+  const handleSelectNetbotTier = (planName: string) => {
+    const msg = `Hi, I want to activate NetBot (${planName}) for my account — ${businessName || phone}.`;
+    window.open(`https://wa.me/923477136214?text=${encodeURIComponent(msg)}`, '_blank');
+    onLogin(phone);
+  };
+  const handleSkipNetbot = () => onLogin(phone);
 
   const handleSubmitProof = async () => {
     if (!proofFile) { showError('Payment proof screenshot select karein.'); return; }
@@ -738,9 +766,34 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5">
                   Also inform on WhatsApp (optional)
                 </a>
-                <button type="button" onClick={() => onLogin(phone)}
+                <button type="button" onClick={() => setView('signup-netbot')}
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-400 hover:text-white transition-colors">
-                  Continue to Dashboard (Free tier until verified)
+                  Continue (Free tier until verified)
+                </button>
+              </div>
+            )}
+
+            {/* ── NETBOT TIER SELECTION (final signup step, fully optional) ── */}
+            {view === 'signup-netbot' && (
+              <div className="space-y-3">
+                <div className="text-center mb-3">
+                  <h2 className="text-lg font-black text-white mb-1">Add NetBot WhatsApp Bot?</h2>
+                  <p className="text-[11px] text-slate-500">Optional — sold separately from your ISP plan. Skip now, add it later from Settings anytime.</p>
+                </div>
+                {WHATSAPP_BOT_PLANS.map((p) => (
+                  <button key={p.name} type="button" onClick={() => handleSelectNetbotTier(p.name)}
+                    className="w-full text-left p-4 rounded-2xl border border-white/10 hover:border-emerald-500/50 bg-white/[0.02] hover:bg-white/[0.05] transition-all flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-black text-white text-sm">{p.name}</p>
+                      <p className="text-[10px] text-slate-500">{p.features[0]}</p>
+                    </div>
+                    <span className="text-[11px] font-black text-emerald-400 flex-shrink-0">{p.price}/mo</span>
+                  </button>
+                ))}
+                <button type="button" onClick={handleSkipNetbot}
+                  className="w-full py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-wider text-slate-400 hover:text-white transition-all"
+                  style={{ border: '1.5px dashed rgba(148,163,184,0.35)', background: 'rgba(148,163,184,0.05)' }}>
+                  Skip — I don't need NetBot right now
                 </button>
               </div>
             )}
