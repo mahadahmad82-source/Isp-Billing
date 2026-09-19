@@ -127,6 +127,16 @@ export default async function handler(req: any, res: any) {
     return handlePreviewVoice(req, res);
   }
 
+  // ── Meta Webhook Health Check (WABot header status pill) ──
+  // Pings the Meta Graph API phone_number_id endpoint with the current
+  // WHATSAPP_TOKEN to determine live connection status. Folded here to stay
+  // under the Vercel 12-function hard cap.
+  if (req.body?.action === 'healthCheck') {
+    const authCheck = await verifyCaller(req, 'view');
+    if (!authCheck.ok) return res.status(401).json({ error: 'Unauthorized' });
+    return handleHealthCheck(req, res);
+  }
+
   // ── Presigned R2 upload URL (Sep 2026 egress fix) ──
   // Frontend components (ReceiptGenerator, WABotInbox, TeamCommunication,
   // Login signup-proof) used to upload straight to Supabase Storage, which is
@@ -386,4 +396,56 @@ async function handlePreviewVoice(req: any, res: any) {
   }
 }
 
+// ── Meta Webhook Health Check handler ──
+// Pings Graph API GET /v20.0/{PHONE_NUMBER_ID}?fields=id,display_phone_number,verified_name
+// Returns: { status: 'connected'|'degraded'|'disconnected', phone: string|null, lastChecked: ISO }
+// connected   = 200 OK (token valid, phone reachable)
+// degraded    = 4xx from Meta (bad token, account suspended, or billing issue)
+// disconnected= network failure or env vars missing
+async function handleHealthCheck(_req: any, res: any) {
+  try {
+    const token = process.env.WHATSAPP_TOKEN;
+    const pid   = process.env.PHONE_NUMBER_ID;
+    if (!token || !pid) {
+      return res.status(200).json({
+        status: 'disconnected',
+        phone: null,
+        lastChecked: new Date().toISOString(),
+        detail: 'WHATSAPP_TOKEN or PHONE_NUMBER_ID env var missing',
+      });
+    }
 
+    const r = await fetch(
+      `https://graph.facebook.com/v20.0/${pid}?fields=id,display_phone_number,verified_name`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) },
+    );
+    const d = await r.json();
+
+    if (r.status === 200 && d?.id) {
+      return res.status(200).json({
+        status: 'connected',
+        phone: d.display_phone_number || null,
+        verifiedName: d.verified_name || null,
+        lastChecked: new Date().toISOString(),
+      });
+    }
+
+    // 4xx — token/account issue (common: billing error 131042, token expired)
+    console.warn('[healthCheck] Meta returned', r.status, JSON.stringify(d).slice(0, 200));
+    return res.status(200).json({
+      status: 'degraded',
+      phone: null,
+      lastChecked: new Date().toISOString(),
+      detail: d?.error?.message || `HTTP ${r.status}`,
+      errorCode: d?.error?.code,
+    });
+  } catch (e: any) {
+    console.error('[healthCheck] network error', e?.message);
+    return res.status(200).json({
+      status: 'disconnected',
+      phone: null,
+      lastChecked: new Date().toISOString(),
+      detail: e?.message || 'Network failure',
+    });
+  }
+}
