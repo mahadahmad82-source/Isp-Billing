@@ -130,7 +130,11 @@ export default function WABotStandalone() {
       setQrStatus('loading');
       setQrDataUrl('');
       try {
-        const r = await fetch('/api/wabot-pair-create', { method: 'POST' });
+        const r = await fetch('/api/wabot-pair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create' }),
+        });
         const d = await r.json();
         if (cancelled) return;
         if (!r.ok || !d?.token) { setQrStatus('error'); return; }
@@ -148,10 +152,10 @@ export default function WABotStandalone() {
             return;
           }
           try {
-            const pr = await fetch('/api/wabot-pair-poll', {
+            const pr = await fetch('/api/wabot-pair', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: d.token }),
+              body: JSON.stringify({ action: 'poll', token: d.token }),
             });
             const pd = await pr.json();
             if (cancelled) return;
