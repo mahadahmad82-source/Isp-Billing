@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { AppState, RouterCatalog, BotTemplate } from '../types';
 import { getAccounts, getActiveSession, loadState, saveAccount, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
@@ -107,6 +108,77 @@ export default function WABotStandalone() {
 
   const [loggingIn, setLoggingIn] = useState(false);
 
+  // ── QR login ("Link a Device", WhatsApp-Web style) ─────────────────────
+  // NetBot Web shows the QR (this screen); the already-logged-in NetBot
+  // Android app scans it (Settings → Link a Device) and approves via
+  // api/wabot-pair-approve.ts. Reuses the SAME account/session that scanned
+  // — never a different one — via a server-minted Supabase magic-link OTP,
+  // so no password is ever exposed to this device. Real Supabase Auth
+  // accounts only for now (managers + migrated sub-managers); legacy
+  // (non-migrated) sub-manager agentToken accounts still use password login.
+  const [loginMode, setLoginMode] = useState<'password' | 'qr'>('password');
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [qrStatus, setQrStatus] = useState<'loading' | 'pending' | 'expired' | 'error'>('loading');
+  const [qrRegenKey, setQrRegenKey] = useState(0);
+
+  useEffect(() => {
+    if (phase !== 'login' || loginMode !== 'qr') return;
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    (async () => {
+      setQrStatus('loading');
+      setQrDataUrl('');
+      try {
+        const r = await fetch('/api/wabot-pair-create', { method: 'POST' });
+        const d = await r.json();
+        if (cancelled) return;
+        if (!r.ok || !d?.token) { setQrStatus('error'); return; }
+
+        const dataUrl = await QRCode.toDataURL(d.token, { margin: 1, width: 240 });
+        if (cancelled) return;
+        setQrDataUrl(dataUrl);
+        setQrStatus('pending');
+
+        const expiresAt = new Date(d.expiresAt).getTime();
+        pollTimer = setInterval(async () => {
+          if (Date.now() > expiresAt) {
+            if (pollTimer) clearInterval(pollTimer);
+            if (!cancelled) setQrStatus('expired');
+            return;
+          }
+          try {
+            const pr = await fetch('/api/wabot-pair-poll', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: d.token }),
+            });
+            const pd = await pr.json();
+            if (cancelled) return;
+            if (pd.status === 'approved' && pd.tokenHash) {
+              if (pollTimer) clearInterval(pollTimer);
+              const { data: verifyData, error: verifyErr } = await supabase.auth.verifyOtp({
+                token_hash: pd.tokenHash,
+                type: 'magiclink',
+              });
+              if (verifyErr || !verifyData?.user) { setQrStatus('error'); return; }
+              setActiveSession(pd.username);
+              setUsername(pd.username);
+              setPhase('loading');
+            } else if (pd.status === 'expired') {
+              if (pollTimer) clearInterval(pollTimer);
+              setQrStatus('expired');
+            }
+          } catch { /* one failed poll shouldn't kill the flow — try again in 2s */ }
+        }, 2000);
+      } catch {
+        if (!cancelled) setQrStatus('error');
+      }
+    })();
+
+    return () => { cancelled = true; if (pollTimer) clearInterval(pollTimer); };
+  }, [phase, loginMode, qrRegenKey]);
+
   // This standalone /wabot route had NO permission gate at all — unlike the
   // main App.tsx, which fully excludes sub-managers from the WABot tab. A
   // sub-manager logging in here (via the local-cache fast path) got full,
@@ -194,31 +266,70 @@ export default function WABotStandalone() {
             <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
           </div>
 
-          <form onSubmit={handleLoginSubmit} className="w-full flex flex-col gap-3 mt-1">
-            <input
-              autoFocus
-              type="text"
-              value={loginUser}
-              onChange={e => setLoginUser(e.target.value)}
-              placeholder="Username"
-              className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
-            />
-            <input
-              type="password"
-              value={loginPass}
-              onChange={e => setLoginPass(e.target.value)}
-              placeholder="Password"
-              className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
-            />
-            {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
-            <button
-              type="submit"
-              disabled={loggingIn}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
-            >
-              {loggingIn ? 'Logging in…' : 'Log In'}
-            </button>
-          </form>
+          {loginMode === 'password' ? (
+            <>
+              <form onSubmit={handleLoginSubmit} className="w-full flex flex-col gap-3 mt-1">
+                <input
+                  autoFocus
+                  type="text"
+                  value={loginUser}
+                  onChange={e => setLoginUser(e.target.value)}
+                  placeholder="Username"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
+                />
+                <input
+                  type="password"
+                  value={loginPass}
+                  onChange={e => setLoginPass(e.target.value)}
+                  placeholder="Password"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
+                />
+                {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
+                <button
+                  type="submit"
+                  disabled={loggingIn}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
+                >
+                  {loggingIn ? 'Logging in…' : 'Log In'}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => { setQrRegenKey(k => k + 1); setLoginMode('qr'); }}
+                className="text-xs text-indigo-600 font-medium mt-1"
+              >
+                NetBot Android app se QR scan karein
+              </button>
+            </>
+          ) : (
+            <div className="w-full flex flex-col items-center gap-3 mt-1">
+              <div className="w-[240px] h-[240px] flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                {qrStatus === 'pending' && qrDataUrl && <img src={qrDataUrl} alt="QR" className="w-full h-full" />}
+                {qrStatus === 'loading' && <p className="text-xs text-slate-400">QR ban raha hai…</p>}
+                {qrStatus === 'expired' && <p className="text-xs text-rose-500 px-4 text-center">QR expire ho gaya</p>}
+                {qrStatus === 'error' && <p className="text-xs text-rose-500 px-4 text-center">Masla aa gaya, dobara try karein</p>}
+              </div>
+              <p className="text-xs text-slate-500 text-center px-2">
+                NetBot Android app mein Settings → Link a Device se ye QR scan karein
+              </p>
+              {(qrStatus === 'expired' || qrStatus === 'error') && (
+                <button
+                  type="button"
+                  onClick={() => setQrRegenKey(k => k + 1)}
+                  className="text-xs text-indigo-600 font-medium"
+                >
+                  Naya QR banayein
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setLoginMode('password')}
+                className="text-xs text-slate-400 font-medium"
+              >
+                Password se login karein
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
