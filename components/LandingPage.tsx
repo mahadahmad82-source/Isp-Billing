@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { logoBase64 } from '../utils/logoBase64';
 import { supabase } from '../lib/supabase';
-import { ensureWhatsAppBotPlan, type PricingPlan } from '../utils/pricing';
+import { ensureWhatsAppBotPlan, fetchPricingPlans, DEFAULT_ISP_PLANS, type PricingPlan } from '../utils/pricing';
 import VideoBackground from './landing/VideoBackground';
 import { 
   Zap, Smartphone, Lock, BarChart, Users, Globe, Cpu, Server, 
@@ -18,38 +18,9 @@ interface LandingPageProps {
 
 // Fallback plans — used until (or unless) admin-edited plans load from Supabase,
 // and whenever that fetch fails, so the pricing section never breaks/goes blank.
-const DEFAULT_PRICING_PLANS: PricingPlan[] = ensureWhatsAppBotPlan([
-  {
-    name: 'Free', price: 'Free', period: '', color: '#64748b',
-    features: ['Up to 50 customers', 'Core billing, receipts & recovery ledger', 'Manual WhatsApp reminders', 'Cloud sync'],
-    cta: 'Start Free', highlight: false,
-  },
-  {
-    name: 'Starter', price: 'Rs. 1,000', period: 'month', color: '#6366f1',
-    features: ['Up to 150 customers', 'Area Dashboard & Equipment Tracker', 'Leads Pipeline & Analytics', 'Cloud sync & backups'],
-    cta: 'Get Starter', highlight: false,
-  },
-  {
-    name: 'Growth', price: 'Rs. 1,500', period: 'month', color: '#8b5cf6',
-    features: ['Up to 250 customers', 'Full manager toolset included', 'Area Dashboard, Equipment Tracker, Leads Pipeline, Analytics'],
-    cta: 'Get Growth', highlight: false,
-  },
-  {
-    name: 'Business', price: 'Rs. 2,000', period: 'month', color: '#4f46e5',
-    features: ['Up to 500 customers', 'Full manager toolset included', 'Priority support'],
-    cta: 'Get Business', highlight: true,
-  },
-  {
-    name: 'Enterprise', price: 'Rs. 3,000', period: 'month', color: '#06b6d4',
-    features: ['Up to 1,000 customers', 'Full manager toolset included', 'Meta message templates built for you', 'Priority support'],
-    cta: 'Get Enterprise', highlight: false,
-  },
-  {
-    name: 'Custom', price: 'Custom', period: '', color: '#f59e0b',
-    features: ['Unlimited customers', 'Meta message templates built for you', 'Custom branding & domain', 'Dedicated onboarding & priority support'],
-    cta: 'Contact Us', highlight: false,
-  },
-]);
+// Shared with the post-signup tier screen (components/Login.tsx) via utils/pricing.ts
+// so the two screens can never show different tiers/prices again.
+const DEFAULT_PRICING_PLANS: PricingPlan[] = ensureWhatsAppBotPlan(DEFAULT_ISP_PLANS);
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const location = useLocation();
@@ -68,18 +39,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('site_settings')
-          .select('pricing_plans')
-          .eq('id', 'default')
-          .maybeSingle();
-        if (!cancelled && !error && Array.isArray(data?.pricing_plans) && data.pricing_plans.length > 0) {
-          setPricingPlans(ensureWhatsAppBotPlan(data.pricing_plans as PricingPlan[]));
-        }
-      } catch {
-        // Silently keep DEFAULT_PRICING_PLANS on any network/parse failure.
-      }
+      const plans = await fetchPricingPlans();
+      if (!cancelled) setPricingPlans(plans);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -1369,7 +1330,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
             <div className="badge scroll-reveal" style={{ background: 'rgba(16,185,129,0.14)', borderColor: 'rgba(16,185,129,0.4)' }}>
               <div className="dot" style={{ background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)' }}></div>
-              <span style={{ color: '#34d399' }}>Free for 50 Customers · No Card Required</span>
+              <span style={{ color: '#047857', fontWeight: 700 }}>Free for 50 Customers · No Card Required</span>
             </div>
             <h1 className="scroll-reveal">
               THE FUTURE OF<br/>
