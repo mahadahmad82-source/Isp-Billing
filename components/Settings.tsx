@@ -55,6 +55,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
   const [modalStatus, setModalStatus] = useState<{ title: string, message: string, type: 'success' | 'error' | 'info' } | null>(null);
   const [pendingDeleteAccount, setPendingDeleteAccount] = useState(false);
   const [pendingDeletePlan, setPendingDeletePlan] = useState<string | null>(null);
+  const [settingsNav, setSettingsNav] = useState('profile');
   
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanPrice, setNewPlanPrice] = useState<number | ''>('');
@@ -581,12 +582,58 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     }));
   };
 
+  const SETTINGS_NAV = [
+    { id: 'profile', label: 'Business Profile' },
+    { id: 'appearance', label: 'Appearance' },
+    { id: 'receipts', label: 'Receipts' },
+    { id: 'plans', label: 'Internet Plans' },
+    { id: 'netbot', label: 'NetBot' },
+    { id: 'notifications', label: 'Notifications' },
+    { id: 'data', label: 'Backup & Data' },
+    { id: 'help', label: 'Help' },
+  ];
+
+  const settingsCard = 'bg-white dark:bg-[#0f172a] p-6 lg:p-8 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm';
+
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pb-32 animate-in fade-in duration-500">
+    <div className="max-w-7xl mx-auto pb-16 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-white/10">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-1">Workspace</p>
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Settings</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Configure your Bill Collector workspace.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {saveStatus && <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{saveStatus}</span>}
+          <button onClick={handleSave} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all">
+            Save changes
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <aside className="w-full lg:w-60 shrink-0 lg:sticky lg:top-6">
+          <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+            {SETTINGS_NAV.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSettingsNav(item.id)}
+                className={`whitespace-nowrap lg:whitespace-normal text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${settingsNav === item.id ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-white/10' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/5'}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0 space-y-6">
+      {settingsNav === 'profile' && (
+      <>
       {/* Profile Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-white/5 gap-6">
+      <div className={`flex flex-col md:flex-row md:items-center justify-between ${settingsCard} gap-6`}>
         <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center shadow-xl border border-slate-100 dark:border-white/5 overflow-hidden group relative">
+          <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-white/5 overflow-hidden group relative">
             {localSettings.businessLogo ? (
               <img src={localSettings.businessLogo} alt="Logo" className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
             ) : logoBase64 ? (
@@ -634,16 +681,11 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          {saveStatus && <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">{saveStatus}</span>}
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-10">
-        
         {/* Account Security & Recovery (Only if phone-based login without email) */}
         {isFakeEmail && (
-          <div className="bg-rose-50 dark:bg-rose-500/10 border-2 border-rose-500/30 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+          <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-500/30 p-6 rounded-2xl relative overflow-hidden">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl"></div>
             
             <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
@@ -710,9 +752,11 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
           </div>
         )}
+      </>
+      )}
 
-        {/* Visual Identity & Themes */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+      {settingsNav === 'appearance' && (
+        <div className={`${settingsCard} space-y-8`}>
            <div className="flex items-center gap-3">
              <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
@@ -767,11 +811,14 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   </div>
                 </div>
              </div>
-           </div>
-        </div>
+            </div>
+         </div>
+      )}
 
+      {settingsNav === 'receipts' && (
+      <>
         {/* Enhanced Advertisement Management */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+        <div className={`${settingsCard} space-y-8`}>
            <div className="flex items-center gap-3">
              <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -814,7 +861,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         </div>
 
         {/* Receipt Serial Number Settings */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+        <div className={`${settingsCard} space-y-8`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-2xl flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path></svg>
@@ -885,8 +932,50 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
         </div>
 
-        {/* NetBot WhatsApp Bot Settings */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+        {/* Receipt Design Selector */}
+        <div className={`${settingsCard} space-y-8`}>
+           <div className="flex items-center gap-3">
+             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+             </div>
+             <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Receipt Design & Printing</h4>
+           </div>
+           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {[
+                { id: ReceiptDesign.PROFESSIONAL, label: 'Professional', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>, desc: 'Standard PDF' },
+                { id: ReceiptDesign.THERMAL, label: 'Thermal', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4V4m0 0l-4 4m4-4l4 4m-4 4v2m-3 6h6"></path></svg>, desc: '80mm Strip' },
+                { id: ReceiptDesign.MODERN, label: 'Modern', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>, desc: 'Stylish Card' },
+                { id: ReceiptDesign.COMPACT, label: 'Compact', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>, desc: 'Quick Snippet' },
+                { id: ReceiptDesign.INVOICE, label: 'Invoice', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>, desc: 'ISP Invoice' },
+              ].map((design) => (
+                <button
+                  key={design.id}
+                  onClick={() => setLocalSettings({ ...localSettings, receiptDesign: design.id })}
+                  className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${
+                    localSettings.receiptDesign === design.id 
+                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10' 
+                    : 'border-transparent bg-slate-50 dark:bg-[#030712] hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <span className={`${localSettings.receiptDesign === design.id ? 'text-indigo-600' : 'text-slate-400'}`}>{design.icon}</span>
+                  <div className="text-center">
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${localSettings.receiptDesign === design.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+                      {design.label}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1">{design.desc}</p>
+                  </div>
+                  {localSettings.receiptDesign === design.id && (
+                    <div className="w-2 h-2 rounded-full bg-indigo-600 mt-1 animate-pulse"></div>
+                  )}
+                </button>
+              ))}
+           </div>
+        </div>
+      </>
+      )}
+
+      {settingsNav === 'netbot' && (
+        <div className={`${settingsCard} space-y-8`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.97-4.03 9-9 9a8.96 8.96 0 01-4.535-1.224L3 21l1.255-3.762A8.96 8.96 0 013 12c0-4.97 4.03-9 9-9s9 4.03 9 9z"/></svg>
@@ -940,57 +1029,16 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
           </div>
         </div>
+      )}
 
-        {/* Receipt Design Selector */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
-           <div className="flex items-center gap-3">
-             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
-               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-             </div>
-             <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Receipt Design & Printing</h4>
-           </div>
-           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {[
-                { id: ReceiptDesign.PROFESSIONAL, label: 'Professional', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>, desc: 'Standard PDF' },
-                { id: ReceiptDesign.THERMAL, label: 'Thermal', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4V4m0 0l-4 4m4-4l4 4m-4 4v2m-3 6h6"></path></svg>, desc: '80mm Strip' },
-                { id: ReceiptDesign.MODERN, label: 'Modern', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>, desc: 'Stylish Card' },
-                { id: ReceiptDesign.COMPACT, label: 'Compact', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>, desc: 'Quick Snippet' },
-                { id: ReceiptDesign.INVOICE, label: 'Invoice', icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>, desc: 'ISP Invoice' },
-              ].map((design) => (
-                <button
-                  key={design.id}
-                  onClick={() => setLocalSettings({ ...localSettings, receiptDesign: design.id })}
-                  className={`flex flex-col items-center gap-3 p-6 rounded-3xl border-2 transition-all ${
-                    localSettings.receiptDesign === design.id 
-                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10' 
-                    : 'border-transparent bg-slate-50 dark:bg-[#030712] hover:bg-slate-100 dark:hover:bg-slate-800/50'
-                  }`}
-                >
-                  <span className={`${localSettings.receiptDesign === design.id ? 'text-indigo-600' : 'text-slate-400'}`}>{design.icon}</span>
-                  <div className="text-center">
-                    <p className={`text-[10px] font-black uppercase tracking-widest ${localSettings.receiptDesign === design.id ? 'text-indigo-600' : 'text-slate-400'}`}>
-                      {design.label}
-                    </p>
-                    <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1">{design.desc}</p>
-                  </div>
-                  {localSettings.receiptDesign === design.id && (
-                    <div className="w-2 h-2 rounded-full bg-indigo-600 mt-1 animate-pulse"></div>
-                  )}
-                </button>
-              ))}
-           </div>
-        </div>
-
-
-
-        {/* Data & Backup */}
-        <div className="bg-white dark:bg-[#0f172a] p-12 rounded-[3.5rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-10 text-slate-900 dark:text-white relative overflow-hidden group">
+      {settingsNav === 'data' && (
+        <div className={`${settingsCard} space-y-8 text-slate-900 dark:text-white relative overflow-hidden`}>
           <div className="flex items-start gap-8 relative z-10">
-            <div className="w-20 h-20 bg-indigo-50 dark:bg-slate-800/50 rounded-3xl flex items-center justify-center border border-indigo-100 dark:border-white/5 shadow-2xl">
-              <svg className="w-10 h-10 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+            <div className="w-12 h-12 bg-indigo-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center border border-indigo-100 dark:border-white/5">
+              <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
             </div>
             <div className="flex-1">
-              <h4 className="text-3xl font-black tracking-tight mb-4 uppercase leading-none text-slate-900 dark:text-white">Data Management & Backup</h4>
+              <h4 className="text-xl font-black tracking-tight mb-2 uppercase leading-none text-slate-900 dark:text-white">Data Management & Backup</h4>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
                 Download your entire database as an Excel file for backup. You can restore this file on any device to recover all your subscribers, receipts, and configurations.
               </p>
@@ -998,17 +1046,17 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
 
           <div className="grid grid-cols-1 gap-4 relative z-10">
-            <button onClick={handleBackupDataJSON} className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-white/5 shadow-2xl">
+            <button onClick={handleBackupDataJSON} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all">
               DOWNLOAD FULL SYSTEM BACKUP (.JSON)
             </button>
-            <button onClick={() => restoreJsonInputRef.current?.click()} className="w-full py-6 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-slate-200 dark:border-white/5 shadow-2xl">
+            <button onClick={() => restoreJsonInputRef.current?.click()} className="w-full py-3 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-slate-200 dark:border-white/5">
               RESTORE FROM JSON FILE
             </button>
             <div className="flex gap-4">
-              <button onClick={handleBackupDataExcel} className="flex-1 py-4 bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-700 dark:text-emerald-400 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-emerald-100 dark:border-white/5">
+              <button onClick={handleBackupDataExcel} className="flex-1 py-3 bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-700 dark:text-emerald-400 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-emerald-100 dark:border-white/5">
                 EXPORT TO EXCEL
               </button>
-              <button onClick={() => restoreFileInputRef.current?.click()} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-slate-200 dark:border-white/5">
+              <button onClick={() => restoreFileInputRef.current?.click()} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] active:scale-[0.98] transition-all border border-slate-200 dark:border-white/5">
                 IMPORT EXCEL
               </button>
             </div>
@@ -1028,11 +1076,12 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
               UNREGISTER ACCOUNT FROM THIS DEVICE
             </button>
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none"></div>
         </div>
+      )}
 
-        {/* Push Notifications */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl">
+      {settingsNav === 'notifications' && (
+        <div className={settingsCard}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
@@ -1083,9 +1132,10 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </div>
           )}
         </div>
+      )}
 
-        {/* Plan Catalog Management */}
-        <div className="bg-white dark:bg-[#0f172a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl space-y-8">
+      {settingsNav === 'plans' && (
+        <div className={`${settingsCard} space-y-8`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -1094,7 +1144,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
 
           {/* ADD NEW PLAN INLINE FORM */}
-          <div className="bg-slate-50 dark:bg-[#030712] p-6 rounded-[2.5rem] border border-slate-100 dark:border-white/5 space-y-4 shadow-inner">
+          <div className="bg-slate-50 dark:bg-[#030712] p-5 rounded-2xl border border-slate-100 dark:border-white/5 space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Register New Subscription Plan</span>
             </div>
@@ -1140,7 +1190,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             {planEntries.map(([name, price]) => {
               const companyPrice = (localSettings.planCompanyPrices || {})[name];
               return (
-              <div key={name} className="flex flex-col bg-slate-50 dark:bg-[#030712] p-6 rounded-[2.5rem] border border-slate-100 dark:border-white/5 transition-all hover:border-indigo-500/50">
+              <div key={name} className="flex flex-col bg-slate-50 dark:bg-[#030712] p-5 rounded-2xl border border-slate-100 dark:border-white/5 transition-all hover:border-indigo-500/50">
                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">{name}</span>
                 
                 {editingPlanName === name ? (
@@ -1182,9 +1232,10 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             })}
           </div>
         </div>
+      )}
 
-        {/* Tour Guide */}
-        <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 mb-4">
+      {settingsNav === 'help' && (
+        <div className={settingsCard}>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-xl">🎓</div>
             <div>
@@ -1207,11 +1258,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
             </button>
           </div>
         </div>
-
-        {/* Action Button */}
-        <button onClick={handleSave} className="w-full bg-[#5a4ff0] text-white py-8 rounded-[2.5rem] font-black text-[13px] uppercase tracking-[0.4em] shadow-2xl active:scale-95 transition-all hover:bg-indigo-600">
-           SAVE ALL GLOBAL CONFIGURATION
-        </button>
+      )}
+        </div>
       </div>
 
       {/* Confirmation & Status Modals */}

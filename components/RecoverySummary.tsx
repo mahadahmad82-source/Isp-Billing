@@ -1337,21 +1337,21 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                       </span>
                     </td>
                     )}
-                    {visibleColumns.paidAmount && (
-                    <td className="px-8 py-5">
-                       <span className="text-sm font-black text-slate-800 dark:text-slate-100">Rs. ${(item.paidAmount || 0).toLocaleString()}</span>
-                    </td>
-                    )}
-                    {visibleColumns.advanceAmount && (
-                    <td className="px-8 py-5">
-                       <span className={`text-sm font-black ${(item.advanceAmount || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`}>Rs. ${(item.advanceAmount || 0).toLocaleString()}</span>
-                    </td>
-                    )}
-                    {visibleColumns.balance && (
-                    <td className="px-8 py-5">
-                       <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. ${(item.balance || 0).toLocaleString()}</span>
-                    </td>
-                    )}
+                     {visibleColumns.paidAmount && (
+                     <td className="px-8 py-5">
+                        <span className="text-sm font-black text-slate-800 dark:text-slate-100">Rs. {(item.paidAmount || 0).toLocaleString()}</span>
+                     </td>
+                     )}
+                     {visibleColumns.advanceAmount && (
+                     <td className="px-8 py-5">
+                        <span className={`text-sm font-black ${(item.advanceAmount || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.advanceAmount || 0).toLocaleString()}</span>
+                     </td>
+                     )}
+                     {visibleColumns.balance && (
+                     <td className="px-8 py-5">
+                        <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.balance || 0).toLocaleString()}</span>
+                     </td>
+                     )}
                     {visibleColumns.rechargeDate && (
                     <td className="px-8 py-5">
                        <span className="text-xs font-black text-slate-500 dark:text-slate-400">{item.rechargeDate ? new Date(item.rechargeDate).toLocaleDateString() : '-'}</span>
