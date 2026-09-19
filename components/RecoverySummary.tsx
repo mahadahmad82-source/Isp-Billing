@@ -469,7 +469,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
     if (type === 'sms') {
       window.location.href = `sms:${item.phone}?body=${encodeURIComponent(msg)}`;
     } else {
-      const result = await sendWhatsAppDirect(item.phone, msg);
+      const result = await sendWhatsAppDirect(item.phone, msg, managerId);
       if (!result.success) {
         console.error('[RecoverySummary] direct send failed, falling back to wa.me', result.error);
         shareToWhatsApp(item.phone, msg);
