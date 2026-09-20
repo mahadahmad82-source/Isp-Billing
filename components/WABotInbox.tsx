@@ -226,6 +226,10 @@ function UploadSpinner() {
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
         <path className="opacity-90" d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
+    </div>
+  );
+}
+
 // ── Canned quick replies for the /slash command palette ──
 interface CannedReply {
   cmd: string;
@@ -2623,6 +2627,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </div>
         </div>
       )}
+    </div>
+    )}
     </div>
   );
 };
