@@ -237,13 +237,25 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       onToggle: () => onSetExpiredFilter ? onSetExpiredFilter() : setActiveTab('users'),
       onViewDetails: () => onSetExpiredFilter ? onSetExpiredFilter() : setActiveTab('users'), footerLabel: 'Inactive / Not Renewed'
     },
-    {
-      id: 'ALERTS', label: '3-Day Alerts', value: pendingRemindersCount.toString(),
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>,
-      gradient: 'from-fuchsia-500 to-pink-700', color: 'text-fuchsia-500 bg-fuchsia-500/10', isMasked: false,
-      onToggle: () => setActiveTab('expiries'), onViewDetails: () => setActiveTab('expiries'), footerLabel: 'Expiry Alerts'
-    },
-  ];
+      {
+        id: 'ALERTS', label: '3-Day Alerts', value: pendingRemindersCount.toString(),
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>,
+        gradient: 'from-fuchsia-500 to-pink-700', color: 'text-fuchsia-500 bg-fuchsia-500/10', isMasked: false,
+        onToggle: () => setActiveTab('expiries'), onViewDetails: () => setActiveTab('expiries'), footerLabel: 'Expiry Alerts'
+      },
+      {
+        id: 'TODAY_EXPIRY', label: 'Today Expiry', value: todayExpiringUsers.length.toString(),
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+        gradient: 'from-amber-500 to-orange-600', color: 'text-amber-500 bg-amber-500/10', isMasked: false,
+        onToggle: () => setActiveModal('TODAY_EXPIRY'), onViewDetails: () => setActiveModal('TODAY_EXPIRY'), footerLabel: 'Ending Today'
+      },
+      {
+        id: 'TODAY_EXPIRED', label: 'Today Expired', value: todayExpiredUsers.length.toString(),
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>,
+        gradient: 'from-rose-600 to-red-800', color: 'text-rose-500 bg-rose-500/10', isMasked: false,
+        onToggle: () => setActiveModal('TODAY_EXPIRED'), onViewDetails: () => setActiveModal('TODAY_EXPIRED'), footerLabel: 'Expired Yesterday'
+      },
+    ];
 
   const handleSendReminder = async (u: UserRecord, channel: 'sms' | 'whatsapp') => {
     const currentPrice = settings.planPrices[u.plan] || u.monthlyFee || 0;
@@ -367,14 +379,14 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       )}
 
 
-      <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
         {stats.map((stat) => (
           <div key={stat.id} onClick={stat.onToggle}
-            className={`bg-gradient-to-br ${stat.gradient} p-7 rounded-[2rem] shadow-2xl cursor-pointer group flex flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all`}>
+            className={`bg-gradient-to-br ${stat.gradient} p-7 rounded-[2rem] shadow-2xl cursor-pointer group flex h-full min-h-[220px] flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all`}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none"></div>
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-5">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white transition-transform group-hover:scale-110">
+                <div className="w-12 h-12 shrink-0 bg-white/20 rounded-2xl flex items-center justify-center text-white transition-transform group-hover:scale-110">
                   {stat.icon}
                 </div>
                 {stat.isMasked && (
@@ -383,16 +395,16 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
                   </span>
                 )}
               </div>
-              <h3 className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{stat.label}</h3>
+              <h3 className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-2 truncate">{stat.label}</h3>
               <div className="flex items-baseline gap-1">
                 <p className={`text-3xl font-black tracking-tight transition-all ${stat.isMasked && !stat.isVisible ? 'text-white/20 select-none' : 'text-white'}`}>
                   {stat.value}
                 </p>
               </div>
             </div>
-            <div className="mt-6 pt-5 border-t border-white/20 flex items-center justify-between relative z-10">
+            <div className="mt-6 pt-5 border-t border-white/20 flex items-center justify-between relative z-10 gap-2">
               <button onClick={(e) => { e.stopPropagation(); stat.onToggle(); }}
-                className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] hover:text-white transition-colors">
+                className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] hover:text-white transition-colors truncate">
                 {stat.isMasked ? (stat.isVisible ? 'Hide Amount' : 'Show Amount') : (stat.footerLabel || 'View Details')}
               </button>
               <div className="text-white/40">
@@ -403,59 +415,6 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
             </div>
           </div>
         ))}
-      </div>
-
-      {/* ── Today Expiry & Expired Cards (count only — tap/View List opens full list modal) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Today Expiry */}
-        <div onClick={() => setActiveModal('TODAY_EXPIRY')}
-          className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2.5rem] p-7 shadow-2xl relative overflow-hidden cursor-pointer group active:scale-95 duration-200 transition-all">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          <div className="flex items-center gap-3 mb-6 relative z-10">
-            <div className="w-14 h-14 bg-white/20 rounded-3xl flex items-center justify-center text-white transition-transform group-hover:scale-110">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-white uppercase tracking-tight">Today Expiry</h3>
-              <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Subscriptions Ending Today</p>
-            </div>
-          </div>
-          <p className="relative z-10 text-6xl font-black text-white tracking-tight leading-none mb-6">
-            {todayExpiringUsers.length}
-          </p>
-          <button onClick={(e) => { e.stopPropagation(); setActiveModal('TODAY_EXPIRY'); }}
-            className="relative z-10 w-full py-3 bg-white/20 hover:bg-white/30 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-            View List
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
-          </button>
-        </div>
-
-        {/* Today Expired */}
-        <div onClick={() => setActiveModal('TODAY_EXPIRED')}
-          className="bg-gradient-to-br from-rose-600 to-red-800 rounded-[2.5rem] p-7 shadow-2xl relative overflow-hidden cursor-pointer group active:scale-95 duration-200 transition-all">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          <div className="flex items-center gap-3 mb-6 relative z-10">
-            <div className="w-14 h-14 bg-white/20 rounded-3xl flex items-center justify-center text-white transition-transform group-hover:scale-110">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-white uppercase tracking-tight">Today Expired</h3>
-              <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Expired Since Yesterday</p>
-            </div>
-          </div>
-          <p className="relative z-10 text-6xl font-black text-white tracking-tight leading-none mb-6">
-            {todayExpiredUsers.length}
-          </p>
-          <button onClick={(e) => { e.stopPropagation(); setActiveModal('TODAY_EXPIRED'); }}
-            className="relative z-10 w-full py-3 bg-white/20 hover:bg-white/30 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-            View List
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
-          </button>
-        </div>
       </div>
 
       {/* ── Analytics Chart ── */}
