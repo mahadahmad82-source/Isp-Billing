@@ -550,7 +550,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <LanguageToggle language={language} onChange={handleLanguageChange} variant="pill" />
       </div>
 
-      <div className="w-full max-w-sm relative z-[10]">
+      <div className={`w-full relative z-[10] ${view === 'signup-tier' || view === 'signup-netbot' ? 'max-w-md' : 'max-w-sm'}`}>
 
         {/* Logo */}
         <div className="text-center mb-6 animate-in fade-in slide-in-from-top-6 duration-700 relative">
@@ -706,19 +706,32 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
             {/* ── PLAN SELECTION (after successful signup) ── */}
             {view === 'signup-tier' && !tierPaymentPending && (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="text-center mb-3">
-                  <h2 className="text-lg font-black text-white mb-1">Choose Your Plan</h2>
+                  <h2 className="text-lg font-black text-slate-900 mb-1">Choose Your Plan</h2>
                   <p className="text-[11px] text-slate-500">Free starts instantly. Paid plans activate after payment verification.</p>
                 </div>
                 {PLAN_TIERS.map((p) => (
-                  <button key={p.tier} type="button" disabled={tierBusy} onClick={() => handleSelectTier(p.tier, p.label)}
-                    className="w-full text-left p-4 rounded-2xl border border-white/10 hover:border-indigo-500/50 bg-white/[0.02] hover:bg-white/[0.05] transition-all disabled:opacity-50 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-black text-white text-sm">{p.label}</p>
-                      <p className="text-[10px] text-slate-500">{p.desc}</p>
+                  <button
+                    key={p.tier}
+                    type="button"
+                    disabled={tierBusy}
+                    onClick={() => handleSelectTier(p.tier, p.label)}
+                    className="w-full text-left p-4 rounded-2xl transition-all disabled:opacity-50 flex items-center justify-between gap-3 group"
+                    style={{ background: 'rgba(255,255,255,0.82)', border: '1px solid rgba(99,102,241,0.18)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.5)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.18)'; }}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-slate-900 text-sm">{p.label}</p>
+                        {p.tier === 'free' && (
+                          <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-500/15">Instant</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium mt-0.5">{p.desc}</p>
                     </div>
-                    <span className="text-[11px] font-black text-indigo-400 flex-shrink-0">{p.price}</span>
+                    <span className="text-[11px] font-black text-indigo-600 flex-shrink-0">{p.price}</span>
                   </button>
                 ))}
               </div>
@@ -728,28 +741,31 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
             {view === 'signup-tier' && tierPaymentPending && (
               <div className="space-y-4">
                 <div className="text-center mb-2">
-                  <h2 className="text-lg font-black text-white mb-1">{tierPaymentPending.label} Plan Selected</h2>
+                  <h2 className="text-lg font-black text-slate-900 mb-1">{tierPaymentPending.label} Plan Selected</h2>
                   <p className="text-[11px] text-slate-500">Pay using any option below, then send your receipt on WhatsApp — your plan activates as soon as it's verified.</p>
                 </div>
-                <div className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-2 text-[12px]">
-                  <p className="font-black text-indigo-400 text-[10px] uppercase tracking-wider mb-1">🏦 Meezan Bank</p>
-                  <div className="flex justify-between"><span className="text-slate-500">Title</span><span className="font-bold text-white">MAHAD AHMAD KHAN LODHI</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Account</span><span className="font-bold text-white">00300112164874</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">IBAN</span><span className="font-bold text-white text-[10px]">PK82MEZN0000300112164874</span></div>
-                  <div className="border-t border-white/10 my-2" />
-                  <p className="font-black text-indigo-400 text-[10px] uppercase tracking-wider mb-1">📱 EasyPaisa / JazzCash</p>
-                  <div className="flex justify-between"><span className="text-slate-500">Number</span><span className="font-bold text-white">0304-2773453</span></div>
+                <div
+                  className="p-4 rounded-2xl space-y-2 text-[12px]"
+                  style={{ background: 'rgba(255,255,255,0.82)', border: '1px solid rgba(99,102,241,0.18)' }}
+                >
+                  <p className="font-black text-indigo-600 text-[10px] uppercase tracking-wider mb-1">Meezan Bank</p>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Title</span><span className="font-bold text-slate-900 text-right">MAHAD AHMAD KHAN LODHI</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Account</span><span className="font-bold text-slate-900">00300112164874</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">IBAN</span><span className="font-bold text-slate-900 text-[10px] break-all text-right">PK82MEZN0000300112164874</span></div>
+                  <div className="border-t border-indigo-100 my-2" />
+                  <p className="font-black text-indigo-600 text-[10px] uppercase tracking-wider mb-1">EasyPaisa / JazzCash</p>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Number</span><span className="font-bold text-slate-900">0304-2773453</span></div>
                 </div>
 
                 {proofSubmitted ? (
-                  <div className="p-4 rounded-2xl text-center text-[12px] font-bold text-emerald-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)' }}>
-                    ✅ Payment proof submitted — your {tierPaymentPending.label} plan will activate once verified.
+                  <div className="p-4 rounded-2xl text-center text-[12px] font-bold text-emerald-700" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)' }}>
+                    Payment proof submitted — your {tierPaymentPending.label} plan will activate once verified.
                   </div>
                 ) : (
                   <div>
                     <label className={labelCls}>Upload Payment Proof (screenshot)</label>
                     <input type="file" accept="image/*" onChange={e => setProofFile(e.target.files?.[0] || null)}
-                      className="w-full text-[11px] text-slate-400 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-500/15 file:text-indigo-400 hover:file:bg-indigo-500/25 file:cursor-pointer cursor-pointer" />
+                      className="w-full text-[11px] text-slate-600 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-500/15 file:text-indigo-600 hover:file:bg-indigo-500/25 file:cursor-pointer cursor-pointer" />
                   </div>
                 )}
 
@@ -763,11 +779,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
                 <a href={`https://wa.me/923477136214?text=${encodeURIComponent(`Payment receipt for ${tierPaymentPending.label} plan — ${businessName || phone}`)}`}
                   target="_blank" rel="noreferrer"
-                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5">
+                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-700 hover:text-emerald-800 transition-colors flex items-center justify-center gap-1.5">
                   Also inform on WhatsApp (optional)
                 </a>
                 <button type="button" onClick={() => setView('signup-netbot')}
-                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-400 hover:text-white transition-colors">
+                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-500 hover:text-indigo-600 transition-colors">
                   Continue (Free tier until verified)
                 </button>
               </div>
@@ -775,24 +791,31 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
             {/* ── NETBOT TIER SELECTION (final signup step, fully optional) ── */}
             {view === 'signup-netbot' && (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="text-center mb-3">
-                  <h2 className="text-lg font-black text-white mb-1">Add NetBot WhatsApp Bot?</h2>
+                  <h2 className="text-lg font-black text-slate-900 mb-1">Add NetBot WhatsApp Bot?</h2>
                   <p className="text-[11px] text-slate-500">Optional — sold separately from your ISP plan. Skip now, add it later from Settings anytime.</p>
                 </div>
                 {WHATSAPP_BOT_PLANS.map((p) => (
-                  <button key={p.name} type="button" onClick={() => handleSelectNetbotTier(p.name)}
-                    className="w-full text-left p-4 rounded-2xl border border-white/10 hover:border-emerald-500/50 bg-white/[0.02] hover:bg-white/[0.05] transition-all flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-black text-white text-sm">{p.name}</p>
-                      <p className="text-[10px] text-slate-500">{p.features[0]}</p>
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => handleSelectNetbotTier(p.name)}
+                    className="w-full text-left p-4 rounded-2xl transition-all flex items-center justify-between gap-3 group"
+                    style={{ background: 'rgba(255,255,255,0.82)', border: '1px solid rgba(16,185,129,0.18)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(16,185,129,0.5)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(16,185,129,0.18)'; }}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 text-sm">{p.name}</p>
+                      <p className="text-[10px] text-slate-500 font-medium mt-0.5">{p.features[0]}</p>
                     </div>
-                    <span className="text-[11px] font-black text-emerald-400 flex-shrink-0">{p.price}/mo</span>
+                    <span className="text-[11px] font-black text-emerald-700 flex-shrink-0">{p.price}/mo</span>
                   </button>
                 ))}
                 <button type="button" onClick={handleSkipNetbot}
-                  className="w-full py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-wider text-slate-400 hover:text-white transition-all"
-                  style={{ border: '1.5px dashed rgba(148,163,184,0.35)', background: 'rgba(148,163,184,0.05)' }}>
+                  className="w-full py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-all"
+                  style={{ border: '1.5px dashed rgba(100,116,139,0.35)', background: 'rgba(100,116,139,0.05)' }}>
                   Skip — I don't need NetBot right now
                 </button>
               </div>
