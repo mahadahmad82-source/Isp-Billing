@@ -639,7 +639,6 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const parsedRechargeDate = configuredRechargeDate ? new Date(configuredRechargeDate) : null;
       const hasValidConfiguredRecharge = !!parsedRechargeDate && !isNaN(parsedRechargeDate.getTime());
       const rechargeDate = hasValidConfiguredRecharge ? parsedRechargeDate! : receiptDate;
-      const resolvedRechargeDate = rechargeDate.toISOString();
       // Multi-Month Advance Extension: an advance payment that covers N extra
       // months (net of this plan's discounted monthly fee) extends the cycle
       // by N additional 30-day periods on top of the current period's own
@@ -657,6 +656,18 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       const alreadyAdvancedThisPeriod = user.lastExpiryAdvancePeriod === currentBillingPeriodKey;
       const totalCycles = alreadyAdvancedThisPeriod ? 0 : (1 + extraCyclesFromAdvance);
       const resolvedExpiryDate = new Date(rechargeDate.getTime() + totalCycles * THIRTY_DAYS_MS).toISOString();
+      // When totalCycles is 0 (guard blocked a real extension — e.g. this
+      // customer was already advanced via Quick Activate earlier this same
+      // period, and this receipt is just the formal paper record for that
+      // same payment), rechargeDate === resolvedExpiryDate, which prints a
+      // confusing 0-day "Recharge: X, Expiry: X" on the customer's receipt.
+      // Show a proper 30-day coverage window instead. A genuine extension
+      // (totalCycles > 0, single or multi-cycle) still shows the true start
+      // point so multi-month advances display their full paid-for range.
+      const resolvedRechargeDate = (totalCycles > 0
+        ? rechargeDate
+        : new Date(new Date(resolvedExpiryDate).getTime() - THIRTY_DAYS_MS)
+      ).toISOString();
 
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
@@ -1019,10 +1030,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     const hasValidExpiry = !!expiryDateObj && !isNaN(expiryDateObj.getTime());
     const expiryDateDisplay = hasValidExpiry ? formatReceiptDateTime(rawExpiryDate) : 'N/A';
     // Recharge Date = cycle-start date (previous expiry), NOT the payment date.
-    // Fallback for receipts saved before this field existed: derive as expiry - 30 days.
+    // Fallback to expiry - 30 days for receipts saved before this field
+    // existed, AND for older receipts saved by the pre-fix logic where
+    // rechargeDate was wrongly stored equal to (or after) expiryDate.
     let rechargeDateObj: Date | null = null;
-    if (activeReceipt.rechargeDate) {
-      rechargeDateObj = new Date(activeReceipt.rechargeDate);
+    const storedRecharge = activeReceipt.rechargeDate ? new Date(activeReceipt.rechargeDate) : null;
+    const storedRechargeIsSane = !!storedRecharge && !isNaN(storedRecharge.getTime()) && (!hasValidExpiry || storedRecharge.getTime() < expiryDateObj!.getTime());
+    if (storedRechargeIsSane) {
+      rechargeDateObj = storedRecharge;
     } else if (hasValidExpiry) {
       rechargeDateObj = new Date(expiryDateObj!.getTime() - THIRTY_DAYS_MS);
     }
