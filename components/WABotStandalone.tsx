@@ -7,27 +7,28 @@ import { subscribeToPush } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import WABotInbox from './WABotInbox';
 
-// ── Shared gradient-ring avatar (NetBot brand mark) ─────────────────────────
+// ── Shared brand mark (same PNG that ships as the NetBot Android app icon /
+// PWA icon — keeping this one real asset instead of a hand-redrawn SVG means
+// Web and Android can never visually drift apart again) ────────────────────
 const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
-  <div
-    style={{ width: size, height: size, background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
-    className="rounded-full flex items-center justify-center shadow-xl shrink-0"
-  >
-    <div
-      style={{ width: size - 8, height: size - 8 }}
-      className="rounded-full bg-[#0b1120] flex items-center justify-center"
-    >
-      <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="7" width="16" height="13" rx="5" fill="#e0e7ff" />
-        <rect x="10.5" y="2" width="3" height="5" rx="1.5" fill="#a5b4fc" />
-        <circle cx="12" cy="4" r="1.6" fill="#a5b4fc" />
-        <circle cx="9" cy="13.5" r="1.8" fill="#312e81" />
-        <circle cx="15" cy="13.5" r="1.8" fill="#312e81" />
-        <rect x="1.5" y="11" width="2" height="5" rx="1" fill="#a5b4fc" />
-        <rect x="20.5" y="11" width="2" height="5" rx="1" fill="#a5b4fc" />
-      </svg>
-    </div>
-  </div>
+  <img
+    src="/wabot-icon-192.png"
+    alt="NetBot"
+    width={size}
+    height={size}
+    style={{ width: size, height: size }}
+    className="rounded-full shadow-xl shrink-0 object-cover"
+  />
+);
+
+// ── WhatsApp-Web-style numbered instruction row ("Scan to log in" list) ────
+const StepRow: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children }) => (
+  <li className="flex items-start gap-3">
+    <span className="w-6 h-6 rounded-full border-2 border-slate-300 text-slate-500 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+      {n}
+    </span>
+    <span className="text-sm text-slate-600 leading-relaxed">{children}</span>
+  </li>
 );
 
 const BG = 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)';
@@ -116,7 +117,7 @@ export default function WABotStandalone() {
   // so no password is ever exposed to this device. Real Supabase Auth
   // accounts only for now (managers + migrated sub-managers); legacy
   // (non-migrated) sub-manager agentToken accounts still use password login.
-  const [loginMode, setLoginMode] = useState<'password' | 'qr'>('password');
+  const [loginMode, setLoginMode] = useState<'password' | 'qr'>('qr');
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [qrStatus, setQrStatus] = useState<'loading' | 'pending' | 'expired' | 'error'>('loading');
   const [qrRegenKey, setQrRegenKey] = useState(0);
@@ -139,7 +140,7 @@ export default function WABotStandalone() {
         if (cancelled) return;
         if (!r.ok || !d?.token) { setQrStatus('error'); return; }
 
-        const dataUrl = await QRCode.toDataURL(d.token, { margin: 1, width: 240 });
+        const dataUrl = await QRCode.toDataURL(d.token, { margin: 1, width: 264, errorCorrectionLevel: 'H' });
         if (cancelled) return;
         setQrDataUrl(dataUrl);
         setQrStatus('pending');
@@ -256,23 +257,88 @@ export default function WABotStandalone() {
     }
   };
 
-  // ── LOGIN (simple card) ───────────────────────────────────────────────────
+  // ── LOGIN — WhatsApp-Web style: opens straight into "Scan to log in" ──────
   if (phase === 'login') {
     return (
       <div
-        style={{ background: BG, height: '100dvh' }}
-        className="flex flex-col items-center justify-center px-6 overflow-hidden"
+        style={{ background: BG, minHeight: '100dvh' }}
+        className="flex flex-col items-center px-4 sm:px-6 py-8 overflow-y-auto"
       >
-        <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-7 flex flex-col items-center gap-5">
-          <Avatar size={88} />
-          <div className="text-center">
-            <h1 className="text-xl font-black text-slate-900">Bill Collector-BOT</h1>
-            <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
-          </div>
+        {/* Small brand row, top-left like whatsapp.com/download */}
+        <div className="w-full max-w-3xl flex items-center gap-2 mb-5 px-1">
+          <Avatar size={30} />
+          <span className="text-[15px] font-bold text-slate-700">NetBot Web</span>
+        </div>
 
-          {loginMode === 'password' ? (
-            <>
-              <form onSubmit={handleLoginSubmit} className="w-full flex flex-col gap-3 mt-1">
+        <div
+          className={`w-full bg-white rounded-3xl shadow-xl transition-all ${
+            loginMode === 'qr' ? 'max-w-3xl p-6 sm:p-10' : 'max-w-sm p-7'
+          }`}
+        >
+          {loginMode === 'qr' ? (
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-8 sm:gap-10">
+              {/* Steps */}
+              <div className="flex-1 w-full flex flex-col gap-5">
+                <h1 className="text-2xl font-black text-slate-900">Scan to log in</h1>
+                <ol className="space-y-4">
+                  <StepRow n={1}>NetBot Android app kholein</StepRow>
+                  <StepRow n={2}>
+                    Settings mein jaake <span className="font-bold text-slate-800">Link a Device</span> par tap karein
+                  </StepRow>
+                  <StepRow n={3}>Apne phone se is QR code ko point karke scan karein</StepRow>
+                </ol>
+                {loginError && <p className="text-rose-500 text-xs">{loginError}</p>}
+                <button
+                  type="button"
+                  onClick={() => setLoginMode('password')}
+                  className="text-sm text-indigo-600 font-semibold self-start"
+                >
+                  Username &amp; password se login karein
+                </button>
+              </div>
+
+              {/* QR box */}
+              <div className="flex-shrink-0 flex flex-col items-center gap-3">
+                <div className="w-[220px] h-[220px] sm:w-[264px] sm:h-[264px] relative flex items-center justify-center bg-white rounded-2xl border-2 border-slate-100 overflow-hidden">
+                  {qrStatus === 'pending' && qrDataUrl && (
+                    <>
+                      <img src={qrDataUrl} alt="QR" className="w-full h-full" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <Avatar size={40} />
+                      </div>
+                    </>
+                  )}
+                  {qrStatus === 'loading' && (
+                    <div className="flex flex-col items-center gap-2.5">
+                      <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                      <p className="text-xs text-slate-400">QR ban raha hai…</p>
+                    </div>
+                  )}
+                  {(qrStatus === 'expired' || qrStatus === 'error') && (
+                    <div className="absolute inset-0 bg-white flex flex-col items-center justify-center gap-3 px-4 text-center">
+                      <p className="text-xs text-rose-500 font-semibold">
+                        {qrStatus === 'expired' ? 'QR expire ho gaya' : 'Masla aa gaya'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setQrRegenKey(k => k + 1)}
+                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-lg font-semibold active:scale-95 transition-all"
+                      >
+                        Dobara try karein
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-5">
+              <Avatar size={72} />
+              <div className="text-center">
+                <h1 className="text-xl font-black text-slate-900">Bill Collector-BOT</h1>
+                <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
+              </div>
+              <form onSubmit={handleLoginSubmit} className="w-full flex flex-col gap-3">
                 <input
                   autoFocus
                   type="text"
@@ -299,38 +365,10 @@ export default function WABotStandalone() {
               </form>
               <button
                 type="button"
-                onClick={() => { setQrRegenKey(k => k + 1); setLoginMode('qr'); }}
-                className="text-xs text-indigo-600 font-medium mt-1"
+                onClick={() => { setLoginError(''); setQrRegenKey(k => k + 1); setLoginMode('qr'); }}
+                className="text-xs text-indigo-600 font-medium"
               >
-                NetBot Android app se QR scan karein
-              </button>
-            </>
-          ) : (
-            <div className="w-full flex flex-col items-center gap-3 mt-1">
-              <div className="w-[240px] h-[240px] flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                {qrStatus === 'pending' && qrDataUrl && <img src={qrDataUrl} alt="QR" className="w-full h-full" />}
-                {qrStatus === 'loading' && <p className="text-xs text-slate-400">QR ban raha hai…</p>}
-                {qrStatus === 'expired' && <p className="text-xs text-rose-500 px-4 text-center">QR expire ho gaya</p>}
-                {qrStatus === 'error' && <p className="text-xs text-rose-500 px-4 text-center">Masla aa gaya, dobara try karein</p>}
-              </div>
-              <p className="text-xs text-slate-500 text-center px-2">
-                NetBot Android app mein Settings → Link a Device se ye QR scan karein
-              </p>
-              {(qrStatus === 'expired' || qrStatus === 'error') && (
-                <button
-                  type="button"
-                  onClick={() => setQrRegenKey(k => k + 1)}
-                  className="text-xs text-indigo-600 font-medium"
-                >
-                  Naya QR banayein
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setLoginMode('password')}
-                className="text-xs text-slate-400 font-medium"
-              >
-                Password se login karein
+                QR code se login karein
               </button>
             </div>
           )}
