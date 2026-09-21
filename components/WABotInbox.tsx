@@ -1497,7 +1497,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       )}
 
       {view === 'teach' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-6">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Teach NetBot</h3>
             <p className="text-xs text-slate-400 font-bold mt-1">Yahan bot ko public dealing ka overall andaaz aur specific situations handle karne ka tareeqa samjhayen. Yeh guidance AI replies mein reference ke taur par use hogi; payment numbers, activation aur renewal ke system safeguards hamesha priority par rahenge.</p>
@@ -1550,7 +1550,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </section>
         </div>
       ) : view === 'training' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Confused Replies / Training</h3>
             <p className="text-xs text-slate-400 font-bold mt-1">Jab bot ko deterministic jawab nahi milta, woh AI se reply karti hai aur yahan log hota hai. Acha jawab "Approve" kar do — wahi wording aage bhi use hogi.</p>
@@ -1611,7 +1611,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           )}
         </div>
       ) : view === 'catalog' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Router Catalog</h3>
             <p className="text-xs text-slate-400 font-bold mt-1">Yahan se router models, price, specs aur image edit karein — NetBot WhatsApp par yehi catalog dikhati hai, code edit ki koi zaroorat nahi.</p>
@@ -1654,7 +1654,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
           {catalogModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">{catalogModal.item ? 'Edit Router' : 'Naya Router Add Karein'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
                 <div className="space-y-3">
                   <input placeholder="Model (jese GS3101)" value={catalogForm.model} onChange={e => setCatalogForm(f => ({ ...f, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
@@ -1673,7 +1673,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           )}
         </div>
       ) : view === 'templates' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
               <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
@@ -1739,7 +1739,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
           {showAddTemplateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">Naya Template</h3>
                 <div className="space-y-3">
                   <div>
@@ -1795,7 +1795,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           )}
         </div>
       ) : view === 'agents' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           {/* ── Default Voice ── */}
           <div className="mb-8">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Default Voice</h3>
@@ -2110,7 +2110,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </div>
         </div>
       ) : view === 'topup' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6">
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-6">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Message Quota</h3>
             <p className="text-xs text-slate-400 font-bold mt-1">Current billing cycle ka NetBot usage — text aur voice replies alag alag track hote hain.</p>
@@ -2160,7 +2160,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           )}
         </div>
       ) : view === 'updates' ? (
-        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6 custom-scrollbar">
           <div className="flex items-center justify-between border-b border-[#E9EDEF] dark:border-[#222D34] pb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -2260,7 +2260,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             </button>
           </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
           {filteredConversations.length === 0 ? (
             <div className="text-center py-10 px-4">
               <p className="text-sm text-slate-400 dark:text-slate-500 font-bold">Koi WhatsApp conversation nahi mili.</p>
@@ -2350,7 +2350,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               <div className="flex items-center gap-2 flex-shrink-0" />
             </div>
 
-            <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A]">
+            <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
               {thread.map(m => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
@@ -2456,7 +2456,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         <span className="text-[10px] font-black uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">Quick Replies (/commands)</span>
                         <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] hover:text-[#00A884]">Close (Esc)</button>
                       </div>
-                      <div className="max-h-60 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50">
+                      <div className="max-h-60 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
                         {CANNED_REPLIES.filter(cr => !inputText.slice(1) || cr.cmd.includes(inputText.toLowerCase()) || cr.title.toLowerCase().includes(inputText.toLowerCase())).map(cr => (
                           <button
                             key={cr.cmd}
