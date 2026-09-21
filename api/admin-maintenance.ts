@@ -1081,12 +1081,15 @@ function buildAgentReceipt(args: any): { receipt: any; updatedUser: any } {
   const totalPayable = (fee + balance) - resolvedDiscount;
   const calculatedBalance = totalPayable - (paidAmount + advanceAmount);
   const receiptDate = paymentDateInput && !Number.isNaN(new Date(paymentDateInput).getTime()) ? new Date(paymentDateInput) : new Date();
-  const configuredRechargeDate = user.expiryDate;
-  const parsedRechargeDate = configuredRechargeDate ? new Date(configuredRechargeDate) : null;
-  const hasValidConfiguredRecharge = !!parsedRechargeDate && !Number.isNaN(parsedRechargeDate.getTime());
-  const rechargeDate = hasValidConfiguredRecharge ? parsedRechargeDate! : receiptDate;
-  const resolvedRechargeDate = rechargeDate.toISOString();
-  const resolvedExpiryDate = new Date(rechargeDate.getTime() + THIRTY_DAYS_MS).toISOString();
+  // Receipt generation is a pure payment record — it does NOT activate the
+  // customer or change their expiry (only the explicit Activate / Quick
+  // Activate action does that, per Mahad's design). The dates on the
+  // receipt are informational only: the customer's CURRENT (unchanged)
+  // expiry, and a 30-day window back from it for display. Matches the same
+  // change in Web's ReceiptGenerator.tsx and the Android client's
+  // NewReceiptScreen.tsx.
+  const resolvedExpiryDate = user.expiryDate || receiptDate.toISOString();
+  const resolvedRechargeDate = new Date(new Date(resolvedExpiryDate).getTime() - THIRTY_DAYS_MS).toISOString();
   const existingRefs = new Set<string>((state.receipts || []).map((receipt: any) => receipt?.transactionRef).filter(Boolean));
   const transactionRef = resolveTransactionRef(settings, state.receipts || [], requestedTransactionRef, existingRefs);
   const receipt = {
@@ -1114,15 +1117,12 @@ function buildAgentReceipt(args: any): { receipt: any; updatedUser: any } {
     collectedBy,
     companyId: state.activeCompanyId,
   };
-  const activatedMonths = user.activatedMonths || [];
+  // Only record the payment itself — never activate or change expiry/status/activatedMonths.
   const updatedUser = {
     ...user,
     lastPaymentDate: receiptDate.toISOString(),
-    expiryDate: resolvedExpiryDate,
-    status: 'active',
     balance: calculatedBalance || 0,
     persistentDiscount: resolvedDiscount || 0,
-    activatedMonths: activatedMonths.includes(currentMonthLabel) ? activatedMonths : [...activatedMonths, currentMonthLabel],
     creditRecharge: false,
     creditAmount: 0,
     creditDate: null,
