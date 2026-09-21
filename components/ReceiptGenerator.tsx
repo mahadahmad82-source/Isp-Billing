@@ -632,42 +632,14 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
         receiptDate.setHours(12, 0, 0, 0);
       }
 
-      // Recharge Date = the configured expiry at the start of this billing
-      // cycle, not the payment date. The next expiry is exactly 30 days later
-      // and keeps the recharge timestamp unchanged.
-      const configuredRechargeDate = user.expiryDate;
-      const parsedRechargeDate = configuredRechargeDate ? new Date(configuredRechargeDate) : null;
-      const hasValidConfiguredRecharge = !!parsedRechargeDate && !isNaN(parsedRechargeDate.getTime());
-      const rechargeDate = hasValidConfiguredRecharge ? parsedRechargeDate! : receiptDate;
-      // Multi-Month Advance Extension: an advance payment that covers N extra
-      // months (net of this plan's discounted monthly fee) extends the cycle
-      // by N additional 30-day periods on top of the current period's own
-      // 30 days — not just a flat +30 days regardless of how much was paid.
-      const netMonthlyFeeForAdvance = Math.max(0, monthlyFee - discount);
-      const extraCyclesFromAdvance = (netMonthlyFeeForAdvance > 0 && (advanceAmount || 0) > 0)
-        ? Math.floor((advanceAmount || 0) / netMonthlyFeeForAdvance)
-        : 0;
-      // Double-advance guard: if this exact period's expiry was already advanced
-      // elsewhere (e.g. Quick Activate ran for this same month before this receipt
-      // was generated), don't add another 30 days on top — that was the source of
-      // the "expiry ek month agay" bug. This receipt still saves fine as the paper
-      // record; it just doesn't push expiry further than it already is.
-      const currentBillingPeriodKey = `${billingMonth} ${billingYear}`;
-      const alreadyAdvancedThisPeriod = user.lastExpiryAdvancePeriod === currentBillingPeriodKey;
-      const totalCycles = alreadyAdvancedThisPeriod ? 0 : (1 + extraCyclesFromAdvance);
-      const resolvedExpiryDate = new Date(rechargeDate.getTime() + totalCycles * THIRTY_DAYS_MS).toISOString();
-      // When totalCycles is 0 (guard blocked a real extension — e.g. this
-      // customer was already advanced via Quick Activate earlier this same
-      // period, and this receipt is just the formal paper record for that
-      // same payment), rechargeDate === resolvedExpiryDate, which prints a
-      // confusing 0-day "Recharge: X, Expiry: X" on the customer's receipt.
-      // Show a proper 30-day coverage window instead. A genuine extension
-      // (totalCycles > 0, single or multi-cycle) still shows the true start
-      // point so multi-month advances display their full paid-for range.
-      const resolvedRechargeDate = (totalCycles > 0
-        ? rechargeDate
-        : new Date(new Date(resolvedExpiryDate).getTime() - THIRTY_DAYS_MS)
-      ).toISOString();
+      // Receipt generation is a pure payment record — it does NOT activate
+      // the customer or change their expiry (only the explicit Activate /
+      // Quick Activate action does that, per Mahad's design). The dates
+      // shown on the receipt are informational only: the customer's
+      // CURRENT (unchanged) expiry from the Customer Directory, and a
+      // 30-day window back from it for display.
+      const resolvedExpiryDate = user.expiryDate || receiptDate.toISOString();
+      const resolvedRechargeDate = new Date(new Date(resolvedExpiryDate).getTime() - THIRTY_DAYS_MS).toISOString();
 
       const newReceipt: Receipt = {
         id: editingReceiptId || generateId(),
@@ -711,13 +683,13 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       setEditingReceiptId(null);
 
       try {
+        // Only record the payment itself — never activate or change expiry.
+        // Activation and expiry advance happen ONLY via the explicit
+        // Activate / Quick Activate action.
         onUpdateUser(user.id, {
           lastPaymentDate: receiptDate.toISOString(),
-          expiryDate: resolvedExpiryDate,
-          status: 'active',
           balance: calculatedBalance || 0,
           persistentDiscount: discount || 0,
-          lastExpiryAdvancePeriod: currentBillingPeriodKey
         });
       } catch (userUpdateError) {
         // Receipt is already saved and on screen — a failure here must not
