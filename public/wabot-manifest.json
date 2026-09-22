@@ -1,13 +1,13 @@
 {
   "id": "/wabot",
-  "name": "MYISP-BOT \u2014 MahadNet WABot",
-  "short_name": "MYISP-BOT",
+  "name": "NetBot — MahadNet WhatsApp Assistant",
+  "short_name": "NetBot",
   "description": "WhatsApp customer support assistant for MahadNet",
   "start_url": "/wabot",
   "scope": "/wabot",
   "display": "standalone",
   "background_color": "#F0F4F8",
-  "theme_color": "#4f46e5",
+  "theme_color": "#008069",
   "orientation": "portrait-primary",
   "icons": [
     {
