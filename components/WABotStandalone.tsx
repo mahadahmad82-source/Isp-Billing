@@ -425,7 +425,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -439,7 +439,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -453,7 +453,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -467,7 +467,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -481,7 +481,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -495,7 +495,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -509,7 +509,7 @@ export default function WABotStandalone() {
       );
       const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
       saveState(newState);
-      saveStateToSupabase(username || 'mahadnet', newState);
+      if (username) saveStateToSupabase(username, newState);
       return newState;
     });
   };
@@ -523,13 +523,34 @@ export default function WABotStandalone() {
     setPhase('login');
   };
 
+  // state.currentManager is always set by loadState()/smartLoadAndSync() (see
+  // utils/storage.ts, utils/supabaseSync.ts) — username is the login-time
+  // fallback for the rare frame before that lands. Never fall back further
+  // than that: a hardcoded account here would mean this device could end up
+  // showing a DIFFERENT logged-in user's real customers/receipts/settings.
+  const managerId = state.currentManager || username;
+  if (!managerId) {
+    return (
+      <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden">
+        <Avatar size={64} />
+        <p className="text-slate-500 text-sm">Session mein masla aa gaya — dobara login karein.</p>
+        <button
+          onClick={handleLogout}
+          className="bg-[#00A884] hover:bg-[#008069] text-white px-5 py-2.5 rounded-full text-sm font-semibold"
+        >
+          Login Screen
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: '100dvh' }} className="w-full flex flex-col bg-slate-50 overflow-hidden relative">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white shrink-0">
         <Avatar size={36} />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm text-slate-900 truncate">{botName}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide">MahadNet NetBot</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-wide">NetBot</p>
         </div>
         <button
           onClick={handleLogout}
@@ -541,7 +562,7 @@ export default function WABotStandalone() {
       </div>
       <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <WABotInbox
-          managerId={state.currentManager || username || 'mahadnet'}
+          managerId={managerId}
           customers={filteredUsers}
           onOpenReceiptGenerator={() => {}}
           botName={botName}
