@@ -2589,7 +2589,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             </div>
 
             {/* Media canvas */}
-            <div className="flex-1 min-h-[350px] max-h-[70vh] overflow-auto flex items-center justify-center p-4 bg-black/40">
+            <div className="flex-1 min-h-[350px] max-h-[70vh] overflow-auto flex items-center justify-center p-4 bg-black/40 custom-scrollbar">
               <img
                 src={lightboxMedia.url}
                 alt="Attachment preview"
