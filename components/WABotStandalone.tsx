@@ -291,7 +291,7 @@ export default function WABotStandalone() {
                 <button
                   type="button"
                   onClick={() => setLoginMode('password')}
-                  className="text-sm text-indigo-600 font-semibold self-start"
+                  className="text-sm text-[#00A884] font-semibold self-start"
                 >
                   Username &amp; password se login karein
                 </button>
@@ -310,7 +310,7 @@ export default function WABotStandalone() {
                   )}
                   {qrStatus === 'loading' && (
                     <div className="flex flex-col items-center gap-2.5">
-                      <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                      <div className="w-6 h-6 border-2 border-[#00A884]/25 border-t-[#00A884] rounded-full animate-spin" />
                       <p className="text-xs text-slate-400">QR ban raha hai…</p>
                     </div>
                   )}
@@ -322,7 +322,7 @@ export default function WABotStandalone() {
                       <button
                         type="button"
                         onClick={() => setQrRegenKey(k => k + 1)}
-                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-lg font-semibold active:scale-95 transition-all"
+                        className="text-xs bg-[#00A884] hover:bg-[#008069] text-white px-3.5 py-2 rounded-lg font-semibold active:scale-95 transition-all"
                       >
                         Dobara try karein
                       </button>
@@ -335,7 +335,7 @@ export default function WABotStandalone() {
             <div className="flex flex-col items-center gap-5">
               <Avatar size={72} />
               <div className="text-center">
-                <h1 className="text-xl font-black text-slate-900">Bill Collector-BOT</h1>
+                <h1 className="text-xl font-black text-slate-900">NetBot</h1>
                 <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
               </div>
               <form onSubmit={handleLoginSubmit} className="w-full flex flex-col gap-3">
@@ -345,20 +345,20 @@ export default function WABotStandalone() {
                   value={loginUser}
                   onChange={e => setLoginUser(e.target.value)}
                   placeholder="Username"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-[#00A884]"
                 />
                 <input
                   type="password"
                   value={loginPass}
                   onChange={e => setLoginPass(e.target.value)}
                   placeholder="Password"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-indigo-400"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-[#00A884]"
                 />
                 {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
                 <button
                   type="submit"
                   disabled={loggingIn}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
+                  className="w-full bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
                 >
                   {loggingIn ? 'Logging in…' : 'Log In'}
                 </button>
@@ -366,7 +366,7 @@ export default function WABotStandalone() {
               <button
                 type="button"
                 onClick={() => { setLoginError(''); setQrRegenKey(k => k + 1); setLoginMode('qr'); }}
-                className="text-xs text-indigo-600 font-medium"
+                className="text-xs text-[#00A884] font-medium"
               >
                 QR code se login karein
               </button>
@@ -382,7 +382,7 @@ export default function WABotStandalone() {
     return (
       <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 overflow-hidden">
         <Avatar size={64} />
-        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading Bill Collector-BOT…</p>
+        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading NetBot…</p>
       </div>
     );
   }
@@ -395,7 +395,7 @@ export default function WABotStandalone() {
         <p className="text-slate-500 text-sm">{errorMsg}</p>
         <button
           onClick={() => setPhase('loading')}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold"
+          className="bg-[#00A884] hover:bg-[#008069] text-white px-5 py-2.5 rounded-full text-sm font-semibold"
         >
           Retry
         </button>
