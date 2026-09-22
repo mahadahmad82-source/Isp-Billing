@@ -451,8 +451,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   // ── Bot Name setting ──
   const [editingBotName, setEditingBotName] = useState(false);
-  const [botNameInput, setBotNameInput] = useState(botName || 'MYISP-BOT');
-  useEffect(() => { setBotNameInput(botName || 'MYISP-BOT'); }, [botName]);
+  const [botNameInput, setBotNameInput] = useState(botName || 'NetBot');
+  useEffect(() => { setBotNameInput(botName || 'NetBot'); }, [botName]);
 
   // ── Tab views & settings navigation ──
   const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates'>('inbox');
@@ -1307,7 +1307,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   const saveBotName = () => {
-    const name = botNameInput.trim() || 'MYISP-BOT';
+    const name = botNameInput.trim() || 'NetBot';
     setBotNameInput(name);
     setEditingBotName(false);
     onUpdateBotName?.(name);
@@ -1352,7 +1352,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           HeaderMenu.tsx) — a back button replaces it on non-inbox screens. ── */}
       {view === 'inbox' ? (
         <div className="flex gap-2 flex-shrink-0 items-center justify-between relative">
-          <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight truncate">MahadNet WABot</h3>
+          <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight truncate">NetBot</h3>
           <div className="flex items-center gap-2 flex-shrink-0">
             {selectedConv && (
               <>
