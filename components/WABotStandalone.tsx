@@ -17,7 +17,7 @@ const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
     width={size}
     height={size}
     style={{ width: size, height: size }}
-    className="rounded-full shadow-xl shrink-0 object-cover"
+    className="shrink-0 object-contain"
   />
 );
 
@@ -52,7 +52,7 @@ export default function WABotStandalone() {
     const prevTitle = document.title;
 
     if (link) link.setAttribute('href', '/wabot-manifest.json');
-    document.title = 'Bill Collector-BOT — WABot';
+    document.title = 'NetBot';
 
     return () => {
       if (link) link.setAttribute('href', prevHref);
@@ -267,7 +267,7 @@ export default function WABotStandalone() {
         {/* Small brand row, top-left like whatsapp.com/download */}
         <div className="w-full max-w-3xl flex items-center gap-2 mb-5 px-1">
           <Avatar size={30} />
-          <span className="text-[15px] font-bold text-slate-700">NetBot Web</span>
+          <span className="text-[15px] font-bold" style={{ color: '#25D366' }}>NetBot</span>
         </div>
 
         <div
