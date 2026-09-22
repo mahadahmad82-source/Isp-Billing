@@ -77,7 +77,33 @@ async function handleApprove(req: any, res: any) {
   if (!ur.ok) return res.status(401).json({ error: 'Invalid or expired session' });
   const authUser = await ur.json();
   const email = authUser?.email;
+  const authUserId = authUser?.id;
   if (!email) return res.status(400).json({ error: 'This account type does not support Link a Device yet.' });
+
+  // BUG FIX: this used to key the web session off the auth email's local
+  // part — that only equals the real app username by coincidence (true for
+  // the synthetic username@myisp.local accounts, but NOT for accounts
+  // registered with a real personal email). mahadnet's own login is
+  // mahadnet2026@gmail.com — auth/verification worked fine (real JWT, real
+  // magic link), but the web side then went looking for a manager_data row
+  // keyed by that email's local part, which doesn't exist (the real row is
+  // keyed 'mahadnet', from profiles.username) — so the scan "succeeded" but
+  // landed on an empty account. Resolve the real username from `profiles`
+  // by the verified auth user id instead; only fall back to the email guess
+  // if no profile row is found.
+  let realUsername = email.split('@')[0];
+  try {
+    const pfr = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(authUserId)}&select=username`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const profileRows = await pfr.json();
+    if (Array.isArray(profileRows) && profileRows[0]?.username) {
+      realUsername = profileRows[0].username;
+    }
+  } catch (e: any) {
+    console.error('[wabot-pair:approve] profiles lookup failed, falling back to email-derived username', e?.message);
+  }
 
   // 2. Load the pending pairing row.
   const pr = await fetch(
@@ -120,12 +146,12 @@ async function handleApprove(req: any, res: any) {
     body: JSON.stringify({
       status: 'approved',
       magic_token_hash: hashedToken,
-      approved_username: email.split('@')[0],
+      approved_username: realUsername,
       approved_at: new Date().toISOString(),
     }),
   });
 
-  return res.status(200).json({ ok: true, username: email.split('@')[0] });
+  return res.status(200).json({ ok: true, username: realUsername });
 }
 
 async function handlePoll(req: any, res: any) {
