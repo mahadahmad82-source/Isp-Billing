@@ -177,6 +177,44 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d`;
 }
 
+function isSameDay(a: string, b: string): boolean {
+  const da = new Date(a), db = new Date(b);
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Real WhatsApp's own list-row time convention: clock time for today, "Yesterday"
+// for yesterday, the weekday name within the last week, else a plain date.
+function waListTime(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  if (isSameDay(iso, now.toISOString())) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(iso, yesterday.toISOString())) return 'Yesterday';
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays < 7) return WEEKDAY_NAMES[d.getDay()];
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// The sticky date divider shown in the message thread whenever the calendar
+// day changes between consecutive messages, matching WhatsApp's own thread view.
+function waDateSeparator(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  if (isSameDay(iso, now.toISOString())) return 'Today';
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(iso, yesterday.toISOString())) return 'Yesterday';
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays < 7) return WEEKDAY_NAMES[d.getDay()];
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
 function typePreview(type: string): string {
   if (type === 'image') return '📷 Photo';
   if (type === 'audio' || type === 'voice') return '🎤 Voice note';
@@ -2367,7 +2405,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</p>
-                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
+                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{waListTime(c.lastTime)}</span>
                   </div>
                   <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold truncate">
                     {typePreview(c.lastType) || c.lastMessage}
@@ -2434,12 +2472,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             </div>
 
             <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
-              {thread.map(m => {
+              {thread.map((m, mIdx) => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
                 const isPlaceholderText = m.content === '[voice note — transcription unavailable]';
+                const showDateSep = mIdx === 0 || !isSameDay(m.created_at, thread[mIdx - 1].created_at);
                 return (
-                  <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+                  <React.Fragment key={m.id}>
+                  {showDateSep && (
+                    <div className="flex justify-center my-3">
+                      <span className="px-3 py-1 rounded-lg bg-white/90 dark:bg-[#202C33] text-[#54656F] dark:text-[#8696A0] text-[11px] font-bold shadow-sm">
+                        {waDateSeparator(m.created_at)}
+                      </span>
+                    </div>
+                  )}
+                  <div className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
                       {m.type === 'image' && mediaSrc ? (
                         <button
@@ -2501,6 +2548,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       </p>
                     </div>
                   </div>
+                  </React.Fragment>
                 );
               })}
               <div ref={threadEndRef} />
