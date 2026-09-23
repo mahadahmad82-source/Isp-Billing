@@ -73,6 +73,7 @@ interface Conversation {
   unreadCount: number;
   paused: boolean;
   blocked: boolean;
+  archived: boolean;
 }
 
 interface KnowledgeItem {
@@ -462,6 +463,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   }[]>([]);
   const [pausedPhones, setPausedPhones] = useState<string[]>([]);
   const [blockedPhones, setBlockedPhones] = useState<string[]>([]);
+  const [archivedPhones, setArchivedPhones] = useState<string[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set());
   const [contactNames, setContactNames] = useState<Record<string, string>>({});
   const [editingContactName, setEditingContactName] = useState(false);
   const [contactNameInput, setContactNameInput] = useState('');
@@ -499,7 +503,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ── Smart filter tabs (All / Unread / Payment Slips / Paused) ──
-  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'proofs' | 'paused'>('all');
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'proofs' | 'paused' | 'archived'>('all');
 
   // ── In-App Media Lightbox state (Payment proof zoom & verification) ──
   const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video'; timestamp?: string; sender?: string } | null>(null);
@@ -888,12 +892,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
       const { data: cfg } = await supabase
         .from('whatsapp_configs')
-        .select('paused_phones, contact_names, blocked_phones')
+        .select('paused_phones, contact_names, blocked_phones, archived_phones')
         .eq('manager_id', managerId)
         .maybeSingle();
       setPausedPhones(cfg?.paused_phones || []);
       setContactNames(cfg?.contact_names || {});
       setBlockedPhones(cfg?.blocked_phones || []);
+      setArchivedPhones(cfg?.archived_phones || []);
     } catch (e) {
       console.error('[WABotInbox] loadOverview', e);
     } finally {
@@ -924,17 +929,22 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         unreadCount: s.unread_count,
         paused: pausedPhones.includes(phone),
         blocked: blockedPhones.includes(phone),
+        archived: archivedPhones.includes(phone),
       };
     });
     return list
       .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
       .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
-  }, [conversationSummaries, customerByPhone, pausedPhones, blockedPhones, contactNames, search]);
+  }, [conversationSummaries, customerByPhone, pausedPhones, blockedPhones, archivedPhones, contactNames, search]);
 
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter(c => {
+      // Archived chats are hidden from every other filter (same as real
+      // WhatsApp) — only the dedicated "Archived" pill shows them.
+      if (chatFilter !== 'archived' && c.archived) return false;
+      if (chatFilter === 'archived') return c.archived;
       if (chatFilter === 'unread') return c.unreadCount > 0;
       if (chatFilter === 'paused') return c.paused;
       if (chatFilter === 'proofs') {
@@ -948,12 +958,65 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const filterCounts = useMemo(() => {
     return {
-      all: conversations.length,
-      unread: conversations.filter(c => c.unreadCount > 0).length,
-      proofs: conversations.filter(c => (c.lastType === 'image' || c.lastType === 'document') || /proof|slip|payment|paid|receipt/i.test(c.lastMessage)).length,
-      paused: conversations.filter(c => c.paused).length,
+      all: conversations.filter(c => !c.archived).length,
+      unread: conversations.filter(c => !c.archived && c.unreadCount > 0).length,
+      proofs: conversations.filter(c => !c.archived && ((c.lastType === 'image' || c.lastType === 'document') || /proof|slip|payment|paid|receipt/i.test(c.lastMessage))).length,
+      paused: conversations.filter(c => !c.archived && c.paused).length,
+      archived: conversations.filter(c => c.archived).length,
     };
   }, [conversations]);
+
+  // ── Multi-select bulk actions ──────────────────────────────────────────
+  const toggleSelectPhone = (phone: string) => {
+    setSelectedPhones(prev => {
+      const next = new Set(prev);
+      if (next.has(phone)) next.delete(phone); else next.add(phone);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => { setSelectMode(false); setSelectedPhones(new Set()); };
+
+  const bulkMarkRead = async () => {
+    const phones = Array.from(selectedPhones);
+    if (phones.length === 0) return exitSelectMode();
+    try {
+      await supabase.from('whatsapp_messages').update({ is_read: true })
+        .eq('manager_id', managerId).in('customer_phone', phones).eq('direction', 'in').eq('is_read', false);
+      setAllMessages(prev => prev.map(m => (phones.includes(m.customer_phone) && m.direction === 'in' ? { ...m, is_read: true } : m)));
+      setConversationSummaries(prev => prev.map(s => (phones.includes(s.customer_phone) ? { ...s, unread_count: 0 } : s)));
+    } catch (e) { console.error('[WABotInbox] bulkMarkRead', e); }
+    exitSelectMode();
+  };
+
+  const bulkSetPaused = async (pause: boolean) => {
+    const phones = Array.from(selectedPhones);
+    if (phones.length === 0) return exitSelectMode();
+    const next = pause
+      ? Array.from(new Set([...pausedPhones, ...phones]))
+      : pausedPhones.filter(p => !phones.includes(p));
+    setPausedPhones(next);
+    try {
+      await supabase.from('whatsapp_configs').update({ paused_phones: next }).eq('manager_id', managerId);
+      for (const ph of phones) {
+        await supabase.rpc(pause ? 'bump_paused_at' : 'clear_paused_at', { p_manager_id: managerId, p_phone: ph });
+      }
+    } catch (e) { console.error('[WABotInbox] bulkSetPaused', e); }
+    exitSelectMode();
+  };
+
+  const bulkSetArchived = async (archive: boolean) => {
+    const phones = Array.from(selectedPhones);
+    if (phones.length === 0) return exitSelectMode();
+    const next = archive
+      ? Array.from(new Set([...archivedPhones, ...phones]))
+      : archivedPhones.filter(p => !phones.includes(p));
+    setArchivedPhones(next);
+    try {
+      await supabase.from('whatsapp_configs').update({ archived_phones: next }).eq('manager_id', managerId);
+    } catch (e) { console.error('[WABotInbox] bulkSetArchived', e); }
+    exitSelectMode();
+  };
 
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
@@ -1063,6 +1126,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           setPausedPhones(payload.new?.paused_phones || []);
           setContactNames(payload.new?.contact_names || {});
           setBlockedPhones(payload.new?.blocked_phones || []);
+          setArchivedPhones(payload.new?.archived_phones || []);
         }
       )
       .subscribe((status: string, err?: Error) => {
@@ -2338,6 +2402,26 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
       <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm`}>
         <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0 space-y-2">
+          {selectMode ? (
+            <div className="flex items-center gap-2">
+              <button onClick={exitSelectMode} className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#111B21] dark:text-[#E9EDEF] flex-shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <span className="flex-1 text-xs font-black text-[#111B21] dark:text-[#E9EDEF]">{selectedPhones.size} selected</span>
+              <button onClick={bulkMarkRead} title="Mark read" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#00A884] flex-shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+              </button>
+              <button onClick={() => bulkSetPaused(true)} title="Pause" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-amber-500 flex-shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </button>
+              <button onClick={() => bulkSetPaused(false)} title="Resume" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#00A884] flex-shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-6.518-3.76A1 1 0 007 8.24v7.52a1 1 0 001.234.972l6.518-3.76a1 1 0 000-1.804z" /></svg>
+              </button>
+              <button onClick={() => bulkSetArchived(chatFilter !== 'archived')} title={chatFilter === 'archived' ? 'Unarchive' : 'Archive'} className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#667781] dark:text-[#8696A0] flex-shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 01-2-2V4a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-7 4h.01" /></svg>
+              </button>
+            </div>
+          ) : (
           <div className="flex items-center gap-2">
             <input
               placeholder="Search or start new chat"
@@ -2348,7 +2432,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             {totalUnread > 0 && (
               <span className="flex-shrink-0 bg-[#25D366] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
             )}
+            <button onClick={() => setSelectMode(true)} title="Select chats" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#667781] dark:text-[#8696A0] flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </button>
           </div>
+          )}
           {/* ── Smart Filter Pills ── */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
             <button
@@ -2379,6 +2467,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               Paused
               {filterCounts.paused > 0 && <span className="bg-orange-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
             </button>
+            <button
+              onClick={() => setChatFilter('archived')}
+              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'archived' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+            >
+              Archived
+              {filterCounts.archived > 0 && <span className="bg-slate-400 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.archived}</span>}
+            </button>
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
@@ -2393,15 +2488,22 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             filteredConversations.map(c => (
               <button
                 key={c.phone}
-                onClick={() => openConversation(c.phone)}
-                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
+                onClick={() => selectMode ? toggleSelectPhone(c.phone) : openConversation(c.phone)}
+                onContextMenu={(e) => { e.preventDefault(); if (!selectMode) setSelectMode(true); toggleSelectPhone(c.phone); }}
+                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhones.has(c.phone) ? 'bg-[#00A884]/10' : selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
               >
+                {selectMode ? (
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 border-2 ${selectedPhones.has(c.phone) ? 'bg-[#00A884] border-[#00A884]' : 'border-[#8696A0]'}`}>
+                    {selectedPhones.has(c.phone) && <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                ) : (
                 <div
                   className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
                   style={{ backgroundColor: c.paused ? '#F5A623' : avatarColor(c.phone) }}
                 >
                   {c.name.charAt(0).toUpperCase()}
                 </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</p>
