@@ -1109,7 +1109,23 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         const err = await res.json().catch(() => ({}));
         alert(`Message send nahi hua: ${err?.error || 'unknown error'}`);
       }
-      if (!pausedPhones.includes(selectedPhone)) setPausedPhones(prev => [...prev, selectedPhone]);
+      // Replying manually pauses the bot on this thread — this already updated
+      // local state, but never actually persisted to Supabase, so the webhook
+      // (which reads paused_phones from the DB/Redis, not this component's
+      // state) could still fire an auto-reply right after a manual message.
+      // Also stamp paused_at so the 15-min auto-resume (webhook.ts) has a real
+      // "last operator activity" time to measure from, and keeps extending
+      // while the operator is actively replying.
+      if (!pausedPhones.includes(selectedPhone)) {
+        const nextPaused = [...pausedPhones, selectedPhone];
+        setPausedPhones(nextPaused);
+        try {
+          await supabase.from('whatsapp_configs').update({ paused_phones: nextPaused }).eq('manager_id', managerId);
+        } catch (e) { console.error('[WABotInbox] handleSend pause persist', e); }
+      }
+      try {
+        await supabase.rpc('bump_paused_at', { p_manager_id: managerId, p_phone: selectedPhone });
+      } catch (e) { console.error('[WABotInbox] bump_paused_at', e); }
     } catch (e) {
       alert('Network error — message send nahi hua.');
     } finally {
@@ -1124,10 +1140,15 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     const next = isPaused ? pausedPhones.filter(p => p !== selectedPhone) : [...pausedPhones, selectedPhone];
     setPausedPhones(next);
     try {
-      await supabase
-        .from('whatsapp_configs')
-        .update({ paused_phones: next })
-        .eq('manager_id', managerId);
+      if (isPaused) {
+        // Manual resume — clear the auto-resume timer for this phone too, via
+        // an RPC so we don't need to fetch+merge the paused_at map client-side.
+        await supabase.from('whatsapp_configs').update({ paused_phones: next }).eq('manager_id', managerId);
+        await supabase.rpc('clear_paused_at', { p_manager_id: managerId, p_phone: selectedPhone });
+      } else {
+        await supabase.from('whatsapp_configs').update({ paused_phones: next }).eq('manager_id', managerId);
+        await supabase.rpc('bump_paused_at', { p_manager_id: managerId, p_phone: selectedPhone });
+      }
     } catch (e) {
       console.error('[WABotInbox] togglePause', e);
     }
