@@ -3683,18 +3683,46 @@ export default async function handler(req: any, res: any) {
     // Phase 3 — Admin Inbox: conversations mahadnet has manually taken over should not
     // get auto-replies from NetBot. Single-tenant for now, so always manager_id='mahadnet'.
     let pausedPhones: string[] = [];
+    // AUTO-RESUME: paused_at[phone] is the last operator-activity time (set by
+    // WABotInbox on pause / on each manual reply). If a phone has been paused
+    // with no operator activity for 15+ minutes, the bot resumes itself rather
+    // than staying paused indefinitely until mahad manually flips it back —
+    // per Mahad's request. Cached together with paused_phones (same 30s TTL);
+    // a 30s-stale auto-resume decision is harmless at a 15-minute threshold.
+    let pausedAt: Record<string, string> = {};
+    const PAUSE_AUTO_RESUME_MS = 15 * 60 * 1000;
     try {
-      const pausedCacheKey = 'paused_phones:mahadnet';
-      const cachedPaused = await redisGetJSON<string[]>(pausedCacheKey);
+      const pausedCacheKey = 'paused_phones_v2:mahadnet';
+      const cachedPaused = await redisGetJSON<{ phones: string[]; at: Record<string, string> }>(pausedCacheKey);
       if (cachedPaused) {
-        pausedPhones = cachedPaused;
+        pausedPhones = cachedPaused.phones || [];
+        pausedAt = cachedPaused.at || {};
       } else {
-        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones`, {
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones,paused_at`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
         });
         const cfgRows: any[] = await cfgRes.json();
         pausedPhones = cfgRows?.[0]?.paused_phones || [];
-        redisSetJSON(pausedCacheKey, pausedPhones, 30).catch(() => {});
+        pausedAt = cfgRows?.[0]?.paused_at || {};
+        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt }, 30).catch(() => {});
+      }
+
+      // Resolve stale pauses now, before the per-message loop uses pausedPhones.
+      const staleResumed: string[] = [];
+      for (const ph of pausedPhones) {
+        const since = pausedAt[ph] ? new Date(pausedAt[ph]).getTime() : null;
+        if (since && Date.now() - since > PAUSE_AUTO_RESUME_MS) staleResumed.push(ph);
+      }
+      if (staleResumed.length > 0) {
+        pausedPhones = pausedPhones.filter(p => !staleResumed.includes(p));
+        for (const ph of staleResumed) delete pausedAt[ph];
+        console.log(`⏱️ auto-resuming bot for ${staleResumed.join(', ')} — 15min with no operator reply`);
+        fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet`, {
+          method: 'PATCH',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ paused_phones: pausedPhones, paused_at: pausedAt }),
+        }).catch((e) => console.error('[auto-resume persist]', e?.message));
+        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt }, 30).catch(() => {});
       }
     } catch (e: any) { console.error('[pausedPhones fetch]', e?.message); }
 
