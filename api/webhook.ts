@@ -3690,21 +3690,27 @@ export default async function handler(req: any, res: any) {
     // per Mahad's request. Cached together with paused_phones (same 30s TTL);
     // a 30s-stale auto-resume decision is harmless at a 15-minute threshold.
     let pausedAt: Record<string, string> = {};
+    // BLOCKED: fully blocked numbers (WABotInbox "Block" button) — skip every bit
+    // of processing for these, not just the AI reply (checked right at the top
+    // of the per-message loop below, before logging/push/dedup-claim even run).
+    let blockedPhones: string[] = [];
     const PAUSE_AUTO_RESUME_MS = 15 * 60 * 1000;
     try {
-      const pausedCacheKey = 'paused_phones_v2:mahadnet';
-      const cachedPaused = await redisGetJSON<{ phones: string[]; at: Record<string, string> }>(pausedCacheKey);
+      const pausedCacheKey = 'paused_phones_v3:mahadnet';
+      const cachedPaused = await redisGetJSON<{ phones: string[]; at: Record<string, string>; blocked: string[] }>(pausedCacheKey);
       if (cachedPaused) {
         pausedPhones = cachedPaused.phones || [];
         pausedAt = cachedPaused.at || {};
+        blockedPhones = cachedPaused.blocked || [];
       } else {
-        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones,paused_at`, {
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet&select=paused_phones,paused_at,blocked_phones`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
         });
         const cfgRows: any[] = await cfgRes.json();
         pausedPhones = cfgRows?.[0]?.paused_phones || [];
         pausedAt = cfgRows?.[0]?.paused_at || {};
-        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt }, 30).catch(() => {});
+        blockedPhones = cfgRows?.[0]?.blocked_phones || [];
+        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt, blocked: blockedPhones }, 30).catch(() => {});
       }
 
       // Resolve stale pauses now, before the per-message loop uses pausedPhones.
@@ -3722,7 +3728,7 @@ export default async function handler(req: any, res: any) {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
           body: JSON.stringify({ paused_phones: pausedPhones, paused_at: pausedAt }),
         }).catch((e) => console.error('[auto-resume persist]', e?.message));
-        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt }, 30).catch(() => {});
+        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt, blocked: blockedPhones }, 30).catch(() => {});
       }
     } catch (e: any) { console.error('[pausedPhones fetch]', e?.message); }
 
@@ -3740,6 +3746,10 @@ export default async function handler(req: any, res: any) {
       const from: string = msg.from;
       let type: string = msg.type;
       let text: string = msg?.text?.body?.trim() || '';
+
+      // BLOCKED numbers skip everything — no log, no push, no dedup-claim, nothing.
+      // This is deliberately before the console.log below too.
+      if (blockedPhones.includes(normPhone(from))) continue;
 
       console.log(`📩 from=${from} type=${type} text="${text.slice(0, 80)}"`);
 
