@@ -72,6 +72,7 @@ interface Conversation {
   lastTime: string;
   unreadCount: number;
   paused: boolean;
+  blocked: boolean;
 }
 
 interface KnowledgeItem {
@@ -422,6 +423,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     unread_count: number;
   }[]>([]);
   const [pausedPhones, setPausedPhones] = useState<string[]>([]);
+  const [blockedPhones, setBlockedPhones] = useState<string[]>([]);
   const [contactNames, setContactNames] = useState<Record<string, string>>({});
   const [editingContactName, setEditingContactName] = useState(false);
   const [contactNameInput, setContactNameInput] = useState('');
@@ -455,7 +457,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'NetBot'); }, [botName]);
 
   // ── Tab views & settings navigation ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ── Smart filter tabs (All / Unread / Payment Slips / Paused) ──
@@ -848,11 +850,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
       const { data: cfg } = await supabase
         .from('whatsapp_configs')
-        .select('paused_phones, contact_names')
+        .select('paused_phones, contact_names, blocked_phones')
         .eq('manager_id', managerId)
         .maybeSingle();
       setPausedPhones(cfg?.paused_phones || []);
       setContactNames(cfg?.contact_names || {});
+      setBlockedPhones(cfg?.blocked_phones || []);
     } catch (e) {
       console.error('[WABotInbox] loadOverview', e);
     } finally {
@@ -882,12 +885,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         lastTime: s.last_time || '',
         unreadCount: s.unread_count,
         paused: pausedPhones.includes(phone),
+        blocked: blockedPhones.includes(phone),
       };
     });
     return list
       .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
       .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
-  }, [conversationSummaries, customerByPhone, pausedPhones, contactNames, search]);
+  }, [conversationSummaries, customerByPhone, pausedPhones, blockedPhones, contactNames, search]);
 
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
 
@@ -1020,6 +1024,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         (payload: any) => {
           setPausedPhones(payload.new?.paused_phones || []);
           setContactNames(payload.new?.contact_names || {});
+          setBlockedPhones(payload.new?.blocked_phones || []);
         }
       )
       .subscribe((status: string, err?: Error) => {
@@ -1151,6 +1156,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       }
     } catch (e) {
       console.error('[WABotInbox] togglePause', e);
+    }
+  };
+
+  const toggleBlock = async () => {
+    if (!selectedPhone) return;
+    const isBlocked = blockedPhones.includes(selectedPhone);
+    const next = isBlocked ? blockedPhones.filter(p => p !== selectedPhone) : [...blockedPhones, selectedPhone];
+    if (!isBlocked && !window.confirm('Is number ko block karein? Bot is number ke messages ka bilkul jawab nahi dega.')) return;
+    setBlockedPhones(next);
+    try {
+      await supabase.from('whatsapp_configs').update({ blocked_phones: next }).eq('manager_id', managerId);
+    } catch (e) {
+      console.error('[WABotInbox] toggleBlock', e);
     }
   };
 
@@ -1395,6 +1413,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   )}
                   {selectedConv.paused ? 'Resume' : 'Pause'}
                 </button>
+                <button
+                  onClick={toggleBlock}
+                  title={selectedConv.blocked ? 'Unblock this number' : 'Block this number'}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.blocked ? 'bg-rose-500 text-white' : 'bg-white dark:bg-[#000000] text-rose-500 border border-rose-200 dark:border-rose-500/30'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 105.636 5.636a9 9 0 0012.728 12.728zM5.636 5.636l12.728 12.728" /></svg>
+                  {selectedConv.blocked ? 'Unblock' : 'Block'}
+                </button>
               </>
             )}
             <button
@@ -1446,6 +1472,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 >
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
                   Router Catalog
+                </button>
+                <button
+                  onClick={() => { setView('contacts'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6 0a4 4 0 10-4-4" /></svg>
+                  Contacts
                 </button>
                 <button
                   onClick={() => { setView('templates'); setMenuOpen(false); }}
@@ -1512,7 +1545,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -2231,6 +2264,35 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      ) : view === 'contacts' ? (
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto custom-scrollbar">
+          <div className="p-6 pb-3">
+            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Contacts</h3>
+            <p className="text-xs text-slate-400 font-bold mt-1">Sab WhatsApp contacts jo ab tak message kar chuke hain — {conversations.length} total.</p>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-white/5">
+            {conversations.map(c => (
+              <button
+                key={c.phone}
+                onClick={() => { setSelectedPhone(c.phone); setView('inbox'); }}
+                className="w-full flex items-center gap-3 px-6 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#00A884]/15 text-[#00A884] flex items-center justify-center font-black text-sm flex-shrink-0">
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-slate-900 dark:text-white truncate">{c.name}</p>
+                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold">+92{c.phone}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {c.blocked && <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-rose-500/15 text-rose-500">Blocked</span>}
+                  {c.paused && !c.blocked && <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-amber-500/15 text-amber-600">Paused</span>}
+                </div>
+              </button>
+            ))}
+            {conversations.length === 0 && <p className="text-sm text-slate-400 font-bold p-6">Abhi koi contact nahi hai.</p>}
           </div>
         </div>
       ) : (
