@@ -70,6 +70,11 @@ export default function WABotStandalone() {
   }, []);
 
   useEffect(() => {
+    if (!state) return;
+    document.documentElement.classList.toggle('dark', state.theme === 'dark');
+  }, [state?.theme]);
+
+  useEffect(() => {
     if (phase !== 'loading' || !username) return;
     (async () => {
       try {
@@ -546,20 +551,6 @@ export default function WABotStandalone() {
 
   return (
     <div style={{ height: '100dvh' }} className="w-full flex flex-col bg-slate-50 overflow-hidden relative">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white shrink-0">
-        <Avatar size={36} />
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm text-slate-900 truncate">{botName}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide">NetBot</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          title="Log out"
-          className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 active:scale-95 transition-all"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 5v1a3 3 0 01-3 3H5a3 3 0 01-3-3v-5a3 3 0 013-3h4a3 3 0 013 3v1z"></path></svg>
-        </button>
-      </div>
       <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <WABotInbox
           managerId={managerId}
@@ -579,16 +570,17 @@ export default function WABotStandalone() {
           onUpdateTtsVoice={handleUpdateTtsVoice}
           wabotAgents={wabotAgents}
           onUpdateWabotAgents={handleUpdateWabotAgents}
-          theme={state?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light')}
+          theme={state.theme === 'dark' ? 'dark' : 'light'}
           onToggleTheme={() => {
-            const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
-            document.documentElement.classList.toggle('dark', next === 'dark');
-            if (state) {
-              const ns = { ...state, theme: next };
-              setState(ns);
+            setState(prev => {
+              if (!prev) return prev;
+              const next = prev.theme === 'dark' ? 'light' : 'dark';
+              const ns = { ...prev, theme: next };
               saveState(ns);
-            }
+              return ns;
+            });
           }}
+          onLogout={handleLogout}
         />
       </div>
     </div>
