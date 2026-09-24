@@ -32,6 +32,7 @@ const StepRow: React.FC<{ n: number; children: React.ReactNode }> = ({ n, childr
 );
 
 const BG = 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)';
+const PAIR_TOKEN_KEY = 'wabot_pair_token';
 
 type Phase = 'login' | 'loading' | 'ready' | 'error';
 
@@ -172,6 +173,7 @@ export default function WABotStandalone() {
                 type: 'magiclink',
               });
               if (verifyErr || !verifyData?.user) { setQrStatus('error'); return; }
+              try { localStorage.setItem(PAIR_TOKEN_KEY, d.token); } catch {}
               setActiveSession(pd.username);
               setUsername(pd.username);
               setPhase('loading');
@@ -261,6 +263,38 @@ export default function WABotStandalone() {
       setLoggingIn(false);
     }
   };
+
+  const handleLogout = () => {
+    try { localStorage.removeItem(PAIR_TOKEN_KEY); } catch {}
+    setActiveSession(null);
+    setUsername(null);
+    setState(null);
+    setLoginUser('');
+    setLoginPass('');
+    setPhase('login');
+  };
+
+  useEffect(() => {
+    if (phase !== 'ready') return;
+    let pairToken = '';
+    try { pairToken = localStorage.getItem(PAIR_TOKEN_KEY) || ''; } catch {}
+    if (!pairToken) return;
+    let cancelled = false;
+    const beat = async () => {
+      try {
+        const r = await fetch('/api/wabot-pair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'heartbeat', token: pairToken }),
+        });
+        const d = await r.json();
+        if (!cancelled && d?.revoked) handleLogout();
+      } catch { /* keep the tab alive through a transient network blip */ }
+    };
+    beat();
+    const id = setInterval(beat, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [phase]);
 
   // ── LOGIN — WhatsApp-Web style: opens straight into "Scan to log in" ──────
   if (phase === 'login') {
@@ -519,16 +553,7 @@ export default function WABotStandalone() {
     });
   };
 
-  const handleLogout = () => {
-    setActiveSession(null);
-    setUsername(null);
-    setState(null);
-    setLoginUser('');
-    setLoginPass('');
-    setPhase('login');
-  };
-
-  // state.currentManager is always set by loadState()/smartLoadAndSync() (see
+  // state.currentManager is always set by loadState()/smartLoadAndSync() (see)
   // utils/storage.ts, utils/supabaseSync.ts) — username is the login-time
   // fallback for the rare frame before that lands. Never fall back further
   // than that: a hardcoded account here would mean this device could end up

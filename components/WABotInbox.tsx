@@ -72,8 +72,6 @@ interface Conversation {
   lastTime: string;
   unreadCount: number;
   paused: boolean;
-  blocked: boolean;
-  archived: boolean;
 }
 
 interface KnowledgeItem {
@@ -177,44 +175,6 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h`;
   return `${Math.floor(hrs / 24)}d`;
-}
-
-function isSameDay(a: string, b: string): boolean {
-  const da = new Date(a), db = new Date(b);
-  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
-}
-
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-// Real WhatsApp's own list-row time convention: clock time for today, "Yesterday"
-// for yesterday, the weekday name within the last week, else a plain date.
-function waListTime(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const now = new Date();
-  if (isSameDay(iso, now.toISOString())) {
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(iso, yesterday.toISOString())) return 'Yesterday';
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays < 7) return WEEKDAY_NAMES[d.getDay()];
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-// The sticky date divider shown in the message thread whenever the calendar
-// day changes between consecutive messages, matching WhatsApp's own thread view.
-function waDateSeparator(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  if (isSameDay(iso, now.toISOString())) return 'Today';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(iso, yesterday.toISOString())) return 'Yesterday';
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays < 7) return WEEKDAY_NAMES[d.getDay()];
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 function typePreview(type: string): string {
@@ -463,10 +423,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     unread_count: number;
   }[]>([]);
   const [pausedPhones, setPausedPhones] = useState<string[]>([]);
-  const [blockedPhones, setBlockedPhones] = useState<string[]>([]);
-  const [archivedPhones, setArchivedPhones] = useState<string[]>([]);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set());
   const [contactNames, setContactNames] = useState<Record<string, string>>({});
   const [editingContactName, setEditingContactName] = useState(false);
   const [contactNameInput, setContactNameInput] = useState('');
@@ -500,11 +456,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'NetBot'); }, [botName]);
 
   // ── Tab views & settings navigation ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [helpFaqOpen, setHelpFaqOpen] = useState<number | null>(0);
 
   // ── Smart filter tabs (All / Unread / Payment Slips / Paused) ──
-  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'proofs' | 'paused' | 'archived'>('all');
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'proofs' | 'paused'>('all');
 
   // ── In-App Media Lightbox state (Payment proof zoom & verification) ──
   const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video'; timestamp?: string; sender?: string } | null>(null);
@@ -893,13 +850,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
       const { data: cfg } = await supabase
         .from('whatsapp_configs')
-        .select('paused_phones, contact_names, blocked_phones, archived_phones')
+        .select('paused_phones, contact_names')
         .eq('manager_id', managerId)
         .maybeSingle();
       setPausedPhones(cfg?.paused_phones || []);
       setContactNames(cfg?.contact_names || {});
-      setBlockedPhones(cfg?.blocked_phones || []);
-      setArchivedPhones(cfg?.archived_phones || []);
     } catch (e) {
       console.error('[WABotInbox] loadOverview', e);
     } finally {
@@ -929,23 +884,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         lastTime: s.last_time || '',
         unreadCount: s.unread_count,
         paused: pausedPhones.includes(phone),
-        blocked: blockedPhones.includes(phone),
-        archived: archivedPhones.includes(phone),
       };
     });
     return list
       .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
       .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
-  }, [conversationSummaries, customerByPhone, pausedPhones, blockedPhones, archivedPhones, contactNames, search]);
+  }, [conversationSummaries, customerByPhone, pausedPhones, contactNames, search]);
 
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter(c => {
-      // Archived chats are hidden from every other filter (same as real
-      // WhatsApp) — only the dedicated "Archived" pill shows them.
-      if (chatFilter !== 'archived' && c.archived) return false;
-      if (chatFilter === 'archived') return c.archived;
       if (chatFilter === 'unread') return c.unreadCount > 0;
       if (chatFilter === 'paused') return c.paused;
       if (chatFilter === 'proofs') {
@@ -959,65 +908,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const filterCounts = useMemo(() => {
     return {
-      all: conversations.filter(c => !c.archived).length,
-      unread: conversations.filter(c => !c.archived && c.unreadCount > 0).length,
-      proofs: conversations.filter(c => !c.archived && ((c.lastType === 'image' || c.lastType === 'document') || /proof|slip|payment|paid|receipt/i.test(c.lastMessage))).length,
-      paused: conversations.filter(c => !c.archived && c.paused).length,
-      archived: conversations.filter(c => c.archived).length,
+      all: conversations.length,
+      unread: conversations.filter(c => c.unreadCount > 0).length,
+      proofs: conversations.filter(c => (c.lastType === 'image' || c.lastType === 'document') || /proof|slip|payment|paid|receipt/i.test(c.lastMessage)).length,
+      paused: conversations.filter(c => c.paused).length,
     };
   }, [conversations]);
-
-  // ── Multi-select bulk actions ──────────────────────────────────────────
-  const toggleSelectPhone = (phone: string) => {
-    setSelectedPhones(prev => {
-      const next = new Set(prev);
-      if (next.has(phone)) next.delete(phone); else next.add(phone);
-      return next;
-    });
-  };
-
-  const exitSelectMode = () => { setSelectMode(false); setSelectedPhones(new Set()); };
-
-  const bulkMarkRead = async () => {
-    const phones = Array.from(selectedPhones);
-    if (phones.length === 0) return exitSelectMode();
-    try {
-      await supabase.from('whatsapp_messages').update({ is_read: true })
-        .eq('manager_id', managerId).in('customer_phone', phones).eq('direction', 'in').eq('is_read', false);
-      setAllMessages(prev => prev.map(m => (phones.includes(m.customer_phone) && m.direction === 'in' ? { ...m, is_read: true } : m)));
-      setConversationSummaries(prev => prev.map(s => (phones.includes(s.customer_phone) ? { ...s, unread_count: 0 } : s)));
-    } catch (e) { console.error('[WABotInbox] bulkMarkRead', e); }
-    exitSelectMode();
-  };
-
-  const bulkSetPaused = async (pause: boolean) => {
-    const phones = Array.from(selectedPhones);
-    if (phones.length === 0) return exitSelectMode();
-    const next = pause
-      ? Array.from(new Set([...pausedPhones, ...phones]))
-      : pausedPhones.filter(p => !phones.includes(p));
-    setPausedPhones(next);
-    try {
-      await supabase.from('whatsapp_configs').update({ paused_phones: next }).eq('manager_id', managerId);
-      for (const ph of phones) {
-        await supabase.rpc(pause ? 'bump_paused_at' : 'clear_paused_at', { p_manager_id: managerId, p_phone: ph });
-      }
-    } catch (e) { console.error('[WABotInbox] bulkSetPaused', e); }
-    exitSelectMode();
-  };
-
-  const bulkSetArchived = async (archive: boolean) => {
-    const phones = Array.from(selectedPhones);
-    if (phones.length === 0) return exitSelectMode();
-    const next = archive
-      ? Array.from(new Set([...archivedPhones, ...phones]))
-      : archivedPhones.filter(p => !phones.includes(p));
-    setArchivedPhones(next);
-    try {
-      await supabase.from('whatsapp_configs').update({ archived_phones: next }).eq('manager_id', managerId);
-    } catch (e) { console.error('[WABotInbox] bulkSetArchived', e); }
-    exitSelectMode();
-  };
 
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
@@ -1126,8 +1022,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         (payload: any) => {
           setPausedPhones(payload.new?.paused_phones || []);
           setContactNames(payload.new?.contact_names || {});
-          setBlockedPhones(payload.new?.blocked_phones || []);
-          setArchivedPhones(payload.new?.archived_phones || []);
         }
       )
       .subscribe((status: string, err?: Error) => {
@@ -1259,19 +1153,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       }
     } catch (e) {
       console.error('[WABotInbox] togglePause', e);
-    }
-  };
-
-  const toggleBlock = async () => {
-    if (!selectedPhone) return;
-    const isBlocked = blockedPhones.includes(selectedPhone);
-    const next = isBlocked ? blockedPhones.filter(p => p !== selectedPhone) : [...blockedPhones, selectedPhone];
-    if (!isBlocked && !window.confirm('Is number ko block karein? Bot is number ke messages ka bilkul jawab nahi dega.')) return;
-    setBlockedPhones(next);
-    try {
-      await supabase.from('whatsapp_configs').update({ blocked_phones: next }).eq('manager_id', managerId);
-    } catch (e) {
-      console.error('[WABotInbox] toggleBlock', e);
     }
   };
 
@@ -1516,14 +1397,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   )}
                   {selectedConv.paused ? 'Resume' : 'Pause'}
                 </button>
-                <button
-                  onClick={toggleBlock}
-                  title={selectedConv.blocked ? 'Unblock this number' : 'Block this number'}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.blocked ? 'bg-rose-500 text-white' : 'bg-white dark:bg-[#000000] text-rose-500 border border-rose-200 dark:border-rose-500/30'}`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 105.636 5.636a9 9 0 0012.728 12.728zM5.636 5.636l12.728 12.728" /></svg>
-                  {selectedConv.blocked ? 'Unblock' : 'Block'}
-                </button>
               </>
             )}
             <button
@@ -1566,13 +1439,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   Router Catalog
                 </button>
                 <button
-                  onClick={() => { setView('contacts'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6 0a4 4 0 10-4-4" /></svg>
-                  Contacts
-                </button>
-                <button
                   onClick={() => { setView('templates'); setMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
@@ -1610,6 +1476,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                   Settings
                 </button>
+                <button
+                  onClick={() => { setView('help'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Help &amp; Support
+                </button>
                 {onLogout && (
                   <>
                     <div className="h-px bg-slate-100 dark:bg-white/10 my-2" />
@@ -1635,7 +1508,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -2356,34 +2229,165 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             ))}
           </div>
         </div>
-      ) : view === 'contacts' ? (
-        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto custom-scrollbar">
-          <div className="p-6 pb-3">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Contacts</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Sab WhatsApp contacts jo ab tak message kar chuke hain — {conversations.length} total.</p>
-          </div>
-          <div className="divide-y divide-slate-100 dark:divide-white/5">
-            {conversations.map(c => (
-              <button
-                key={c.phone}
-                onClick={() => { setSelectedPhone(c.phone); setView('inbox'); }}
-                className="w-full flex items-center gap-3 px-6 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#00A884]/15 text-[#00A884] flex items-center justify-center font-black text-sm flex-shrink-0">
-                  {c.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-slate-900 dark:text-white truncate">{c.name}</p>
-                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold">+92{c.phone}</p>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {c.blocked && <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-rose-500/15 text-rose-500">Blocked</span>}
-                  {c.paused && !c.blocked && <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-amber-500/15 text-amber-600">Paused</span>}
-                </div>
+      ) : view === 'settings' ? (
+        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-3">Business / Bot Name</h4>
+            {editingBotName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={botNameInput}
+                  onChange={e => setBotNameInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveBotName()}
+                  className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
+                />
+                <button onClick={saveBotName} className="px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+              </div>
+            ) : (
+              <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">
+                {botNameInput}
+                <svg className="w-3.5 h-3.5 text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
               </button>
-            ))}
-            {conversations.length === 0 && <p className="text-sm text-slate-400 font-bold p-6">Abhi koi contact nahi hai.</p>}
-          </div>
+            )}
+          </section>
+
+          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">Theme</h4>
+                <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mt-1">{wabotDark ? 'Dark' : 'Light'}</p>
+              </div>
+              <button
+                onClick={toggleWabotTheme}
+                title={wabotDark ? 'Light mode' : 'Dark mode'}
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] active:scale-95 transition-all"
+              >
+                {wabotDark ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 1020.354 15.354z" /></svg>
+                )}
+              </button>
+            </div>
+          </section>
+
+          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-3">TTS Voice</h4>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={selectedVoice}
+                onChange={e => saveDefaultVoice(e.target.value)}
+                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
+              >
+                {GEMINI_VOICES.map(v => (
+                  <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => playVoicePreview(selectedVoice)}
+                disabled={previewingVoice === selectedVoice}
+                className="flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                {previewingVoice === selectedVoice ? 'Loading...' : 'Preview'}
+              </button>
+            </div>
+            {previewError && <p className="text-[11px] text-rose-400 font-bold mt-2">{previewError}</p>}
+            {previewConfirm && <p className="text-[11px] text-[#00A884] font-bold mt-2">{previewConfirm}</p>}
+          </section>
+
+          <section className="p-4 rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Persona notes</h4>
+                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Overall lehja aur public dealing ka andaaz.</p>
+              </div>
+              <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+            </div>
+            <textarea value={personaDraft} onChange={e => setPersonaDraft(e.target.value)} rows={5} placeholder="Bot ko overall kis lehje aur tareeqe se baat karni chahiye?" className="w-full p-3 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Behavior rules</h4>
+                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Situation aur preferred handling.</p>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#8696A0]">{(botBehaviorRules || []).length} rules</span>
+            </div>
+            <div className="space-y-3 mb-5">
+              {(botBehaviorRules || []).map(rule => (
+                <div key={rule.id} className={`p-4 rounded-2xl border ${rule.active ? 'border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40' : 'border-[#E9EDEF] dark:border-[#222D34] opacity-60'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#00A884] mb-1">When this happens</p>
+                      <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] whitespace-pre-wrap">{rule.trigger}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#8696A0] mt-3 mb-1">Handle it like this</p>
+                      <p className="text-sm text-[#667781] dark:text-[#8696A0] font-semibold whitespace-pre-wrap">{rule.response}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <button onClick={() => toggleBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">{rule.active ? 'Pause' : 'Use'}</button>
+                      <button onClick={() => deleteBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-[#8696A0] font-bold py-4">Abhi koi custom rule nahi hai. Neeche se pehla rule add karein.</p>}
+            </div>
+            <div className="p-4 rounded-2xl border border-dashed border-[#E9EDEF] dark:border-[#222D34]">
+              <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mb-3">Add a rule</h4>
+              <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: customer kahe router kharab hai aur kal set karwana hai" className="w-full px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] mb-2" />
+              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: pehle fault acknowledge karo, catalog na bhejo, team visit note karo" className="w-full p-3 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
+              <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
+            </div>
+          </section>
+        </div>
+      ) : view === 'help' ? (
+        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          <p className="text-xs font-bold text-[#667781] dark:text-[#8696A0]">NetBot ke common sawaal, aur support se rabta.</p>
+          {[
+            { q: 'How do I link NetBot Web?', a: 'Computer par NetBot Web kholein aur QR code dikhayein. Android app mein App Settings → Link a Device se scan karein — web isi account mein login ho jata hai.' },
+            { q: 'How do I log out a computer remotely?', a: 'Android app mein App Settings → Link a Device. Har linked session browser, OS aur last-active time dikhata hai. Log out tap karein.' },
+            { q: 'The bot is still auto-replying after I sent a manual message.', a: 'Manual message us chat ko pause kar deta hai. Thread par Resume, ya menu se Pause All / Resume All Bots use karein.' },
+            { q: 'How do I change the bot name or voice?', a: 'Bot name Settings mein hai. Default TTS voice aur extra agents Voice & Agents menu item se.' },
+            { q: 'What if I lose my password?', a: 'Login screen par account recovery use karein, ya support@billcollector.online / WhatsApp +92 304 2773453 par rabta karein.' },
+          ].map((item, i) => {
+            const open = helpFaqOpen === i;
+            return (
+              <button
+                key={item.q}
+                onClick={() => setHelpFaqOpen(open ? null : i)}
+                className="w-full text-left p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">{item.q}</span>
+                  <svg className={`w-4 h-4 flex-shrink-0 text-[#8696A0] transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+                {open && <p className="text-sm text-[#667781] dark:text-[#8696A0] font-semibold mt-2">{item.a}</p>}
+              </button>
+            );
+          })}
+          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40 space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">Contact support</h4>
+            <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">support@billcollector.online</p>
+            <a
+              href="mailto:support@billcollector.online"
+              className="flex items-center justify-center gap-2 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              Email support
+            </a>
+            <a
+              href={`https://wa.me/923042773453?text=${encodeURIComponent('Hello, I need help with NetBot.')}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 border border-[#00A884] text-[#00A884] px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:bg-[#00A884]/10"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.38a9.9 9.9 0 004.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2z" /></svg>
+              WhatsApp +92 304 2773453
+            </a>
+          </section>
         </div>
       ) : view === 'settings' ? (
         <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6 custom-scrollbar">
@@ -2504,26 +2508,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
       <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm`}>
         <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0 space-y-2">
-          {selectMode ? (
-            <div className="flex items-center gap-2">
-              <button onClick={exitSelectMode} className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#111B21] dark:text-[#E9EDEF] flex-shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-              <span className="flex-1 text-xs font-black text-[#111B21] dark:text-[#E9EDEF]">{selectedPhones.size} selected</span>
-              <button onClick={bulkMarkRead} title="Mark read" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#00A884] flex-shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-              </button>
-              <button onClick={() => bulkSetPaused(true)} title="Pause" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-amber-500 flex-shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </button>
-              <button onClick={() => bulkSetPaused(false)} title="Resume" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#00A884] flex-shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-6.518-3.76A1 1 0 007 8.24v7.52a1 1 0 001.234.972l6.518-3.76a1 1 0 000-1.804z" /></svg>
-              </button>
-              <button onClick={() => bulkSetArchived(chatFilter !== 'archived')} title={chatFilter === 'archived' ? 'Unarchive' : 'Archive'} className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#667781] dark:text-[#8696A0] flex-shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 01-2-2V4a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-7 4h.01" /></svg>
-              </button>
-            </div>
-          ) : (
           <div className="flex items-center gap-2">
             <input
               placeholder="Search or start new chat"
@@ -2534,11 +2518,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             {totalUnread > 0 && (
               <span className="flex-shrink-0 bg-[#25D366] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
             )}
-            <button onClick={() => setSelectMode(true)} title="Select chats" className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#667781] dark:text-[#8696A0] flex-shrink-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </button>
           </div>
-          )}
           {/* ── Smart Filter Pills ── */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
             <button
@@ -2569,13 +2549,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               Paused
               {filterCounts.paused > 0 && <span className="bg-orange-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
             </button>
-            <button
-              onClick={() => setChatFilter('archived')}
-              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'archived' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
-            >
-              Archived
-              {filterCounts.archived > 0 && <span className="bg-slate-400 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.archived}</span>}
-            </button>
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
@@ -2590,26 +2563,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             filteredConversations.map(c => (
               <button
                 key={c.phone}
-                onClick={() => selectMode ? toggleSelectPhone(c.phone) : openConversation(c.phone)}
-                onContextMenu={(e) => { e.preventDefault(); if (!selectMode) setSelectMode(true); toggleSelectPhone(c.phone); }}
-                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhones.has(c.phone) ? 'bg-[#00A884]/10' : selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
+                onClick={() => openConversation(c.phone)}
+                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
               >
-                {selectMode ? (
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 border-2 ${selectedPhones.has(c.phone) ? 'bg-[#00A884] border-[#00A884]' : 'border-[#8696A0]'}`}>
-                    {selectedPhones.has(c.phone) && <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                  </div>
-                ) : (
                 <div
                   className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
                   style={{ backgroundColor: c.paused ? '#F5A623' : avatarColor(c.phone) }}
                 >
                   {c.name.charAt(0).toUpperCase()}
                 </div>
-                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</p>
-                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{waListTime(c.lastTime)}</span>
+                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
                   </div>
                   <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold truncate">
                     {typePreview(c.lastType) || c.lastMessage}
@@ -2676,21 +2642,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             </div>
 
             <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
-              {thread.map((m, mIdx) => {
+              {thread.map(m => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
                 const isPlaceholderText = m.content === '[voice note — transcription unavailable]';
-                const showDateSep = mIdx === 0 || !isSameDay(m.created_at, thread[mIdx - 1].created_at);
                 return (
-                  <React.Fragment key={m.id}>
-                  {showDateSep && (
-                    <div className="flex justify-center my-3">
-                      <span className="px-3 py-1 rounded-lg bg-white/90 dark:bg-[#202C33] text-[#54656F] dark:text-[#8696A0] text-[11px] font-bold shadow-sm">
-                        {waDateSeparator(m.created_at)}
-                      </span>
-                    </div>
-                  )}
-                  <div className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
                       {m.type === 'image' && mediaSrc ? (
                         <button
@@ -2752,7 +2709,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       </p>
                     </div>
                   </div>
-                  </React.Fragment>
                 );
               })}
               <div ref={threadEndRef} />

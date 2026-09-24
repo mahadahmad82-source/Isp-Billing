@@ -1,7 +1,8 @@
-// api/wabot-pair.ts — NetBot Web "Link a Device" QR login, all three steps
-// in one endpoint (action: 'create' | 'approve' | 'poll') so this doesn't
-// add 3 separate functions against Vercel Hobby's 12-function cap — folds
-// in per this project's established "action discriminator" convention.
+// api/wabot-pair.ts — NetBot Web "Link a Device" QR login, plus linked-session
+// management (list / heartbeat / revoke) in one endpoint (action: 'create' |
+// 'approve' | 'poll' | 'list' | 'heartbeat' | 'revoke') so this doesn't add
+// extra functions against Vercel Hobby's 12-function cap — folds in per this
+// project's established "action discriminator" convention.
 //
 // Flow: web calls action=create (unauthenticated) to get a token + QR image
 // source; the already-logged-in NetBot Android app scans it and calls
@@ -23,6 +24,55 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role —
 const EXPIRY_MS = 3 * 60 * 1000; // 3 minutes
 const MAX_PENDING_PER_IP = 5;    // light abuse guard on QR creation
 const IP_WINDOW_MS = 5 * 60 * 1000;
+
+const sbHeaders = {
+  apikey: SUPABASE_KEY,
+  Authorization: `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+};
+
+function parseDeviceLabel(ua: string): { browser: string; os: string; label: string } {
+  const raw = (ua || '').trim();
+  let browser = 'Browser';
+  if (/Edg\//i.test(raw)) browser = 'Edge';
+  else if (/OPR\/|Opera/i.test(raw)) browser = 'Opera';
+  else if (/Chrome\//i.test(raw) && !/Edg\//i.test(raw)) browser = 'Chrome';
+  else if (/Firefox\//i.test(raw) || /FxiOS/i.test(raw)) browser = 'Firefox';
+  else if (/Safari\//i.test(raw) && !/Chrome/i.test(raw)) browser = 'Safari';
+  let os = 'Unknown OS';
+  if (/Windows NT/i.test(raw)) os = 'Windows';
+  else if (/Mac OS X/i.test(raw)) os = 'macOS';
+  else if (/Android/i.test(raw)) os = 'Android';
+  else if (/iPhone|iPad|iPod/i.test(raw)) os = 'iOS';
+  else if (/Linux/i.test(raw)) os = 'Linux';
+  else if (/CrOS/i.test(raw)) os = 'ChromeOS';
+  return { browser, os, label: `${browser} on ${os}` };
+}
+
+async function resolveUsernameFromJwt(jwt: string): Promise<{ username: string; email: string; authUserId: string } | { error: string; status: number }> {
+  const ur = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${jwt}` },
+  });
+  if (!ur.ok) return { error: 'Invalid or expired session', status: 401 };
+  const authUser = await ur.json();
+  const email = authUser?.email;
+  const authUserId = authUser?.id;
+  if (!email) return { error: 'This account type does not support Link a Device yet.', status: 400 };
+  let username = email.split('@')[0];
+  try {
+    const pfr = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(authUserId)}&select=username`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const profileRows = await pfr.json();
+    if (Array.isArray(profileRows) && profileRows[0]?.username) {
+      username = profileRows[0].username;
+    }
+  } catch (e: any) {
+    console.error('[wabot-pair] profiles lookup failed, falling back to email-derived username', e?.message);
+  }
+  return { username, email, authUserId };
+}
 
 async function handleCreate(req: any, res: any) {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim();
@@ -192,6 +242,90 @@ async function handlePoll(req: any, res: any) {
   return res.status(200).json({ status: row.status === 'pending' ? 'pending' : row.status });
 }
 
+function mapSessionRow(row: any) {
+  const parsed = parseDeviceLabel(row.device_label || '');
+  return {
+    token: row.token,
+    browser: parsed.browser,
+    os: parsed.os,
+    label: parsed.label,
+    lastActiveAt: row.used_at || row.approved_at || row.created_at,
+    approvedAt: row.approved_at,
+    username: row.approved_username,
+  };
+}
+
+async function handleList(req: any, res: any) {
+  const auth = req.headers?.authorization || req.headers?.Authorization || '';
+  const jwt = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!jwt) return res.status(401).json({ error: 'Login required' });
+  const ident = await resolveUsernameFromJwt(jwt);
+  if ('error' in ident) return res.status(ident.status).json({ error: ident.error });
+
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/wabot_web_pairing_sessions?approved_username=eq.${encodeURIComponent(ident.username)}&status=eq.used&select=token,device_label,approved_username,approved_at,used_at,created_at&order=used_at.desc.nullslast`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  );
+  const rows = await r.json();
+  if (!Array.isArray(rows)) {
+    console.error('[wabot-pair:list]', rows);
+    return res.status(500).json({ error: 'Could not load linked sessions' });
+  }
+  return res.status(200).json({ sessions: rows.map(mapSessionRow) });
+}
+
+async function handleHeartbeat(req: any, res: any) {
+  const { token } = req.body || {};
+  if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token is required' });
+
+  const claim = await fetch(
+    `${SUPABASE_URL}/rest/v1/wabot_web_pairing_sessions?token=eq.${encodeURIComponent(token)}&status=eq.used`,
+    {
+      method: 'PATCH',
+      headers: { ...sbHeaders, Prefer: 'return=representation' },
+      body: JSON.stringify({ used_at: new Date().toISOString() }),
+    }
+  );
+  const claimed = await claim.json();
+  if (Array.isArray(claimed) && claimed[0]) {
+    return res.status(200).json({ ok: true, revoked: false });
+  }
+
+  const pr = await fetch(
+    `${SUPABASE_URL}/rest/v1/wabot_web_pairing_sessions?token=eq.${encodeURIComponent(token)}&select=status`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  );
+  const rows = await pr.json();
+  const row = rows?.[0];
+  if (!row || row.status === 'expired' || row.status === 'revoked') return res.status(200).json({ ok: false, revoked: true });
+  return res.status(200).json({ ok: false, revoked: false, status: row.status });
+}
+
+async function handleRevoke(req: any, res: any) {
+  const auth = req.headers?.authorization || req.headers?.Authorization || '';
+  const jwt = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  const { token } = req.body || {};
+  if (!jwt) return res.status(401).json({ error: 'Login required' });
+  if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token is required' });
+
+  const ident = await resolveUsernameFromJwt(jwt);
+  if ('error' in ident) return res.status(ident.status).json({ error: ident.error });
+
+  const patch = await fetch(
+    `${SUPABASE_URL}/rest/v1/wabot_web_pairing_sessions?token=eq.${encodeURIComponent(token)}&approved_username=eq.${encodeURIComponent(ident.username)}&status=eq.used`,
+    {
+      method: 'PATCH',
+      headers: { ...sbHeaders, Prefer: 'return=representation' },
+      body: JSON.stringify({ status: 'expired' }),
+    }
+  );
+  const rows = await patch.json();
+  if (!Array.isArray(rows) || !rows[0]) {
+    return res.status(404).json({ error: 'Session not found or already logged out.' });
+  }
+  return res.status(200).json({ ok: true });
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   const action = req.body?.action;
@@ -199,7 +333,10 @@ export default async function handler(req: any, res: any) {
     if (action === 'create') return await handleCreate(req, res);
     if (action === 'approve') return await handleApprove(req, res);
     if (action === 'poll') return await handlePoll(req, res);
-    return res.status(400).json({ error: 'Unknown action — expected create, approve, or poll' });
+    if (action === 'list') return await handleList(req, res);
+    if (action === 'heartbeat') return await handleHeartbeat(req, res);
+    if (action === 'revoke') return await handleRevoke(req, res);
+    return res.status(400).json({ error: 'Unknown action — expected create, approve, poll, list, heartbeat, or revoke' });
   } catch (e: any) {
     console.error('[wabot-pair]', action, e?.message);
     return res.status(500).json({ error: e?.message || 'Unknown error' });
