@@ -17,6 +17,7 @@ interface Props {
   settings: AppSettings & { availablePlans?: { name: string; price: number }[]; monthlyFee?: number };
   onUpdateAreas?: (areas: string[]) => void;
   onAssignUserArea?: (userId: string, area: string) => void;
+  onBulkAssignUserArea?: (userIds: string[], area: string) => void;
 }
 
 type AreaSort = 'total' | 'revenue' | 'expired';
@@ -77,7 +78,7 @@ function statusLabel(user: UserRecord, today: Date, monthLabel: string): 'Suspen
   return 'Expired';
 }
 
-const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAreas, onAssignUserArea }) => {
+const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAreas, onAssignUserArea, onBulkAssignUserArea }) => {
   const isDark = useIsDark();
   const now = useMemo(() => new Date(), []);
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
@@ -174,8 +175,15 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAre
   };
 
   const applyBulkArea = () => {
-    if (!onAssignUserArea || selectedIds.length === 0) return;
-    selectedIds.forEach(id => onAssignUserArea(id, bulkArea));
+    if (selectedIds.length === 0) return;
+    if (onBulkAssignUserArea) {
+      // Single batched save — avoids firing N simultaneous Supabase upserts.
+      onBulkAssignUserArea(selectedIds, bulkArea);
+    } else if (onAssignUserArea) {
+      selectedIds.forEach(id => onAssignUserArea(id, bulkArea));
+    } else {
+      return;
+    }
     showToast(`${selectedIds.length} customer(s) → ${bulkArea || 'No Area'}`);
     setSelectedIds([]);
   };
@@ -307,7 +315,7 @@ const AreaDashboard: React.FC<Props> = ({ users, receipts, settings, onUpdateAre
         })}
       </div>
 
-      {selectedIds.length > 0 && onAssignUserArea && (
+      {selectedIds.length > 0 && (onBulkAssignUserArea || onAssignUserArea) && (
         <div className={`fixed bottom-4 left-4 right-4 z-40 ${isDark ? 'bg-[#151a2c] border-white/10' : 'bg-white border-slate-200'} border rounded-2xl shadow-2xl p-3 flex flex-wrap items-center gap-2`}>
           <p className="text-xs font-black">{selectedIds.length} selected</p>
           <select
