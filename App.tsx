@@ -2372,6 +2372,12 @@ const App: React.FC = () => {
                   const user = state.users.find(u => u.id === userId);
                   if (user) handleFullUpdateUser({ ...user, area });
                 }}
+                onBulkAssignUserArea={(userIds, area) => {
+                  const updated = state.users
+                    .filter(u => userIds.includes(u.id))
+                    .map(u => ({ ...u, area }));
+                  handleBulkUpdateUsers(updated);
+                }}
               />
             ) : (
               <UpgradeGate sub={subscription} feature="area" featureName="Area Dashboard" />
