@@ -288,6 +288,112 @@ const CANNED_REPLIES: CannedReply[] = [
   },
 ];
 
+interface MetaTemplateField {
+  key: string;
+  label: string;
+  placeholder: string;
+  inputType?: 'text' | 'number';
+}
+
+interface MetaTemplateDef {
+  name: string;
+  title: string;
+  description: string;
+  fields: MetaTemplateField[];
+  bodyTemplate: string;
+}
+
+const META_OFFICIAL_TEMPLATES: MetaTemplateDef[] = [
+  {
+    name: 'customer_support_activation',
+    title: 'Customer Support Activation',
+    description: 'Welcomes a customer to the official WhatsApp support channel.',
+    fields: [
+      { key: 'name', label: 'Customer name', placeholder: 'e.g. Ali Khan' },
+      { key: 'supportNumber', label: 'Support number', placeholder: 'e.g. 0304-2773453' },
+    ],
+    bodyTemplate:
+      'This is an official announcement regarding our customer support and network services. We have successfully integrated our network complaint registration, technical support, and billing updates for {{1}} on this official WhatsApp channel.\n\nYou can now use this active chat to report internet issues, check billing status, or get instant assistance. For urgent help call {{2}}. Thank you for your cooperation. Regards, Team MahadNet network support.',
+  },
+  {
+    name: 'recharge_pending_payment',
+    title: 'Recharge — Pending Payment',
+    description: 'Confirms a credit recharge and reminds about outstanding dues.',
+    fields: [
+      { key: 'name', label: 'Customer name', placeholder: 'e.g. Ali Khan' },
+      { key: 'rechargeAmount', label: 'Recharge amount (PKR)', placeholder: 'e.g. 1500', inputType: 'number' },
+      { key: 'duesAmount', label: 'Outstanding dues (PKR)', placeholder: 'e.g. 1500', inputType: 'number' },
+      { key: 'package', label: 'Package', placeholder: 'e.g. Alpha (15MB)' },
+    ],
+    bodyTemplate:
+      'Important account update: Your internet package has been successfully recharged as requested.\n\nAssalam-o-Alaikum {{1}}, your {{4}} connection has been renewed on credit for PKR {{2}}.\n\nPlease clear your outstanding dues of PKR {{3}} as soon as possible to ensure uninterrupted high-speed internet service.\n\nTap the button below to view our official payment details. Thank you, Team MahadNet support.',
+  },
+  {
+    name: 'package_expiry_official',
+    title: 'Package Expiry Notice',
+    description: 'Official notice that the internet package is about to expire.',
+    fields: [
+      { key: 'name', label: 'Customer name', placeholder: 'e.g. Ali Khan' },
+      { key: 'expiryDate', label: 'Expiry date', placeholder: 'e.g. 15-Aug-2026' },
+      { key: 'package', label: 'Package', placeholder: 'e.g. Alpha (15MB)' },
+    ],
+    bodyTemplate:
+      '[Alert] Internet service billing update aur expiry notification. Assalam-o-Alaikum {{1}}, aap ka internet package {{3}} {{2}} ko expire ho raha hai.\n\nWaqt par bill jama karwaein taake aap ki internet service bina kisi rukawat ke chalti rahe. Thank you, Team MahadNet regards.',
+  },
+  {
+    name: 'payment_success_official',
+    title: 'Payment Success',
+    description: 'Official payment confirmation with updated account details.',
+    fields: [
+      { key: 'name', label: 'Customer name', placeholder: 'e.g. Ali Khan' },
+      { key: 'paymentAmount', label: 'Payment amount (PKR)', placeholder: 'e.g. 1500', inputType: 'number' },
+      { key: 'package', label: 'Package', placeholder: 'e.g. 10 Mbps' },
+      { key: 'remainingBalance', label: 'Remaining balance (PKR)', placeholder: 'e.g. 0', inputType: 'number' },
+      { key: 'advancePaid', label: 'Advance paid (PKR)', placeholder: 'e.g. 0', inputType: 'number' },
+      { key: 'newExpiryDate', label: 'New expiry date', placeholder: 'e.g. 15-Aug-2026' },
+      { key: 'businessName', label: 'Business name', placeholder: 'e.g. MahadNet' },
+    ],
+    bodyTemplate:
+      '[Official] Asalam-o-Alaikum ap ki payment wusool ho gayi hai aur system mein update kar di gayi hai. Dear {{1}}, aap ka total payment PKR {{2}} kamyabi se record ho chuka hai.\n\nDetails:\n- Package: {{3}}\n- Remaining Balance: PKR {{4}}\n- Advance Paid: PKR {{5}}\n- New Expiry Date: {{6}}\n\nAap ki behtreen service hamari zimmedari hai. Regards, Team {{7}} shukriya.',
+  },
+];
+
+function renderOfficialTemplateBody(bodyTemplate: string, params: string[]): string {
+  return params.reduce((text, val, i) => text.split(`{{${i + 1}}}`).join(val ?? ''), bodyTemplate);
+}
+
+function formatExpiryDate(d: string | undefined | null): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  const day = String(dt.getDate()).padStart(2, '0');
+  const month = dt.toLocaleString('en-US', { month: 'short' });
+  return `${day}-${month}-${dt.getFullYear()}`;
+}
+
+function formatHoursLeft(hours: number): string {
+  if (hours >= 1) return `${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`;
+  return `${Math.round(hours * 60)}m`;
+}
+
+function buildOfficialTemplatePrefill(c?: UserRecord | null, nameFallback?: string): Record<string, string> {
+  const netFee = c ? Math.max(0, (c.monthlyFee || 0) - (c.persistentDiscount || 0)) : 0;
+  const balance = c?.balance || 0;
+  return {
+    name: c?.name || nameFallback || '',
+    supportNumber: '0304-2773453',
+    rechargeAmount: c ? String(c.creditAmount || netFee || '') : '',
+    duesAmount: c ? String(balance) : '',
+    expiryDate: formatExpiryDate(c?.expiryDate),
+    paymentAmount: c ? String(c.creditAmount || netFee || '') : '',
+    package: c?.plan || '',
+    remainingBalance: c ? String(balance > 0 ? balance : 0) : '',
+    advancePaid: c ? String(balance < 0 ? Math.abs(balance) : 0) : '',
+    newExpiryDate: formatExpiryDate(c?.expiryDate),
+    businessName: 'MahadNet',
+  };
+}
+
 // ── System Updates & Changelog for NetBot Settings ──
 interface ChangelogFeature {
   tag: string;
@@ -474,6 +580,15 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   // ── Canned quick replies (/slash commands) palette state ──
   const [showSlashPalette, setShowSlashPalette] = useState(false);
+
+  // ── Official Meta templates (Android OfficialTemplateModal parity) ──
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [selectedOfficialTpl, setSelectedOfficialTpl] = useState<MetaTemplateDef | null>(null);
+  const [officialTplValues, setOfficialTplValues] = useState<Record<string, string>>({});
+  const [sendingOfficialTpl, setSendingOfficialTpl] = useState(false);
+  const [usernameQuery, setUsernameQuery] = useState('');
+  const [lookupPrefill, setLookupPrefill] = useState<Record<string, string> | null>(null);
+  const [usernameLookupState, setUsernameLookupState] = useState<'idle' | 'notfound'>('idle');
 
   // ── Agents & Voice tab state ──
   const [selectedVoice, setSelectedVoice] = useState<string>(ttsVoice || 'Kore');
@@ -1086,6 +1201,123 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   }, [selectedPhone]);
 
   const selectedConv = conversations.find(c => c.phone === selectedPhone);
+  const selectedCustomer = selectedPhone ? customerByPhone.get(selectedPhone) : undefined;
+
+  const windowStatus = useMemo(() => {
+    for (let i = thread.length - 1; i >= 0; i--) {
+      if (thread[i].direction === 'in') {
+        const hoursSince = (Date.now() - new Date(thread[i].created_at).getTime()) / 3600000;
+        return hoursSince < 24
+          ? { open: true, hoursLeft: Math.max(0, 24 - hoursSince) }
+          : { open: false, hoursLeft: 0 };
+      }
+    }
+    return null;
+  }, [thread]);
+
+  const persistPauseAfterSend = async (phone: string) => {
+    if (!pausedPhones.includes(phone)) {
+      const nextPaused = [...pausedPhones, phone];
+      setPausedPhones(nextPaused);
+      try {
+        await supabase.from('whatsapp_configs').update({ paused_phones: nextPaused }).eq('manager_id', managerId);
+      } catch (e) { console.error('[WABotInbox] pause persist', e); }
+    }
+    try {
+      await supabase.rpc('bump_paused_at', { p_manager_id: managerId, p_phone: phone });
+    } catch (e) { console.error('[WABotInbox] bump_paused_at', e); }
+  };
+
+  const closeOfficialTemplateModal = () => {
+    setTemplateModalOpen(false);
+    setSelectedOfficialTpl(null);
+    setOfficialTplValues({});
+    setSendingOfficialTpl(false);
+    setUsernameQuery('');
+    setLookupPrefill(null);
+    setUsernameLookupState('idle');
+  };
+
+  const openOfficialTemplateModal = () => {
+    setSelectedOfficialTpl(null);
+    setOfficialTplValues({});
+    setUsernameQuery('');
+    setLookupPrefill(null);
+    setUsernameLookupState('idle');
+    setTemplateModalOpen(true);
+  };
+
+  const lookupOfficialTplByUsername = () => {
+    const uname = usernameQuery.trim().replace(/^@/, '').toLowerCase();
+    if (!uname) return;
+    const match = customers.find(c => (c.username || '').toLowerCase() === uname);
+    if (match) {
+      setLookupPrefill(buildOfficialTemplatePrefill(match, match.name));
+      setUsernameLookupState('idle');
+    } else {
+      setLookupPrefill(null);
+      setUsernameLookupState('notfound');
+    }
+  };
+
+  const pickOfficialTpl = (tpl: MetaTemplateDef) => {
+    setSelectedOfficialTpl(tpl);
+    const source = lookupPrefill || buildOfficialTemplatePrefill(selectedCustomer, selectedConv?.name);
+    const initial: Record<string, string> = {};
+    for (const f of tpl.fields) {
+      if (source[f.key] !== undefined && source[f.key] !== '') initial[f.key] = source[f.key];
+    }
+    setOfficialTplValues(initial);
+  };
+
+  const sendOfficialTemplate = async () => {
+    if (!selectedPhone || !selectedOfficialTpl || sendingOfficialTpl) return;
+    const allFilled = selectedOfficialTpl.fields.every(f => (officialTplValues[f.key] || '').trim());
+    if (!allFilled) return;
+    const params = selectedOfficialTpl.fields.map(f => officialTplValues[f.key].trim());
+    const preview = renderOfficialTemplateBody(selectedOfficialTpl.bodyTemplate, params);
+    setSendingOfficialTpl(true);
+    const optimistic: WAMessage = {
+      id: `temp-${Date.now()}`,
+      manager_id: managerId,
+      customer_phone: selectedPhone,
+      direction: 'out',
+      type: 'text',
+      content: preview,
+      flagged_payment_proof: false,
+      is_read: true,
+      status: 'sent',
+      created_at: new Date().toISOString(),
+    };
+    setThread(prev => [...prev, optimistic]);
+    try {
+      const res = await fetch('/api/wabot-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
+        body: JSON.stringify({
+          to: `92${selectedPhone}`,
+          managerId,
+          type: 'template',
+          templateName: selectedOfficialTpl.name,
+          templateParams: params,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setThread(prev => prev.map(m => m.id === optimistic.id ? { ...m, status: 'failed' } : m));
+        alert(`Template send nahi hua: ${err?.error || 'unknown error'}`);
+        return;
+      }
+      await persistPauseAfterSend(selectedPhone);
+      closeOfficialTemplateModal();
+    } catch (e) {
+      setThread(prev => prev.map(m => m.id === optimistic.id ? { ...m, status: 'failed' } : m));
+      alert('Network error — template send nahi hua.');
+    } finally {
+      setSendingOfficialTpl(false);
+      loadOverview();
+    }
+  };
 
   const handleSend = async () => {
     if (!selectedPhone || !inputText.trim() || sending) return;
@@ -2547,6 +2779,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               <div className="flex items-center gap-2 flex-shrink-0" />
             </div>
 
+            {windowStatus && (
+              <div className={`px-3.5 py-2 flex items-center gap-2 flex-shrink-0 text-xs font-bold ${windowStatus.open ? 'bg-[#00A884]/15 text-[#008069] dark:text-[#00A884]' : 'bg-rose-500/10 text-rose-600 dark:text-rose-300'}`}>
+                {windowStatus.open ? (
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                )}
+                <span>
+                  {windowStatus.open
+                    ? `24h window open — ${formatHoursLeft(windowStatus.hoursLeft)} left for free replies`
+                    : '24h window closed — only approved templates can be sent'}
+                </span>
+              </div>
+            )}
+
             <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
               {thread.map(m => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
@@ -2636,6 +2883,15 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
               </button>
+              <button
+                onClick={openOfficialTemplateModal}
+                disabled={uploading || recording}
+                title="Official Meta template bhejein"
+                aria-label="Official templates"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#2A3942] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] disabled:opacity-40 active:scale-95 transition-all shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              </button>
 
               {recording ? (
                 <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
@@ -2723,6 +2979,95 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </>
         )}
       </div>
+      {templateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="fixed inset-0" onClick={closeOfficialTemplateModal} />
+          <div className="relative z-10 w-full sm:max-w-md bg-white dark:bg-[#202C33] rounded-t-2xl sm:rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0">
+              {selectedOfficialTpl ? (
+                <button onClick={() => setSelectedOfficialTpl(null)} className="w-8 h-8 flex items-center justify-center text-[#111B21] dark:text-[#E9EDEF]" aria-label="Back to templates">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+              ) : (
+                <span className="w-8" />
+              )}
+              <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">{selectedOfficialTpl ? selectedOfficialTpl.title : 'Official Templates'}</p>
+              <button onClick={closeOfficialTemplateModal} className="w-8 h-8 flex items-center justify-center text-[#111B21] dark:text-[#E9EDEF]" aria-label="Close">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 custom-scrollbar flex-1 min-h-0">
+              {!selectedOfficialTpl ? (
+                <>
+                  <p className="text-xs font-bold text-[#667781] dark:text-[#8696A0] mb-3">Meta-approved messages — can be sent even outside the 24-hour reply window.</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      value={usernameQuery}
+                      onChange={e => { setUsernameQuery(e.target.value); setUsernameLookupState('idle'); }}
+                      onKeyDown={e => { if (e.key === 'Enter') lookupOfficialTplByUsername(); }}
+                      placeholder="Customer username (e.g. fcabid06)"
+                      className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781]"
+                    />
+                    <button
+                      type="button"
+                      onClick={lookupOfficialTplByUsername}
+                      className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[#00A884] text-white active:scale-95 transition-all"
+                      aria-label="Lookup username"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </button>
+                  </div>
+                  {usernameLookupState === 'notfound' && (
+                    <p className="text-xs font-bold text-rose-500 mb-3">Username not found — check spelling or use manual entry below.</p>
+                  )}
+                  {lookupPrefill && usernameLookupState === 'idle' && (
+                    <p className="text-xs font-bold text-[#00A884] mb-3">{lookupPrefill.name} — amounts will auto-fill when you pick a template.</p>
+                  )}
+                  <div className="space-y-2">
+                    {META_OFFICIAL_TEMPLATES.map(tpl => (
+                      <button
+                        key={tpl.name}
+                        type="button"
+                        onClick={() => pickOfficialTpl(tpl)}
+                        className="w-full text-left p-3.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] hover:bg-[#E9EDEF] dark:hover:bg-[#2A3942] transition-colors flex items-center gap-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-[#111B21] dark:text-[#E9EDEF]">{tpl.title}</p>
+                          <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5">{tpl.description}</p>
+                        </div>
+                        <svg className="w-4 h-4 flex-shrink-0 text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {selectedOfficialTpl.fields.map(f => (
+                    <label key={f.key} className="block mb-3">
+                      <span className="block text-xs font-bold text-[#667781] dark:text-[#8696A0] mb-1.5">{f.label}</span>
+                      <input
+                        type={f.inputType === 'number' ? 'number' : 'text'}
+                        value={officialTplValues[f.key] || ''}
+                        onChange={e => setOfficialTplValues(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        placeholder={f.placeholder}
+                        className="w-full px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781]"
+                      />
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={sendOfficialTemplate}
+                    disabled={sendingOfficialTpl || selectedOfficialTpl.fields.some(f => !(officialTplValues[f.key] || '').trim())}
+                    className="w-full mt-1 px-4 py-3 bg-[#00A884] disabled:opacity-40 text-white rounded-xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all"
+                  >
+                    {sendingOfficialTpl ? 'Sending…' : 'Send Template'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── In-App Media Lightbox Modal (Payment screenshot zoom & verification) ── */}
       {lightboxMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-in fade-in duration-200">
