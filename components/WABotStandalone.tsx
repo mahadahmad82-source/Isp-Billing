@@ -525,6 +525,16 @@ export default function WABotStandalone() {
     });
   };
 
+  const handleUpdateOutageLogs = (logs: any[]) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newState: AppState = { ...prev, outageLogs: logs };
+      saveState(newState);
+      if (username) saveStateToSupabase(username, newState);
+      return newState;
+    });
+  };
+
   const handleUpdateTtsVoice = (voice: string) => {
     setState(prev => {
       if (!prev) return prev;
@@ -591,6 +601,9 @@ export default function WABotStandalone() {
           onUpdateBotPersonaNotes={handleUpdateBotPersonaNotes}
           botBehaviorRules={botBehaviorRules}
           onUpdateBotBehaviorRules={handleUpdateBotBehaviorRules}
+          outageLogs={state.outageLogs}
+          onUpdateOutageLogs={handleUpdateOutageLogs}
+          totalUsers={(state.users || []).length}
           ttsVoice={ttsVoice}
           onUpdateTtsVoice={handleUpdateTtsVoice}
           wabotAgents={wabotAgents}

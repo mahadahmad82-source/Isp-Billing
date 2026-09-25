@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent, WABotBehaviorRule } from '../types';
+import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent, WABotBehaviorRule, OutageLog } from '../types';
+import OutageTracker from './OutageTracker';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
 import { getWabotAuthHeaders, uploadMediaToR2 } from '../utils/whatsapp';
@@ -103,6 +104,9 @@ interface WABotInboxProps {
   onUpdateBotPersonaNotes?: (notes: string) => void;
   botBehaviorRules?: WABotBehaviorRule[];
   onUpdateBotBehaviorRules?: (rules: WABotBehaviorRule[]) => void;
+  outageLogs?: OutageLog[];
+  onUpdateOutageLogs?: (logs: OutageLog[]) => void;
+  totalUsers?: number;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
   onLogout?: () => void;
@@ -385,7 +389,7 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
   },
 ];
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, onLogout }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
   const isDarkControlled = typeof theme !== 'undefined';
   const [internalDark, setInternalDark] = useState<boolean>(() => {
@@ -456,7 +460,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   useEffect(() => { setBotNameInput(botName || 'NetBot'); }, [botName]);
 
   // ── Tab views & settings navigation ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpFaqOpen, setHelpFaqOpen] = useState<number | null>(0);
 
@@ -1477,6 +1481,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   Settings
                 </button>
                 <button
+                  onClick={() => { setView('outages'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  Network Outages
+                </button>
+                <button
                   onClick={() => { setView('help'); setMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
@@ -1508,7 +1519,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : view === 'outages' ? 'Network Outages' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -2389,120 +2400,15 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             </a>
           </section>
         </div>
-      ) : view === 'settings' ? (
-        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6 custom-scrollbar">
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-3">Business / Bot Name</h4>
-            {editingBotName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={botNameInput}
-                  onChange={e => setBotNameInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveBotName()}
-                  className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
-                />
-                <button onClick={saveBotName} className="px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
-              </div>
-            ) : (
-              <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">
-                {botNameInput}
-                <svg className="w-3.5 h-3.5 text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              </button>
-            )}
-          </section>
-
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">Theme</h4>
-                <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mt-1">{wabotDark ? 'Dark' : 'Light'}</p>
-              </div>
-              <button
-                onClick={toggleWabotTheme}
-                title={wabotDark ? 'Light mode' : 'Dark mode'}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] active:scale-95 transition-all"
-              >
-                {wabotDark ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 1020.354 15.354z" /></svg>
-                )}
-              </button>
-            </div>
-          </section>
-
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-3">TTS Voice</h4>
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={selectedVoice}
-                onChange={e => saveDefaultVoice(e.target.value)}
-                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
-              >
-                {GEMINI_VOICES.map(v => (
-                  <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => playVoicePreview(selectedVoice)}
-                disabled={previewingVoice === selectedVoice}
-                className="flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
-              >
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                {previewingVoice === selectedVoice ? 'Loading...' : 'Preview'}
-              </button>
-            </div>
-            {previewError && <p className="text-[11px] text-rose-400 font-bold mt-2">{previewError}</p>}
-            {previewConfirm && <p className="text-[11px] text-[#00A884] font-bold mt-2">{previewConfirm}</p>}
-          </section>
-
-          <section className="p-4 rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div>
-                <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Persona notes</h4>
-                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Overall lehja aur public dealing ka andaaz.</p>
-              </div>
-              <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
-            </div>
-            <textarea value={personaDraft} onChange={e => setPersonaDraft(e.target.value)} rows={5} placeholder="Bot ko overall kis lehje aur tareeqe se baat karni chahiye?" className="w-full p-3 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
-          </section>
-
-          <section>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div>
-                <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Behavior rules</h4>
-                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Situation aur preferred handling.</p>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#8696A0]">{(botBehaviorRules || []).length} rules</span>
-            </div>
-            <div className="space-y-3 mb-5">
-              {(botBehaviorRules || []).map(rule => (
-                <div key={rule.id} className={`p-4 rounded-2xl border ${rule.active ? 'border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40' : 'border-[#E9EDEF] dark:border-[#222D34] opacity-60'}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#00A884] mb-1">When this happens</p>
-                      <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] whitespace-pre-wrap">{rule.trigger}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#8696A0] mt-3 mb-1">Handle it like this</p>
-                      <p className="text-sm text-[#667781] dark:text-[#8696A0] font-semibold whitespace-pre-wrap">{rule.response}</p>
-                    </div>
-                    <div className="flex flex-col gap-2 flex-shrink-0">
-                      <button onClick={() => toggleBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">{rule.active ? 'Pause' : 'Use'}</button>
-                      <button onClick={() => deleteBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest">Delete</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-[#8696A0] font-bold py-4">Abhi koi custom rule nahi hai. Neeche se pehla rule add karein.</p>}
-            </div>
-            <div className="p-4 rounded-2xl border border-dashed border-[#E9EDEF] dark:border-[#222D34]">
-              <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mb-3">Add a rule</h4>
-              <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: customer kahe router kharab hai aur kal set karwana hai" className="w-full px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] mb-2" />
-              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: pehle fault acknowledge karo, catalog na bhejo, team visit note karo" className="w-full p-3 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
-              <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
-            </div>
-          </section>
-        </div>
+      ) : view === 'outages' ? (
+        <OutageTracker
+          outageLogs={outageLogs || []}
+          currentUser={managerId}
+          totalUsers={totalUsers || 0}
+          onAdd={(log) => onUpdateOutageLogs?.([...(outageLogs || []), log])}
+          onUpdate={(id, updates) => onUpdateOutageLogs?.((outageLogs || []).map(o => (o.id === id ? { ...o, ...updates } : o)))}
+          onDelete={(id) => onUpdateOutageLogs?.((outageLogs || []).filter(o => o.id !== id))}
+        />
       ) : (
     <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
