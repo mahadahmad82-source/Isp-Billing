@@ -388,6 +388,21 @@ export const smartLoadAndSync = async (
     return localState;
   }
 
+  // BUG FIX (the general case of the delete-resurrection bug): mergeById lets
+  // whichever side is passed SECOND win on a conflicting id, with no per-record
+  // recency check. That's fine for id sets, but it means: if the user edits a
+  // record and this function's periodic/focus/visibility-triggered call fires
+  // before the 2s debounce in saveStateToSupabase has flushed that edit to
+  // Supabase, the merge below silently discards the fresh unsaved edit and
+  // replaces it with the older remote copy — with no error, no console warning
+  // a user would notice, it just looks like "my change didn't save". pendingDebounce
+  // already tracks exactly this in-flight window, so trust local completely
+  // until it drains (at most DEBOUNCE_MS away) instead of racing the merge.
+  if (pendingDebounce.has(managerId)) {
+    console.log('[Sync] Local edit still in debounce window — skipping merge, trusting local');
+    return localState;
+  }
+
   const localUsers     = localState?.users?.length     || 0;
   const localReceipts  = localState?.receipts?.length  || 0;
   const remoteUsers    = supabaseState?.users?.length    || 0;
