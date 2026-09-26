@@ -656,5 +656,13 @@ export interface AppState {
   shownManagerNotificationIds?: string[];
   agentPendingNotifications?: Record<string, AppNotification[]>;
   teamMessages?: TeamMessage[];
+  // Tombstones: ids removed via delete handlers. mergeById unions arrays across
+  // devices/sessions (so a stale cache can never silently erase a record a
+  // fresher session already has), which also means a genuine delete could get
+  // resurrected by another session's stale array. These lists are unioned too
+  // (never shrink) and applied as a filter AFTER merge, so a delete propagates
+  // permanently instead of reappearing. See utils/supabaseSync.ts.
+  deletedUserIds?: string[];
+  deletedReceiptIds?: string[];
 }
 
