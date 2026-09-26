@@ -235,10 +235,12 @@ export const flushPendingSync = async (): Promise<void> => {
       // Supabase NOW instead of blindly overwriting with this stale snapshot
       // (same class of bug the smartLoadAndSync merge fix addresses).
       const currentRemote = await loadStateFromSupabase(item.managerId);
+      const deletedUserIds = Array.from(new Set([...(staleState.deletedUserIds || []), ...(currentRemote?.deletedUserIds || [])]));
+      const deletedReceiptIds = Array.from(new Set([...(staleState.deletedReceiptIds || []), ...(currentRemote?.deletedReceiptIds || [])]));
       const stateToPush: AppState = currentRemote ? {
         ...currentRemote,
-        users:            mergeById(staleState.users,            currentRemote.users),
-        receipts:         mergeById(staleState.receipts,         currentRemote.receipts),
+        users:            mergeById(staleState.users,            currentRemote.users).filter(u => !deletedUserIds.includes(u.id!)),
+        receipts:         mergeById(staleState.receipts,         currentRemote.receipts).filter(r => !deletedReceiptIds.includes(r.id!)),
         archives:         mergeById(staleState.archives,         currentRemote.archives),
         companies:        mergeById(staleState.companies,        currentRemote.companies),
         subManagers:      mergeById(staleState.subManagers,      currentRemote.subManagers),
@@ -246,6 +248,8 @@ export const flushPendingSync = async (): Promise<void> => {
         complaintTickets: mergeById(staleState.complaintTickets, currentRemote.complaintTickets),
         teamMessages: mergeById(staleState.teamMessages, currentRemote.teamMessages),
         businessExpenses: mergeById(staleState.businessExpenses, currentRemote.businessExpenses),
+        deletedUserIds,
+        deletedReceiptIds,
       } : staleState;
       const ok = await upsertWithRetry(item.managerId, stateToPush, 2);
       if (!ok) {
@@ -409,10 +413,12 @@ export const smartLoadAndSync = async (
   // record array is unioned by id so neither side can silently erase records
   // the other side already has (this is what caused receipts to vanish).
   const base = remoteTs >= localTs ? supabaseState : localState;
+  const deletedUserIds = Array.from(new Set([...(localState?.deletedUserIds || []), ...(supabaseState.deletedUserIds || [])]));
+  const deletedReceiptIds = Array.from(new Set([...(localState?.deletedReceiptIds || []), ...(supabaseState.deletedReceiptIds || [])]));
   const merged: AppState = {
     ...base,
-    users:                    mergeById(localState?.users,            supabaseState.users),
-    receipts:                 mergeById(localState?.receipts,         supabaseState.receipts),
+    users:                    mergeById(localState?.users,            supabaseState.users).filter(u => !deletedUserIds.includes(u.id!)),
+    receipts:                 mergeById(localState?.receipts,         supabaseState.receipts).filter(r => !deletedReceiptIds.includes(r.id!)),
     archives:                 mergeById(localState?.archives,         supabaseState.archives),
     companies:                mergeById(localState?.companies,        supabaseState.companies),
     subManagers:              mergeById(localState?.subManagers,      supabaseState.subManagers),
@@ -420,6 +426,8 @@ export const smartLoadAndSync = async (
     complaintTickets:         mergeById(localState?.complaintTickets, supabaseState.complaintTickets),
     teamMessages:             mergeById(localState?.teamMessages, supabaseState.teamMessages),
     businessExpenses:         mergeById(localState?.businessExpenses, supabaseState.businessExpenses),
+    deletedUserIds,
+    deletedReceiptIds,
     activeCompanyId:          base.activeCompanyId || '',
     dismissedNotificationIds: Array.from(new Set([...(localState?.dismissedNotificationIds || []), ...(supabaseState.dismissedNotificationIds || [])])),
     currentManager:           managerId,
