@@ -1220,7 +1220,11 @@ const App: React.FC = () => {
       message: `Permanently remove ${ids.length} records?`,
       variant: 'danger',
       onConfirm: () => {
-        setState(prev => ({ ...prev, users: prev.users.filter(u => !ids.includes(u.id)) }));
+        setState(prev => ({
+          ...prev,
+          users: prev.users.filter(u => !ids.includes(u.id)),
+          deletedUserIds: Array.from(new Set([...(prev.deletedUserIds || []), ...ids])),
+        }));
       }
     });
   };
@@ -1330,7 +1334,11 @@ const App: React.FC = () => {
       message: 'Remove transaction from history?',
       variant: 'danger',
       onConfirm: () => {
-        setState(prev => ({ ...prev, receipts: prev.receipts.filter(r => r.id !== id) }));
+        setState(prev => ({
+          ...prev,
+          receipts: prev.receipts.filter(r => r.id !== id),
+          deletedReceiptIds: Array.from(new Set([...(prev.deletedReceiptIds || []), id])),
+        }));
       }
     });
   };
@@ -1342,7 +1350,12 @@ const App: React.FC = () => {
       variant: 'danger',
       onConfirm: () => {
         const log = createLog('USER_DELETED', `Customer deleted (id: ${id})`, 'user');
-        setState(prev => ({ ...prev, users: prev.users.filter(u => u.id !== id), systemLogs: [log, ...(prev.systemLogs || [])].slice(0, 500) }));
+        setState(prev => ({
+          ...prev,
+          users: prev.users.filter(u => u.id !== id),
+          deletedUserIds: Array.from(new Set([...(prev.deletedUserIds || []), id])),
+          systemLogs: [log, ...(prev.systemLogs || [])].slice(0, 500),
+        }));
       }
     });
   };
