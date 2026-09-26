@@ -105,6 +105,7 @@ export default async function handler(req: any, res: any) {
       const receipts: any[] = data.receipts || [];
       const pathsToDelete: string[] = [];
       let changed = false;
+      const clearedIds = new Set<string>(); // overwrite fix (Sep 2026 audit) — see expiry-hour-reminders cron
 
       for (const r of receipts) {
         if (!r.receiptImageUrl) continue;
@@ -121,6 +122,7 @@ export default async function handler(req: any, res: any) {
         pathsToDelete.push(path);
         r.receiptImageUrl = undefined;
         changed = true;
+        if (r.id) clearedIds.add(r.id);
       }
 
       if (pathsToDelete.length > 0) {
@@ -138,10 +140,18 @@ export default async function handler(req: any, res: any) {
       }
 
       if (changed) {
+        const freshRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.${row.manager_id}`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+        });
+        const freshRows: any[] = await freshRes.json();
+        const freshData = freshRows?.[0]?.data || data;
+        const freshReceipts: any[] = (freshData.receipts || []).map((fr: any) =>
+          clearedIds.has(fr.id) ? { ...fr, receiptImageUrl: undefined } : fr
+        );
         await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${row.manager_id}`, {
           method: 'PATCH',
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-          body: JSON.stringify({ data: { ...data, receipts } }),
+          body: JSON.stringify({ data: { ...freshData, receipts: freshReceipts } }),
         });
       }
     }
