@@ -17,6 +17,7 @@ import Insights from './components/Insights';
 import Expiries from './components/Expiries';
 import Settings from './components/Settings';
 import RecoverySummary from './components/RecoverySummary';
+import CopilotBar from './components/CopilotBar';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import SystemLogs from './components/SystemLogs';
@@ -2725,6 +2726,21 @@ const App: React.FC = () => {
         >
           <span className="text-base">🎓</span> Take the Tour
         </button>
+      )}
+
+      {activeManager && activeManager !== 'admin' && (
+        <CopilotBar
+          users={state.users || filteredUsers}
+          onOpenTab={(tab) => setActiveTab(tab)}
+          onPrepareReceipt={(userId) => {
+            setPreSelectReceiptUser({
+              userId,
+              month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+              ts: Date.now(),
+            });
+            setActiveTab('receipts');
+          }}
+        />
       )}
 
       {pendingRemindersCount > 0 && activeTab !== 'expiries' && !isReminderBannerDismissed && (
