@@ -59,7 +59,7 @@ export default async function handler(req: any, res: any) {
     // self-authenticating: it verifies the supplied legacy credentials through
     // the existing RPC before creating/linking a real Auth identity. It never
     // accepts a manager id from the client and never returns a privileged key.
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'agent-update-profile' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'agent-update-profile' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights' || action === 'copilot') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -107,6 +107,8 @@ export default async function handler(req: any, res: any) {
       return handleListSubManagerAccounts(req, res);
     case 'ai-insights':
       return handleAiInsights(req, res);
+    case 'copilot':
+      return handleCopilot(req, res);
     case 'reset-quota':
       return handleResetQuota(req, res);
     case 'token-health':
@@ -167,6 +169,67 @@ async function handleAiInsights(req: any, res: any) {
   } catch (error: any) {
     console.error('[ai-insights] Gemini failover exhausted:', error?.message || error);
     return res.status(200).json({ insight: AI_INSIGHTS_FALLBACK, fallback: true });
+  }
+}
+
+const COPILOT_VALID_TABS = [
+  'dashboard','users','receipts','recoveries','expiries','team','settings','wabot',
+  'reports','analytics','area','communication','complaints','dealer-sales','equipment',
+  'expenses','invoice','leads','outage','payment-verify','reminders','systemlogs','templates'
+];
+
+// ── Action: copilot ──────────────────────────────────────────────────────────
+// Voice/text command router for the in-app Manager Copilot. Pure NLU classify —
+// never touches manager_data or customer PII. The client sends only the raw
+// command text; it resolves the actual customer record locally against its
+// already-loaded state.users and performs the resulting action itself (open a
+// tab, or pre-fill ReceiptGenerator for the manager to confirm/save — never
+// auto-generates a receipt from a voice/text command alone).
+async function handleCopilot(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || !['manager', 'admin', 'sub-manager'].includes(caller.role)) {
+    return res.status(403).json({ error: 'Authenticated manager session required' });
+  }
+
+  const command = String(req.body?.command || '').trim().slice(0, 500);
+  if (!command) return res.status(400).json({ error: 'command is required' });
+
+  const FALLBACK = { action: 'unclear', reply: 'Samajh nahi aaya, dobara try karein.' };
+
+  try {
+    const prompt = `You are a command router for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / English / mixed. Classify it into exactly one JSON object, no prose, matching this schema:
+{"action":"open_tab"|"customer_lookup"|"generate_receipt"|"unclear","tab"?:string,"customerName"?:string,"reply":string}
+
+Rules:
+- "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
+- "customer_lookup": manager wants to know a specific customer's payment/balance/plan/expiry status. Extract the customer's name/username as written into customerName.
+- "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName.
+- "unclear": command doesn't clearly match any of the above, or no customer name could be extracted for customer_lookup/generate_receipt.
+- "reply": a short (under 15 words) natural confirmation in Roman Urdu of what you understood, to show back to the manager.
+
+Command: "${command}"
+
+Respond with ONLY the JSON object, nothing else.`;
+
+    const response = await callGeminiWithFailover({
+      contents: prompt,
+      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200, responseMimeType: 'application/json' },
+    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
+
+    let parsed: any = null;
+    try { parsed = JSON.parse(String(response?.text || '').trim()); } catch { parsed = null; }
+
+    if (!parsed || typeof parsed !== 'object' || !parsed.action) {
+      return res.status(200).json(FALLBACK);
+    }
+    if (parsed.action === 'open_tab' && !COPILOT_VALID_TABS.includes(parsed.tab)) {
+      return res.status(200).json({ action: 'unclear', reply: 'Ye tab nahi mila, dobara batayein.' });
+    }
+    return res.status(200).json(parsed);
+  } catch (error: any) {
+    console.error('[copilot] Gemini failover exhausted:', error?.message || error);
+    return res.status(200).json({ action: 'unclear', reply: 'AI abhi available nahi, dobara try karein.' });
   }
 }
 
