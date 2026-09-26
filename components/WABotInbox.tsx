@@ -1602,7 +1602,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   return (
     <div
-      className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100dvh-5.5rem)] min-h-[520px] max-h-[100dvh] gap-3 p-3 rounded-2xl overflow-hidden shadow-sm"
+      className="flex flex-col h-full min-h-[520px] gap-3 p-3 rounded-2xl overflow-hidden shadow-sm"
       style={{ background: wabotDark ? '#0C1317' : '#F0F2F5' }}
     >
       {/* ── Header — single line like Android's "Wabot BillCollector" bar, with
