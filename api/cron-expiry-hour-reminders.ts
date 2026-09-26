@@ -100,6 +100,11 @@ export default async function handler(req: any, res: any) {
       const data = row.data || {};
       const users: any[] = data.users || [];
       let changed = false;
+      // Overwrite fix (Sep 2026 audit): the per-customer send loop below can run for a
+      // while (real WhatsApp API calls, one user at a time). Don't carry the stale
+      // pre-loop `data`/`users` all the way to the final write — just remember which
+      // users were notified, then apply that onto a freshly re-fetched row afterward.
+      const notifiedNow = new Map<string, string>(); // userId -> expiryDate just notified for
 
       for (const u of users) {
         if (!u || u.status === 'deleted' || !u.expiryDate) continue;
@@ -127,6 +132,7 @@ export default async function handler(req: any, res: any) {
             u.expiryJustNotifiedFor = u.expiryDate;
             changed = true;
             sentExpired++;
+            notifiedNow.set(u.id, u.expiryDate);
             await logOutbound(phone, previewMessage(u.name || 'Customer', dateStr), wamid);
           }
         } else {
@@ -135,10 +141,18 @@ export default async function handler(req: any, res: any) {
       }
 
       if (changed) {
+        const freshRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.${row.manager_id}`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+        });
+        const freshRows: any[] = await freshRes.json();
+        const freshData = freshRows?.[0]?.data || data;
+        const freshUsers: any[] = (freshData.users || []).map((fu: any) =>
+          notifiedNow.has(fu.id) ? { ...fu, expiryJustNotifiedFor: notifiedNow.get(fu.id) } : fu
+        );
         await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${row.manager_id}`, {
           method: 'PATCH',
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-          body: JSON.stringify({ data: { ...data, users } }),
+          body: JSON.stringify({ data: { ...freshData, users: freshUsers } }),
         });
       }
     }
