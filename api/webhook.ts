@@ -1826,64 +1826,52 @@ type OutageNoticeState = { outageId: string; lastSentAt: number; reminderCount: 
 type BotSessionRecord = { state?: string; ts?: number; data?: any; outageNotice?: OutageNoticeState };
 const SLOT_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
+// Egress + overwrite fix (Sep 2026 audit): getSession/setSession/setOutageNotice
+// used to read the ENTIRE `_bot_sessions` Postgres row (one shared row holding
+// every phone number's session in a single JSON object), modify just this one
+// phone's entry, and PATCH the whole row back. setSession fires on nearly
+// every inbound WhatsApp message across every conversation, so this was both
+// a heavy, constant Postgres read+write AND a genuine lost-update race: two
+// customers messaging around the same moment could each read the same base
+// row, and whichever PATCH landed second would silently erase the other
+// customer's session change. Per-phone Redis keys make each session
+// independent — no shared row, no cross-customer race — and this data was
+// already explicitly ephemeral (2h slot-session TTL), which is exactly what
+// Redis EX is for. Falls back to "no session" if Redis is ever unreachable
+// (redisGetJSON/redisSetJSON fail soft), same as a cold/expired session today.
+const BOT_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // generous — outageNotice cooldowns should outlive the 2h slot-state window; dead sessions still self-expire
+
 async function getSession(phone: string): Promise<BotSessionRecord | null> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
-    const sessions = rows?.[0]?.data?.sessions || {};
-    const s: BotSessionRecord | undefined = sessions[phone];
+    const s = await redisGetJSON<BotSessionRecord>(`bot_session:${phone}`);
     if (!s) return null;
     const sessionAge = s.ts ? Date.now() - s.ts : 0;
     if (s.state && sessionAge > SLOT_SESSION_TTL_MS) {
       console.log(`[getSession] ignoring stale slot session state=${s.state} ageMs=${sessionAge}`);
       return s.outageNotice ? { outageNotice: s.outageNotice } : null;
     }
-    return { state: s.state, ts: s.ts, data: s.data, outageNotice: s.outageNotice };
+    return s;
   } catch (e: any) { console.error('[getSession]', e?.message); return null; }
 }
 
 async function setSession(phone: string, state: string | null, data?: any) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
-    const existing = rows?.[0]?.data || { sessions: {} };
-    const sessions = existing.sessions || {};
-    const previous: BotSessionRecord = sessions[phone] || {};
-    if (state) sessions[phone] = { ...previous, state, ts: Date.now(), data };
-    else if (previous.outageNotice) sessions[phone] = { outageNotice: previous.outageNotice };
-    else delete sessions[phone];
-
-    if (rows?.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions`, {
-        method: 'PATCH',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ data: { ...existing, sessions } }),
-      });
-    } else {
-      await fetch(`${SUPABASE_URL}/rest/v1/manager_data`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ manager_id: '_bot_sessions', data: { sessions } }),
-      });
-    }
+    const key = `bot_session:${phone}`;
+    const previous: BotSessionRecord = (await redisGetJSON<BotSessionRecord>(key)) || {};
+    const next: BotSessionRecord = state
+      ? { ...previous, state, ts: Date.now(), data }
+      : previous.outageNotice ? { outageNotice: previous.outageNotice } : {};
+    if (Object.keys(next).length === 0) await redisDel(key);
+    else await redisSetJSON(key, next, BOT_SESSION_TTL_SECONDS);
   } catch (e: any) { console.error('[setSession]', e?.message); }
 }
 
 async function setOutageNotice(phone: string, outageId: string, previous?: OutageNoticeState) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions&select=data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
-    const existing = rows?.[0]?.data || { sessions: {} };
-    const sessions = existing.sessions || {};
-    const current: BotSessionRecord = sessions[phone] || {};
+    const key = `bot_session:${phone}`;
+    const current: BotSessionRecord = (await redisGetJSON<BotSessionRecord>(key)) || {};
     const sameOutage = previous?.outageId === outageId;
-    sessions[phone] = {
+    const next: BotSessionRecord = {
       ...current,
       outageNotice: {
         outageId,
@@ -1891,59 +1879,27 @@ async function setOutageNotice(phone: string, outageId: string, previous?: Outag
         reminderCount: sameOutage ? (previous?.reminderCount || 0) + 1 : 0,
       },
     };
-    const payload = { data: { ...existing, sessions } };
-    if (rows?.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_sessions`, {
-        method: 'PATCH',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify(payload),
-      });
-    } else {
-      await fetch(`${SUPABASE_URL}/rest/v1/manager_data`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ manager_id: '_bot_sessions', data: { sessions } }),
-      });
-    }
+    await redisSetJSON(key, next, BOT_SESSION_TTL_SECONDS);
   } catch (e: any) { console.error('[setOutageNotice]', e?.message); }
 }
 
-// ── Repeated-template tracker: separate from _bot_sessions (never touches the
+// ── Repeated-template tracker: separate from bot_session (never touches the
 // slot-filling flows above) — just remembers the last "canned info" intent we
 // answered for a phone, so a same-topic follow-up can be detected further below.
+// Same Redis-per-phone fix as above, same reason (was sharing one _bot_intent_track
+// row across every phone number). Caller's own staleness check is 20 minutes
+// (see call site), so a slightly longer TTL here just avoids edge-of-window misses.
+const BOT_INTENT_TTL_SECONDS = 30 * 60;
+
 async function getLastAutoIntent(phone: string): Promise<{ intent: string; ts: number } | null> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_intent_track&select=data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
-    const track = rows?.[0]?.data?.track || {};
-    return track[phone] || null;
+    return await redisGetJSON<{ intent: string; ts: number }>(`bot_intent:${phone}`);
   } catch (e: any) { console.error('[getLastAutoIntent]', e?.message); return null; }
 }
 
 async function setLastAutoIntent(phone: string, intent: string) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_intent_track&select=data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const rows = await res.json();
-    const existing = rows?.[0]?.data || { track: {} };
-    const track = existing.track || {};
-    track[phone] = { intent, ts: Date.now() };
-    if (rows?.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq._bot_intent_track`, {
-        method: 'PATCH',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ data: { ...existing, track } }),
-      });
-    } else {
-      await fetch(`${SUPABASE_URL}/rest/v1/manager_data`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ manager_id: '_bot_intent_track', data: { track } }),
-      });
-    }
+    await redisSetJSON(`bot_intent:${phone}`, { intent, ts: Date.now() }, BOT_INTENT_TTL_SECONDS);
   } catch (e: any) { console.error('[setLastAutoIntent]', e?.message); }
 }
 
@@ -1964,7 +1920,7 @@ async function markGreetedBefore(phone: string) {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     const rows = await res.json();
-    const existing = rows?.[0]?.data || { sessions: {} };
+    const existing = rows?.[0]?.data || {};
     const greeted: string[] = existing.greetedPhones || [];
     if (!greeted.includes(phone)) greeted.push(phone);
     if (rows?.length) {
@@ -1977,11 +1933,12 @@ async function markGreetedBefore(phone: string) {
       await fetch(`${SUPABASE_URL}/rest/v1/manager_data`, {
         method: 'POST',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ manager_id: '_bot_sessions', data: { sessions: {}, greetedPhones: greeted } }),
+        body: JSON.stringify({ manager_id: '_bot_sessions', data: { greetedPhones: greeted } }),
       });
     }
   } catch (e: any) { console.error('[markGreetedBefore]', e?.message); }
 }
+
 
 // ── Message batching/debounce ────────────────────────────────────────────────────
 // Customers often split one thought across several rapid messages (e.g. "suno" / "mera" /
@@ -4469,13 +4426,22 @@ export default async function handler(req: any, res: any) {
         const found = await findCustomer(from);
         if (found) {
           try {
-            const users = found.rowData.users || [];
+            // Don't base this write on the (up to ~30s stale) cached rowData —
+            // that would PATCH the whole manager_data blob back with a stale
+            // snapshot, silently reverting anything the manager's own app saved
+            // in that window. Re-fetch fresh, immediately before the write.
+            const freshRes = await fetch(`${SUPABASE_URL}/rest/v1/manager_data?select=data&manager_id=eq.${found.managerId}`, {
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+            });
+            const freshRows: any[] = await freshRes.json();
+            const freshData = freshRows?.[0]?.data || found.rowData;
+            const users = freshData.users || [];
             const u = users.find((x: any) => x.id === found.user.id);
             if (u) u.optedOutOfMarketing = true;
             await fetch(`${SUPABASE_URL}/rest/v1/manager_data?manager_id=eq.${found.managerId}`, {
               method: 'PATCH',
               headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-              body: JSON.stringify({ data: { ...found.rowData, users } }),
+              body: JSON.stringify({ data: { ...freshData, users } }),
             });
             invalidateManagerDataCache(found.managerId);
           } catch (e: any) { console.error('[marketing_optout]', e?.message); }
