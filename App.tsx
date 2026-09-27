@@ -2731,6 +2731,15 @@ const App: React.FC = () => {
       {activeManager && activeManager !== 'admin' && (
         <CopilotBar
           users={state.users || filteredUsers}
+          history={state.copilotHistory}
+          onHistoryChange={(log) => {
+            setState(prev => {
+              const next = { ...prev, copilotHistory: log };
+              saveState(next);
+              saveStateToSupabase(prev.currentManager || activeManager || '', next);
+              return next;
+            });
+          }}
           onOpenTab={(tab) => setActiveTab(tab)}
           onPrepareReceipt={(userId) => {
             setPreSelectReceiptUser({
