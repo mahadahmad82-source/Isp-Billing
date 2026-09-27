@@ -59,7 +59,7 @@ export default async function handler(req: any, res: any) {
     // self-authenticating: it verifies the supplied legacy credentials through
     // the existing RPC before creating/linking a real Auth identity. It never
     // accepts a manager id from the client and never returns a privileged key.
-  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'agent-update-profile' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights' || action === 'copilot') {
+  } else if (action === 'create-sub-manager-auth' || action === 'reset-sub-manager-auth-password' || action === 'resolve-sub-manager-session' || action === 'resolve-sub-manager-state' || action === 'agent-issue-receipt' || action === 'submit-complaint-resolution' || action === 'send-team-message' || action === 'complaint-feedback' || action === 'mirror-agent-attendance' || action === 'agent-update-profile' || action === 'revoke-sub-manager-auth' || action === 'list-sub-manager-accounts' || action === 'ai-insights' || action === 'copilot' || action === 'copilot-transcribe') {
     // Browser/mobile path: each handler performs its own ownership check. The
     // resolver is intentionally authenticated too, so it can only disclose the
     // caller's own parent-manager mapping.
@@ -109,6 +109,8 @@ export default async function handler(req: any, res: any) {
       return handleAiInsights(req, res);
     case 'copilot':
       return handleCopilot(req, res);
+    case 'copilot-transcribe':
+      return handleCopilotTranscribe(req, res);
     case 'reset-quota':
       return handleResetQuota(req, res);
     case 'token-health':
@@ -195,18 +197,32 @@ async function handleCopilot(req: any, res: any) {
   const command = String(req.body?.command || '').trim().slice(0, 500);
   if (!command) return res.status(400).json({ error: 'command is required' });
 
-  const FALLBACK = { action: 'unclear', reply: 'Samajh nahi aaya, dobara try karein.' };
+  // Short recent-turn context (client-supplied, capped) so follow-up commands
+  // like "generate his receipt too" can resolve a pronoun/reference back to a
+  // customer named a turn or two earlier. Never fetched from a DB by this
+  // endpoint — just whatever the client already has on screen.
+  const rawHistory = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
+  const history = rawHistory
+    .map((h: any) => ({ from: h?.from === 'copilot' ? 'assistant' : 'user', text: String(h?.text || '').slice(0, 300) }))
+    .filter((h: any) => h.text);
+
+  const FALLBACK = { action: 'unclear', reply: "Sorry, I didn't understand that. Please try again." };
 
   try {
+    const historyBlock = history.length
+      ? `\n\nRecent conversation (oldest first, for resolving references like "him"/"that customer"):\n${history.map((h: any) => `${h.from}: ${h.text}`).join('\n')}`
+      : '';
+
     const prompt = `You are a command router for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / English / mixed. Classify it into exactly one JSON object, no prose, matching this schema:
 {"action":"open_tab"|"customer_lookup"|"generate_receipt"|"unclear","tab"?:string,"customerName"?:string,"reply":string}
 
 Rules:
 - "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
-- "customer_lookup": manager wants to know a specific customer's payment/balance/plan/expiry status. Extract the customer's name/username as written into customerName.
-- "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName.
+- "customer_lookup": manager wants to know a specific customer's payment/balance/plan/expiry status. Extract the customer's name/username as written into customerName. If the command refers back to a customer named in the recent conversation below (e.g. "his balance", "uska balance"), use that customer's name.
+- "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName, resolving references from recent conversation the same way.
 - "unclear": command doesn't clearly match any of the above, or no customer name could be extracted for customer_lookup/generate_receipt.
-- "reply": a short (under 15 words) natural confirmation in Roman Urdu of what you understood, to show back to the manager.
+- "reply": a short (under 15 words) natural confirmation IN ENGLISH of what you understood, to show back to the manager. Always reply in English regardless of what language the command was in.
+${historyBlock}
 
 Command: "${command}"
 
@@ -214,7 +230,7 @@ Respond with ONLY the JSON object, nothing else.`;
 
     const response = await callGeminiWithFailover({
       contents: prompt,
-      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200, responseMimeType: 'application/json' },
+      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 220, responseMimeType: 'application/json' },
     }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
 
     let parsed: any = null;
@@ -224,12 +240,77 @@ Respond with ONLY the JSON object, nothing else.`;
       return res.status(200).json(FALLBACK);
     }
     if (parsed.action === 'open_tab' && !COPILOT_VALID_TABS.includes(parsed.tab)) {
-      return res.status(200).json({ action: 'unclear', reply: 'Ye tab nahi mila, dobara batayein.' });
+      return res.status(200).json({ action: 'unclear', reply: "I couldn't find that tab, please rephrase." });
     }
     return res.status(200).json(parsed);
   } catch (error: any) {
     console.error('[copilot] Gemini failover exhausted:', error?.message || error);
-    return res.status(200).json({ action: 'unclear', reply: 'AI abhi available nahi, dobara try karein.' });
+    return res.status(200).json({ action: 'unclear', reply: 'AI is not available right now, please try again.' });
+  }
+}
+
+// ── Action: copilot-transcribe ──────────────────────────────────────────────
+// Voice input for the Manager Copilot (Android app — no browser Web Speech
+// API there). Reuses the exact same audio-transcription approach already
+// proven for WhatsApp voice notes in api/webhook.ts (transcribeWithGemini +
+// Groq Whisper fallback): Gemini's native audio understanding first (more
+// accurate on Pakistani-accented Roman Urdu/English), falling back to Groq's
+// hosted Whisper only if Gemini gives nothing. Returns a transcript only —
+// the client then sends that transcript through the normal ?action=copilot
+// call above, so this endpoint never touches manager_data or a Gemini JSON
+// schema itself.
+async function handleCopilotTranscribe(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const caller: CallerContext | undefined = req.__caller;
+  if (!caller || !['manager', 'admin', 'sub-manager'].includes(caller.role)) {
+    return res.status(403).json({ error: 'Authenticated manager session required' });
+  }
+
+  const audioBase64 = String(req.body?.audioBase64 || '');
+  const mimeType = String(req.body?.mimeType || 'audio/m4a').slice(0, 40);
+  if (!audioBase64) return res.status(400).json({ error: 'audioBase64 is required' });
+
+  try {
+    const buf = Buffer.from(audioBase64, 'base64');
+    if (buf.length > 8 * 1024 * 1024) return res.status(413).json({ error: 'Audio too large (max 8MB)' });
+
+    const prompt = `This is a short voice command from an ISP billing app's manager, in Roman Urdu, Urdu script, English, or a mix. Write ONLY the exact transcription, in whatever script/language it was spoken — do not translate, do not add any comment or prefix, just the plain transcription text.`;
+
+    let transcript: string | null = null;
+    try {
+      const response = await callGeminiWithFailover({
+        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
+        config: { temperature: 0, maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } },
+      }, GEMINI_FALLBACK_MODELS as any);
+      transcript = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || response?.text?.trim() || null;
+    } catch (e: any) {
+      console.error('[copilot-transcribe] Gemini failed:', e?.message);
+    }
+
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!transcript && groqKey) {
+      const form = new FormData();
+      form.append('file', new Blob([buf], { type: mimeType }), 'voice.m4a');
+      form.append('model', 'whisper-large-v3-turbo');
+      form.append('response_format', 'json');
+      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${groqKey}` },
+        body: form as any,
+      });
+      if (groqRes.ok) {
+        const data: any = await groqRes.json();
+        transcript = (data.text || '').trim() || null;
+      } else {
+        console.error('[copilot-transcribe] groq:', groqRes.status, await groqRes.text());
+      }
+    }
+
+    if (!transcript) return res.status(200).json({ transcript: null, error: 'Could not transcribe audio' });
+    return res.status(200).json({ transcript });
+  } catch (error: any) {
+    console.error('[copilot-transcribe]', error?.message || error);
+    return res.status(500).json({ error: 'Transcription failed' });
   }
 }
 
