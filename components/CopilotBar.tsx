@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { UserRecord } from '../types';
 
@@ -9,16 +9,25 @@ interface CopilotReply {
   reply?: string;
 }
 
-interface CopilotLogEntry {
+export interface CopilotLogEntry {
   from: 'user' | 'copilot';
   text: string;
+  ts: number;
 }
 
 interface CopilotBarProps {
   users: UserRecord[];
   onOpenTab: (tab: string) => void;
   onPrepareReceipt: (userId: string) => void;
+  /** Persisted conversation log (dual-saved by the parent like the rest of AppState). */
+  history?: CopilotLogEntry[];
+  /** Called with the updated, capped log any time a new message is added — the
+   * parent is expected to save it (localStorage + Supabase) just like any
+   * other state change, so the conversation survives reloads/relogins. */
+  onHistoryChange?: (log: CopilotLogEntry[]) => void;
 }
+
+const MAX_HISTORY = 50;
 
 // Resolves a spoken/typed customer reference against the manager's own
 // already-loaded customer list. Runs entirely client-side — no customer PII
@@ -36,13 +45,13 @@ function findCustomer(users: UserRecord[], query: string): UserRecord | null {
   return match || null;
 }
 
-const CopilotIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-    <rect x="3" y="11" width="18" height="10" rx="2" />
-    <circle cx="12" cy="5" r="2" />
-    <line x1="12" y1="7" x2="12" y2="11" />
-    <line x1="7.5" y1="16" x2="7.5" y2="16.01" />
-    <line x1="16.5" y1="16" x2="16.5" y2="16.01" />
+// Modern sparkle/assistant mark — a large 4-point star with a small
+// companion star, a common, license-free way to signal "AI assistant"
+// without borrowing any specific product's trademarked logo.
+const CopilotIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12 2c.3 2.7 1 4.6 2.1 5.9C15.4 9 17.3 9.7 20 10c-2.7.3-4.6 1-5.9 2.1C12.7 13.4 12 15.3 12 18c-.3-2.7-1-4.6-2.1-5.9C8.6 11 6.7 10.3 4 10c2.7-.3 4.6-1 5.9-2.1C11 6.6 11.7 4.7 12 2z" />
+    <path d="M19 14c.15 1.1.5 1.9 1.05 2.45.55.55 1.35.9 2.45 1.05-1.1.15-1.9.5-2.45 1.05-.55.55-.9 1.35-1.05 2.45-.15-1.1-.5-1.9-1.05-2.45C17.4 18 16.6 17.65 15.5 17.5c1.1-.15 1.9-.5 2.45-1.05.55-.55.9-1.35 1.05-2.45z" />
   </svg>
 );
 
@@ -69,63 +78,82 @@ const CloseIcon = () => (
   </svg>
 );
 
-export default function CopilotBar({ users, onOpenTab, onPrepareReceipt }: CopilotBarProps) {
+export default function CopilotBar({ users, onOpenTab, onPrepareReceipt, history, onHistoryChange }: CopilotBarProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [log, setLog] = useState<CopilotLogEntry[]>([]);
+  const [log, setLog] = useState<CopilotLogEntry[]>(history || []);
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const hydratedRef = useRef(false);
+
+  // Hydrate once from the persisted history prop when it first arrives
+  // (e.g. right after initial load from Supabase/localStorage completes).
+  useEffect(() => {
+    if (!hydratedRef.current && history && history.length > 0) {
+      setLog(history);
+      hydratedRef.current = true;
+    }
+  }, [history]);
+
+  const appendLog = useCallback((entry: CopilotLogEntry) => {
+    setLog(prev => {
+      const next = [...prev, entry].slice(-MAX_HISTORY);
+      onHistoryChange?.(next);
+      return next;
+    });
+  }, [onHistoryChange]);
 
   const speechSupported = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
   const runCommand = useCallback(async (raw: string) => {
     const text = raw.trim();
     if (!text || busy) return;
-    setLog(prev => [...prev, { from: 'user', text }]);
+    appendLog({ from: 'user', text, ts: Date.now() });
     setInput('');
     setBusy(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        setLog(prev => [...prev, { from: 'copilot', text: 'Session expired, dobara login karein.' }]);
+        appendLog({ from: 'copilot', text: 'Your session expired — please log in again.', ts: Date.now() });
         return;
       }
+      const recentHistory = log.slice(-6).map(h => ({ from: h.from, text: h.text }));
       const res = await fetch('/api/admin-maintenance?action=copilot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ command: text }),
+        body: JSON.stringify({ command: text, history: recentHistory }),
       });
       const data: CopilotReply = await res.json();
 
       if (data.action === 'open_tab' && data.tab) {
         onOpenTab(data.tab);
-        setLog(prev => [...prev, { from: 'copilot', text: data.reply || `${data.tab} khol diya.` }]);
+        appendLog({ from: 'copilot', text: data.reply || `Opened ${data.tab}.`, ts: Date.now() });
       } else if (data.action === 'customer_lookup') {
         const customer = findCustomer(users, data.customerName || '');
         if (!customer) {
-          setLog(prev => [...prev, { from: 'copilot', text: `"${data.customerName || text}" naam ka customer nahi mila.` }]);
+          appendLog({ from: 'copilot', text: `Couldn't find a customer named "${data.customerName || text}".`, ts: Date.now() });
         } else {
           const summary = `${customer.name} — ${customer.plan}, Rs.${customer.monthlyFee}/month, Balance: Rs.${customer.balance}, Expiry: ${customer.expiryDate}, Status: ${customer.status}`;
-          setLog(prev => [...prev, { from: 'copilot', text: summary }]);
+          appendLog({ from: 'copilot', text: summary, ts: Date.now() });
         }
       } else if (data.action === 'generate_receipt') {
         const customer = findCustomer(users, data.customerName || '');
         if (!customer) {
-          setLog(prev => [...prev, { from: 'copilot', text: `"${data.customerName || text}" naam ka customer nahi mila.` }]);
+          appendLog({ from: 'copilot', text: `Couldn't find a customer named "${data.customerName || text}".`, ts: Date.now() });
         } else {
           onPrepareReceipt(customer.id);
-          setLog(prev => [...prev, { from: 'copilot', text: `${customer.name} ke liye Receipt tab khol diya — confirm karke Save karein.` }]);
+          appendLog({ from: 'copilot', text: `Opened the Receipt tab for ${customer.name} — confirm and save when ready.`, ts: Date.now() });
         }
       } else {
-        setLog(prev => [...prev, { from: 'copilot', text: data.reply || 'Samajh nahi aaya, dobara try karein.' }]);
+        appendLog({ from: 'copilot', text: data.reply || "Sorry, I didn't understand that. Please try again.", ts: Date.now() });
       }
     } catch {
-      setLog(prev => [...prev, { from: 'copilot', text: 'Kuch masla hua, dobara try karein.' }]);
+      appendLog({ from: 'copilot', text: 'Something went wrong — please try again.', ts: Date.now() });
     } finally {
       setBusy(false);
     }
-  }, [users, onOpenTab, onPrepareReceipt, busy]);
+  }, [users, onOpenTab, onPrepareReceipt, busy, log, appendLog]);
 
   const startListening = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -155,7 +183,7 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt }: Copil
       <button
         onClick={() => setOpen(true)}
         aria-label="Copilot"
-        className="fixed bottom-6 left-5 z-[360] flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-600/30 transition-all active:scale-95"
+        className="fixed bottom-6 left-5 z-[360] flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-2xl shadow-indigo-600/30 transition-all active:scale-95"
       >
         <CopilotIcon />
       </button>
@@ -167,7 +195,7 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt }: Copil
       className="fixed bottom-6 left-5 z-[360] w-[calc(100vw-2.5rem)] max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
       style={{ maxHeight: '70vh' }}
     >
-      <div className="flex items-center justify-between px-4 py-3 bg-indigo-600 text-white shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shrink-0">
         <div className="flex items-center gap-2 font-bold text-sm">
           <CopilotIcon /> Copilot
         </div>
@@ -178,7 +206,7 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt }: Copil
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm" style={{ minHeight: '80px' }}>
         {log.length === 0 && (
           <p className="text-gray-400 text-xs">
-            e.g. "customer list kholo", "Ali ka balance batao", "Sara ke liye receipt banao"
+            e.g. "open customer list", "what's Ali's balance", "generate a receipt for Sara"
           </p>
         )}
         {log.map((entry, i) => (
@@ -192,14 +220,14 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt }: Copil
             </span>
           </div>
         ))}
-        {busy && <p className="text-gray-400 text-xs">Soch raha hoon...</p>}
+        {busy && <p className="text-gray-400 text-xs">Thinking...</p>}
       </div>
       <div className="flex items-center gap-2 px-3 py-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') runCommand(input); }}
-          placeholder="Command likhein..."
+          placeholder="Type a command..."
           className="flex-1 px-3 py-2 rounded-full border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         {speechSupported && (
