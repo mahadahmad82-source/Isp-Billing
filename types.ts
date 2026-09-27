@@ -664,5 +664,14 @@ export interface AppState {
   // permanently instead of reappearing. See utils/supabaseSync.ts.
   deletedUserIds?: string[];
   deletedReceiptIds?: string[];
+  // Manager Copilot's persisted conversation log (dual-saved like everything
+  // else here) — lets the assistant "remember" recent context across reloads.
+  copilotHistory?: CopilotLogEntry[];
+}
+
+export interface CopilotLogEntry {
+  from: 'user' | 'copilot';
+  text: string;
+  ts: number;
 }
 
