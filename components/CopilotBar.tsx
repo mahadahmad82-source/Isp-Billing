@@ -1,18 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { UserRecord } from '../types';
+import type { UserRecord, CopilotLogEntry } from '../types';
 
 interface CopilotReply {
   action: 'open_tab' | 'customer_lookup' | 'generate_receipt' | 'unclear';
   tab?: string;
   customerName?: string;
   reply?: string;
-}
-
-export interface CopilotLogEntry {
-  from: 'user' | 'copilot';
-  text: string;
-  ts: number;
 }
 
 interface CopilotBarProps {
