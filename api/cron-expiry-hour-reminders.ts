@@ -21,6 +21,23 @@ const PKT_OFFSET_MS = 5 * 60 * 60 * 1000; // Pakistan Standard Time = UTC+5, no 
 const TEMPLATE_NAME = 'package_expiry_official';
 const TEMPLATE_LANG = 'en';
 
+// Skip anyone who already has a PAID (Success) receipt for the current billing month (PKT).
+// Period format matches ReceiptGenerator: "Month Year" (e.g. "September 2026").
+function currentPeriodPKT(): string {
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'Asia/Karachi' }).format(new Date());
+}
+function paidUserIdsForPeriod(receipts: any[], period: string): Set<string> {
+  const out = new Set<string>();
+  const want = period.trim().toLowerCase();
+  for (const r of Array.isArray(receipts) ? receipts : []) {
+    if (!r || r.userId == null) continue;
+    if (r.status !== 'Success') continue;
+    if (String(r.period || '').trim().toLowerCase() !== want) continue;
+    out.add(String(r.userId));
+  }
+  return out;
+}
+
 async function sendExpiryTemplate(to: string, name: string, dateStr: string, packageName: string): Promise<{ ok: boolean; wamid?: string }> {
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
@@ -91,6 +108,7 @@ export default async function handler(req: any, res: any) {
     const rows: any[] = await resp.json();
 
     const now = new Date();
+    const currentPeriod = currentPeriodPKT();
     let sentExpired = 0;
     let skipped = 0;
 
@@ -99,6 +117,7 @@ export default async function handler(req: any, res: any) {
       if (row.manager_id !== BOUND_MANAGER_ID) continue;
       const data = row.data || {};
       const users: any[] = data.users || [];
+      const paidThisMonth = paidUserIdsForPeriod(data.receipts, currentPeriod);
       let changed = false;
       // Overwrite fix (Sep 2026 audit): the per-customer send loop below can run for a
       // while (real WhatsApp API calls, one user at a time). Don't carry the stale
@@ -125,7 +144,7 @@ export default async function handler(req: any, res: any) {
         const phone = `92${last10}`;
 
         // Just-expired window (0h–1h AFTER midnight has passed) — one ping per cycle.
-        if (hoursSinceExpiry >= 0 && hoursSinceExpiry <= 1 && u.expiryJustNotifiedFor !== u.expiryDate) {
+        if (hoursSinceExpiry >= 0 && hoursSinceExpiry <= 1 && u.expiryJustNotifiedFor !== u.expiryDate && !paidThisMonth.has(String(u.id))) {
           const dateStr = new Date(u.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
           const { ok, wamid } = await sendExpiryTemplate(phone, u.name || 'Customer', dateStr, u.plan || '');
           if (ok) {
