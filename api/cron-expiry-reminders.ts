@@ -15,6 +15,23 @@ const BOUND_MANAGER_ID = 'mahadnet';
 const TEMPLATE_NAME = 'expiry_reminder_1day';
 const TEMPLATE_LANG = 'en';
 
+// Skip anyone who already has a PAID (Success) receipt for the current billing month (PKT).
+// Period format matches ReceiptGenerator: "Month Year" (e.g. "September 2026").
+function currentPeriodPKT(): string {
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'Asia/Karachi' }).format(new Date());
+}
+function paidUserIdsForPeriod(receipts: any[], period: string): Set<string> {
+  const out = new Set<string>();
+  const want = period.trim().toLowerCase();
+  for (const r of Array.isArray(receipts) ? receipts : []) {
+    if (!r || r.userId == null) continue;
+    if (r.status !== 'Success') continue;
+    if (String(r.period || '').trim().toLowerCase() !== want) continue;
+    out.add(String(r.userId));
+  }
+  return out;
+}
+
 async function sendTemplate(to: string, name: string, plan: string, dateStr: string): Promise<{ ok: boolean; wamid?: string }> {
   const token = process.env.WHATSAPP_TOKEN;
   const pid = process.env.PHONE_NUMBER_ID;
@@ -124,12 +141,14 @@ export default async function handler(req: any, res: any) {
 
     let sentCount = 0;
     let skipped = 0;
+    const currentPeriod = currentPeriodPKT();
 
     for (const row of rows) {
       if (row.manager_id === '_bot_sessions') continue;
       if (row.manager_id !== BOUND_MANAGER_ID) continue;
       const data = row.data || {};
       const users: any[] = data.users || [];
+      const paidThisMonth = paidUserIdsForPeriod(data.receipts, currentPeriod);
 
       for (const u of users) {
         if (!u || u.status === 'deleted' || !u.expiryDate) continue;
@@ -138,6 +157,7 @@ export default async function handler(req: any, res: any) {
         exp.setHours(0, 0, 0, 0);
         const days = Math.round((exp.getTime() - today.getTime()) / 86400000);
         if (days !== 1) continue; // single reminder: 1 day before expiry, sent at night
+        if (paidThisMonth.has(String(u.id))) { skipped++; continue; } // already paid this month's receipt — no reminder
 
         const digits = (u.phone || u.phone2 || '').replace(/\D/g, '');
         const last10 = digits.slice(-10);
