@@ -1,9 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { UserRecord, CopilotLogEntry } from '../types';
+import { copilotReceiptBridge } from '../utils/copilotBridge';
 
 interface CopilotReply {
-  action: 'open_tab' | 'customer_lookup' | 'generate_receipt' | 'set_status' | 'summary' | 'unclear';
+  action: 'open_tab' | 'customer_lookup' | 'generate_receipt' | 'set_status' | 'summary' | 'receipt_form' | 'unclear';
+  op?: 'save' | 'edit' | 'read';
   tab?: string;
   customerName?: string;
   amount?: number;
@@ -81,6 +83,12 @@ const FAST_TABS: Array<[string, string]> = [
   ['leads', 'leads'], ['team', 'team'], ['staff', 'team'], ['analytics', 'analytics'], ['equipment', 'equipment'],
 ];
 const FILLER = /\b(open|show|go to|goto|kholo|khol|dikhao|dikha|jao|tab|section|page|screen|ka|ki|ko|ke|the|my|list|wala|wali|please|do|karo|kr|kar|me|mein|to)\b/g;
+// Exact short "save it" phrases — only honoured while a receipt form is open.
+const SAVE_PHRASES = /^(please )?(save|confirm|generate)( (it|this|receipt|the receipt))?( kar do| karo| kardo| kr do)?$|^(receipt )?(save|generate) (kar do|karo|kardo|kr do)$/;
+function isSavePhrase(text: string): boolean {
+  return SAVE_PHRASES.test(text.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim());
+}
+
 function fastTab(text: string): string | null {
   let t = ' ' + text.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
   if (!/\b(open|show|go to|goto|kholo|khol|dikhao|dikha|jao)\b/.test(t)) return null;
@@ -208,6 +216,12 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt, onSetUs
     setInput('');
     setBusy(true);
     try {
+      if (copilotReceiptBridge.isOpen() && isSavePhrase(text)) {
+        const r = await copilotReceiptBridge.run({ type: 'save' });
+        say(r.message);
+        return;
+      }
+
       const fast = fastTab(text);
       if (fast) {
         onOpenTab(fast);
@@ -224,7 +238,7 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt, onSetUs
       const res = await fetch('/api/admin-maintenance?action=copilot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ command: text, history: recentHistory }),
+        body: JSON.stringify({ command: text, history: recentHistory, receiptFormOpen: copilotReceiptBridge.isOpen() }),
       });
       const data: CopilotReply = await res.json();
 
@@ -251,7 +265,7 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt, onSetUs
         const customer = resolve();
         if (customer) {
           onPrepareReceipt(customer.id, { amount: data.amount, note: data.note });
-          say(`Opened the Receipt tab for ${customer.name}${data.amount ? ` with Rs.${data.amount}` : ''} — confirm and save when ready.`);
+          say(`Opened the Receipt tab for ${customer.name}${data.amount ? ` with Rs.${data.amount}` : ''} — review it, then say "save" (or tap Generate).`);
         }
       } else if (data.action === 'set_status' && data.status) {
         if (!canChangeStatus || !onSetUserStatus) {
@@ -269,6 +283,11 @@ export default function CopilotBar({ users, onOpenTab, onPrepareReceipt, onSetUs
             }
           }
         }
+      } else if (data.action === 'receipt_form' && data.op) {
+        const r = await copilotReceiptBridge.run(
+          data.op === 'edit' ? { type: 'edit', amount: data.amount, note: data.note } : { type: data.op }
+        );
+        say(r.message);
       } else if (data.action === 'summary') {
         const live = users.filter(u => u.status !== 'deleted');
         const today = new Date(); today.setHours(0, 0, 0, 0);
