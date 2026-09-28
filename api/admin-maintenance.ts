@@ -213,15 +213,18 @@ async function handleCopilot(req: any, res: any) {
       ? `\n\nRecent conversation (oldest first, for resolving references like "him"/"that customer"):\n${history.map((h: any) => `${h.from}: ${h.text}`).join('\n')}`
       : '';
 
-    const prompt = `You are a command router for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / English / mixed. Classify it into exactly one JSON object, no prose, matching this schema:
-{"action":"open_tab"|"customer_lookup"|"generate_receipt"|"unclear","tab"?:string,"customerName"?:string,"reply":string}
+    const prompt = `You are a command router for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / Urdu script / English / mixed. Classify it into exactly one JSON object, no prose, matching this schema:
+{"action":"open_tab"|"customer_lookup"|"generate_receipt"|"set_status"|"summary"|"unclear","tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"reply":string}
 
 Rules:
 - "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
 - "customer_lookup": manager wants to know a specific customer's payment/balance/plan/expiry status. Extract the customer's name/username as written into customerName. If the command refers back to a customer named in the recent conversation below (e.g. "his balance", "uska balance"), use that customer's name.
-- "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName, resolving references from recent conversation the same way.
-- "unclear": command doesn't clearly match any of the above, or no customer name could be extracted for customer_lookup/generate_receipt.
-- "reply": a short (under 15 words) natural confirmation IN ENGLISH of what you understood, to show back to the manager. Always reply in English regardless of what language the command was in.
+- "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName (resolve references from recent conversation the same way). If the manager states an amount (e.g. "1500 ki receipt", "amount 1500 kar do"), put it in amount as a plain number; if they state a note/description, put it in note.
+- "set_status": manager wants to disable/suspend/band a customer (status "suspended") or enable/activate/chalu a customer (status "active"). Extract customerName the same way. Never use this for expiry changes or deletion.
+- "summary": manager asks a count/total question about their customers. metric must be exactly one of: total_customers, active, suspended, expired, expiring_today, total_balance.
+- "unclear": command doesn't clearly match any of the above, or no customer name could be extracted where one is needed.
+- customerName must always be written in Latin/English letters — transliterate it if the command was in Urdu script.
+- "reply": a short (under 15 words) natural confirmation IN ENGLISH of what you understood, to show back to the manager. Always reply in English regardless of what language or script the command was in.
 ${historyBlock}
 
 Command: "${command}"
@@ -230,7 +233,7 @@ Respond with ONLY the JSON object, nothing else.`;
 
     const response = await callGeminiWithFailover({
       contents: prompt,
-      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 220, responseMimeType: 'application/json' },
+      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 260, responseMimeType: 'application/json' },
     }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
 
     let parsed: any = null;
@@ -241,6 +244,19 @@ Respond with ONLY the JSON object, nothing else.`;
     }
     if (parsed.action === 'open_tab' && !COPILOT_VALID_TABS.includes(parsed.tab)) {
       return res.status(200).json({ action: 'unclear', reply: "I couldn't find that tab, please rephrase." });
+    }
+    // Strict output validation — never trust model output for anything that
+    // later drives a money/status change on the client.
+    if (parsed.action === 'generate_receipt') {
+      const amt = Number(parsed.amount);
+      if (parsed.amount !== undefined && (!Number.isFinite(amt) || amt <= 0 || amt > 10000000)) delete parsed.amount; else if (parsed.amount !== undefined) parsed.amount = amt;
+      if (parsed.note !== undefined) parsed.note = String(parsed.note).slice(0, 200);
+    }
+    if (parsed.action === 'set_status' && !['active', 'suspended'].includes(parsed.status)) {
+      return res.status(200).json({ action: 'unclear', reply: "I couldn't tell whether to enable or disable — please rephrase." });
+    }
+    if (parsed.action === 'summary' && !['total_customers','active','suspended','expired','expiring_today','total_balance'].includes(parsed.metric)) {
+      return res.status(200).json({ action: 'unclear', reply: "I couldn't tell which total you want — please rephrase." });
     }
     return res.status(200).json(parsed);
   } catch (error: any) {
@@ -267,7 +283,7 @@ async function handleCopilotTranscribe(req: any, res: any) {
   }
 
   const audioBase64 = String(req.body?.audioBase64 || '');
-  const mimeType = String(req.body?.mimeType || 'audio/m4a').slice(0, 40);
+  const mimeType = String(req.body?.mimeType || 'audio/m4a').split(';')[0].slice(0, 40);
   if (!audioBase64) return res.status(400).json({ error: 'audioBase64 is required' });
 
   try {
@@ -290,7 +306,7 @@ async function handleCopilotTranscribe(req: any, res: any) {
     const groqKey = process.env.GROQ_API_KEY;
     if (!transcript && groqKey) {
       const form = new FormData();
-      form.append('file', new Blob([buf], { type: mimeType }), 'voice.m4a');
+      form.append('file', new Blob([buf], { type: mimeType }), `voice.${mimeType.includes('webm') ? 'webm' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : mimeType.includes('mpeg') ? 'mp3' : mimeType.includes('mp4') ? 'mp4' : 'm4a'}`);
       form.append('model', 'whisper-large-v3-turbo');
       form.append('response_format', 'json');
       const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
