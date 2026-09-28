@@ -201,6 +201,7 @@ async function handleCopilot(req: any, res: any) {
   // like "generate his receipt too" can resolve a pronoun/reference back to a
   // customer named a turn or two earlier. Never fetched from a DB by this
   // endpoint — just whatever the client already has on screen.
+  const receiptFormOpen = req.body?.receiptFormOpen === true;
   const rawHistory = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
   const history = rawHistory
     .map((h: any) => ({ from: h?.from === 'copilot' ? 'assistant' : 'user', text: String(h?.text || '').slice(0, 300) }))
@@ -214,18 +215,20 @@ async function handleCopilot(req: any, res: any) {
       : '';
 
     const prompt = `You are a command router for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / Urdu script / English / mixed. Classify it into exactly one JSON object, no prose, matching this schema:
-{"action":"open_tab"|"customer_lookup"|"generate_receipt"|"set_status"|"summary"|"unclear","tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"reply":string}
+{"action":"open_tab"|"customer_lookup"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"unclear","tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"op"?:"save"|"edit"|"read","reply":string}
 
 Rules:
 - "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
 - "customer_lookup": manager wants to know a specific customer's payment/balance/plan/expiry status. Extract the customer's name/username as written into customerName. If the command refers back to a customer named in the recent conversation below (e.g. "his balance", "uska balance"), use that customer's name.
 - "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName (resolve references from recent conversation the same way). If the manager states an amount (e.g. "1500 ki receipt", "amount 1500 kar do"), put it in amount as a plain number; if they state a note/description, put it in note.
 - "set_status": manager wants to disable/suspend/band a customer (status "suspended") or enable/activate/chalu a customer (status "active"). Extract customerName the same way. Never use this for expiry changes or deletion.
+- "receipt_form": ONLY when the client says a receipt form is open right now (see context line below). The manager is talking about the receipt already on screen: op "save" for save/confirm/generate it ("save kar do", "theek hai save karo", "receipt bana do"); op "edit" to change it ("amount 1500 kar do", "note likho ...") with amount (plain number) and/or note; op "read" to hear what is on the form ("form mein kya hai"). When the form is open and the manager only gives an amount/note change for it, use "edit" — NOT generate_receipt. If the form is NOT open, never use receipt_form ("save kar do" then is "unclear" with reply saying no receipt form is open).
 - "summary": manager asks a count/total question about their customers. metric must be exactly one of: total_customers, active, suspended, expired, expiring_today, total_balance.
 - "unclear": command doesn't clearly match any of the above, or no customer name could be extracted where one is needed.
 - customerName must always be written in Latin/English letters — transliterate it if the command was in Urdu script.
 - "reply": a short (under 15 words) natural confirmation IN ENGLISH of what you understood, to show back to the manager. Always reply in English regardless of what language or script the command was in.
 ${historyBlock}
+Context: the receipt form is ${receiptFormOpen ? 'OPEN' : 'NOT open'} on the manager's screen.
 
 Command: "${command}"
 
@@ -254,6 +257,22 @@ Respond with ONLY the JSON object, nothing else.`;
     }
     if (parsed.action === 'set_status' && !['active', 'suspended'].includes(parsed.status)) {
       return res.status(200).json({ action: 'unclear', reply: "I couldn't tell whether to enable or disable — please rephrase." });
+    }
+    if (parsed.action === 'receipt_form') {
+      if (!receiptFormOpen) {
+        return res.status(200).json({ action: 'unclear', reply: 'No receipt form is open — ask me to prepare a receipt first.' });
+      }
+      if (!['save', 'edit', 'read'].includes(parsed.op)) {
+        return res.status(200).json({ action: 'unclear', reply: "I couldn't tell what to do with the receipt — please rephrase." });
+      }
+      if (parsed.op === 'edit') {
+        const amt = Number(parsed.amount);
+        if (parsed.amount !== undefined && (!Number.isFinite(amt) || amt <= 0 || amt > 10000000)) delete parsed.amount; else if (parsed.amount !== undefined) parsed.amount = amt;
+        if (parsed.note !== undefined) parsed.note = String(parsed.note).slice(0, 200);
+        if (parsed.amount === undefined && parsed.note === undefined) {
+          return res.status(200).json({ action: 'unclear', reply: 'Tell me the new amount or note for the receipt.' });
+        }
+      }
     }
     if (parsed.action === 'summary' && !['total_customers','active','suspended','expired','expiring_today','total_balance'].includes(parsed.metric)) {
       return res.status(200).json({ action: 'unclear', reply: "I couldn't tell which total you want — please rephrase." });
