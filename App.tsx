@@ -2741,13 +2741,26 @@ const App: React.FC = () => {
             });
           }}
           onOpenTab={(tab) => setActiveTab(tab)}
-          onPrepareReceipt={(userId) => {
+          onPrepareReceipt={(userId, opts) => {
             setPreSelectReceiptUser({
               userId,
               month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
               ts: Date.now(),
+              amount: opts?.amount,
+              note: opts?.note,
             });
             setActiveTab('receipts');
+          }}
+          canChangeStatus={userRole !== 'sub-manager'}
+          onSetUserStatus={(userId, status) => {
+            if (userRole === 'sub-manager') return;
+            handleUpdateUser(userId, {
+              status,
+              statusReason: 'Changed via Copilot',
+              statusChangedBy: activeManager || '',
+              statusSource: 'manager',
+              statusChangedAt: new Date().toISOString(),
+            });
           }}
         />
       )}
