@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { copilotReceiptBridge } from '../utils/copilotBridge';
 import html2canvas from 'html2canvas';
 import { UserRecord, Receipt, PaymentMethod, PaymentStatus, AppSettings, ReceiptDesign, SubManagerAccount } from '../types';
 import { generateId } from '../utils/storage';
@@ -728,6 +729,36 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       setLoadingMessage(null);
     }
   };
+
+  // ── Copilot bridge: lets the Copilot read/edit/save THIS open form (review-then-save).
+  // Save runs the same generateReceipt the on-screen button runs — no separate save path.
+  const genRef = useRef(generateReceipt);
+  genRef.current = generateReceipt;
+  const formRef = useRef({ selectedUserId, amountPaid, description, isGenerating, editingReceiptId, users, autoSend: settings.autoSendPaymentConfirmation ?? true });
+  formRef.current = { selectedUserId, amountPaid, description, isGenerating, editingReceiptId, users, autoSend: settings.autoSendPaymentConfirmation ?? true };
+  useEffect(() => {
+    if (viewMode !== 'create') return;
+    return copilotReceiptBridge.register((cmd) => {
+      const f = formRef.current;
+      const user = f.users.find(u => u.id === f.selectedUserId);
+      if (!user) return { ok: false, message: 'No customer is selected on the receipt form.' };
+      if (f.editingReceiptId) return { ok: false, message: "An existing receipt is being edited — I can't save that by command. Please use the form." };
+      const summary = () => `${user.name} — Rs.${formRef.current.amountPaid}${formRef.current.description ? `, note: "${formRef.current.description}"` : ''}`;
+      if (cmd.type === 'read') return { ok: true, message: `On the form: ${summary()}. Say "save" to save it.` };
+      if (cmd.type === 'edit') {
+        if (cmd.amount === undefined && cmd.note === undefined) return { ok: false, message: 'Tell me the new amount or note.' };
+        if (cmd.amount !== undefined) { formRef.current.amountPaid = cmd.amount; setAmountPaid(cmd.amount); }
+        if (cmd.note !== undefined) { formRef.current.description = cmd.note; setDescription(cmd.note); }
+        return { ok: true, message: `Updated the form: ${summary()}. Say "save" when ready.` };
+      }
+      // save
+      if (f.isGenerating) return { ok: false, message: 'A receipt is already being saved — please wait.' };
+      if (!(f.amountPaid > 0)) return { ok: false, message: 'The amount is 0 — tell me the amount first.' };
+      const line = summary();
+      genRef.current();
+      return { ok: true, message: `Saving receipt: ${line}. It will download shortly${f.autoSend ? ' and the payment confirmation goes to the customer on WhatsApp' : ''}.` };
+    });
+  }, [viewMode]);
 
   const handleViewReceipt = (receipt: Receipt) => {
     setActiveReceipt(receipt);
