@@ -928,6 +928,7 @@ function getRelevantUpdate(rowData: any, incomingText: string, customer?: any, o
     severity: log?.severity, connectionType: log?.connectionType, areasAffected: log?.areasAffected, targetAreas: log?.targetAreas,
     triggerKeywords: log?.triggerKeywords, cause: log?.cause,
     estimatedResolution: log?.estimatedResolution, customerMessage: log?.customerMessage,
+    exactCustomerMessage: log?.exactCustomerMessage, description: log?.description,
   })).join('|');
   const cached = _outageStatusCache[cacheKey];
   const cacheFresh = !!cached && (Date.now() - cached.ts) < OUTAGE_STATUS_CACHE_TTL_MS && cached.fingerprint === fingerprint;
@@ -2703,7 +2704,20 @@ ETA: ${String(outage.estimatedResolution || 'N/A').slice(0, 120)}`;
   return fallback;
 }
 
+// Manager chose "send my message exactly as written": customers get the
+// manager's own text verbatim (customerMessage, else description). No template,
+// no AI rewrite, no Hindi-word sanitising, no fiber/load-shedding add-ons, and
+// it also wins over the backend-provider template. Returns null when the mode
+// is off or there's no text (then the normal flow runs).
+function exactOutageText(outage: any): string | null {
+  if (outage?.exactCustomerMessage !== true) return null;
+  const text = String(outage.customerMessage || outage.description || '').trim();
+  return text ? text.slice(0, 1500) : null;
+}
+
 async function outageReply(outage: any, botName: string = 'NetBot'): Promise<string> {
+  const exact = exactOutageText(outage);
+  if (exact) return exact;
   const kind = outage.kind || 'incident';
   // Local (wire/UTP) scoped outages get two extra notes appended after the core
   // update, regardless of whether the reply came from the AI rewrite or the
@@ -2748,6 +2762,8 @@ async function outageReply(outage: any, botName: string = 'NetBot'): Promise<str
 }
 
 function outageReminderReply(outage: any, user: any, reminderCount: number): string {
+  const exact = exactOutageText(outage);
+  if (exact) return exact;
   const fields = outageFields(outage);
   const key = reminderCount % 2 === 0 ? 'outage_reminder_reply' : 'outage_reminder_reply_alt';
   return tmpl(key, {
