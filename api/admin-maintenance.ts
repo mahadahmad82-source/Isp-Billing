@@ -234,13 +234,48 @@ Command: "${command}"
 
 Respond with ONLY the JSON object, nothing else.`;
 
-    const response = await callGeminiWithFailover({
-      contents: prompt,
-      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 260, responseMimeType: 'application/json' },
-    }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
-
     let parsed: any = null;
-    try { parsed = JSON.parse(String(response?.text || '').trim()); } catch { parsed = null; }
+    try {
+      const response = await callGeminiWithFailover({
+        contents: prompt,
+        config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 260, responseMimeType: 'application/json' },
+      }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
+      try { parsed = JSON.parse(String(response?.text || '').trim()); } catch { parsed = null; }
+    } catch (geminiErr: any) {
+      // Gemini's free tier is a hard 20 requests/day PER KEY PER MODEL, shared
+      // across this endpoint AND the WhatsApp bot's own Gemini calls in
+      // webhook.ts -- it runs out most days well before the manager even
+      // opens Copilot. Fall through to Groq rather than surfacing "AI is not
+      // available" for something that's really just Gemini being throttled.
+      console.warn('[copilot] Gemini classify failed, trying Groq:', geminiErr?.message);
+    }
+
+    if (!parsed) {
+      const groqKey = process.env.GROQ_API_KEY;
+      if (groqKey) {
+        try {
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [{ role: 'user', content: prompt }],
+              temperature: 0,
+              max_tokens: 300,
+              response_format: { type: 'json_object' },
+            }),
+          });
+          if (groqRes.ok) {
+            const data: any = await groqRes.json();
+            try { parsed = JSON.parse(String(data?.choices?.[0]?.message?.content || '').trim()); } catch { parsed = null; }
+          } else {
+            console.error('[copilot] Groq classify failed:', groqRes.status, await groqRes.text());
+          }
+        } catch (groqErr: any) {
+          console.error('[copilot] Groq classify exception:', groqErr?.message);
+        }
+      }
+    }
 
     if (!parsed || typeof parsed !== 'object' || !parsed.action) {
       return res.status(200).json(FALLBACK);
@@ -328,6 +363,7 @@ async function handleCopilotTranscribe(req: any, res: any) {
       form.append('file', new Blob([buf], { type: mimeType }), `voice.${mimeType.includes('webm') ? 'webm' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : mimeType.includes('mpeg') ? 'mp3' : mimeType.includes('mp4') ? 'mp4' : 'm4a'}`);
       form.append('model', 'whisper-large-v3-turbo');
       form.append('response_format', 'json');
+      form.append('prompt', 'ISP billing manager voice command, Roman Urdu and English mixed. Examples: customer ka balance batao, Ali ki receipt 1500 ki banao, connection disable karo, recovery ledger kholo, expiring customers dikhao.');
       const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${groqKey}` },
