@@ -16,7 +16,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { AwsClient } from 'aws4fetch';
 import { encryptToken, decryptToken } from '../lib/whatsappCrypto.js';
-import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS } from '../lib/geminiFailover.js';
+import { callGeminiWithFailover, GEMINI_FALLBACK_MODELS, getCopilotGeminiKeys } from '../lib/geminiFailover.js';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -239,7 +239,7 @@ Respond with ONLY the JSON object, nothing else.`;
       const response = await callGeminiWithFailover({
         contents: prompt,
         config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 260, responseMimeType: 'application/json' },
-      }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS]);
+      }, ['gemini-3.5-flash', ...GEMINI_FALLBACK_MODELS], { dedicatedKeys: getCopilotGeminiKeys() });
       try { parsed = JSON.parse(String(response?.text || '').trim()); } catch { parsed = null; }
     } catch (geminiErr: any) {
       // Gemini's free tier is a hard 20 requests/day PER KEY PER MODEL, shared
@@ -351,7 +351,7 @@ async function handleCopilotTranscribe(req: any, res: any) {
       const response = await callGeminiWithFailover({
         contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: buf.toString('base64') } }, { text: prompt }] }],
         config: { temperature: 0, maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } },
-      }, GEMINI_FALLBACK_MODELS as any);
+      }, GEMINI_FALLBACK_MODELS as any, { dedicatedKeys: getCopilotGeminiKeys() });
       transcript = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || response?.text?.trim() || null;
     } catch (e: any) {
       console.error('[copilot-transcribe] Gemini failed:', e?.message);
