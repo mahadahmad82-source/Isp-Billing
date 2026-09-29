@@ -52,6 +52,23 @@ function getApiKeys(): string[] {
 }
 
 /**
+ * Dedicated keys for the manager Copilot (COPILOT_GEMINI_API_KEY, plus
+ * COPILOT_GEMINI_API_KEY_1..3 if more are ever needed). Free-tier Gemini quota
+ * is per key, and the WhatsApp bot burns through the shared GEMINI_API_KEY*
+ * keys all day, so Copilot gets its own. Empty array = not configured, callers
+ * then fall back to the shared keys as before.
+ */
+export function getCopilotGeminiKeys(): string[] {
+  const keys: string[] = [];
+  if (process.env.COPILOT_GEMINI_API_KEY) keys.push(process.env.COPILOT_GEMINI_API_KEY);
+  for (let i = 1; i <= 3; i++) {
+    const key = process.env[`COPILOT_GEMINI_API_KEY_${i}`];
+    if (key) keys.push(key);
+  }
+  return Array.from(new Set(keys));
+}
+
+/**
  * Classifies whether an error is worth retrying against the next
  * model/key, or is a fatal problem with the request itself (bad input)
  * that will fail identically no matter which key or model handles it.
@@ -84,9 +101,12 @@ function isRetryableError(error: any): boolean {
  */
 export async function callGeminiWithFailover(
   request: GeminiRequest,
-  overrideModels?: GeminiModel[]
+  overrideModels?: GeminiModel[],
+  options?: { dedicatedKeys?: string[] }
 ): Promise<any> {
-  const keys = getApiKeys();
+  // dedicatedKeys (e.g. Copilot's own) are used exclusively when provided, so a
+  // feature with its own key never drains the shared keys the WhatsApp bot needs.
+  const keys = options?.dedicatedKeys && options.dedicatedKeys.length > 0 ? options.dedicatedKeys : getApiKeys();
   // Dedupe while preserving order — some callers prepend an override model that is
   // already in GEMINI_FALLBACK_MODELS (e.g. ['gemini-1.5-flash', ...GEMINI_FALLBACK_MODELS]),
   // which used to make the engine try the same model twice per key.
