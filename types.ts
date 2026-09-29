@@ -560,6 +560,10 @@ export interface OutageLog {
   // and make clear the issue isn't MahadNet's local infrastructure.
   backendProvider?: string;
   customerMessage?: string;
+  // When true, NetBot sends the manager's OWN text to customers word-for-word
+  // (customerMessage if filled, else description) instead of the built-in
+  // template / AI rewrite. Overrides every template incl. backend + local notes.
+  exactCustomerMessage?: boolean;
   notifyBot?: boolean;
   affectedCount?: number;
   updatedAt?: string;
