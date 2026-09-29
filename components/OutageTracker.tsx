@@ -50,7 +50,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
   const isDark = useIsDark();
   const [view, setView] = useState<'list' | 'add' | 'detail'>('list');
   const [detail, setDetail] = useState<OutageLog | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, connectionType: 'all' as OutageConnectionScope, areasAffected: '', cause: '', estimatedResolution: '', backendProvider: '', customerMessage: '', affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
+  const [form, setForm] = useState({ title: '', description: '', incidentType: 'outage' as OutageIncidentType, severity: 'full' as OutageSeverity, connectionType: 'all' as OutageConnectionScope, areasAffected: '', cause: '', estimatedResolution: '', backendProvider: '', customerMessage: '', exactCustomerMessage: false, affectedCount: '', startTime: nowLocal(), expiryHours: '2', notifyBot: true });
   const [resolveNote, setResolveNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string|null>(null);
   const [toast, setToast] = useState<string|null>(null);
@@ -70,6 +70,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
 
   const handleAdd = () => {
     if (!form.title.trim()) { showToast('Title is required.'); return; }
+    if (form.exactCustomerMessage && !form.customerMessage.trim() && !form.description.trim()) { showToast('Exact message on hai — Customer Update ya Description mein message likhein.'); return; }
     const startMs = new Date(form.startTime).getTime();
     const expiryHours = Number(form.expiryHours);
     const expiresAt = Number.isFinite(startMs) && Number.isFinite(expiryHours) && expiryHours > 0
@@ -87,6 +88,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       estimatedResolution: form.estimatedResolution.trim() || undefined,
       backendProvider: form.incidentType === 'backend' ? (form.backendProvider.trim() || undefined) : undefined,
       customerMessage: form.customerMessage.trim() || undefined,
+      exactCustomerMessage: form.exactCustomerMessage || undefined,
       notifyBot: form.notifyBot,
       affectedCount: form.affectedCount ? Number(form.affectedCount) : undefined,
       startTime: new Date(form.startTime).toISOString(),
@@ -95,7 +97,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
       createdBy: currentUser,
     };
     onAdd(log);
-    setForm({ title:'', description:'', incidentType:'outage', severity:'full', connectionType:'all', areasAffected:'', cause:'', estimatedResolution:'', backendProvider:'', customerMessage:'', affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
+    setForm({ title:'', description:'', incidentType:'outage', severity:'full', connectionType:'all', areasAffected:'', cause:'', estimatedResolution:'', backendProvider:'', customerMessage:'', exactCustomerMessage:false, affectedCount:'', startTime: nowLocal(), expiryHours:'2', notifyBot:true });
     showToast('Outage logged!');
     setView('list');
   };
@@ -212,6 +214,11 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             placeholder="Customer ko jo exact Roman Urdu update dena ho..."
             className={`w-full ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-slate-200'} rounded-2xl px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'} text-sm focus:outline-none focus:border-red-500 resize-none`}/>
         </div>
+
+        <label className={`flex items-center gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'} border rounded-2xl px-4 py-3 text-sm`}>
+          <input type="checkbox" checked={form.exactCustomerMessage} onChange={e => setForm(p=>({...p,exactCustomerMessage:e.target.checked}))} className="w-4 h-4 accent-red-600" />
+          <span><strong>Send my message exactly as written</strong><span className={`block text-xs mt-0.5 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>On: NetBot customers ko aap ka apna message (Customer Update, khali ho to Description) bilkul waisa hi bhejega — template ya AI rewrite nahi.</span></span>
+        </label>
 
         <label className={`flex items-center gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'} border rounded-2xl px-4 py-3 text-sm`}>
           <input type="checkbox" checked={form.notifyBot} onChange={e => setForm(p=>({...p,notifyBot:e.target.checked}))} className="w-4 h-4 accent-red-600" />
@@ -331,6 +338,7 @@ const OutageTracker: React.FC<Props> = ({ outageLogs, currentUser, totalUsers, o
             )}
           </div>
           {detail.description && <p className={`mt-3 text-sm ${isDark ? 'text-white/60' : 'text-slate-500'} ${isDark ? 'bg-white/5' : 'bg-white'} rounded-xl p-3`}>{detail.description}</p>}
+          {detail.exactCustomerMessage && <p className={`mt-3 text-xs font-bold uppercase tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>NetBot sends your message exactly as written</p>}
           {detail.customerMessage && <div className={`mt-3 text-sm ${isDark ? 'text-emerald-200 bg-emerald-500/10' : 'text-emerald-800 bg-emerald-50'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Customer Message</p>{detail.customerMessage}</div>}
           {detail.resolutionNote && <div className={`mt-3 text-sm ${isDark ? 'text-white/60 bg-white/5' : 'text-slate-500 bg-white'} rounded-xl p-3`}><p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Resolution Note</p>{detail.resolutionNote}</div>}
         </div>
