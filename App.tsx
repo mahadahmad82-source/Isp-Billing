@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey } from './types';
+import { AppState, UserRecord, Receipt, AppSettings, DefaultPlanPricing, ReceiptDesign, AppNotification, Archive, PaymentStatus, SubManagerAccount, AttendanceLog, ComplaintTicket, TeamMessage, BusinessExpense, SystemLog, EquipmentRecord, LeadRecord, PlanChange, AccessRights, ModuleKey, CopilotLogEntry } from './types';
 import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, generateId, saveAccount, removeAccount } from './utils/storage';
 import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById, getRemoteUpdatedAt } from './utils/supabaseSync';
@@ -18,6 +17,7 @@ import Expiries from './components/Expiries';
 import Settings from './components/Settings';
 import RecoverySummary from './components/RecoverySummary';
 import CopilotBar from './components/CopilotBar';
+import CopilotTab from './components/CopilotTab';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import SystemLogs from './components/SystemLogs';
@@ -40,7 +40,6 @@ import BulkReminder from './components/BulkReminder';
 import MessageTemplatesTab from './components/MessageTemplatesTab';
 
 import MonthlyInvoice from './components/MonthlyInvoice';
-import WABotInbox from './components/WABotInbox';
 import WABotStandalone from './components/WABotStandalone';
 import CustomerPortal from './components/CustomerPortal';
 import LandingPage from './components/LandingPage';
@@ -139,7 +138,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -154,7 +153,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','wabot','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -1154,6 +1153,59 @@ const App: React.FC = () => {
     }, 800);
   };
 
+  // ── Shared Copilot wiring ──────────────────────────────────────────────
+  // The floating CopilotBar widget and the full-screen Copilot tab share the
+  // same history, actions and dual-save behavior so the two stay in sync.
+  const handleCopilotHistoryChange = (log: CopilotLogEntry[]) => {
+    setState(prev => {
+      const next = { ...prev, copilotHistory: log };
+      saveState(next);
+      saveStateToSupabase(prev.currentManager || activeManager || '', next);
+      return next;
+    });
+  };
+  const handleCopilotOpenTab = (tab: string) => setActiveTab(tab);
+  const handleCopilotPrepareReceipt = (userId: string, opts?: { amount?: number; note?: string }) => {
+    setPreSelectReceiptUser({
+      userId,
+      month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+      ts: Date.now(),
+      amount: opts?.amount,
+      note: opts?.note,
+    });
+    setActiveTab('receipts');
+  };
+  const handleCopilotSetUserStatus = (userId: string, status: 'active' | 'suspended') => {
+    if (userRole === 'sub-manager') return;
+    handleUpdateUser(userId, {
+      status,
+      statusReason: 'Changed via Copilot',
+      statusChangedBy: activeManager || '',
+      statusSource: 'manager',
+      statusChangedAt: new Date().toISOString(),
+    });
+  };
+  // Dual-saved closed state for the floating widget (Task 1 restore paths:
+  // opening the Copilot tab or the Settings toggle sets this back to false).
+  const handleCopilotWidgetClosedChange = (closed: boolean) => {
+    setState(prev => {
+      if (!!prev.copilotWidgetClosed === closed) return prev;
+      const next = { ...prev, copilotWidgetClosed: closed };
+      saveState(next);
+      saveStateToSupabase(prev.currentManager || activeManager || '', next);
+      return next;
+    });
+  };
+
+  // Opening the Copilot tab restores the floating widget (hidden while the
+  // tab is open, then shown again when the user navigates away).
+  useEffect(() => {
+    if (activeTab === 'reports' && state.copilotWidgetClosed) {
+      handleCopilotWidgetClosedChange(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   const handleAddUser = (user: UserRecord) => {
     setLoadingMessage("Adding Customer...");
     setTimeout(() => {
@@ -2091,8 +2143,18 @@ const App: React.FC = () => {
               onClearLogs={() => setState(prev => ({ ...prev, systemLogs: [] }))}
             />
           )}
-          {!tabLoading && activeTab === 'reports' && <Insights users={filteredUsers} receipts={filteredReceipts} expenses={state.businessExpenses || []} settings={currentSettings} />}
-          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} />}
+          {!tabLoading && activeTab === 'reports' && (
+            <CopilotTab
+              users={state.users || filteredUsers}
+              history={state.copilotHistory}
+              onHistoryChange={handleCopilotHistoryChange}
+              onOpenTab={handleCopilotOpenTab}
+              onPrepareReceipt={handleCopilotPrepareReceipt}
+              canChangeStatus={userRole !== 'sub-manager'}
+              onSetUserStatus={handleCopilotSetUserStatus}
+            />
+          )}
+          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} copilotWidgetVisible={!state.copilotWidgetClosed} onToggleCopilotWidget={(visible) => handleCopilotWidgetClosedChange(!visible)} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
           {!tabLoading && activeTab === 'complaints' && userRole !== 'sub-manager' && (
             <ComplaintManager
@@ -2204,12 +2266,24 @@ const App: React.FC = () => {
           )}
           {!tabLoading && activeTab === 'analytics' && userRole !== 'sub-manager' && (
             canAccessFeature(subscription, 'analytics') ? (
-              <BusinessAnalytics
-                users={filteredUsers}
-                receipts={filteredReceipts}
-                expenses={state.businessExpenses || []}
-                settings={currentSettings}
-              />
+              <>
+                <BusinessAnalytics
+                  users={filteredUsers}
+                  receipts={filteredReceipts}
+                  expenses={state.businessExpenses || []}
+                  settings={currentSettings}
+                />
+                {/* Financial sections moved here from the old AI Insights tab (Task 3) —
+                    same component, same data selectors, identical numbers. */}
+                <div className="mt-6 md:mt-10">
+                  <Insights
+                    users={filteredUsers}
+                    receipts={filteredReceipts}
+                    expenses={state.businessExpenses || []}
+                    settings={currentSettings}
+                  />
+                </div>
+              </>
             ) : (
               <UpgradeGate sub={subscription} feature="analytics" featureName="Business Analytics" />
             )
@@ -2417,29 +2491,6 @@ const App: React.FC = () => {
               receipts={filteredReceipts}
               settings={currentSettings}
               planHistory={state.planHistory || []}
-            />
-          )}
-          {!tabLoading && activeTab === 'wabot' && userRole !== 'sub-manager' && (
-            <WABotInbox
-              managerId={activeManager || 'mahadnet'}
-              customers={filteredUsers}
-              onOpenReceiptGenerator={() => setActiveTab('receipts')}
-              botName={currentSettings.ayeshaBotName}
-              onUpdateBotName={(name) => handleUpdateSettings({ ...currentSettings, ayeshaBotName: name })}
-              routerCatalog={currentSettings.routerCatalog}
-              onUpdateRouterCatalog={(catalog) => handleUpdateSettings({ ...currentSettings, routerCatalog: catalog })}
-              botTemplates={currentSettings.botTemplates}
-              onUpdateBotTemplates={(templates) => handleUpdateSettings({ ...currentSettings, botTemplates: templates })}
-              ttsVoice={currentSettings.ttsVoice}
-              onUpdateTtsVoice={(voice) => handleUpdateSettings({ ...currentSettings, ttsVoice: voice })}
-              wabotAgents={currentSettings.wabotAgents}
-              onUpdateWabotAgents={(agents) => handleUpdateSettings({ ...currentSettings, wabotAgents: agents })}
-              botPersonaNotes={currentSettings.botPersonaNotes}
-              onUpdateBotPersonaNotes={(notes) => handleUpdateSettings({ ...currentSettings, botPersonaNotes: notes })}
-              botBehaviorRules={currentSettings.botBehaviorRules}
-              onUpdateBotBehaviorRules={(rules) => handleUpdateSettings({ ...currentSettings, botBehaviorRules: rules })}
-              theme={state.theme || 'light'}
-              onToggleTheme={handleToggleTheme}
             />
           )}
           {!tabLoading && activeTab === 'team' && userRole !== 'sub-manager' && (
@@ -2728,40 +2779,17 @@ const App: React.FC = () => {
         </button>
       )}
 
-      {activeManager && activeManager !== 'admin' && (
+      {activeManager && activeManager !== 'admin' && activeTab !== 'reports' && (
         <CopilotBar
           users={state.users || filteredUsers}
           history={state.copilotHistory}
-          onHistoryChange={(log) => {
-            setState(prev => {
-              const next = { ...prev, copilotHistory: log };
-              saveState(next);
-              saveStateToSupabase(prev.currentManager || activeManager || '', next);
-              return next;
-            });
-          }}
-          onOpenTab={(tab) => setActiveTab(tab)}
-          onPrepareReceipt={(userId, opts) => {
-            setPreSelectReceiptUser({
-              userId,
-              month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
-              ts: Date.now(),
-              amount: opts?.amount,
-              note: opts?.note,
-            });
-            setActiveTab('receipts');
-          }}
+          onHistoryChange={handleCopilotHistoryChange}
+          onOpenTab={handleCopilotOpenTab}
+          onPrepareReceipt={handleCopilotPrepareReceipt}
           canChangeStatus={userRole !== 'sub-manager'}
-          onSetUserStatus={(userId, status) => {
-            if (userRole === 'sub-manager') return;
-            handleUpdateUser(userId, {
-              status,
-              statusReason: 'Changed via Copilot',
-              statusChangedBy: activeManager || '',
-              statusSource: 'manager',
-              statusChangedAt: new Date().toISOString(),
-            });
-          }}
+          onSetUserStatus={handleCopilotSetUserStatus}
+          widgetClosed={state.copilotWidgetClosed}
+          onWidgetClosedChange={handleCopilotWidgetClosedChange}
         />
       )}
 
