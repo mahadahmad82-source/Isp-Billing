@@ -347,7 +347,7 @@ export type ModuleKey =
   | 'dashboard' | 'users' | 'receipts' | 'recoveries' | 'expiries'
   | 'reports' | 'systemlogs' | 'settings' | 'team' | 'expenses'
   | 'analytics' | 'outage' | 'area' | 'equipment' | 'leads'
-  | 'reminders' | 'templates' | 'payment-verify';
+  | 'reminders' | 'templates' | 'wabot' | 'payment-verify';
 
 export interface AccessRights {
   view: boolean;
@@ -363,7 +363,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   systemlogs: 'Sys Logs', settings: 'Settings', team: 'Team Hub',
   expenses: 'Expenses', analytics: 'Analytics', outage: 'Outage',
   area: 'Area', equipment: 'Equipment', leads: 'Leads',
-  reminders: 'Reminders', templates: 'Message Templates',
+  reminders: 'Reminders', templates: 'Message Templates', wabot: 'WABot',
   'payment-verify': 'Payment Verifications',
 };
 

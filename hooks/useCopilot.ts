@@ -119,6 +119,15 @@ export function useCopilot({ users, onOpenTab, onPrepareReceipt, onSetUserStatus
     }
   }, [history]);
 
+  // Keep this instance in sync when ANOTHER Copilot instance (floating widget
+  // vs. Copilot tab) appended newer turns. Only adopt a strictly newer history
+  // (last timestamp) so this instance's own in-flight appends never roll back.
+  useEffect(() => {
+    if (!history || history.length === 0) return;
+    const lastTs = (l: CopilotLogEntry[]) => (l.length ? l[l.length - 1].ts || 0 : 0);
+    setLog(prev => (lastTs(history) > lastTs(prev) ? history : prev));
+  }, [history]);
+
   useEffect(() => () => {
     recRef.current?.stop();
     try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
