@@ -1093,7 +1093,9 @@ const App: React.FC = () => {
   }, [activeManager, handleLogout]);
 
   useEffect(() => {
-    if (!activeManager) return;
+    // NetBot Web stays signed in like WhatsApp Web — no 15-min inactivity
+    // logout there (manager app behavior below is unchanged).
+    if (!activeManager || isNetBotWeb()) return;
     const checkInactivity = () => {
       if (Date.now() - lastActivityRef.current > INACTIVITY_LIMIT) {
         handleLogout();
