@@ -78,6 +78,21 @@ const getDeviceId = (): string => {
   } catch { return 'unknown-device'; }
 };
 
+// NetBot Web standalone surface: the /wabot route or the wabot./netbot.
+// hostnames. Single-device session enforcement must NOT apply here —
+// NetBot Web allows multiple simultaneous logins (several browsers/devices,
+// QR + password together), so this page never claims the device session and
+// never force-logs-out when another device logs in. The manager app's
+// overwrite-protection is untouched: it runs only when this returns false.
+export const isNetBotWeb = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.pathname.replace(/\/+$/, '') === '/wabot' ||
+    window.location.hostname.startsWith('wabot.') ||
+    window.location.hostname.startsWith('netbot.')
+  );
+};
+
 const App: React.FC = () => {
   const [activeManager, setActiveManager] = useState<string | null>(getActiveSession());
   // Real-auth sub-manager duty status lives in the real `sub_managers` table
@@ -1052,6 +1067,10 @@ const App: React.FC = () => {
     const deviceId = getDeviceId();
     const checkDevice = () => {
       supabase.rpc('heartbeat_manager_session', { p_username: activeManager }).then(() => {});
+      // NetBot Web exemption: multiple simultaneous logins are allowed here,
+      // so never run the single-device ownership check / forced logout on
+      // this surface. The manager app path below is unchanged.
+      if (isNetBotWeb()) return;
       supabase.rpc('check_device_session', { p_username: activeManager, p_device_id: deviceId })
         .then(({ data, error }) => {
           if (error) return; // network/RPC issue — don't force logout on a hiccup
@@ -1777,11 +1796,7 @@ const App: React.FC = () => {
   // wabot.billcollector.online, netbot.billcollector.online) so those subdomains
   // behave like the old standalone myisp-bot.vercel.app project did — no need to
   // append /wabot manually there.
-  if (typeof window !== 'undefined' && (
-    window.location.pathname.replace(/\/+$/, '') === '/wabot' ||
-    window.location.hostname.startsWith('wabot.') ||
-    window.location.hostname.startsWith('netbot.')
-  )) {
+  if (typeof window !== 'undefined' && isNetBotWeb()) {
     return (
       <ErrorBoundary>
         <WABotStandalone />
