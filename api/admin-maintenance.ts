@@ -175,7 +175,7 @@ async function handleAiInsights(req: any, res: any) {
 }
 
 const COPILOT_VALID_TABS = [
-  'dashboard','users','receipts','recoveries','expiries','team','settings','wabot',
+  'dashboard','users','receipts','recoveries','expiries','team','settings',
   'reports','analytics','area','communication','complaints','dealer-sales','equipment',
   'expenses','invoice','leads','outage','payment-verify','reminders','systemlogs','templates'
 ];

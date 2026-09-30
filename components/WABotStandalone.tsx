@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { AppState, RouterCatalog, BotTemplate } from '../types';
+import { AppState, RouterCatalog, BotTemplate, CopilotLogEntry } from '../types';
 import { getAccounts, getActiveSession, loadState, saveAccount, saveState, setActiveSession } from '../utils/storage';
 import { saveStateToSupabase, smartLoadAndSync } from '../utils/supabaseSync';
 import { subscribeToPush } from '../lib/pushNotifications';
@@ -96,7 +96,7 @@ export default function WABotStandalone() {
         if (account?.role === 'sub-manager' && account.managerUsername) {
           const allowed = await checkWabotAccess(account.managerUsername, account.username);
           if (!allowed) {
-            setErrorMsg('Aapko WABot access nahi diya gaya. Apne manager se rabta karein.');
+            setErrorMsg('You have not been given WABot access. Please contact your manager.');
             setPhase('error');
             return;
           }
@@ -107,7 +107,7 @@ export default function WABotStandalone() {
         subscribeToPush(username, 'wabot').catch(() => {});
       } catch (e: any) {
         console.error('[WABotStandalone load]', e?.message);
-        setErrorMsg('Data load nahi ho saka. Dobara try karein.');
+        setErrorMsg('Could not load data. Please try again.');
         setPhase('error');
       }
     })();
@@ -250,7 +250,7 @@ export default function WABotStandalone() {
         }
       }
       if (authError || !data?.user) {
-        setLoginError('Username ya password ghalat hai.');
+        setLoginError('Incorrect username or password.');
         return;
       }
       const loginUsername = typed.includes('@') ? typed.split('@')[0] : typed;
@@ -258,7 +258,7 @@ export default function WABotStandalone() {
       setUsername(loginUsername);
       setPhase('loading');
     } catch (err: any) {
-      setLoginError('Login mein masla aaya. Dobara try karein.');
+      setLoginError('Something went wrong during login. Please try again.');
     } finally {
       setLoggingIn(false);
     }
@@ -320,11 +320,11 @@ export default function WABotStandalone() {
               <div className="flex-1 w-full flex flex-col gap-5">
                 <h1 className="text-2xl font-black text-slate-900">Scan to log in</h1>
                 <ol className="space-y-4">
-                  <StepRow n={1}>NetBot Android app kholein</StepRow>
+                  <StepRow n={1}>Open the NetBot Android app</StepRow>
                   <StepRow n={2}>
-                    Settings mein jaake <span className="font-bold text-slate-800">Link a Device</span> par tap karein
+                    Go to Settings and tap <span className="font-bold text-slate-800">Link a Device</span>
                   </StepRow>
-                  <StepRow n={3}>Apne phone se is QR code ko point karke scan karein</StepRow>
+                  <StepRow n={3}>Point your phone at this QR code to scan it</StepRow>
                 </ol>
                 {loginError && <p className="text-rose-500 text-xs">{loginError}</p>}
                 <button
@@ -332,7 +332,7 @@ export default function WABotStandalone() {
                   onClick={() => setLoginMode('password')}
                   className="text-sm text-[#00A884] font-semibold self-start"
                 >
-                  Username &amp; password se login karein
+                  Log in with username &amp; password
                 </button>
               </div>
 
@@ -350,20 +350,20 @@ export default function WABotStandalone() {
                   {qrStatus === 'loading' && (
                     <div className="flex flex-col items-center gap-2.5">
                       <div className="w-6 h-6 border-2 border-[#00A884]/25 border-t-[#00A884] rounded-full animate-spin" />
-                      <p className="text-xs text-slate-400">QR ban raha hai…</p>
+                      <p className="text-xs text-slate-400">Generating QR…</p>
                     </div>
                   )}
                   {(qrStatus === 'expired' || qrStatus === 'error') && (
                     <div className="absolute inset-0 bg-white flex flex-col items-center justify-center gap-3 px-4 text-center">
                       <p className="text-xs text-rose-500 font-semibold">
-                        {qrStatus === 'expired' ? 'QR expire ho gaya' : 'Masla aa gaya'}
+                        {qrStatus === 'expired' ? 'QR code expired' : 'Something went wrong'}
                       </p>
                       <button
                         type="button"
                         onClick={() => setQrRegenKey(k => k + 1)}
                         className="text-xs bg-[#00A884] hover:bg-[#008069] text-white px-3.5 py-2 rounded-lg font-semibold active:scale-95 transition-all"
                       >
-                        Dobara try karein
+                        Try again
                       </button>
                     </div>
                   )}
@@ -407,7 +407,7 @@ export default function WABotStandalone() {
                 onClick={() => { setLoginError(''); setQrRegenKey(k => k + 1); setLoginMode('qr'); }}
                 className="text-xs text-[#00A884] font-medium"
               >
-                QR code se login karein
+                Log in with QR code
               </button>
             </div>
           )}
@@ -563,6 +563,18 @@ export default function WABotStandalone() {
     });
   };
 
+  // Copilot chat history — dual-saved (local + Supabase) like the rest of
+  // AppState, mirroring the manager App.tsx wiring.
+  const handleCopilotHistoryChange = (log: CopilotLogEntry[]) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const next: AppState = { ...prev, copilotHistory: log };
+      saveState(next);
+      if (username) saveStateToSupabase(username, next);
+      return next;
+    });
+  };
+
   // state.currentManager is always set by loadState()/smartLoadAndSync() (see)
   // utils/storage.ts, utils/supabaseSync.ts) — username is the login-time
   // fallback for the rare frame before that lands. Never fall back further
@@ -573,7 +585,7 @@ export default function WABotStandalone() {
     return (
       <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden">
         <Avatar size={64} />
-        <p className="text-slate-500 text-sm">Session mein masla aa gaya — dobara login karein.</p>
+        <p className="text-slate-500 text-sm">There was a problem with the session — please log in again.</p>
         <button
           onClick={handleLogout}
           className="bg-[#00A884] hover:bg-[#008069] text-white px-5 py-2.5 rounded-full text-sm font-semibold"
@@ -619,6 +631,8 @@ export default function WABotStandalone() {
             });
           }}
           onLogout={handleLogout}
+          copilotHistory={state.copilotHistory}
+          onCopilotHistoryChange={handleCopilotHistoryChange}
         />
       </div>
     </div>

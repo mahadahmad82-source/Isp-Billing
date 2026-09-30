@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, sendPushNotification } from '../lib/pushNotifications';
 import { AppSettings, ReceiptDesign, AppState, UserRecord, ManagerAccount, DefaultPlanPricing, Receipt } from '../types';
@@ -18,9 +17,12 @@ interface SettingsProps {
   activeManager: string;
   onReplayWelcomeTour?: () => void;
   onResetFeatureTips?: () => void;
+  /** Floating Copilot widget visibility (restore path for the drag-to-close widget). */
+  copilotWidgetVisible?: boolean;
+  onToggleCopilotWidget?: (visible: boolean) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager, onReplayWelcomeTour, onResetFeatureTips }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager, onReplayWelcomeTour, onResetFeatureTips, copilotWidgetVisible = true, onToggleCopilotWidget }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
@@ -811,6 +813,27 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                   </div>
                 </div>
              </div>
+            </div>
+
+            {/* Floating Copilot widget visibility */}
+            <div className="pt-6 border-t border-slate-100 dark:border-white/5">
+              <div className="flex items-center justify-between bg-slate-50 dark:bg-[#030712] rounded-3xl p-6 border border-slate-100 dark:border-white/5">
+                <div className="flex-1 pr-4">
+                  <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Show floating Copilot</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed mt-1">
+                    Show the draggable Copilot bubble on every screen. Drag it onto the X target at the bottom to hide it again.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={copilotWidgetVisible}
+                  onClick={() => onToggleCopilotWidget?.(!copilotWidgetVisible)}
+                  className={`relative w-14 h-8 rounded-full transition-all duration-300 flex-shrink-0 ${copilotWidgetVisible ? 'bg-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg transition-transform duration-300 ${copilotWidgetVisible ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
             </div>
          </div>
       )}

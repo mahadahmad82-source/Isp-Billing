@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent, WABotBehaviorRule, OutageLog } from '../types';
 import OutageTracker from './OutageTracker';
+import CopilotTab from './CopilotTab';
+import type { CopilotLogEntry } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
 import { supabase } from '../lib/supabase';
 import { getWabotAuthHeaders, uploadMediaToR2 } from '../utils/whatsapp';
@@ -90,6 +92,8 @@ interface WABotInboxProps {
   managerId: string;
   customers: UserRecord[];
   onOpenReceiptGenerator?: (userId?: string) => void;
+  copilotHistory?: CopilotLogEntry[];
+  onCopilotHistoryChange?: (log: CopilotLogEntry[]) => void;
   botName?: string;
   onUpdateBotName?: (name: string) => void;
   routerCatalog?: RouterCatalog;
@@ -174,7 +178,7 @@ function hasCatalogContent(c?: RouterCatalog | null): boolean {
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'abhi';
+  if (mins < 1) return 'now';
   if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h`;
@@ -421,27 +425,27 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
       {
         tag: 'UI/UX',
         title: 'Desktop Viewport Lock & Pinned Composer',
-        desc: 'Chat kholne par browser page scroll hona band; left chat directory aur right conversation thread alag alag independent scroll hote hain, aur message input bar screen ke bottom par pinned rehta hai.',
+        desc: 'Opening a chat no longer scrolls the browser page; the left chat directory and the right conversation thread scroll independently, and the message input bar stays pinned to the bottom of the screen.',
       },
       {
         tag: 'Theme',
         title: 'Official WhatsApp Web Color Palette & Unified Sync',
-        desc: 'Original WhatsApp Web hex colors (#efeae2 canvas, #d9fdd3 outgoing, #00a884 accent) apply kiye gaye aur Manager Dashboard ke sath dark/light mode ek sath sync kar diya gaya.',
+        desc: 'Applied the original WhatsApp Web hex colors (#efeae2 canvas, #d9fdd3 outgoing, #00a884 accent) and synced dark/light mode with the Manager Dashboard.',
       },
       {
         tag: 'Speed',
         title: 'Smart Filter Tabs (All / Unread / Payment Slips / Paused)',
-        desc: 'Bina scroll kiye 1 click par unread messages ya payment slips filter karne ki sahulat.',
+        desc: 'One-click filters for unread messages or payment slips, without scrolling.',
       },
       {
         tag: 'Shortcuts',
         title: 'Canned Quick Replies (/slash commands)',
-        desc: 'Input box mein / likhte hi /bank, /jazzcash, /reboot, /los, /dns, /grace ki palette khul jati hai, bar bar bank details type karne ki zaroorat nahi.',
+        desc: 'Typing / in the input box opens a palette with /bank, /jazzcash, /reboot, /los, /dns, /grace — no need to type bank details over and over.',
       },
       {
         tag: 'Verification',
         title: 'In-App Media Lightbox & Screenshot Zoom Viewer',
-        desc: 'Customer ke payment screenshot ko bina new tab khole chat ke andar hi zoom aur rotate kar ke 1 click mein receipt generate karne ka button.',
+        desc: 'Zoom and rotate the customer payment screenshot inside the chat (no new tab) and generate a receipt in one click.',
       },
     ],
   },
@@ -455,17 +459,17 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
       {
         tag: 'Automation',
         title: 'Unregistered Number Outage Scoping',
-        desc: 'Agar customer ka number system mein register na bhi ho, tab bhi area/backend outage par NetBot foran automatic outage alert bhejti hai.',
+        desc: 'Even if a customer number is not registered in the system, NetBot immediately sends an automatic outage alert on an area/backend outage.',
       },
       {
         tag: 'Database',
         title: 'Aggregated Conversation Summaries RPC',
-        desc: 'Chat list row-cap khatam; database-level aggregate RPC se chats load hoti hain jisse high traffic par koi contact miss nahi hota.',
+        desc: 'Removed the chat-list row cap; chats load via a database-level aggregate RPC so no contact is missed under high traffic.',
       },
       {
         tag: 'Egress',
         title: 'Network Egress Optimization',
-        desc: 'Background 60s poll se unnecessary heavy payload cut kar ke fast sync implement kiya gaya.',
+        desc: 'Implemented fast sync, cutting the unnecessary heavy payload from the background 60s poll.',
       },
     ],
   },
@@ -479,7 +483,7 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
       {
         tag: 'AI',
         title: 'Teach NetBot & Situation Handling Rules',
-        desc: 'Bot ko specific customer situations ke liye custom rules aur preferred handling sikhane ka visual manager panel.',
+        desc: 'A visual manager panel for teaching the bot custom rules and preferred handling for specific customer situations.',
       },
       {
         tag: 'Voice',
@@ -489,13 +493,13 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
       {
         tag: 'Inventory',
         title: 'Interactive Router Catalog',
-        desc: 'Single band aur dual band routers ki images, specifications aur live pricing ka managed catalog.',
+        desc: 'A managed catalog with images, specifications and live pricing for single-band and dual-band routers.',
       },
     ],
   },
 ];
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
   const isDarkControlled = typeof theme !== 'undefined';
   const [internalDark, setInternalDark] = useState<boolean>(() => {
@@ -565,8 +569,26 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [botNameInput, setBotNameInput] = useState(botName || 'NetBot');
   useEffect(() => { setBotNameInput(botName || 'NetBot'); }, [botName]);
 
+  // ── Copilot tab adapters ───────────────────────────────────────────────
+  // NetBot Web reuses the shared CopilotTab with its own Supabase session
+  // (the shared useCopilot hook reads the JWT itself — no managerId prop
+  // needed). Smallest possible adapters for what NetBot Web doesn't have:
+  // - open_tab: map manager tabs onto the closest NetBot Web views
+  //   ('users'/'customers' → Contacts); anything else stays on Copilot.
+  // - generate_receipt: the inbox receipt callback only takes a userId and
+  //   is a no-op in the standalone web login, so amount/note are dropped.
+  // - set_status: no manager-only status-change path exists here, so it is
+  //   intentionally left unwired (the hook says "needs manager access").
+  const handleCopilotOpenTab = (tab: string) => {
+    if (tab === 'users' || tab === 'customers') setView('contacts');
+    else if (tab === 'receipts') setView('inbox');
+  };
+  const handleCopilotPrepareReceipt = (userId: string) => {
+    onOpenReceiptGenerator?.(userId);
+  };
+
   // ── Tab views & settings navigation ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages' | 'copilot'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpFaqOpen, setHelpFaqOpen] = useState<number | null>(0);
 
@@ -620,12 +642,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       // Azure was requested but silently fell back to Edge-TTS — audio still played,
       // so this isn't a hard error, but mahadnet needs to see WHY Azure itself failed.
       if (provider === 'azure' && data.providerUsed === 'edge') {
-        setPreviewError(`⚠️ Yeh Edge-TTS ki awaz hai, Azure ki nahi — Azure fail hui: ${data.azureError || 'wajah maloom nahi'}`);
+        setPreviewError(`⚠️ This is an Edge-TTS voice, not Azure — Azure failed: ${data.azureError || 'unknown reason'}`);
       } else if (data.providerUsed) {
-        setPreviewConfirm(`✓ Yeh awaz ${providerLabel[data.providerUsed] || data.providerUsed} se generate hui`);
+        setPreviewConfirm(`✓ This voice was generated by ${providerLabel[data.providerUsed] || data.providerUsed}`);
       }
     } catch (e: any) {
-      setPreviewError(e?.message || 'Preview generate nahi ho saka. Dobara koshish karein.');
+      setPreviewError(e?.message || 'Could not generate a preview. Please try again.');
     } finally {
       setPreviewingVoice(null);
     }
@@ -700,7 +722,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       });
     } catch (e: any) {
       console.error('[WABotInbox] loadQuota', e);
-      setQuotaError('Quota load nahi ho saki. Dobara koshish karein.');
+      setQuotaError('Could not load quota. Please try again.');
     } finally {
       setQuotaLoading(false);
     }
@@ -721,7 +743,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     const trigger = ruleDraft.trigger.trim();
     const response = ruleDraft.response.trim();
     if (!trigger || !response) {
-      alert('Situation aur preferred handling dono required hain');
+      alert('Both situation and preferred handling are required');
       return;
     }
     const rule: WABotBehaviorRule = { id: `rule-${Date.now()}`, trigger, response, active: true };
@@ -734,7 +756,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   const deleteBehaviorRule = (id: string) => {
-    if (!confirm('Yeh Teach NetBot rule delete karein?')) return;
+    if (!confirm('Delete this Teach NetBot rule?')) return;
     onUpdateBotBehaviorRules?.((botBehaviorRules || []).filter(rule => rule.id !== id));
   };
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -849,14 +871,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const resetBotTemplateToDefault = (key: string) => {
     if (!botTemplates || !botTemplates[key]) return;
-    if (!confirm('Is template ko default wording par reset karein?')) return;
+    if (!confirm('Reset this template to the default wording?')) return;
     const updated = { ...botTemplates };
     delete updated[key];
     onUpdateBotTemplates?.(updated);
   };
 
   const deleteCustomBotTemplate = (key: string) => {
-    if (!confirm('Yeh custom template permanently delete karein?')) return;
+    if (!confirm('Permanently delete this custom template?')) return;
     const updated = { ...(botTemplates || {}) };
     delete updated[key];
     onUpdateBotTemplates?.(updated);
@@ -864,12 +886,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
   const handleAddBotTemplate = () => {
     if (!newBotTemplate.key.trim() || !newBotTemplate.label.trim() || !newBotTemplate.text.trim()) {
-      alert('Key, label aur text sab required hain');
+      alert('Key, label and text are all required');
       return;
     }
     const safeKey = newBotTemplate.key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
     if (effectiveTemplates[safeKey]) {
-      alert('Ye key already exist karti hai, dusra naam try karein');
+      alert('This key already exists — try a different name');
       return;
     }
     const updated = {
@@ -1305,14 +1327,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setThread(prev => prev.map(m => m.id === optimistic.id ? { ...m, status: 'failed' } : m));
-        alert(`Template send nahi hua: ${err?.error || 'unknown error'}`);
+        alert(`Template was not sent: ${err?.error || 'unknown error'}`);
         return;
       }
       await persistPauseAfterSend(selectedPhone);
       closeOfficialTemplateModal();
     } catch (e) {
       setThread(prev => prev.map(m => m.id === optimistic.id ? { ...m, status: 'failed' } : m));
-      alert('Network error — template send nahi hua.');
+      alert('Network error — template was not sent.');
     } finally {
       setSendingOfficialTpl(false);
       loadOverview();
@@ -1345,7 +1367,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(`Message send nahi hua: ${err?.error || 'unknown error'}`);
+        alert(`Message was not sent: ${err?.error || 'unknown error'}`);
       }
       // Replying manually pauses the bot on this thread — this already updated
       // local state, but never actually persisted to Supabase, so the webhook
@@ -1365,7 +1387,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         await supabase.rpc('bump_paused_at', { p_manager_id: managerId, p_phone: selectedPhone });
       } catch (e) { console.error('[WABotInbox] bump_paused_at', e); }
     } catch (e) {
-      alert('Network error — message send nahi hua.');
+      alert('Network error — message was not sent.');
     } finally {
       setSending(false);
       loadOverview();
@@ -1422,7 +1444,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       setRecSeconds(0);
       recTimerRef.current = window.setInterval(() => setRecSeconds(s => s + 1), 1000);
     } catch (e) {
-      alert('Microphone ki permission nahi mili. Browser settings mein allow karein.');
+      alert('Microphone permission was not granted. Please allow it in your browser settings.');
     }
   };
 
@@ -1511,12 +1533,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
-        alert(`Voice message send nahi hua: ${err?.error || 'unknown error'}`);
+        alert(`Voice message was not sent: ${err?.error || 'unknown error'}`);
       }
       if (!pausedPhones.includes(selectedPhone)) setPausedPhones(prev => [...prev, selectedPhone]);
     } catch (e: any) {
       setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
-      alert('Voice message upload nahi hua: ' + (e?.message || ''));
+      alert('Voice message upload failed: ' + (e?.message || ''));
     } finally {
       setUploading(false);
       loadOverview();
@@ -1553,12 +1575,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
-        alert(`File send nahi hua: ${err?.error || 'unknown error'}`);
+        alert(`File was not sent: ${err?.error || 'unknown error'}`);
       }
       if (!pausedPhones.includes(selectedPhone)) setPausedPhones(prev => [...prev, selectedPhone]);
     } catch (e: any) {
       setThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
-      alert('File upload nahi hua: ' + (e?.message || ''));
+      alert('File upload failed: ' + (e?.message || ''));
     } finally {
       setUploading(false);
       loadOverview();
@@ -1668,6 +1690,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   {unreviewedCount > 0 && <span className="ml-auto bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>}
                 </button>
                 <button
+                  onClick={() => { setView('copilot'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0 text-[#00A884]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4c.7 4.2 3.1 7.6 7.3 8.3-4.2.7-6.6 4.1-7.3 8.3-.7-4.2-3.1-7.6-7.3-8.3C8.9 11.6 11.3 8.2 12 4z" /></svg>
+                  Copilot
+                </button>
+                <button
                   onClick={() => { setView('catalog'); setMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
@@ -1751,7 +1780,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : view === 'outages' ? 'Network Outages' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : view === 'outages' ? 'Network Outages' : view === 'copilot' ? 'Copilot' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -1760,14 +1789,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-6">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Teach NetBot</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Yahan bot ko public dealing ka overall andaaz aur specific situations handle karne ka tareeqa samjhayen. Yeh guidance AI replies mein reference ke taur par use hogi; payment numbers, activation aur renewal ke system safeguards hamesha priority par rahenge.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1">Teach the bot its overall tone for public dealing and how to handle specific situations here. This guidance is used as a reference in AI replies; the system safeguards for payment numbers, activation and renewal always take priority.</p>
           </div>
 
           <section className="p-4 rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5 mb-6">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
                 <h4 className="text-sm font-black text-slate-900 dark:text-white">Persona &amp; public dealing</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Misal: pehle customer ki baat acknowledge karo, jaldi catalog offer na karo, aur zaroorat par Mahad bhai/team ko handoff batao.</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Example: first acknowledge what the customer says, do not offer the catalog too quickly, and hand off to Mahad bhai / the team when needed.</p>
               </div>
               <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
             </div>
@@ -1778,7 +1807,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
                 <h4 className="text-sm font-black text-slate-900 dark:text-white">Situation rules</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Customer ki situation likhein aur preferred handling batayein. Bot isay sales shortcut nahi, support guidance samjhega.</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Write the customer's situation and the preferred handling. The bot will treat this as support guidance, not a sales shortcut.</p>
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{(botBehaviorRules || []).length} rules</span>
             </div>
@@ -1799,12 +1828,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   </div>
                 </div>
               ))}
-              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-slate-400 font-bold py-4">Abhi koi custom rule nahi hai. Neeche se pehla rule add karein.</p>}
+              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-slate-400 font-bold py-4">No custom rules yet. Add your first rule below.</p>}
             </div>
             <div className="p-4 rounded-2xl border border-dashed border-slate-300 dark:border-white/15">
               <h4 className="text-sm font-black text-slate-900 dark:text-white mb-3">Add a rule</h4>
               <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: customer kahe router kharab hai aur kal set karwana hai" className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white mb-2" />
-              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: pehle fault acknowledge karo, catalog na bhejo, team visit note karo" className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white" />
+              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: acknowledge the fault first, do not send the catalog, note a team visit" className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white" />
               <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
             </div>
           </section>
@@ -1813,13 +1842,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Confused Replies / Training</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Jab bot ko deterministic jawab nahi milta, woh AI se reply karti hai aur yahan log hota hai. Acha jawab "Approve" kar do — wahi wording aage bhi use hogi.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1">When the bot has no deterministic reply, it answers with AI and the reply is logged here. "Approve" a good reply — the same wording will be reused next time.</p>
           </div>
 
           {knowledgeLoading ? (
             <p className="text-sm text-slate-400 font-bold text-center py-10">Loading...</p>
           ) : knowledge.length === 0 ? (
-            <p className="text-sm text-slate-400 font-bold text-center py-10">Abhi koi training entries nahi hain.</p>
+            <p className="text-sm text-slate-400 font-bold text-center py-10">No training entries yet.</p>
           ) : (
             <div className="space-y-4">
               {knowledge.map(k => {
@@ -1874,7 +1903,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-5">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Router Catalog</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Yahan se router models, price, specs aur image edit karein — NetBot WhatsApp par yehi catalog dikhati hai, code edit ki koi zaroorat nahi.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1">Edit router models, prices, specs and images here — NetBot shows this same catalog on WhatsApp, so no code changes are needed.</p>
           </div>
 
           {(['2.4g', '5g'] as const).map(band => (
@@ -1891,7 +1920,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               </div>
               <div className="space-y-3">
                 {catalogState[band].length === 0 ? (
-                  <p className="text-xs text-slate-400 font-bold py-4">Koi router nahi hai is band mein.</p>
+                  <p className="text-xs text-slate-400 font-bold py-4">No routers in this band.</p>
                 ) : (
                   catalogState[band].map(r => (
                     <div key={r.id} className="p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] flex items-center gap-3">
@@ -1915,14 +1944,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           {catalogModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">{catalogModal.item ? 'Edit Router' : 'Naya Router Add Karein'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
+                <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">{catalogModal.item ? 'Edit Router' : 'Add New Router'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
                 <div className="space-y-3">
                   <input placeholder="Model (jese GS3101)" value={catalogForm.model} onChange={e => setCatalogForm(f => ({ ...f, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
                   <input placeholder="Company (jese Huawei)" value={catalogForm.company} onChange={e => setCatalogForm(f => ({ ...f, company: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
                   <input placeholder="Band label (jese 2.4GHz Single Band)" value={catalogForm.band} onChange={e => setCatalogForm(f => ({ ...f, band: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
                   <input placeholder="Price (Rs.)" type="number" value={catalogForm.price} onChange={e => setCatalogForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
                   <input placeholder="Image URL" value={catalogForm.image} onChange={e => setCatalogForm(f => ({ ...f, image: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
-                  <textarea placeholder="Specs — yeh exact text customer ko WhatsApp par jayega" rows={7} value={catalogForm.specs} onChange={e => setCatalogForm(f => ({ ...f, specs: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
+                  <textarea placeholder="Specs — this exact text is sent to the customer on WhatsApp" rows={7} value={catalogForm.specs} onChange={e => setCatalogForm(f => ({ ...f, specs: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400" />
                 </div>
                 <div className="flex gap-2 mt-5">
                   <button onClick={saveCatalogModal} className="flex-1 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Save</button>
@@ -1937,7 +1966,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
               <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">NetBot ke har reply ki wording yahan se edit karein — koi code deploy ki zaroorat nahi. {'{curly_braces}'} wale tokens na hatayen, woh customer ka naam/amount/etc. se fill hote hain.</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">Edit the wording of every NetBot reply here — no code deploy needed. Do not remove the {'{curly_braces}'} tokens; they are filled with the customer's name/amount/etc.</p>
             </div>
             <button
               onClick={() => setShowAddTemplateModal(true)}
@@ -1948,7 +1977,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </div>
 
           {orderedCategories.length === 0 ? (
-            <p className="text-xs text-slate-400 font-bold py-6">Templates load ho rahe hain — agar yeh message rehta hai, app ek baar refresh kar lein.</p>
+            <p className="text-xs text-slate-400 font-bold py-6">Templates are loading — if this message stays, refresh the app once.</p>
           ) : (
             orderedCategories.map(category => (
               <div key={category} className="mb-4">
@@ -2003,7 +2032,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">Naya Template</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Key (unique, spaces nahi)</label>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Key (unique, no spaces)</label>
                     <input
                       value={newBotTemplate.key}
                       onChange={e => setNewBotTemplate(f => ({ ...f, key: e.target.value }))}
@@ -2038,11 +2067,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       rows={6}
                       value={newBotTemplate.text}
                       onChange={e => setNewBotTemplate(f => ({ ...f, text: e.target.value }))}
-                      placeholder="Type here... {name}, {businessName} jese placeholders use karein"
+                      placeholder="Type here... use placeholders like {name}, {businessName}"
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
                     />
                     <p className="text-[10px] text-slate-400 font-semibold mt-1.5">
-                      Note: yeh naya template abhi khud se kisi bot reply se link nahi hoga — sirf reference ke liye save hota hai, jab tak developer isko webhook.ts mein wire na kare.
+                      Note: this new template will not link itself to any bot reply — it is only saved for reference until a developer wires it in webhook.ts.
                     </p>
                   </div>
                 </div>
@@ -2059,7 +2088,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           {/* ── Default Voice ── */}
           <div className="mb-8">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Default Voice</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1 mb-4">Ye voice use hogi jab koi specific agent match na ho. Har voice sun kar pick karein.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1 mb-4">This voice is used when no specific agent matches. Listen to each voice, then pick one.</p>
             <div className="flex flex-wrap gap-2 mb-2">
               <select
                 value={selectedVoice}
@@ -2087,7 +2116,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Support Agents</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">10 tak agents bana sakte hain (jese NetBot=billing, Bilal=technical). Customer ke message mein keyword match ho to wo agent apna naam, scope, purpose, TTS provider, gender aur voice ke sath jawab deta hai — koi match na ho to Default Voice/Bot Name use hota hai. Har agent ka apna TTS provider (Gemini/Azure/Edge-TTS) test kar sakte hain.</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">You can create up to 10 agents (e.g. NetBot=billing, Bilal=technical). If a keyword in the customer's message matches, that agent replies with its own name, scope, purpose, TTS provider, gender and voice — if nothing matches, the Default Voice / Bot Name is used. You can test each agent's own TTS provider (Gemini/Azure/Edge-TTS).</p>
             </div>
             <button
               onClick={startNewAgent}
@@ -2098,7 +2127,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           </div>
 
           {(!wabotAgents || wabotAgents.length === 0) && editingAgentId === null && (
-            <p className="text-xs text-slate-400 font-bold py-4">Abhi koi extra agent nahi bana — sirf Default Voice wali single persona active hai. "+ New Agent" se pehla specialized agent banayein.</p>
+            <p className="text-xs text-slate-400 font-bold py-4">No extra agents created yet — only the single Default Voice persona is active. Create your first specialized agent with "+ New Agent".</p>
           )}
 
           <div className="space-y-3">
@@ -2121,7 +2150,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         rows={3}
                         value={agentDraft.scope}
                         onChange={e => setAgentDraft(d => d ? { ...d, scope: e.target.value } : d)}
-                        placeholder="e.g. Sirf technical/connection issues (net slow, router, disconnect) handle karta hai — billing/payment ka jawab nahi deta"
+                        placeholder="e.g. Only handles technical/connection issues (net slow, router, disconnect) — does not answer billing/payment questions"
                         className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
                       />
                     </div>
@@ -2130,7 +2159,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       <input
                         value={agentDraft.keywords.join(', ')}
                         onChange={e => setAgentDraft(d => d ? { ...d, keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) } : d)}
-                        placeholder="e.g. net nahi chal raha, router, slow, disconnect"
+                        placeholder="e.g. net not working, router, slow, disconnect"
                         className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
                       />
                     </div>
@@ -2206,7 +2235,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         </button>
                       </div>
                       {agentDraft.ttsProvider === 'azure' && (
-                        <p className="text-[10px] text-amber-500 font-bold mt-1">Azure key set nahi ho to yeh automatically Edge-TTS (free) pe fallback ho jayega.</p>
+                        <p className="text-[10px] text-amber-500 font-bold mt-1">If no Azure key is set, this automatically falls back to Edge-TTS (free).</p>
                       )}
                       {previewError && <p className="text-[10px] text-rose-400 font-bold mt-1">{previewError}</p>}
                       {previewConfirm && <p className="text-[10px] text-[#00A884] font-bold mt-1">{previewConfirm}</p>}
@@ -2228,7 +2257,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                           <span className="text-[9px] bg-slate-500/10 text-slate-400 border border-slate-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Paused</span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 font-semibold truncate">{agent.scope || 'Koi scope description nahi'}</p>
+                      <p className="text-xs text-slate-400 font-semibold truncate">{agent.scope || 'No scope description'}</p>
                       {agent.keywords.length > 0 && (
                         <p className="text-[10px] text-slate-400 font-bold mt-1 truncate">Keywords: {agent.keywords.join(', ')}</p>
                       )}
@@ -2270,7 +2299,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       rows={3}
                       value={agentDraft.scope}
                       onChange={e => setAgentDraft(d => d ? { ...d, scope: e.target.value } : d)}
-                      placeholder="e.g. Sirf technical/connection issues (net slow, router, disconnect) handle karta hai — billing/payment ka jawab nahi deta"
+                      placeholder="e.g. Only handles technical/connection issues (net slow, router, disconnect) — does not answer billing/payment questions"
                       className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
                     />
                   </div>
@@ -2279,7 +2308,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                     <input
                       value={agentDraft.keywords.join(', ')}
                       onChange={e => setAgentDraft(d => d ? { ...d, keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) } : d)}
-                      placeholder="e.g. net nahi chal raha, router, slow, disconnect"
+                      placeholder="e.g. net not working, router, slow, disconnect"
                       className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-slate-900 dark:text-white placeholder-slate-400"
                     />
                   </div>
@@ -2355,7 +2384,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                       </button>
                     </div>
                     {agentDraft.ttsProvider === 'azure' && (
-                      <p className="text-[10px] text-amber-500 font-bold mt-1">Azure key set nahi ho to yeh automatically Edge-TTS (free) pe fallback ho jayega.</p>
+                      <p className="text-[10px] text-amber-500 font-bold mt-1">If no Azure key is set, this automatically falls back to Edge-TTS (free).</p>
                     )}
                     {previewError && <p className="text-[10px] text-rose-400 font-bold mt-1">{previewError}</p>}
                     {previewConfirm && <p className="text-[10px] text-[#00A884] font-bold mt-1">{previewConfirm}</p>}
@@ -2373,7 +2402,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-6">
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Message Quota</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Current billing cycle ka NetBot usage — text aur voice replies alag alag track hote hain.</p>
+            <p className="text-xs text-slate-400 font-bold mt-1">NetBot usage for the current billing cycle — text and voice replies are tracked separately.</p>
           </div>
 
           {quotaLoading ? (
@@ -2401,7 +2430,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               ) : (
                 <div className="rounded-2xl border border-slate-100 dark:border-white/5 p-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice Replies</span>
-                  <p className="text-xs text-slate-400 font-bold mt-1">Is plan mein voice replies included nahi hain.</p>
+                  <p className="text-xs text-slate-400 font-bold mt-1">Voice replies are not included in this plan.</p>
                 </div>
               )}
 
@@ -2416,7 +2445,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               </a>
             </div>
           ) : (
-            <p className="text-xs text-slate-400 font-bold py-6 text-center">Koi quota data nahi mila.</p>
+            <p className="text-xs text-slate-400 font-bold py-6 text-center">No quota data found.</p>
           )}
         </div>
       ) : view === 'updates' ? (
@@ -2428,7 +2457,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                 <span className="px-2.5 py-0.5 rounded-full bg-[#00A884]/15 text-[#00A884] font-black text-[10px] uppercase tracking-wider">Live</span>
               </div>
               <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold mt-1">
-                NetBot aur WABot inbox ke naye features, UI improvements, aur performance updates yahan track hote hain.
+                New features, UI improvements and performance updates for the NetBot and WABot inbox are tracked here.
               </p>
             </div>
             <button
@@ -2544,7 +2573,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
                 <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Persona notes</h4>
-                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Overall lehja aur public dealing ka andaaz.</p>
+                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Overall tone and style of public dealing.</p>
               </div>
               <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
             </div>
@@ -2576,25 +2605,25 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   </div>
                 </div>
               ))}
-              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-[#8696A0] font-bold py-4">Abhi koi custom rule nahi hai. Neeche se pehla rule add karein.</p>}
+              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-[#8696A0] font-bold py-4">No custom rules yet. Add your first rule below.</p>}
             </div>
             <div className="p-4 rounded-2xl border border-dashed border-[#E9EDEF] dark:border-[#222D34]">
               <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mb-3">Add a rule</h4>
               <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: customer kahe router kharab hai aur kal set karwana hai" className="w-full px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] mb-2" />
-              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: pehle fault acknowledge karo, catalog na bhejo, team visit note karo" className="w-full p-3 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
+              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: acknowledge the fault first, do not send the catalog, note a team visit" className="w-full p-3 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
               <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
             </div>
           </section>
         </div>
       ) : view === 'help' ? (
         <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          <p className="text-xs font-bold text-[#667781] dark:text-[#8696A0]">NetBot ke common sawaal, aur support se rabta.</p>
+          <p className="text-xs font-bold text-[#667781] dark:text-[#8696A0]">Common NetBot questions, and how to reach support.</p>
           {[
-            { q: 'How do I link NetBot Web?', a: 'Computer par NetBot Web kholein aur QR code dikhayein. Android app mein App Settings → Link a Device se scan karein — web isi account mein login ho jata hai.' },
-            { q: 'How do I log out a computer remotely?', a: 'Android app mein App Settings → Link a Device. Har linked session browser, OS aur last-active time dikhata hai. Log out tap karein.' },
-            { q: 'The bot is still auto-replying after I sent a manual message.', a: 'Manual message us chat ko pause kar deta hai. Thread par Resume, ya menu se Pause All / Resume All Bots use karein.' },
-            { q: 'How do I change the bot name or voice?', a: 'Bot name Settings mein hai. Default TTS voice aur extra agents Voice & Agents menu item se.' },
-            { q: 'What if I lose my password?', a: 'Login screen par account recovery use karein, ya support@billcollector.online / WhatsApp +92 304 2773453 par rabta karein.' },
+            { q: 'How do I link NetBot Web?', a: 'Open NetBot Web on your computer and show the QR code. In the Android app go to App Settings → Link a Device and scan it — the web session logs into the same account.' },
+            { q: 'How do I log out a computer remotely?', a: 'In the Android app go to App Settings → Link a Device. Every linked session shows its browser, OS and last-active time. Tap Log out.' },
+            { q: 'The bot is still auto-replying after I sent a manual message.', a: 'A manual message pauses that chat. Use Resume on the thread, or Pause All / Resume All Bots from the menu.' },
+            { q: 'How do I change the bot name or voice?', a: 'The bot name is in Settings. The default TTS voice and extra agents are under the Voice & Agents menu item.' },
+            { q: 'What if I lose my password?', a: 'Use account recovery on the login screen, or contact support@billcollector.online / WhatsApp +92 304 2773453.' },
           ].map((item, i) => {
             const open = helpFaqOpen === i;
             return (
@@ -2631,6 +2660,16 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               WhatsApp +92 304 2773453
             </a>
           </section>
+        </div>
+      ) : view === 'copilot' ? (
+        <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden min-h-0">
+          <CopilotTab
+            users={customers || []}
+            history={copilotHistory}
+            onHistoryChange={onCopilotHistoryChange}
+            onOpenTab={handleCopilotOpenTab}
+            onPrepareReceipt={handleCopilotPrepareReceipt}
+          />
         </div>
       ) : view === 'outages' ? (
         <OutageTracker
@@ -2692,7 +2731,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
           {filteredConversations.length === 0 ? (
             <div className="text-center py-10 px-4">
-              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold">Koi WhatsApp conversation nahi mili.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold">No WhatsApp conversations found.</p>
               {chatFilter !== 'all' && (
                 <button onClick={() => setChatFilter('all')} className="mt-2 text-xs text-[#00A884] font-bold underline">Show all chats</button>
               )}
@@ -2732,7 +2771,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-[#EFEAE2] dark:bg-[#0B141A] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm min-w-0`}>
         {!selectedConv ? (
           <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold">
-            Koi conversation select karein
+            Select a conversation
           </div>
         ) : (
           <>
@@ -2767,7 +2806,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                     <button
                       onClick={() => { setContactNameInput(contactNames[selectedConv.phone] || ''); setEditingContactName(true); }}
                       className="flex items-center gap-1.5 group"
-                      title="Contact ka naam edit karein"
+                      title="Edit contact name"
                     >
                       <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{selectedConv.name}</p>
                       <svg className="w-3.5 h-3.5 text-slate-300 dark:text-slate-500 group-hover:text-[#00A884] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -3142,7 +3181,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
             {/* Footer action bar */}
             <div className="px-4 py-3 bg-[#202C33] border-t border-white/10 flex items-center justify-between shrink-0">
-              <span className="text-xs text-[#8696A0]">Payment slip verify karein ya receipt banayein</span>
+              <span className="text-xs text-[#8696A0]">Verify the payment slip or generate a receipt</span>
               <div className="flex items-center gap-2">
                 {selectedConv && (
                   <button

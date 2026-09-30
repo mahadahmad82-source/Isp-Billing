@@ -1,4 +1,3 @@
-
 export type SubscriptionPlan = string;
 
 export const DefaultPlanPricing: Record<string, number> = {
@@ -360,7 +359,7 @@ export interface AccessRights {
 
 export const MODULE_LABELS: Record<ModuleKey, string> = {
   dashboard: 'Dashboard', users: 'Customers', receipts: 'Receipts',
-  recoveries: 'Recoveries', expiries: 'Expiries', reports: 'AI Insights',
+  recoveries: 'Recoveries', expiries: 'Expiries', reports: 'Copilot',
   systemlogs: 'Sys Logs', settings: 'Settings', team: 'Team Hub',
   expenses: 'Expenses', analytics: 'Analytics', outage: 'Outage',
   area: 'Area', equipment: 'Equipment', leads: 'Leads',
@@ -671,6 +670,10 @@ export interface AppState {
   // Manager Copilot's persisted conversation log (dual-saved like everything
   // else here) — lets the assistant "remember" recent context across reloads.
   copilotHistory?: CopilotLogEntry[];
+  // Floating Copilot widget closed state (dual-saved like everything else
+  // here) — stays hidden across reloads until restored via the Copilot tab
+  // or the "Show floating Copilot" toggle in Settings.
+  copilotWidgetClosed?: boolean;
 }
 
 export interface CopilotLogEntry {

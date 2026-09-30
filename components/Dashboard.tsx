@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { UserRecord, Receipt, PaymentStatus, AppSettings, BusinessExpense } from '../types';
 import { calcTotalRevenue, calcMonthlyRevenue } from '../utils/revenueCalc';
@@ -454,7 +453,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
         </div>
       </div>
 
-      {/* ── Growth Metrics (moved here from AI Insights) ── */}
+      {/* ── Growth Metrics (moved here from the former AI Insights tab) ── */}
       <div className="bg-white dark:bg-[#0f172a] p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl">
         <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
           <span className="w-8 h-8 bg-blue-500/10 text-blue-500 rounded-lg flex items-center justify-center text-sm">📈</span> Growth Metrics
