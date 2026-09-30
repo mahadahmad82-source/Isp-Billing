@@ -124,18 +124,18 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
   }],
   reports: [{
     id: 'reports', icon: '🤖',
-    title: { en: 'AI Insights', ur: 'اے آئی بصیرت' },
+    title: { en: 'Copilot', ur: 'کوپائلٹ' },
     description: {
-      en: 'A yearly ledger plus an AI-written summary of your business trends — updated automatically as you collect payments.',
-      ur: 'سالانہ لیجر کے ساتھ آپ کے بزنس کے رجحانات کا AI خلاصہ — جیسے ہی آپ ادائیگیاں وصول کرتے ہیں یہ خودکار اپڈیٹ ہوتا ہے۔'
+      en: 'Chat with Copilot here — ask about customers, open any tab, or dictate a receipt by voice. It shares history with the floating Copilot bubble.',
+      ur: 'کوپائلٹ سے یہاں چیٹ کریں — کسٹمرز کے بارے میں پوچھیں، کوئی بھی ٹیب کھولیں، یا آواز سے رسید بنوائیں۔'
     }
   }],
   analytics: [{
     id: 'analytics', icon: '📈',
     title: { en: 'Business Analytics', ur: 'بزنس اینالیٹکس' },
     description: {
-      en: 'Deep-dive into revenue trends, plan-wise breakdown, discounts, and now Collection Chart — all in one place.',
-      ur: 'ریونیو کے رجحانات، پلان کے حساب سے تفصیل، ڈسکاؤنٹس اور اب کلیکشن چارٹ — سب کچھ ایک ہی جگہ۔'
+      en: 'Deep-dive into revenue trends, plan-wise breakdown, discounts, the yearly ledger and the AI-written business summary — all in one place.',
+      ur: 'ریونیو کے رجحانات، پلان کے حساب سے تفصیل، ڈسکاؤنٹس، سالانہ لیجر اور AI خلاصہ — سب کچھ ایک ہی جگہ۔'
     }
   }],
   settings: [{
@@ -208,14 +208,6 @@ export const TAB_STEPS: Record<string, TourStep[]> = {
     description: {
       en: 'Customize the wording of every WhatsApp message the app sends — reminders, receipts, and more.',
       ur: 'ہر واٹس ایپ پیغام کے الفاظ یہاں سے کسٹمائز کریں — یاد دہانی، رسیدیں اور دیگر پیغامات۔'
-    }
-  }],
-  wabot: [{
-    id: 'wabot', icon: '🤖',
-    title: { en: 'NetBot — WhatsApp Bot', ur: 'نیٹ بوٹ — واٹس ایپ بوٹ' },
-    description: {
-      en: 'Your AI assistant that answers customer questions on WhatsApp automatically. Manage its conversations and training here.',
-      ur: 'آپ کا AI اسسٹنٹ جو واٹس ایپ پر کسٹمرز کے سوالات کا خودکار جواب دیتا ہے۔ اس کی گفتگو اور تربیت یہاں سے منظم کریں۔'
     }
   }],
   systemlogs: [{
