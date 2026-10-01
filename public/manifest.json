@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Bill Collector - Subscription & Receipt Manager",
   "short_name": "Bill Collector",
-  "description": "ISP billing, receipts, and customer management",
+  "description": "Billing, receipts, and customer management for local businesses",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
