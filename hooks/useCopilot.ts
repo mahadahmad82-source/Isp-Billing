@@ -25,10 +25,10 @@ import { normalize, hasWord, rs, periodLabel, displayDate } from '../utils/agent
 
 export interface UseCopilotOptions {
   users: UserRecord[];
-  receipts: Receipt[];
-  expenses: BusinessExpense[];
-  complaints: ComplaintTicket[];
-  subManagers: Array<{ id: string; username: string; name: string }>;
+  receipts?: Receipt[];
+  expenses?: BusinessExpense[];
+  complaints?: ComplaintTicket[];
+  subManagers?: Array<{ id: string; username: string; name: string }>;
   onOpenTab: (tab: string) => void;
   /** Opens ReceiptGenerator pre-filled. The manager still confirms/saves — a
    * voice/text command never creates a receipt on its own. */
@@ -38,12 +38,14 @@ export interface UseCopilotOptions {
   /** False for sub-managers (status control is explicit opt-in for them). */
   canChangeStatus?: boolean;
   // ── Offline agent write actions (all dual-saved by the parent handlers) ──
-  onAddUser: (user: UserRecord) => void;
-  onUpdateUser: (userId: string, update: Partial<UserRecord>) => void;
-  onAddExpense: (e: Omit<BusinessExpense, 'id' | 'createdAt'>) => void;
-  onResolveComplaint: (ticketId: string, details: string) => void;
-  onSendTeamMessage: (message: TeamMessage) => void;
-  managerUsername: string;
+  // Optional during migration: if a handler is missing, the agent explains
+  // that the action needs the App.tsx wiring instead of crashing.
+  onAddUser?: (user: UserRecord) => void;
+  onUpdateUser?: (userId: string, update: Partial<UserRecord>) => void;
+  onAddExpense?: (e: Omit<BusinessExpense, 'id' | 'createdAt'>) => void;
+  onResolveComplaint?: (ticketId: string, details: string) => void;
+  onSendTeamMessage?: (message: TeamMessage) => void;
+  managerUsername?: string;
   /** Persisted conversation log (dual-saved by the parent like the rest of AppState). */
   history?: CopilotLogEntry[];
   onHistoryChange?: (log: CopilotLogEntry[]) => void;
@@ -73,10 +75,10 @@ interface AwaitingSlot {
 
 export function useCopilot(opts: UseCopilotOptions) {
   const {
-    users, receipts, expenses, complaints, subManagers,
+    users, receipts = [], expenses = [], complaints = [], subManagers = [],
     onOpenTab, onPrepareReceipt, onSetUserStatus, canChangeStatus = false,
     onAddUser, onUpdateUser, onAddExpense, onResolveComplaint, onSendTeamMessage,
-    managerUsername, history, onHistoryChange,
+    managerUsername = '', history, onHistoryChange,
   } = opts;
 
   const [input, setInput] = useState('');
@@ -341,6 +343,7 @@ export function useCopilot(opts: UseCopilotOptions) {
         };
         askConfirm(`Add new customer ${name} (@${username}), phone ${phone}, fee ${rs(fee || 0)}?`,
           () => {
+            if (!cbRef.current.onAddUser) { say('Customer add karne ke liye App update chahiye.'); return; }
             cbRef.current.onAddUser(user);
             say(`Done — ${name} added as @${username}.`);
           });
@@ -358,6 +361,7 @@ export function useCopilot(opts: UseCopilotOptions) {
           : { [field]: value } as Partial<UserRecord>;
         askConfirm(`Change ${customer.name}'s ${field} to "${value}"?`,
           () => {
+            if (!cbRef.current.onUpdateUser) { say('Update ke liye App update chahiye.'); return; }
             cbRef.current.onUpdateUser(customer.id, update);
             say(`Done — ${customer.name}'s ${field} updated.`);
           });
@@ -371,6 +375,7 @@ export function useCopilot(opts: UseCopilotOptions) {
         const category = parsed.expenseCategory || 'other';
         askConfirm(`Add expense ${rs(amount)} — ${title} (${category})?`,
           () => {
+            if (!cbRef.current.onAddExpense) { say('Expense add karne ke liye App update chahiye.'); return; }
             cbRef.current.onAddExpense({
               title, amount, category,
               date: new Date().toISOString().split('T')[0], notes: 'Via Copilot',
@@ -391,6 +396,7 @@ export function useCopilot(opts: UseCopilotOptions) {
         const detail = parsed.complaintDetail || 'Resolved via Copilot';
         askConfirm(`Mark "${ticket.title}" (${customer.name}) as resolved?`,
           () => {
+            if (!cbRef.current.onResolveComplaint) { say('Complaint resolve ke liye App update chahiye.'); return; }
             cbRef.current.onResolveComplaint(ticket.id, detail);
             say(`Done — complaint marked resolved.`);
           });
@@ -403,6 +409,7 @@ export function useCopilot(opts: UseCopilotOptions) {
         if (!customer) return;
         askConfirm(`Mark ${customer.name} as reminded?`,
           () => {
+            if (!cbRef.current.onUpdateUser) { say('Reminder mark karne ke liye App update chahiye.'); return; }
             cbRef.current.onUpdateUser(customer.id, { lastReminderSentAt: new Date().toISOString() });
             say(`Done — ${customer.name} marked as reminded.`);
           });
@@ -424,9 +431,10 @@ export function useCopilot(opts: UseCopilotOptions) {
           say(`Kis team member ko bhejna hai?\n` + sms.map((s, i) => `${i + 1}. ${s.name} (@${s.username})`).join('\n'));
           return;
         }
+        if (!cbRef.current.onSendTeamMessage) { say('Team message ke liye App update chahiye.'); return; }
         askConfirm(`Send to ${target.name}: "${text}"?`,
           () => {
-            cbRef.current.onSendTeamMessage({
+            cbRef.current.onSendTeamMessage!({
               id: generateId(),
               managerUsername: st.managerUsername,
               senderUsername: st.managerUsername,
@@ -495,9 +503,10 @@ export function useCopilot(opts: UseCopilotOptions) {
       if (!target) { say('Kaun sa team member? Number ya naam batao.'); return true; }
       awaitingRef.current = null;
       const text = aw.slots.teamText!;
+      if (!cbRef.current.onSendTeamMessage) { say('Team message ke liye App update chahiye.'); return true; }
       askConfirm(`Send to ${target.name}: "${text}"?`,
         () => {
-          cbRef.current.onSendTeamMessage({
+          cbRef.current.onSendTeamMessage!({
             id: generateId(),
             managerUsername: st.managerUsername,
             senderUsername: st.managerUsername,
