@@ -461,7 +461,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   const faqs = [
     { 
-      q: "Kin businesses ke liye hai?", 
+      q: "Which businesses is Bill Collector suitable for?", 
       a: "Bill Collector is built for any local business with recurring billing — ISPs and cable internet providers, water/RO suppliers, and other subscription-style businesses. It handles PKR billing, area and route-wise collections, flexible packages, and Urdu/English WhatsApp payment reminders." 
     },
     { 
@@ -1485,7 +1485,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                       <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
                     </svg>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.4)' }}>New</span>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.4)' }}>Coming soon</span>
                 </div>
                 <h3 className="text-xl font-black text-slate-900 mb-2">Water / RO Suppliers</h3>
                 <p className="text-slate-400 text-sm leading-relaxed mb-6">Built for daily-supply businesses — track every bottle, every route, every rupee.</p>
@@ -1787,11 +1787,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
                 TRUSTED BY <br className="sm:hidden" />
                 <span className="bg-gradient-to-r from-[#6366f1] via-[#8b5cf6] to-[#06b6d4] bg-clip-text text-transparent">
-                  PAKISTANI ISPs
+                  LOCAL BUSINESSES
                 </span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
-                See how local network owners, operators, and IT managers are transforming their payment recovery with our automated platform.
+                See how local business owners and operators are transforming their payment recovery with our automated platform.
               </p>
             </div>
 
