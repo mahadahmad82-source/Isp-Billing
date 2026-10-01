@@ -110,3 +110,18 @@ test('nonsense input is unclear, never a write', () => {
   const p = parse('xyz blabla qwerty');
   assert.equal(p.intent, 'unclear');
 });
+
+
+// --- Confirmation safety: a negation must never be read as "yes" ---
+import { isAffirmative as _isYes, isNegative as _isNo } from '../utils/agent/slots';
+test('confirmation: plain yes variants confirm', () => {
+  for (const w of ['haan', 'yes', 'ok', 'kar do', 'confirm', 'han kar do']) assert.equal(_isYes(w), true, w);
+});
+test('confirmation: negations never confirm', () => {
+  for (const w of ['bas karo', 'bas', 'nahi', 'nahi kar do', 'theek nahi', 'ok nahi', 'han nahi', 'save mat karo', 'confirm nahi', 'yes cancel', 'no save', 'cancel', 'rehne do']) {
+    assert.equal(_isYes(w), false, w);
+  }
+});
+test('confirmation: negations are detected as cancel', () => {
+  for (const w of ['nahi', 'nahin', 'mat karo', 'cancel', 'bas karo', 'no']) assert.equal(_isNo(w), true, w);
+});
