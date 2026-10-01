@@ -630,7 +630,14 @@ export interface DealerSale {
   createdAt: string;
 }
 
+// Which kind of business a manager account runs. Absent/unknown => 'isp'
+// (every account that existed before multi-business support is an ISP), so
+// adding this field never changes behaviour for existing accounts.
+// See utils/businessType.ts.
+export type BusinessType = 'isp' | 'water';
+
 export interface AppState {
+  businessType?: BusinessType; // undefined => 'isp'
   users: UserRecord[];
   receipts: Receipt[];
   archives: Archive[];
