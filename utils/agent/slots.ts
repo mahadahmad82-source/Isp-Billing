@@ -132,10 +132,12 @@ export function cleanFreeText(text: string, fillers: readonly string[], customer
 
 /** True when the text is an affirmative confirmation. */
 export function isAffirmative(text: string): boolean {
+  // A negation anywhere wins ("theek nahi", "nahi kar do", "bas karo", "save mat karo" must NOT confirm).
+  if (isNegative(text)) return false;
   const t = normalize(text);
   return hasAny(t, [
     'haan', 'han', 'jee', 'ji', 'yes', 'yeah', 'yep', 'ok', 'okay',
-    'theek', 'kar do', 'kardo', 'confirm', 'save', 'bas', 'done',
+    'theek', 'kar do', 'kardo', 'confirm', 'save', 'done',
     'ہاں', 'جی',
   ]);
 }
@@ -145,6 +147,6 @@ export function isNegative(text: string): boolean {
   const t = normalize(text);
   return hasAny(t, [
     'cancel', 'rehne do', 'rehne de', 'rehnay do', 'chor do', 'chhor do',
-    'ruk jao', 'bas karo', 'nahi karna', 'no', 'nahe', 'نہیں کرنا',
+    'ruk jao', 'bas karo', 'nahi karna', 'no', 'nahe', 'nahi', 'nahin', 'mat', 'نہیں', 'مت', 'نہیں کرنا',
   ]);
 }
