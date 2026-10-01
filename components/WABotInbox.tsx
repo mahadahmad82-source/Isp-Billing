@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { UserRecord, RouterCatalog, RouterCatalogItem, BotTemplate, WABotAgent, WABotBehaviorRule, OutageLog } from '../types';
 import OutageTracker from './OutageTracker';
+import WABotRecovery from './WABotRecovery';
+import WABotCustomization, { WALLPAPER_PRESETS, DEFAULT_WALLPAPER, ThemePref } from './WABotCustomization';
+import WABotContacts from './WABotContacts';
+import WABotLinkedDevices from './WABotLinkedDevices';
 import CopilotTab from './CopilotTab';
 import type { CopilotLogEntry } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
@@ -63,6 +67,9 @@ interface WAMessage {
   is_read: boolean;
   status: 'uploading' | 'sent' | 'delivered' | 'read' | 'failed';
   created_at: string;
+  reply_to_id?: string | null;
+  reply_to_content?: string | null;
+  reply_to_sender?: string | null;
 }
 
 interface Conversation {
@@ -113,6 +120,8 @@ interface WABotInboxProps {
   totalUsers?: number;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
+  themePref?: ThemePref;
+  onThemePrefChange?: (pref: ThemePref) => void;
   onLogout?: () => void;
 }
 
@@ -499,7 +508,7 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
   },
 ];
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, themePref, onThemePrefChange, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
   const isDarkControlled = typeof theme !== 'undefined';
   const [internalDark, setInternalDark] = useState<boolean>(() => {
@@ -542,6 +551,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   const [contactNameInput, setContactNameInput] = useState('');
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [thread, setThread] = useState<WAMessage[]>([]);
+  // ── Thread parity (Phase 2a): older-message pagination, reply quote, bubble context menu ──
+  const [threadHasMore, setThreadHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [replyTo, setReplyTo] = useState<WAMessage | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: WAMessage } | null>(null);
+  const suppressThreadScrollRef = useRef(false);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -588,8 +603,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   };
 
   // ── Tab views & settings navigation ──
-  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages' | 'copilot'>('inbox');
+  const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages' | 'copilot' | 'recovery' | 'customization' | 'devices'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
+  // ── Chat wallpaper (Phase 2b parity with Android Customization) ──
+  const [wallpaper, setWallpaper] = useState<string>(() => {
+    try { return localStorage.getItem('wabot_wallpaper') || DEFAULT_WALLPAPER; } catch { return DEFAULT_WALLPAPER; }
+  });
+  const changeWallpaper = (key: string) => {
+    setWallpaper(key);
+    try { localStorage.setItem('wabot_wallpaper', key); } catch {}
+  };
+  const wallpaperPreset = WALLPAPER_PRESETS.find(w => w.key === wallpaper) || WALLPAPER_PRESETS[0];
   const [helpFaqOpen, setHelpFaqOpen] = useState<number | null>(0);
 
   // ── Smart filter tabs (All / Unread / Payment Slips / Paused) ──
@@ -1080,6 +1104,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
         .order('created_at', { ascending: false })
         .limit(300);
       setThread((data || []).slice().reverse());
+      setThreadHasMore((data?.length || 0) >= 300);
+      setReplyTo(null);
+      setCtxMenu(null);
 
       // Mark unread inbound messages as read
       await supabase
@@ -1199,6 +1226,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     isPinnedToBottomRef.current = true;
   }, [selectedPhone]);
   useEffect(() => {
+    if (suppressThreadScrollRef.current) { suppressThreadScrollRef.current = false; return; }
     threadEndRef.current?.scrollIntoView({ behavior: isInitialThreadPaintRef.current ? 'auto' : 'smooth' });
     isInitialThreadPaintRef.current = false;
   }, [thread]);
@@ -1341,10 +1369,82 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
     }
   };
 
+  // Short label for a quoted message (reply strip + quote block), mirroring Android's replySnippet.
+  const replySnippet = (m: WAMessage): string => {
+    if (m.type === 'text' && m.content) return m.content.length > 120 ? m.content.slice(0, 120) + '\u2026' : m.content;
+    if (m.type === 'image') return 'Photo';
+    if (m.type === 'video') return 'Video';
+    if (m.type === 'document') return 'Document';
+    return 'Voice note';
+  };
+
+  // ── Load older messages: fetch the next 300 older than the oldest loaded ──
+  const loadOlderMessages = async () => {
+    if (!selectedPhone || loadingOlder || !threadHasMore || thread.length === 0) return;
+    setLoadingOlder(true);
+    const container = threadContainerRef.current;
+    const prevHeight = container ? container.scrollHeight : 0;
+    try {
+      const oldest = thread[0].created_at;
+      const { data } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('manager_id', managerId)
+        .eq('customer_phone', selectedPhone)
+        .lt('created_at', oldest)
+        .order('created_at', { ascending: false })
+        .limit(300);
+      const older = (data || []).slice().reverse();
+      suppressThreadScrollRef.current = true;
+      setThread(prev => [...older, ...prev]);
+      setThreadHasMore((data?.length || 0) >= 300);
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop = Math.max(0, container.scrollHeight - prevHeight);
+      });
+    } catch (e) {
+      console.error('[WABotInbox] loadOlderMessages', e);
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
+
+  // ── Retry a failed text message (mirrors Android's bubble Retry; media retry
+  // is intentionally out of scope — failed media needs a fresh file pick). ──
+  const retryTextMessage = async (m: WAMessage) => {
+    if (!selectedPhone || m.type !== 'text' || !m.content) return;
+    setThread(prev => prev.map(x => x.id === m.id ? { ...x, status: 'sent' as const } : x));
+    try {
+      const res = await fetch('/api/wabot-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
+        body: JSON.stringify({ to: `92${selectedPhone}`, body: m.content, managerId }),
+      });
+      if (!res.ok) throw new Error('send failed');
+    } catch (e) {
+      setThread(prev => prev.map(x => x.id === m.id ? { ...x, status: 'failed' as const } : x));
+    }
+  };
+
+  // ── Delete an own outgoing message (mirrors Android's long-press Delete). ──
+  const deleteThreadMessage = async (m: WAMessage) => {
+    if (m.direction !== 'out' || !selectedPhone) return;
+    if (!window.confirm('Delete this message?')) return;
+    setThread(prev => prev.filter(x => x.id !== m.id));
+    try {
+      const { error } = await supabase.from('whatsapp_messages').delete().eq('id', m.id).eq('manager_id', managerId);
+      if (error) throw error;
+    } catch (e) {
+      console.error('[WABotInbox] deleteThreadMessage', e);
+      openConversation(selectedPhone);
+    }
+  };
+
   const handleSend = async () => {
     if (!selectedPhone || !inputText.trim() || sending) return;
     const body = inputText.trim();
     setInputText('');
+    const quoted = replyTo;
+    setReplyTo(null);
     setSending(true);
     const optimistic: WAMessage = {
       id: `temp-${Date.now()}`,
@@ -1357,6 +1457,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
       is_read: true,
       status: 'sent',
       created_at: new Date().toISOString(),
+      // Quote fields stay local — the current /api/wabot-send endpoint does not
+      // support reply context (same as Android's offline comment).
+      reply_to_id: quoted?.id ?? null,
+      reply_to_content: quoted ? replySnippet(quoted) : null,
+      reply_to_sender: quoted ? (quoted.direction === 'out' ? 'You' : (selectedConv?.name || 'Customer')) : null,
     };
     setThread(prev => [...prev, optimistic]);
     try {
@@ -1755,6 +1860,34 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   Help &amp; Support
                 </button>
+                <button
+                  onClick={() => { setView('recovery'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Pending Recoveries
+                </button>
+                <button
+                  onClick={() => { setView('customization'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                  Customization
+                </button>
+                <button
+                  onClick={() => { setView('contacts'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                  Contacts
+                </button>
+                <button
+                  onClick={() => { setView('devices'); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  Linked Devices
+                </button>
                 {onLogout && (
                   <>
                     <div className="h-px bg-slate-100 dark:bg-white/10 my-2" />
@@ -1780,7 +1913,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
-            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : view === 'outages' ? 'Network Outages' : view === 'copilot' ? 'Copilot' : 'Voice & Agents'}
+            {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'recovery' ? 'Pending Recoveries' : view === 'customization' ? 'Customization' : view === 'devices' ? 'Linked Devices' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : view === 'outages' ? 'Network Outages' : view === 'copilot' ? 'Copilot' : 'Voice & Agents'}
           </h3>
         </div>
       )}
@@ -2680,6 +2813,24 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
           onUpdate={(id, updates) => onUpdateOutageLogs?.((outageLogs || []).map(o => (o.id === id ? { ...o, ...updates } : o)))}
           onDelete={(id) => onUpdateOutageLogs?.((outageLogs || []).filter(o => o.id !== id))}
         />
+      ) : view === 'recovery' ? (
+        <WABotRecovery managerId={managerId} />
+      ) : view === 'customization' ? (
+        <WABotCustomization
+          themePref={themePref || (wabotDark ? 'dark' : 'light')}
+          onThemePrefChange={onThemePrefChange || (() => {})}
+          wallpaper={wallpaper}
+          onWallpaperChange={changeWallpaper}
+          wabotDark={wabotDark}
+        />
+      ) : view === 'contacts' ? (
+        <WABotContacts
+          customers={(customers || []).map(c => ({ id: c.id, name: c.name, username: c.username, phone: c.phone }))}
+          chatPhones={(conversations || []).map(c => c.phone)}
+          onOpenChat={(phone) => { setView('inbox'); openConversation(phone); }}
+        />
+      ) : view === 'devices' ? (
+        <WABotLinkedDevices />
       ) : (
     <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
@@ -2833,14 +2984,34 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               </div>
             )}
 
-            <div ref={threadContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
+            <div ref={threadContainerRef} style={{ backgroundColor: wabotDark ? wallpaperPreset.dark : wallpaperPreset.light }} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
+              {threadHasMore && (
+                <div className="flex justify-center pb-1">
+                  <button
+                    type="button"
+                    onClick={loadOlderMessages}
+                    disabled={loadingOlder}
+                    className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-white dark:bg-[#202C33] text-[#00A884] border border-[#E9EDEF] dark:border-[#222D34] shadow-sm hover:bg-[#F0F2F5] dark:hover:bg-[#2A3942] disabled:opacity-50 transition-all"
+                  >
+                    {loadingOlder ? 'Loading older messages\u2026' : 'Load older messages'}
+                  </button>
+                </div>
+              )}
               {thread.map(m => {
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
                 const isPlaceholderText = m.content === '[voice note — transcription unavailable]';
                 return (
                   <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
+                    <div
+                      onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, msg: m }); }}
+                      className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
+                      {m.reply_to_content ? (
+                        <div className="mb-1.5 px-2 py-1 rounded-r-lg border-l-[3px] border-[#00A884] bg-black/5 dark:bg-white/5">
+                          <p className="text-[10px] font-black text-[#00A884] truncate">{m.reply_to_sender || 'Message'}</p>
+                          <p className="text-[11px] opacity-70 truncate">{m.reply_to_content}</p>
+                        </div>
+                      ) : null}
                       {m.type === 'image' && mediaSrc ? (
                         <button
                           type="button"
@@ -2899,12 +3070,64 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
                         {m.flagged_payment_proof ? ' • 🧾 Payment proof' : ''}
                         {m.direction === 'out' && <DeliveryTicks status={m.status} />}
                       </p>
+                      {m.direction === 'out' && m.status === 'failed' && m.type === 'text' && (
+                        <button
+                          type="button"
+                          onClick={() => retryTextMessage(m)}
+                          className="mt-1 text-[11px] font-black text-rose-500 dark:text-rose-300 hover:underline"
+                        >
+                          Message failed \u2014 tap to retry
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
               <div ref={threadEndRef} />
             </div>
+
+            {ctxMenu && (
+              <div
+                className="fixed inset-0 z-[100]"
+                onClick={() => setCtxMenu(null)}
+                onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }}
+              >
+                <div
+                  className="absolute min-w-[168px] py-1.5 bg-white dark:bg-[#233138] rounded-xl shadow-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-hidden"
+                  style={{ left: Math.min(ctxMenu.x, window.innerWidth - 184), top: Math.min(ctxMenu.y, window.innerHeight - 170) }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setReplyTo(ctxMenu.msg); setCtxMenu(null); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                    Reply
+                  </button>
+                  {ctxMenu.msg.type === 'text' && ctxMenu.msg.content && (
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard?.writeText(ctxMenu.msg.content || '').catch(() => {}); setCtxMenu(null); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                      Copy
+                    </button>
+                  )}
+                  {ctxMenu.msg.direction === 'out' && (
+                    <button
+                      type="button"
+                      onClick={() => { const m = ctxMenu.msg; setCtxMenu(null); deleteThreadMessage(m); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-rose-500 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <input
               ref={fileInputRef}
@@ -2913,6 +3136,24 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
               onChange={handleFilePick}
               className="hidden"
             />
+            {replyTo && (
+              <div className="px-3.5 py-2 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-[#E9EDEF] dark:border-[#222D34] flex items-center gap-2 flex-shrink-0">
+                <div className="flex-1 min-w-0 pl-2.5 border-l-[3px] border-[#00A884]">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[#00A884]">
+                    Replying to {replyTo.direction === 'out' ? 'yourself' : (selectedConv?.name || 'customer')}
+                  </p>
+                  <p className="text-xs text-[#111B21] dark:text-[#E9EDEF] opacity-70 truncate">{replySnippet(replyTo)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyTo(null)}
+                  title="Cancel reply"
+                  className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-[#667781] dark:text-[#8696A0] hover:bg-black/5 dark:hover:bg-white/10"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            )}
             <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-[#E9EDEF] dark:border-[#222D34] flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => fileInputRef.current?.click()}
