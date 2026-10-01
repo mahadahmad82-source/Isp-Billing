@@ -1,8 +1,8 @@
 {
   "id": "/wabot",
-  "name": "NetBot — MahadNet WhatsApp Assistant",
+  "name": "NetBot — WhatsApp Assistant",
   "short_name": "NetBot",
-  "description": "WhatsApp customer support assistant for MahadNet",
+  "description": "WhatsApp customer support assistant for local businesses",
   "start_url": "/wabot",
   "scope": "/wabot",
   "display": "standalone",
