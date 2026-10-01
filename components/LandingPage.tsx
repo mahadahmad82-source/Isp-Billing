@@ -7,10 +7,12 @@ import VideoBackground from './landing/VideoBackground';
 import { 
   Zap, Smartphone, Lock, BarChart, Users, Globe, Cpu, Server, 
   Check, ArrowRight, Shield, ChevronDown, CheckCircle, Activity, 
-  Database, ShieldCheck, Mail, FileText, BarChart3, Calendar, Map, Radio,
+  Database, ShieldCheck, Mail, FileText, BarChart3, Calendar, Map,
   Play, Star, TrendingUp, Clock, CreditCard, MessageCircle, Eye, LockKeyhole,
   ArrowUpRight, X, Menu, Wifi, Receipt, Bell, Fingerprint, HeadphonesIcon, Download
 } from 'lucide-react';
+
+const BOT_NAME = 'NetBot';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -362,7 +364,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   }, []);
 
   // ─── DATA ───
-  const missionText = "Bill Collector was built to empower Pakistani ISPs with enterprise-grade billing automation, WhatsApp-powered recovery, and real-time cloud synchronization — all while keeping your data secure with AES-256 encryption and role-based access control.";
+  const missionText = "Bill Collector was built to empower local businesses with recurring billing through enterprise-grade billing automation, WhatsApp-powered recovery, and real-time cloud synchronization — all while keeping your data secure with AES-256 encryption and role-based access control.";
   const words = missionText.split(' ');
 
   const testimonials = [
@@ -370,7 +372,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       name: "Mahad Ahmad",
       role: "Founder, Bill Collector & Owner-Operator, MahadNet",
       location: "Pakistan",
-      text: "I built Bill Collector because I was running my own ISP, MahadNet, off scattered spreadsheets and WhatsApp chats. Now every subscriber, receipt, and recovery ledger for MahadNet runs through this same dashboard — and NetBot handles the routine 'when's my bill due' questions on WhatsApp so I don't have to answer them one by one.",
+      text: `I built Bill Collector because I was running my own ISP, MahadNet, off scattered spreadsheets and WhatsApp chats. Now every subscriber, receipt, and recovery ledger for MahadNet runs through this same dashboard — and ${BOT_NAME} handles the routine 'when's my bill due' questions on WhatsApp so I don't have to answer them one by one.`,
       rating: 5,
       avatarBg: "#6366f1"
     },
@@ -385,28 +387,26 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   const featuresList = [
-    { title: 'Billing & Receipts', desc: 'Manage subscriber plans, record collections, and generate professional digital receipts for sharing with customers.', icon: <Receipt className="w-5 h-5" />, color: '#6366f1' },
+    { title: 'Billing & Receipts', desc: 'Manage customer plans, record collections, and generate professional digital receipts for sharing with customers.', icon: <Receipt className="w-5 h-5" />, color: '#6366f1' },
     { title: 'WhatsApp Reminders', desc: 'Send personalized Urdu and English payment reminders with bill links directly to a customer’s WhatsApp chat with a single tap.', icon: <Smartphone className="w-5 h-5" />, color: '#8b5cf6' },
     { title: 'Cloud Sync', desc: 'Enjoy lightning-fast operations with encrypted local storage coupled with real-time Supabase cloud sync. Your database is always backed up, secure, and accessible from any device.', icon: <Lock className="w-5 h-5" />, color: '#06b6d4' },
     { title: 'Recovery & Financial Tracking', desc: 'Review area-wise collections, recovery activity, pending balances, and outstanding dues in focused operational dashboards.', icon: <BarChart className="w-5 h-5" />, color: '#10b981' },
     { title: 'Agent Management', desc: 'Authorize collection staff with secure, restricted sub-accounts. Let agents collect outstanding dues, issue instant digital receipts, and record field expenses on the spot.', icon: <Users className="w-5 h-5" />, color: '#f59e0b' },
-    { title: 'Network Operations', desc: 'Document fiber cuts, power outages, and maintenance downtime while keeping structured suspension records with reasons and dates.', icon: <Globe className="w-5 h-5" />, color: '#ec4899' },
-    { title: 'Subscription Tiers', desc: 'Let ISPs sign up online for the subscription tier that fits their operation and scale access as their needs grow.', icon: <CreditCard className="w-5 h-5" />, color: '#14b8a6' },
+    { title: 'Network Operations', desc: 'Document service disruptions and maintenance downtime while keeping structured suspension records with reasons and dates.', icon: <Globe className="w-5 h-5" />, color: '#ec4899' },
+    { title: 'Subscription Tiers', desc: 'Let businesses sign up online for the subscription tier that fits their operation and scale access as their needs grow.', icon: <CreditCard className="w-5 h-5" />, color: '#14b8a6' },
     { title: 'Admin Subscription Ledger', desc: 'Maintain a central subscription ledger with account status and receipts for admin-side tracking.', icon: <FileText className="w-5 h-5" />, color: '#f97316' },
-    { title: 'NetBot AI Support', desc: 'Connect customers to NetBot for WhatsApp support, with multiple configurable voice-agent personas available on higher tiers.', icon: <MessageCircle className="w-5 h-5" />, color: '#22c55e' },
+    { title: `${BOT_NAME} AI Support`, desc: `Connect customers to ${BOT_NAME} for WhatsApp support, with multiple configurable voice-agent personas available on higher tiers.`, icon: <MessageCircle className="w-5 h-5" />, color: '#22c55e' },
     { title: 'CNIC-Based Login', desc: 'Provide customers with a secure CNIC-based login option for convenient access to the platform.', icon: <Fingerprint className="w-5 h-5" />, color: '#eab308' },
   ];
 
   const infraFeatures = [
-    { title: 'Customer Management', desc: 'Manage thousands of customer profiles with ease. Track sub-nets, assigned IP addresses, package plans, expiration dates, and physical home coordinates.', icon: <Users className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
+    { title: 'Customer Management', desc: 'Manage thousands of customer profiles with ease. Track package plans, billing cycles, expiration dates, outstanding dues, and customer addresses.', icon: <Users className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
     { title: 'Digital Receipts', desc: 'Generate beautifully styled, brand-customized digital PDF invoice receipts automatically. Instantly share directly with customers via WhatsApp with zero setup.', icon: <FileText className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
     { title: 'Recovery Ledger', desc: "An interactive master grid of your month's finances. Track pending dues, collected cash, outstanding balances, and daily recovery performance in one dashboard.", icon: <BarChart3 className="w-6 h-6" />, borderColor: '#06b6d455', bg: 'linear-gradient(145deg, #06b6d415, #06b6d408 60%, transparent)' },
-    { title: 'Equipment Tracker', desc: 'Keep a real-time count of your GPON/EPON ONUs, media converters, and TP-Link routers assigned to customers. Never lose track of expensive hardware inventory.', icon: <Server className="w-6 h-6" />, borderColor: '#10b98155', bg: 'linear-gradient(145deg, #10b98115, #10b98108 60%, transparent)' },
-    { title: 'Leads Pipeline', desc: 'Convert prospective customers into subscribers. Track inquiries from initial phone calls to active fiber splicing and connection testing with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b55', bg: 'linear-gradient(145deg, #f59e0b15, #f59e0b08 60%, transparent)' },
-    { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend lines.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489955', bg: 'linear-gradient(145deg, #ec489915, #ec489908 60%, transparent)' },
-    { title: 'Area Dashboard', desc: 'Get deep business insight into your active network areas. Identify highly profitable neighborhoods, pending cash-flow zones, and localized user count growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
+    { title: 'Leads Pipeline', desc: 'Convert prospective customers into active subscribers. Track inquiries from initial contact to active service with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b55', bg: 'linear-gradient(145deg, #f59e0b15, #f59e0b08 60%, transparent)' },
+    { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend service.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489955', bg: 'linear-gradient(145deg, #ec489915, #ec489908 60%, transparent)' },
+    { title: 'Area Dashboard', desc: 'Get deep business insight into your active areas and routes. Identify highly profitable neighborhoods, pending cash-flow zones, and localized customer growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
     { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <Lock className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
-    { title: 'Outage Tracker', desc: 'Log critical fiber cuts, power failures, or upstream bandwidth drops. Inform affected areas promptly and log down-time duration for upstream rebate claims.', icon: <Radio className="w-6 h-6" />, borderColor: '#06b6d455', bg: 'linear-gradient(145deg, #06b6d415, #06b6d408 60%, transparent)' },
   ];
 
   const howItWorksSteps = [
@@ -461,12 +461,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   const faqs = [
     { 
-      q: "Is Bill Collector suitable for Pakistani ISPs?", 
-      a: "Absolutely! Bill Collector is built specifically for local Pakistani ISPs. It handles PKR billing currency, area-wise collection groups, local packages (e.g. 5Mbps, 10Mbps, 20Mbps Fiber), and localized Urdu/English payment alerts tailored to Pakistani subscribers." 
+      q: "Kin businesses ke liye hai?", 
+      a: "Bill Collector is built for any local business with recurring billing — ISPs and cable internet providers, water/RO suppliers, and other subscription-style businesses. It handles PKR billing, area and route-wise collections, flexible packages, and Urdu/English WhatsApp payment reminders." 
     },
     { 
       q: "How does the WhatsApp reminder feature work? Do I need a costly API key?", 
-      a: "No expensive API keys or monthly subscriptions are required! Bill Collector compiles pre-filled, personalized text templates (in English and Urdu) with secure billing links. You just tap the WhatsApp icon, and it instantly opens your subscriber's chat. Send invoices and reminders in literally 1 second." 
+      a: "No expensive API keys or monthly subscriptions are required! Bill Collector compiles pre-filled, personalized text templates (in English and Urdu) with secure billing links. You just tap the WhatsApp icon, and it instantly opens your customer's chat. Send invoices and reminders in literally 1 second." 
     },
     { 
       q: "Can I use it offline in remote areas where mobile data is weak?", 
@@ -482,7 +482,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     },
     { 
       q: "How many customers can one account support?", 
-      a: "The Starter plan supports up to 50 active subscribers for free. To scale further, our Business plan supports unlimited customer accounts, complete device inventory trackers, leads pipeline, and advanced aging reports." 
+      a: "The Starter plan supports up to 50 active customers for free. To scale further, our Business plan supports unlimited customer accounts, complete device inventory trackers, leads pipeline, and advanced aging reports." 
     },
     { 
       q: "Is my data safe? What if my phone breaks?", 
@@ -1326,7 +1326,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="hero-content" ref={heroContentRef}>
             <div className="badge scroll-reveal">
               <div className="dot"></div>
-              <span>Trusted by 150+ Pakistani ISPs</span>
+              <span>Trusted by 150+ local businesses</span>
             </div>
             <div className="badge scroll-reveal" style={{ background: 'rgba(16,185,129,0.14)', borderColor: 'rgba(16,185,129,0.4)' }}>
               <div className="dot" style={{ background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)' }}></div>
@@ -1334,11 +1334,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
             <h1 className="scroll-reveal">
               THE FUTURE OF<br/>
-              <span className="gradient">ISP BILLING</span><br/>
+              <span className="gradient">RECURRING BILLING</span><br/>
               IN PAKISTAN
             </h1>
             <p className="mt-3 text-slate-300 text-sm sm:text-base leading-relaxed scroll-reveal max-w-2xl mx-auto">
-              Automate invoices, send WhatsApp payment reminders, track equipment, and manage your entire subscriber network — all from one secure, cloud-synced dashboard built exclusively for Pakistani Internet Service Providers.
+              Automate invoices, send WhatsApp payment reminders, and manage your entire customer base — all from one secure, cloud-synced dashboard built for local businesses with recurring billing.
             </p>
 
             {/* Trust Badges Row */}
@@ -1411,7 +1411,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               Premium <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Capabilities</span>
             </h2>
             <p className="text-slate-400 text-lg max-w-2xl mx-auto mt-6">
-              Everything you need to automate your ISP billing, recovery, and network management in one powerful platform.
+              Everything you need to automate your recurring billing, recovery, and customer management in one powerful platform.
             </p>
           </div>
 
@@ -1434,18 +1434,106 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
         </section>
 
+        {/* ── SECTION 2.5: INDUSTRIES ── */}
+        <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="industries">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">02.5 / Industries</span>
+              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mt-4">
+                Built for <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">recurring businesses</span>
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto mt-4">
+                One platform for every local business that bills again and again — from internet providers to water suppliers.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* ISP & Cable Internet */}
+              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 flex flex-col hover:border-indigo-500/30 transition-all">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#6366f114', border: '1px solid #6366f140', color: '#6366f1' }}>
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                      <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                      <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none" />
+                    </svg>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)' }}>Live</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">ISP & Cable Internet</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">Everything internet providers already use today — billing, recovery, and customer care in one dashboard.</p>
+                <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Monthly billing & digital receipts</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> WhatsApp payment reminders</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Customer, dues & recovery tracking</li>
+                </ul>
+                <div className="mt-6 pt-6 border-t border-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">ISP-focused tools</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Equipment Tracker</span>
+                    <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Outage Tracker</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Water / RO Suppliers */}
+              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 flex flex-col hover:border-indigo-500/30 transition-all">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#06b6d414', border: '1px solid #06b6d440', color: '#06b6d4' }}>
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
+                    </svg>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.4)' }}>New</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">Water / RO Suppliers</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">Built for daily-supply businesses — track every bottle, every route, every rupee.</p>
+                <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Daily delivery entry</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Bottle balance per customer</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Route-wise organization</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Udhaar ledger</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> WhatsApp bill reminders</li>
+                </ul>
+              </div>
+
+              {/* Coming soon */}
+              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 flex flex-col hover:border-indigo-500/30 transition-all">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#94a3b814', border: '1px solid #94a3b840', color: '#94a3b8' }}>
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 6v6l4 2" />
+                    </svg>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.4)' }}>Coming soon</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">More industries</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">We are expanding step by step — these are next on the roadmap.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Cable TV</span>
+                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Gyms & academies</span>
+                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Hostels & rent</span>
+                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Society maintenance</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── SECTION 3: LIVE COUNTERS ── */}
         <section className="counter-section scroll-reveal" id="counters">
           <div className="bg-glow"></div>
           <div className="section-header max-w-4xl mx-auto" ref={revealContainerRef}>
             <div className="num fade-in">03 / Live Metrics</div>
             <h2 className="fade-in">Trusted at <span className="gradient">Scale</span></h2>
-            <p className="fade-in">Real numbers from real Pakistani ISPs using Bill Collector every day.</p>
+            <p className="fade-in">Real numbers from real local businesses using Bill Collector every day.</p>
           </div>
           <div className="counter-grid" ref={countersContainerRef}>
             <div className="counter-item">
               <div className="number counter-number grad-text" data-target="150" data-suffix="+">0</div>
-              <div className="label">Active ISPs</div>
+              <div className="label">Active Businesses</div>
             </div>
             <div className="counter-item">
               <div className="number counter-number grad-text" data-target="99.9" data-suffix="%">0</div>
@@ -1453,7 +1541,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
             <div className="counter-item">
               <div className="number counter-number grad-text" data-target="50000" data-suffix="+">0</div>
-              <div className="label">Subscribers Managed</div>
+              <div className="label">Customers Managed</div>
             </div>
             <div className="counter-item">
               <div className="number counter-number grad-text" data-target="95" data-suffix="%">0</div>
@@ -1505,7 +1593,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="section-header max-w-4xl mx-auto">
             <div className="num">04 / Platform</div>
             <h2>Core <span className="gradient">Infrastructure</span></h2>
-            <p>Everything you need to run a professional ISP billing operation.</p>
+            <p>Everything you need to run a professional recurring-billing operation.</p>
           </div>
           <div className="reveal-grid max-w-7xl mx-auto px-6" ref={revealContainerRef}>
             {infraFeatures.map((infra, idx) => (
@@ -1531,17 +1619,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 Why Choose <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Bill Collector?</span>
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
-                See how we stack up against other ISP billing platforms in Pakistan.
+                See how we stack up against other billing platforms in Pakistan.
               </p>
             </div>
 
             <div className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6 sm:p-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-2">NetBot / WhatsApp Customer Care</p>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">Purpose-built support for your subscribers</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-2">{BOT_NAME} / WhatsApp Customer Care</p>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">Purpose-built support for your customers</h3>
                   <p className="text-sm leading-relaxed text-slate-600 mt-3 max-w-3xl">
-                    NetBot is Bill Collector’s AI WhatsApp customer-care service — designed for billing questions, technical support, complaints, and everyday subscriber assistance. Choose natural-sounding female voices and configure different support tones and voice-agent personas for the way your ISP communicates with customers.
+                    {BOT_NAME} is Bill Collector’s AI WhatsApp customer-care service — designed for billing questions, technical support, complaints, and everyday customer assistance. Choose natural-sounding female voices and configure different support tones and voice-agent personas for the way your business communicates with customers.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:max-w-xs sm:justify-end">
@@ -1640,17 +1728,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
           <div className="marquee-row">
             <div className="marquee-content whitespace-nowrap">
-              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · NETBOT AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
-              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · NETBOT AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
+              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · {BOT_NAME.toUpperCase()} AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
+              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · {BOT_NAME.toUpperCase()} AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
             </div>
           </div>
           <div className="marquee-row reverse">
             <div className="marquee-content whitespace-nowrap">
               <span className="marquee-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', color: 'rgba(255,255,255,0.05)' }}>
-                ✦ billing & receipts · WhatsApp reminders · subscription tiers · NetBot AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
+                ✦ billing & receipts · WhatsApp reminders · subscription tiers · {BOT_NAME} AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
               </span>
               <span className="marquee-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', color: 'rgba(255,255,255,0.05)' }}>
-                ✦ billing & receipts · WhatsApp reminders · subscription tiers · NetBot AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
+                ✦ billing & receipts · WhatsApp reminders · subscription tiers · {BOT_NAME} AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
               </span>
             </div>
           </div>
@@ -1772,7 +1860,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 Choose Your<br />
                 <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Plan</span>
               </h2>
-              <p className="text-slate-400 text-sm max-w-xl mx-auto">Flexible billing subscription plans for Pakistani ISPs of every size. No hidden charges.</p>
+              <p className="text-slate-400 text-sm max-w-xl mx-auto">Flexible billing subscription plans for local businesses of every size. No hidden charges.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start pt-5">
@@ -1818,7 +1906,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <p className="text-center text-slate-500 text-xs mt-12 font-medium flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-              Built natively for Pakistan's growing ISP networks.
+              Built natively for Pakistan's growing local businesses.
             </p>
           </div>
         </section>
@@ -1836,7 +1924,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 <span className="gradient">DOWNLOAD THE APP</span>
               </h2>
               <p className="max-w-lg mx-auto mb-12 text-slate-400 text-sm sm:text-base font-medium">
-                Native Android apps for your billing dashboard and NetBot inbox — no browser needed.
+                Native Android apps for your billing dashboard and {BOT_NAME} inbox — no browser needed.
               </p>
               <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 {latestReleases.billcollector && (
@@ -1863,7 +1951,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                       <MessageCircle className="w-8 h-8 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="font-black text-sm">NetBot</p>
+                      <p className="font-black text-sm">{BOT_NAME}</p>
                       <p className="text-xs text-slate-500 mt-1">
                         v{latestReleases.wabot.version}{latestReleases.wabot.file_size_mb ? ` • ${latestReleases.wabot.file_size_mb} MB` : ''}
                       </p>
@@ -1892,7 +1980,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <span className="gradient">FREE TRIAL</span>
             </h2>
             <p className="max-w-lg mx-auto mb-10 text-slate-400 text-sm sm:text-base font-medium">
-              Join 150+ Pakistani ISPs already automating their billing. No credit card required. Setup takes less than 2 minutes.
+              Join 150+ local businesses already automating their billing. No credit card required. Setup takes less than 2 minutes.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button onClick={onGetStarted}
@@ -1922,7 +2010,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="col-span-2">
                 {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[85px] h-[85px] object-contain mb-6" />}
                 <p className="text-slate-300 max-w-sm font-medium text-base leading-relaxed mb-6">
-                  Pakistan's leading ISP billing and management platform. From small neighborhood operators to enterprise fiber networks — built for every ISP.
+                  Pakistan's leading recurring-billing platform for local businesses. From small neighborhood businesses to growing enterprises — built for every subscription-style business.
                 </p>
                 <div className="flex flex-col gap-2 max-w-xs">
                   <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
@@ -1967,7 +2055,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 Bill Collector. All rights reserved.</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest">Built for Pakistani ISPs · support@billcollector.online</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest">Built for Pakistani businesses · support@billcollector.online</p>
             </div>
           </div>
         </footer>
@@ -2024,7 +2112,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
                     </div>
                     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Bill Collector Platform Features</h2>
-                    <p className="text-indigo-300 text-sm mt-1">Everything your ISP needs</p>
+                    <p className="text-indigo-300 text-sm mt-1">Everything your business needs</p>
                   </div>
                   <button onClick={() => setShowSpecs(false)} className="text-slate-500 hover:text-slate-900 text-2xl transition-colors">✕</button>
                 </div>
