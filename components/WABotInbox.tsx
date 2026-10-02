@@ -822,6 +822,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
   // ── Canned quick replies (/slash commands) palette state ──
   const [showSlashPalette, setShowSlashPalette] = useState(false);
+  // ── UI/UX P3 (W23): keyboard highlight index for the slash palette ──
+  const [slashHi, setSlashHi] = useState(0);
+  const slashMatches = inputText.startsWith('/')
+    ? buildCannedReplies(identity).filter(cr => !inputText.slice(1) || cr.cmd.includes(inputText.toLowerCase()) || cr.title.toLowerCase().includes(inputText.toLowerCase()))
+    : [];
 
   // ── Official Meta templates (Android OfficialTemplateModal parity) ──
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -2041,7 +2046,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute top-11 right-0 z-50 w-64 bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 rounded-xl shadow-lg py-2 overflow-hidden">
+              <div style={{ maxHeight: '70dvh', overflowY: 'auto' }} className="absolute top-11 right-0 z-50 w-64 bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 rounded-xl shadow-lg py-2">
                 <button
                   onClick={() => { setView('teach'); setMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
@@ -2325,10 +2330,10 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         <p className="text-sm font-black text-[#111B21] dark:text-white truncate">{r.model} <span className="text-slate-400 font-bold">— {r.company}</span></p>
                         <p className="text-xs text-slate-400 font-bold mt-0.5">{r.band} · Rs. {r.price.toLocaleString()}</p>
                       </div>
-                      <button onClick={() => openEditRouter(band, r)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-[#00A884]/10 text-[#00A884]">
+                      <button onClick={() => openEditRouter(band, r)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-[#00A884]/10 text-[#00A884]">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
-                      <button onClick={() => deleteRouter(band, r.id)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-500">
+                      <button onClick={() => deleteRouter(band, r.id)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-500">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
@@ -3085,7 +3090,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
         <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0 space-y-2">
           <div className="flex items-center gap-2">
             <input
-              placeholder="Search or start new chat"
+              placeholder="Search conversations"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0]"
@@ -3098,28 +3103,28 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
             <button
               onClick={() => setChatFilter('all')}
-              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
             >
               All
               <span className="text-[10px] opacity-80">({filterCounts.all})</span>
             </button>
             <button
               onClick={() => setChatFilter('unread')}
-              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
             >
               Unread
               {filterCounts.unread > 0 && <span className="bg-[#00A884] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.unread}</span>}
             </button>
             <button
               onClick={() => setChatFilter('proofs')}
-              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
             >
               Payment Slips
               {filterCounts.proofs > 0 && <span className="bg-amber-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.proofs}</span>}
             </button>
             <button
               onClick={() => setChatFilter('paused')}
-              className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
             >
               Paused
               {filterCounts.paused > 0 && <span className="bg-orange-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
@@ -3225,7 +3230,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 )}
                 <span>
                   {windowStatus.open
-                    ? `24h window open — ${formatHoursLeft(windowStatus.hoursLeft)} left for free replies`
+                    ? `24h window open — ${formatHoursLeft(windowStatus.hoursLeft)} left to send free-text replies`
                     : '24h window closed — only approved templates can be sent'}
                 </span>
               </div>
@@ -3487,7 +3492,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   type="button"
                   onClick={() => setReplyTo(null)}
                   title="Cancel reply"
-                  className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-[#667781] dark:text-[#8696A0] hover:bg-black/5 dark:hover:bg-white/10"
+                  className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full text-[#667781] dark:text-[#8696A0] hover:bg-black/5 dark:hover:bg-white/10"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -3523,18 +3528,22 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               ) : (
                 <div className="flex-1 min-w-0 relative">
                   {showSlashPalette && (
+                    <>
+                      {/* ── UI/UX P3 (W23): tap-outside dismisses the palette on mobile ── */}
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSlashPalette(false)} />
                     <div className="absolute bottom-full mb-3 left-0 w-full max-w-md bg-white dark:bg-[#202C33] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
                       <div className="p-2.5 bg-[#F0F2F5] dark:bg-[#111B21] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">Quick Replies (/commands)</span>
                         <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] hover:text-[#00A884]">Close (Esc)</button>
                       </div>
                       <div className="max-h-60 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
-                        {buildCannedReplies(identity).filter(cr => !inputText.slice(1) || cr.cmd.includes(inputText.toLowerCase()) || cr.title.toLowerCase().includes(inputText.toLowerCase())).map(cr => (
+                        {slashMatches.map((cr, i) => (
                           <button
                             key={cr.cmd}
                             type="button"
                             onClick={() => { setInputText(cr.text); setShowSlashPalette(false); }}
-                            className="w-full text-left p-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#2A3942] transition-colors flex items-start gap-2.5 group"
+                            onMouseEnter={() => setSlashHi(i)}
+                            className={`w-full text-left p-2.5 transition-colors flex items-start gap-2.5 group ${i === slashHi ? 'bg-[#00A884]/10 dark:bg-[#00A884]/15' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#2A3942]'}`}
                           >
                             <span className="px-2 py-0.5 rounded-md bg-[#00A884]/15 text-[#00A884] font-mono font-bold text-xs shrink-0 mt-0.5">{cr.cmd}</span>
                             <div className="min-w-0 flex-1">
@@ -3545,6 +3554,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         ))}
                       </div>
                     </div>
+                    </>
                   )}
                   <input
                     value={inputText}
@@ -3553,12 +3563,24 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       setInputText(val);
                       if (val.startsWith('/') && val.length <= 15) {
                         setShowSlashPalette(true);
+                        setSlashHi(0);
                       } else if (!val.startsWith('/')) {
                         setShowSlashPalette(false);
                       }
                     }}
                     onKeyDown={e => {
-                      if (e.key === 'Escape') setShowSlashPalette(false);
+                      if (e.key === 'Escape') { setShowSlashPalette(false); return; }
+                      // ── UI/UX P3 (W23): arrow-key navigation + Enter to pick ──
+                      if (showSlashPalette && slashMatches.length > 0) {
+                        if (e.key === 'ArrowDown') { e.preventDefault(); setSlashHi(h => (h + 1) % slashMatches.length); return; }
+                        if (e.key === 'ArrowUp') { e.preventDefault(); setSlashHi(h => (h - 1 + slashMatches.length) % slashMatches.length); return; }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const pick = slashMatches[Math.min(slashHi, slashMatches.length - 1)];
+                          if (pick) { setInputText(pick.text); setShowSlashPalette(false); }
+                          return;
+                        }
+                      }
                       if (e.key === 'Enter' && !showSlashPalette) handleSend();
                     }}
                     placeholder="Type a message or / for quick replies..."
@@ -3604,14 +3626,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           <div className="relative z-10 w-full sm:max-w-md bg-white dark:bg-[#202C33] rounded-t-2xl sm:rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] shadow-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0">
               {selectedOfficialTpl ? (
-                <button onClick={() => setSelectedOfficialTpl(null)} className="w-8 h-8 flex items-center justify-center text-[#111B21] dark:text-[#E9EDEF]" aria-label="Back to templates">
+                <button onClick={() => setSelectedOfficialTpl(null)} className="w-10 h-10 flex items-center justify-center text-[#111B21] dark:text-[#E9EDEF]" aria-label="Back to templates">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
               ) : (
                 <span className="w-8" />
               )}
               <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">{selectedOfficialTpl ? selectedOfficialTpl.title : 'Official Templates'}</p>
-              <button onClick={closeOfficialTemplateModal} className="w-8 h-8 flex items-center justify-center text-[#111B21] dark:text-[#E9EDEF]" aria-label="Close">
+              <button onClick={closeOfficialTemplateModal} className="w-10 h-10 flex items-center justify-center text-[#111B21] dark:text-[#E9EDEF]" aria-label="Close">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -3706,7 +3728,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 <button
                   type="button"
                   onClick={() => setLightboxZoom(z => Math.max(0.5, z - 0.25))}
-                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
                   title="Zoom out"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg>
@@ -3715,7 +3737,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 <button
                   type="button"
                   onClick={() => setLightboxZoom(z => Math.min(3, z + 0.25))}
-                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
                   title="Zoom in"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
@@ -3723,7 +3745,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 <button
                   type="button"
                   onClick={() => setLightboxRotate(r => (r + 90) % 360)}
-                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
                   title="Rotate 90°"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -3733,7 +3755,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   target="_blank"
                   rel="noreferrer"
                   download
-                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
                   title="Download / Open original"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -3741,7 +3763,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 <button
                   type="button"
                   onClick={() => setLightboxMedia(null)}
-                  className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all"
+                  className="w-10 h-10 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all"
                   title="Close"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
