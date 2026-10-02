@@ -448,7 +448,7 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
       {
         tag: 'Settings',
         title: 'Settings Aligned with Android',
-        desc: 'Persona notes and behavior rules now live only under Training (no more duplication). Settings adds Linked Devices management and shows the logged-in manager account, like the Android app.',
+        desc: 'Persona notes and behavior rules now live only under Teach NetBot (no more duplication). Settings adds Linked Devices management and shows the logged-in manager account, like the Android app.',
       },
     ],
   },
