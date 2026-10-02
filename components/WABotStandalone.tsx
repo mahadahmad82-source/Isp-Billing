@@ -632,7 +632,6 @@ export default function WABotStandalone() {
         <WABotInbox
           managerId={managerId}
           customers={filteredUsers}
-          onOpenReceiptGenerator={() => {}}
           botName={botName}
           onUpdateBotName={handleUpdateBotName}
           routerCatalog={routerCatalog}

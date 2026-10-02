@@ -98,7 +98,6 @@ interface KnowledgeItem {
 interface WABotInboxProps {
   managerId: string;
   customers: UserRecord[];
-  onOpenReceiptGenerator?: (userId?: string) => void;
   copilotHistory?: CopilotLogEntry[];
   onCopilotHistoryChange?: (log: CopilotLogEntry[]) => void;
   botName?: string;
@@ -425,10 +424,39 @@ interface ChangelogRelease {
 
 const CHANGELOG_ITEMS: ChangelogRelease[] = [
   {
+    version: 'v2.5',
+    date: '2 October 2026',
+    title: 'Web-Android Parity: New Views & Settings Alignment',
+    badge: 'Latest',
+    badgeColor: 'bg-[#00A884]',
+    features: [
+      {
+        tag: 'Parity',
+        title: 'Pending Recoveries, Customization, Contacts & Linked Devices',
+        desc: 'Four new views matching the Android app: a pending-payment recovery ledger with tap-to-call and WhatsApp reminders, Dark/Light/System theme plus chat wallpaper picker, a searchable customer directory, and linked web-session management.',
+      },
+      {
+        tag: 'Parity',
+        title: 'Chat Thread Upgrades (Load Older, Retry, Reply, Long-press)',
+        desc: 'Load older messages in batches without losing scroll position, retry failed messages, reply with quoted previews, and long-press (right-click) any message for Reply / Copy / Delete.',
+      },
+      {
+        tag: 'Cleanup',
+        title: 'Standalone Receipt Buttons Removed',
+        desc: 'The standalone NetBot receipt buttons were dead stubs and have been removed. Receipts remain available in the BillCollector manager dashboard.',
+      },
+      {
+        tag: 'Settings',
+        title: 'Settings Aligned with Android',
+        desc: 'Persona notes and behavior rules now live only under Training (no more duplication). Settings adds Linked Devices management and shows the logged-in manager account, like the Android app.',
+      },
+    ],
+  },
+  {
     version: 'v2.4',
     date: '17 September 2026',
     title: 'WhatsApp Web Redesign & Workflow Speedup',
-    badge: 'Latest',
+    badge: 'Redesign',
     badgeColor: 'bg-[#00A884]',
     features: [
       {
@@ -508,7 +536,7 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
   },
 ];
 
-const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenReceiptGenerator, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, themePref, onThemePrefChange, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
+const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, themePref, onThemePrefChange, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
   const isDarkControlled = typeof theme !== 'undefined';
   const [internalDark, setInternalDark] = useState<boolean>(() => {
@@ -590,16 +618,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
   // needed). Smallest possible adapters for what NetBot Web doesn't have:
   // - open_tab: map manager tabs onto the closest NetBot Web views
   //   ('users'/'customers' → Contacts); anything else stays on Copilot.
-  // - generate_receipt: the inbox receipt callback only takes a userId and
-  //   is a no-op in the standalone web login, so amount/note are dropped.
+  // - generate_receipt: standalone NetBot has no receipt flow (removed Phase 3),
+  //   so a no-op is passed — the shared useCopilot hook requires the prop.
+  //   The manager dashboard keeps its real ReceiptGenerator wiring untouched.
   // - set_status: no manager-only status-change path exists here, so it is
   //   intentionally left unwired (the hook says "needs manager access").
   const handleCopilotOpenTab = (tab: string) => {
     if (tab === 'users' || tab === 'customers') setView('contacts');
     else if (tab === 'receipts') setView('inbox');
-  };
-  const handleCopilotPrepareReceipt = (userId: string) => {
-    onOpenReceiptGenerator?.(userId);
   };
 
   // ── Tab views & settings navigation ──
@@ -1743,13 +1769,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             {selectedConv && (
               <>
                 <button
-                  onClick={() => onOpenReceiptGenerator?.(selectedConv.userId)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-[#000000] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Receipt
-                </button>
-                <button
                   onClick={togglePause}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
                 >
@@ -2702,50 +2721,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             {previewConfirm && <p className="text-[11px] text-[#00A884] font-bold mt-2">{previewConfirm}</p>}
           </section>
 
-          <section className="p-4 rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div>
-                <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Persona notes</h4>
-                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Overall tone and style of public dealing.</p>
-              </div>
-              <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
-            </div>
-            <textarea value={personaDraft} onChange={e => setPersonaDraft(e.target.value)} rows={5} placeholder="Bot ko overall kis lehje aur tareeqe se baat karni chahiye?" className="w-full p-3 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
+                    <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-1">Linked devices</h4>
+            <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mb-3">See every browser logged into NetBot Web, or log one out remotely.</p>
+            <button
+              onClick={() => setView('devices')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#00A884] hover:bg-[#008069] text-white font-black text-[11px] uppercase tracking-widest transition-all active:scale-95"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              Manage linked devices
+            </button>
           </section>
 
-          <section>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div>
-                <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Behavior rules</h4>
-                <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Situation aur preferred handling.</p>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#8696A0]">{(botBehaviorRules || []).length} rules</span>
-            </div>
-            <div className="space-y-3 mb-5">
-              {(botBehaviorRules || []).map(rule => (
-                <div key={rule.id} className={`p-4 rounded-2xl border ${rule.active ? 'border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40' : 'border-[#E9EDEF] dark:border-[#222D34] opacity-60'}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#00A884] mb-1">When this happens</p>
-                      <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] whitespace-pre-wrap">{rule.trigger}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#8696A0] mt-3 mb-1">Handle it like this</p>
-                      <p className="text-sm text-[#667781] dark:text-[#8696A0] font-semibold whitespace-pre-wrap">{rule.response}</p>
-                    </div>
-                    <div className="flex flex-col gap-2 flex-shrink-0">
-                      <button onClick={() => toggleBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">{rule.active ? 'Pause' : 'Use'}</button>
-                      <button onClick={() => deleteBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest">Delete</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-[#8696A0] font-bold py-4">No custom rules yet. Add your first rule below.</p>}
-            </div>
-            <div className="p-4 rounded-2xl border border-dashed border-[#E9EDEF] dark:border-[#222D34]">
-              <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mb-3">Add a rule</h4>
-              <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: customer kahe router kharab hai aur kal set karwana hai" className="w-full px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] mb-2" />
-              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: acknowledge the fault first, do not send the catalog, note a team visit" className="w-full p-3 rounded-xl bg-[#F0F2F5] dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF]" />
-              <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
-            </div>
+          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-1">Manager account</h4>
+            <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] break-all">{managerId || '—'}</p>
           </section>
         </div>
       ) : view === 'help' ? (
@@ -2801,7 +2791,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
             history={copilotHistory}
             onHistoryChange={onCopilotHistoryChange}
             onOpenTab={handleCopilotOpenTab}
-            onPrepareReceipt={handleCopilotPrepareReceipt}
+            onPrepareReceipt={() => { /* standalone NetBot has no receipt flow (removed Phase 3); required by shared hook */ }}
           />
         </div>
       ) : view === 'outages' ? (
@@ -3422,29 +3412,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, onOpenRec
 
             {/* Footer action bar */}
             <div className="px-4 py-3 bg-[#202C33] border-t border-white/10 flex items-center justify-between shrink-0">
-              <span className="text-xs text-[#8696A0]">Verify the payment slip or generate a receipt</span>
-              <div className="flex items-center gap-2">
-                {selectedConv && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLightboxMedia(null);
-                      onOpenReceiptGenerator?.(selectedConv.userId);
-                    }}
-                    className="px-4 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Verify &amp; Generate Receipt
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setLightboxMedia(null)}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all"
-                >
-                  Done
-                </button>
-              </div>
+              <span className="text-xs text-[#8696A0]">Verify the payment slip</span>
+              <button
+                type="button"
+                onClick={() => setLightboxMedia(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
