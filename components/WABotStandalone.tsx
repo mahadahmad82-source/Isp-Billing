@@ -46,6 +46,39 @@ export default function WABotStandalone() {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  // Theme preference (dark / light / system) — Phase 2b parity with Android.
+  // Kept OUTSIDE the synced AppState so the persistence shape never changes.
+  const [themePref, setThemePref] = useState<'dark' | 'light' | 'system'>(() => {
+    try {
+      const v = localStorage.getItem('wabot_theme_pref');
+      if (v === 'dark' || v === 'light' || v === 'system') return v;
+      const old = localStorage.getItem('wabot_theme');
+      return old === 'dark' || old === 'light' ? old : 'system';
+    } catch { return 'system'; }
+  });
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    try { mq.addEventListener('change', onChange); } catch { /* older browsers */ }
+    return () => { try { mq.removeEventListener('change', onChange); } catch { /* older browsers */ } };
+  }, []);
+
+  const resolvedTheme = themePref === 'system' ? (systemDark ? 'dark' : 'light') : themePref;
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+    try { localStorage.setItem('wabot_theme', resolvedTheme); } catch { /* private mode */ }
+  }, [resolvedTheme]);
+
+  const handleThemePrefChange = (pref: 'dark' | 'light' | 'system') => {
+    setThemePref(pref);
+    try { localStorage.setItem('wabot_theme_pref', pref); } catch { /* private mode */ }
+  };
+
   // Swap manifest + title while this screen is mounted, restore on unmount.
   useEffect(() => {
     const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
@@ -70,10 +103,7 @@ export default function WABotStandalone() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!state) return;
-    document.documentElement.classList.toggle('dark', state.theme === 'dark');
-  }, [state?.theme]);
+  // (document theme class is driven by resolvedTheme above; state.theme is now dormant)
 
   useEffect(() => {
     if (phase !== 'loading' || !username) return;
@@ -620,16 +650,10 @@ export default function WABotStandalone() {
           onUpdateTtsVoice={handleUpdateTtsVoice}
           wabotAgents={wabotAgents}
           onUpdateWabotAgents={handleUpdateWabotAgents}
-          theme={state.theme === 'dark' ? 'dark' : 'light'}
-          onToggleTheme={() => {
-            setState(prev => {
-              if (!prev) return prev;
-              const next = prev.theme === 'dark' ? 'light' : 'dark';
-              const ns = { ...prev, theme: next };
-              saveState(ns);
-              return ns;
-            });
-          }}
+          theme={resolvedTheme}
+          themePref={themePref}
+          onThemePrefChange={handleThemePrefChange}
+          onToggleTheme={() => handleThemePrefChange(resolvedTheme === 'dark' ? 'light' : 'dark')}
           onLogout={handleLogout}
           copilotHistory={state.copilotHistory}
           onCopilotHistoryChange={handleCopilotHistoryChange}
