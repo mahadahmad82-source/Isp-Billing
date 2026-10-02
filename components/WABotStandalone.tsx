@@ -98,6 +98,9 @@ export default function WABotStandalone() {
     };
   }, []);
 
+  // (hoisted: used by the boot effect below; declared after use caused a TDZ crash)
+  const [bootNonce, setBootNonce] = useState(0);
+
   // Skip straight past login if a session already exists (WhatsApp-style "stay logged in").
   useEffect(() => {
     const session = getActiveSession();
@@ -149,7 +152,6 @@ export default function WABotStandalone() {
 
   // ── UI/UX P1 (W16): boot timeout ──
   const [bootTimedOut, setBootTimedOut] = useState(false);
-  const [bootNonce, setBootNonce] = useState(0);
   useEffect(() => {
     if (phase !== 'loading') { setBootTimedOut(false); return; }
     setBootTimedOut(false);
