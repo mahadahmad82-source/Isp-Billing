@@ -36,17 +36,17 @@ function renderWhatsAppText(text: string): React.ReactNode[] {
 const QuotaBar: React.FC<{ label: string; used: number; limit: number }> = ({ label, used, limit }) => {
   const unlimited = limit >= 999999999;
   const pct = unlimited ? 0 : Math.min(100, limit > 0 ? Math.round((used / limit) * 100) : 100);
-  const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#00A884';
+  const barColor = pct >= 100 ? 'var(--nb-danger)' : pct >= 80 ? 'var(--nb-warning)' : 'var(--nb-accent)';
   return (
-    <div className="rounded-2xl border border-slate-100 dark:border-white/5 p-4">
+    <div className="rounded-2xl border border-[var(--nb-border)] p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-        <span className="text-xs font-black text-[#111B21] dark:text-white">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-3)]">{label}</span>
+        <span className="text-xs font-black text-[var(--nb-text-1)]">
           {unlimited ? 'Unlimited' : `${used.toLocaleString()} / ${limit.toLocaleString()}`}
         </span>
       </div>
       {!unlimited && (
-        <div className="h-2 rounded-full bg-slate-100 dark:bg-white/5 overflow-hidden">
+        <div className="h-2 rounded-full bg-[var(--nb-surface-3)] overflow-hidden">
           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
         </div>
       )}
@@ -268,6 +268,11 @@ interface BusinessIdentity {
   bankIban: string;
   jazzcashNo: string;
   easypaisaNo: string;
+  // ── Silk D3: NetBot support contact — Business-Profile-driven. Optional so
+  //    older settings blobs stay valid; Help falls back to the current defaults.
+  supportEmail?: string;
+  supportPhone?: string;
+  supportWhatsApp?: string;
 }
 
 function buildCannedReplies(id: BusinessIdentity): CannedReply[] {
@@ -610,8 +615,8 @@ function BusinessProfileField({ label, value, placeholder, onSave }: {
   useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
   const save = () => { onSave(draft.trim()); setEditing(false); };
   return (
-    <div className="py-2 border-b border-[#E9EDEF] dark:border-[#222D34] last:border-0">
-      <div className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-1">{label}</div>
+    <div className="py-2 border-b border-[var(--nb-border)] last:border-0">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] mb-1">{label}</div>
       {editing ? (
         <div className="flex items-center gap-2">
           <input
@@ -620,14 +625,14 @@ function BusinessProfileField({ label, value, placeholder, onSave }: {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
             placeholder={placeholder}
-            className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
+            className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
           />
-          <button onClick={save} className="px-4 py-2 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+          <button onClick={save} className="px-4 py-2 min-h-[44px] bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
         </div>
       ) : (
-        <button onClick={() => setEditing(true)} className="flex items-center gap-1.5 text-sm font-bold text-[#111B21] dark:text-[#E9EDEF]">
-          {value || <span className="text-[#8696A0] font-semibold">Not set — tap to add</span>}
-          <svg className="w-3.5 h-3.5 text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+        <button onClick={() => setEditing(true)} className="flex items-center gap-1.5 text-sm font-bold text-[var(--nb-text-1)] min-h-[44px]">
+          {value || <span className="text-[var(--nb-text-3)] font-semibold">Not set — tap to add</span>}
+          <svg className="w-3.5 h-3.5 text-[var(--nb-text-3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
       )}
     </div>
@@ -780,7 +785,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     bankIban: businessProfile?.bankIban || '',
     jazzcashNo: businessProfile?.jazzcashNo || '',
     easypaisaNo: businessProfile?.easypaisaNo || '',
+    supportEmail: businessProfile?.supportEmail || '',
+    supportPhone: businessProfile?.supportPhone || '',
+    supportWhatsApp: businessProfile?.supportWhatsApp || '',
   };
+
+  // ── Silk D3: NetBot support contact — Business-Profile-driven. The rendered
+  //    Help UI reads these variables (never hardcoded literals); the defaults
+  //    keep today's values for profiles that never set them. ──
+  const supportEmail = identity.supportEmail || 'support@billcollector.online';
+  const supportPhone = identity.supportPhone || '+92 304 2773453';
+  const supportWhatsApp = identity.supportWhatsApp || '923042773453';
 
   // ── Copilot tab adapters ───────────────────────────────────────────────
   // NetBot Web reuses the shared CopilotTab with its own Supabase session
@@ -1991,19 +2006,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       style={{ background: wabotDark ? '#0C1317' : '#F0F2F5' }}
     >
       {!isOnline && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] text-[var(--nb-warning)] text-xs font-bold">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
           You're offline - new messages will appear when you reconnect.
         </div>
       )}
       {reconnecting && isOnline && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] text-[var(--nb-warning)] text-xs font-bold">
           <svg className="w-4 h-4 flex-shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           Reconnecting&hellip; fetching the latest messages.
         </div>
       )}
       {saveToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00A884] text-white text-sm font-bold shadow-lg">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--nb-accent)] text-white text-sm font-bold shadow-lg">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
           {saveToast}
         </div>
@@ -2181,7 +2196,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight">
+          <h3 className="text-base font-black text-[var(--nb-text-1)] uppercase tracking-tight">
             {view === 'teach' ? 'Teach NetBot' : view === 'training' ? 'Training' : view === 'catalog' ? 'Router Catalog' : view === 'templates' ? 'Bot Templates' : view === 'topup' ? 'Topup' : view === 'updates' ? 'NetBot System Updates & Changelog' : view === 'contacts' ? 'Contacts' : view === 'recovery' ? 'Pending Recoveries' : view === 'customization' ? 'Customization' : view === 'devices' ? 'Linked Devices' : view === 'settings' ? 'Settings' : view === 'help' ? 'Help & Support' : view === 'outages' ? 'Network Outages' : view === 'copilot' ? 'Copilot' : 'Voice & Agents'}
           </h3>
         </div>
@@ -2190,108 +2205,108 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       {view === 'teach' ? (
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-6">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Teach NetBot</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Teach the bot its overall tone for public dealing and how to handle specific situations here. This guidance is used as a reference in AI replies; the system safeguards for payment numbers, activation and renewal always take priority.</p>
+            <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Teach NetBot</h3>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">Teach the bot its overall tone for public dealing and how to handle specific situations here. This guidance is used as a reference in AI replies; the system safeguards for payment numbers, activation and renewal always take priority.</p>
           </div>
 
-          <section className="p-4 rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5 mb-6">
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-accent-soft)] mb-6">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
-                <h4 className="text-sm font-black text-[#111B21] dark:text-white">Persona &amp; public dealing</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Example: first acknowledge what the customer says, do not offer the catalog too quickly, and hand off to Mahad bhai / the team when needed.</p>
+                <h4 className="text-sm font-black text-[var(--nb-text-1)]">Persona &amp; public dealing</h4>
+                <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mt-1">Example: first acknowledge what the customer says, do not offer the catalog too quickly, and hand off to Mahad bhai / the team when needed.</p>
               </div>
-              <button onClick={savePersonaNotes} className="px-3 py-2 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+              <button onClick={savePersonaNotes} className="px-3 min-h-[44px] bg-[var(--nb-accent)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
             </div>
-            <textarea value={personaDraft} onChange={e => setPersonaDraft(e.target.value)} rows={5} placeholder="How should the bot generally speak and deal with customers?" className="w-full p-3 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white" />
+            <textarea value={personaDraft} onChange={e => setPersonaDraft(e.target.value)} rows={5} placeholder="How should the bot generally speak and deal with customers?" className="w-full p-3 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)]" />
           </section>
 
           <section>
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
-                <h4 className="text-sm font-black text-[#111B21] dark:text-white">Situation rules</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Write the customer's situation and the preferred handling. The bot will treat this as support guidance, not a sales shortcut.</p>
+                <h4 className="text-sm font-black text-[var(--nb-text-1)]">Situation rules</h4>
+                <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mt-1">Write the customer's situation and the preferred handling. The bot will treat this as support guidance, not a sales shortcut.</p>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{(botBehaviorRules || []).length} rules</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-3)]">{(botBehaviorRules || []).length} rules</span>
             </div>
             <div className="space-y-3 mb-5">
               {(botBehaviorRules || []).map(rule => (
-                <div key={rule.id} className={`p-4 rounded-2xl border ${rule.active ? 'border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/5' : 'border-slate-100 dark:border-white/5 opacity-60'}`}>
+                <div key={rule.id} className={`p-4 rounded-2xl border ${rule.active ? 'border-[var(--nb-border)] bg-[var(--nb-surface-2)]' : 'border-[var(--nb-border)] opacity-60'}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#00A884] mb-1">When this happens</p>
-                      <p className="text-sm font-black text-[#111B21] dark:text-white whitespace-pre-wrap">{rule.trigger}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-3 mb-1">Handle it like this</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap">{rule.response}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-accent)] mb-1">When this happens</p>
+                      <p className="text-sm font-black text-[var(--nb-text-1)] whitespace-pre-wrap">{rule.trigger}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-3)] mt-3 mb-1">Handle it like this</p>
+                      <p className="text-sm text-[var(--nb-text-2)] font-semibold whitespace-pre-wrap">{rule.response}</p>
                     </div>
                     <div className="flex flex-col gap-2 flex-shrink-0">
-                      <button onClick={() => toggleBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300">{rule.active ? 'Pause' : 'Use'}</button>
-                      <button onClick={() => deleteBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest">Delete</button>
+                      <button onClick={() => toggleBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)]">{rule.active ? 'Pause' : 'Use'}</button>
+                      <button onClick={() => deleteBehaviorRule(rule.id)} className="px-2.5 py-1.5 rounded-lg bg-[var(--nb-surface-2)] text-[var(--nb-danger)] text-[10px] font-black uppercase tracking-widest">Delete</button>
                     </div>
                   </div>
                 </div>
               ))}
-              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-slate-400 font-bold py-4">No custom rules yet. Add your first rule below.</p>}
+              {(botBehaviorRules || []).length === 0 && <p className="text-sm text-[var(--nb-text-3)] font-bold py-4">No custom rules yet. Add your first rule below.</p>}
             </div>
-            <div className="p-4 rounded-2xl border border-dashed border-slate-300 dark:border-white/15">
-              <h4 className="text-sm font-black text-[#111B21] dark:text-white mb-3">Add a rule</h4>
-              <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: e.g. customer says the router is faulty and wants it fixed tomorrow" className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white mb-2" />
-              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: acknowledge the fault first, do not send the catalog, note a team visit" className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white" />
-              <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
+            <div className="p-4 rounded-2xl border border-dashed border-[var(--nb-border)]">
+              <h4 className="text-sm font-black text-[var(--nb-text-1)] mb-3">Add a rule</h4>
+              <input value={ruleDraft.trigger} onChange={e => setRuleDraft(prev => ({ ...prev, trigger: e.target.value }))} placeholder="Situation: e.g. customer says the router is faulty and wants it fixed tomorrow" className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] mb-2" />
+              <textarea value={ruleDraft.response} onChange={e => setRuleDraft(prev => ({ ...prev, response: e.target.value }))} rows={3} placeholder="Preferred handling: acknowledge the fault first, do not send the catalog, note a team visit" className="w-full p-3 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)]" />
+              <button onClick={addBehaviorRule} className="mt-3 px-4 py-2.5 min-h-[44px] bg-[var(--nb-accent)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Add Rule</button>
             </div>
           </section>
         </div>
       ) : view === 'training' ? (
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-5">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Confused Replies / Training</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">When the bot has no deterministic reply, it answers with AI and the reply is logged here. "Approve" a good reply — the same wording will be reused next time.</p>
+            <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Confused Replies / Training</h3>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">When the bot has no deterministic reply, it answers with AI and the reply is logged here. "Approve" a good reply — the same wording will be reused next time.</p>
           </div>
 
           {knowledgeLoading ? (
-            <p className="text-sm text-slate-400 font-bold text-center py-10">Loading...</p>
+            <p className="text-sm text-[var(--nb-text-3)] font-bold text-center py-10">Loading...</p>
           ) : knowledge.length === 0 ? (
-            <p className="text-sm text-slate-400 font-bold text-center py-10">No training entries yet.</p>
+            <p className="text-sm text-[var(--nb-text-3)] font-bold text-center py-10">No training entries yet.</p>
           ) : (
             <div className="space-y-4">
               {knowledge.map(k => {
                 const isUnreviewed = k.tags?.includes('unreviewed');
                 const isEditing = editingId === k.id;
                 return (
-                  <div key={k.id} className={`p-5 rounded-2xl border ${isUnreviewed ? 'border-amber-200 dark:border-amber-500/20 bg-amber-50/40 dark:bg-amber-500/5' : 'border-[#00A884]/25 dark:border-[#00A884]/20 bg-[#00A884]/5 dark:bg-[#00A884]/5'}`}>
+                  <div key={k.id} className={`p-5 rounded-2xl border ${isUnreviewed ? 'border-[var(--nb-warning)] bg-[var(--nb-surface-2)]' : 'border-[var(--nb-accent)] bg-[var(--nb-accent-soft)] dark:bg-[var(--nb-accent-soft)]'}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${isUnreviewed ? 'bg-amber-500 text-white' : 'bg-[#00A884] text-white'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${isUnreviewed ? 'bg-[var(--nb-warning)] text-white' : 'bg-[var(--nb-accent)] text-white'}`}>
                         {isUnreviewed ? 'Unreviewed' : 'Approved'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-bold">{timeAgo(k.created_at)}</span>
+                      <span className="text-[10px] text-[var(--nb-text-3)] font-bold">{timeAgo(k.created_at)}</span>
                     </div>
-                    <p className="text-sm font-black text-[#111B21] dark:text-white mb-1">Q: {k.question}</p>
+                    <p className="text-sm font-black text-[var(--nb-text-1)] mb-1">Q: {k.question}</p>
                     {isEditing ? (
                       <textarea
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
                         rows={3}
-                        className="w-full mt-2 p-3 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white"
+                        className="w-full mt-2 p-3 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)]"
                       />
                     ) : (
-                      <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap">A: {k.answer}</p>
+                      <p className="text-sm text-[var(--nb-text-2)] font-semibold whitespace-pre-wrap">A: {k.answer}</p>
                     )}
                     <div className="flex gap-2 mt-3">
                       {isEditing ? (
                         <>
-                          <button onClick={() => approveKnowledge(k, editText)} className="px-4 py-2 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Save & Approve</button>
-                          <button onClick={() => setEditingId(null)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                          <button onClick={() => approveKnowledge(k, editText)} className="px-4 py-2 bg-[var(--nb-accent)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Save & Approve</button>
+                          <button onClick={() => setEditingId(null)} className="px-4 py-2 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
                         </>
                       ) : (
                         <>
                           {isUnreviewed ? (
                             <>
-                              <button onClick={() => approveKnowledge(k, k.answer)} className="px-4 py-2 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">✓ Approve As-Is</button>
-                              <button onClick={() => { setEditingId(k.id); setEditText(k.answer); }} className="px-4 py-2 bg-[#00A884] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">✏ Edit & Approve</button>
+                              <button onClick={() => approveKnowledge(k, k.answer)} className="px-4 py-2 bg-[var(--nb-accent)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Approve As-Is</button>
+                              <button onClick={() => { setEditingId(k.id); setEditText(k.answer); }} className="px-4 py-2 bg-[var(--nb-accent)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Edit & Approve</button>
                             </>
                           ) : (
-                            <button onClick={() => revertKnowledge(k.id)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">↺ Unapprove</button>
+                            <button onClick={() => revertKnowledge(k.id)} className="px-4 py-2 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-[10px] uppercase tracking-widest">Unapprove</button>
                           )}
-                          <button onClick={() => deleteKnowledge(k.id)} className="px-4 py-2 bg-rose-500/10 text-rose-500 rounded-xl font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.87 12.14A2 2 0 0116.14 21H7.86a2 2 0 01-1.99-1.86L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" /></svg>Delete</button>
+                          <button onClick={() => deleteKnowledge(k.id)} className="px-4 py-2 bg-[var(--nb-surface-2)] text-[var(--nb-danger)] rounded-xl font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.87 12.14A2 2 0 0116.14 21H7.86a2 2 0 01-1.99-1.86L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" /></svg>Delete</button>
                         </>
                       )}
                     </div>
@@ -2304,17 +2319,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       ) : view === 'catalog' ? (
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-5">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Router Catalog</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">Edit router models, prices, specs and images here — NetBot shows this same catalog on WhatsApp, so no code changes are needed.</p>
+            <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Router Catalog</h3>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">Edit router models, prices, specs and images here — NetBot shows this same catalog on WhatsApp, so no code changes are needed.</p>
           </div>
 
           {(['2.4g', '5g'] as const).map(band => (
             <div key={band} className="mb-8">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{band === '2.4g' ? '2.4G Routers' : '5G Routers'}</h4>
+                <h4 className="text-sm font-black text-[var(--nb-text-1)] uppercase tracking-widest">{band === '2.4g' ? '2.4G Routers' : '5G Routers'}</h4>
                 <button
                   onClick={() => openAddRouter(band)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00A884] text-white rounded-lg font-black text-[10px] uppercase tracking-widest"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--nb-accent)] text-white rounded-lg font-black text-[10px] uppercase tracking-widest"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
                   Add
@@ -2322,18 +2337,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               </div>
               <div className="space-y-3">
                 {catalogState[band].length === 0 ? (
-                  <p className="text-xs text-slate-400 font-bold py-4">No routers in this band.</p>
+                  <p className="text-xs text-[var(--nb-text-3)] font-bold py-4">No routers in this band.</p>
                 ) : (
                   catalogState[band].map(r => (
-                    <div key={r.id} className="p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] flex items-center gap-3">
+                    <div key={r.id} className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)] flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-[#111B21] dark:text-white truncate">{r.model} <span className="text-slate-400 font-bold">— {r.company}</span></p>
-                        <p className="text-xs text-slate-400 font-bold mt-0.5">{r.band} · Rs. {r.price.toLocaleString()}</p>
+                        <p className="text-sm font-black text-[var(--nb-text-1)] truncate">{r.model} <span className="text-[var(--nb-text-3)] font-bold">— {r.company}</span></p>
+                        <p className="text-xs text-[var(--nb-text-3)] font-bold mt-0.5">{r.band} · Rs. {r.price.toLocaleString()}</p>
                       </div>
-                      <button onClick={() => openEditRouter(band, r)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-[#00A884]/10 text-[#00A884]">
+                      <button onClick={() => openEditRouter(band, r)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-[var(--nb-accent-soft)] text-[var(--nb-accent)]">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
-                      <button onClick={() => deleteRouter(band, r.id)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-500">
+                      <button onClick={() => deleteRouter(band, r.id)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-[var(--nb-surface-2)] text-[var(--nb-danger)]">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
@@ -2344,20 +2359,20 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           ))}
 
           {catalogModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-[#202C33] rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <h3 className="text-base font-black text-[#111B21] dark:text-white mb-4">{catalogModal.item ? 'Edit Router' : 'Add New Router'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--nb-scrim)] p-4">
+              <div className="bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <h3 className="text-base font-black text-[var(--nb-text-1)] mb-4">{catalogModal.item ? 'Edit Router' : 'Add New Router'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
                 <div className="space-y-3">
-                  <input placeholder="Model (e.g. GS3101)" value={catalogForm.model} onChange={e => setCatalogForm(f => ({ ...f, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
-                  <input placeholder="Company (e.g. Huawei)" value={catalogForm.company} onChange={e => setCatalogForm(f => ({ ...f, company: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
-                  <input placeholder="Band label (e.g. 2.4GHz Single Band)" value={catalogForm.band} onChange={e => setCatalogForm(f => ({ ...f, band: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
-                  <input placeholder="Price (Rs.)" type="number" value={catalogForm.price} onChange={e => setCatalogForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
-                  <input placeholder="Image URL" value={catalogForm.image} onChange={e => setCatalogForm(f => ({ ...f, image: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
-                  <textarea placeholder="Specs — this exact text is sent to the customer on WhatsApp" rows={7} value={catalogForm.specs} onChange={e => setCatalogForm(f => ({ ...f, specs: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
+                  <input placeholder="Model (e.g. GS3101)" value={catalogForm.model} onChange={e => setCatalogForm(f => ({ ...f, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]" />
+                  <input placeholder="Company (e.g. Huawei)" value={catalogForm.company} onChange={e => setCatalogForm(f => ({ ...f, company: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]" />
+                  <input placeholder="Band label (e.g. 2.4GHz Single Band)" value={catalogForm.band} onChange={e => setCatalogForm(f => ({ ...f, band: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]" />
+                  <input placeholder="Price (Rs.)" type="number" value={catalogForm.price} onChange={e => setCatalogForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]" />
+                  <input placeholder="Image URL" value={catalogForm.image} onChange={e => setCatalogForm(f => ({ ...f, image: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]" />
+                  <textarea placeholder="Specs — this exact text is sent to the customer on WhatsApp" rows={7} value={catalogForm.specs} onChange={e => setCatalogForm(f => ({ ...f, specs: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]" />
                 </div>
                 <div className="flex gap-2 mt-5">
-                  <button onClick={saveCatalogModal} className="flex-1 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Save</button>
-                  <button onClick={() => setCatalogModal(null)} className="px-4 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
+                  <button onClick={saveCatalogModal} className="flex-1 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Save</button>
+                  <button onClick={() => setCatalogModal(null)} className="px-4 py-2.5 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
                 </div>
               </div>
             </div>
@@ -2367,38 +2382,38 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
-              <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Reply Templates</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">Edit the wording of every NetBot reply here — no code deploy needed. Do not remove the {'{curly_braces}'} tokens; they are filled with the customer's name/amount/etc.</p>
+              <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Reply Templates</h3>
+              <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">Edit the wording of every NetBot reply here — no code deploy needed. Do not remove the {'{curly_braces}'} tokens; they are filled with the customer's name/amount/etc.</p>
             </div>
             <button
               onClick={() => setShowAddTemplateModal(true)}
-              className="flex-shrink-0 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+              className="flex-shrink-0 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
             >
               + New
             </button>
           </div>
 
           {orderedCategories.length === 0 ? (
-            <p className="text-xs text-slate-400 font-bold py-6">Templates are loading — if this message stays, refresh the app once.</p>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold py-6">Templates are loading — if this message stays, refresh the app once.</p>
           ) : (
             orderedCategories.map(category => (
               <div key={category} className="mb-4">
                 <button onClick={() => toggleCategory(category)} className="w-full flex items-center justify-between mb-2 py-1">
-                  <h4 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{category}</h4>
-                  <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategories.has(category) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  <h4 className="text-sm font-black text-[var(--nb-text-1)] uppercase tracking-widest">{category}</h4>
+                  <svg className={`w-4 h-4 text-[var(--nb-text-3)] transition-transform ${expandedCategories.has(category) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 {expandedCategories.has(category) && (
                   <div className="space-y-2">
                     {templatesByCategory[category].map(([key, item]) => (
-                      <div key={key} className="rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-3">
+                      <div key={key} className="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)] p-3">
                         <button onClick={() => openTemplateEdit(key)} className="w-full flex items-center justify-between gap-2 text-left">
                           <span className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-bold text-[#111B21] dark:text-white truncate">{item.label}</span>
+                            <span className="text-sm font-bold text-[var(--nb-text-1)] truncate">{item.label}</span>
                             {isEditedBotTemplate(key) && (
-                              <span className="flex-shrink-0 text-[9px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Edited</span>
+                              <span className="flex-shrink-0 text-[9px] bg-[var(--nb-surface-2)] text-[var(--nb-warning)] border border-[var(--nb-warning)] px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Edited</span>
                             )}
                           </span>
-                          <svg className="w-4 h-4 flex-shrink-0 text-[#00A884]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          <svg className="w-4 h-4 flex-shrink-0 text-[var(--nb-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
                         {editingTemplateKey === key && (
                           <div className="mt-3">
@@ -2406,16 +2421,16 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                               rows={Math.min(12, Math.max(3, templateDraft.split('\n').length + 1))}
                               value={templateDraft}
                               onChange={e => setTemplateDraft(e.target.value)}
-                              className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white"
+                              className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)]"
                             />
                             <div className="flex gap-2 mt-2 flex-wrap">
-                              <button onClick={() => saveTemplateEdit(key)} className="flex-1 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
-                              <button onClick={() => setEditingTemplateKey(null)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                              <button onClick={() => saveTemplateEdit(key)} className="flex-1 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
+                              <button onClick={() => setEditingTemplateKey(null)} className="px-4 py-2 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
                               {isEditedBotTemplate(key) && !isCustomBotTemplate(key) && (
-                                <button onClick={() => resetBotTemplateToDefault(key)} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Reset</button>
+                                <button onClick={() => resetBotTemplateToDefault(key)} className="px-4 py-2 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-[10px] uppercase tracking-widest">Reset</button>
                               )}
                               {isCustomBotTemplate(key) && (
-                                <button onClick={() => deleteCustomBotTemplate(key)} className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest">Delete</button>
+                                <button onClick={() => deleteCustomBotTemplate(key)} className="px-4 py-2 bg-[var(--nb-surface-2)] hover:bg-[var(--nb-surface-3)] text-[var(--nb-danger)] border border-[var(--nb-danger)] rounded-xl font-black text-[10px] uppercase tracking-widest">Delete</button>
                               )}
                             </div>
                           </div>
@@ -2429,34 +2444,34 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           )}
 
           {showAddTemplateModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-[#202C33] rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <h3 className="text-base font-black text-[#111B21] dark:text-white mb-4">New Template</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--nb-scrim)] p-4">
+              <div className="bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <h3 className="text-base font-black text-[var(--nb-text-1)] mb-4">New Template</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Key (unique, no spaces)</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Key (unique, no spaces)</label>
                     <input
                       value={newBotTemplate.key}
                       onChange={e => setNewBotTemplate(f => ({ ...f, key: e.target.value }))}
                       placeholder="e.g. installation_followup"
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Label</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Label</label>
                     <input
                       value={newBotTemplate.label}
                       onChange={e => setNewBotTemplate(f => ({ ...f, label: e.target.value }))}
                       placeholder="e.g. Installation Follow-up"
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Category</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Category</label>
                     <select
                       value={newBotTemplate.category}
                       onChange={e => setNewBotTemplate(f => ({ ...f, category: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                     >
                       {[...templateCategoryOrder, 'General'].map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -2464,22 +2479,22 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Message Text</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Message Text</label>
                     <textarea
                       rows={6}
                       value={newBotTemplate.text}
                       onChange={e => setNewBotTemplate(f => ({ ...f, text: e.target.value }))}
                       placeholder="Type here... use placeholders like {name}, {businessName}"
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                     />
-                    <p className="text-[10px] text-slate-400 font-semibold mt-1.5">
+                    <p className="text-[10px] text-[var(--nb-text-3)] font-semibold mt-1.5">
                       Note: this new template will not link itself to any bot reply — it is only saved for reference until a developer wires it in webhook.ts.
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-5">
-                  <button onClick={handleAddBotTemplate} className="flex-1 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Create</button>
-                  <button onClick={() => { setShowAddTemplateModal(false); setNewBotTemplate({ key: '', label: '', category: 'General', text: '' }); }} className="px-4 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
+                  <button onClick={handleAddBotTemplate} className="flex-1 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Create</button>
+                  <button onClick={() => { setShowAddTemplateModal(false); setNewBotTemplate({ key: '', label: '', category: 'General', text: '' }); }} className="px-4 py-2.5 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
                 </div>
               </div>
             </div>
@@ -2489,13 +2504,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           {/* ── Default Voice ── */}
           <div className="mb-8">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Default Voice</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1 mb-4">This voice is used when no specific agent matches. Listen to each voice, then pick one.</p>
+            <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Default Voice</h3>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1 mb-4">This voice is used when no specific agent matches. Listen to each voice, then pick one.</p>
             <div className="flex flex-wrap gap-2 mb-2">
               <select
                 value={selectedVoice}
                 onChange={e => saveDefaultVoice(e.target.value)}
-                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
               >
                 {GEMINI_VOICES.map(v => (
                   <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
@@ -2504,74 +2519,74 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               <button
                 onClick={() => playVoicePreview(selectedVoice)}
                 disabled={previewingVoice === selectedVoice}
-                className="flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                className="flex items-center gap-1.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
               >
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                 {previewingVoice === selectedVoice ? 'Loading...' : 'Preview'}
               </button>
             </div>
-            {previewError && <p className="text-[11px] text-rose-400 font-bold">{previewError}</p>}
-            {previewConfirm && <p className="text-[11px] text-[#00A884] font-bold">{previewConfirm}</p>}
+            {previewError && <p className="text-[11px] text-[var(--nb-danger)] font-bold">{previewError}</p>}
+            {previewConfirm && <p className="text-[11px] text-[var(--nb-accent)] font-bold">{previewConfirm}</p>}
           </div>
 
           {/* ── Support Agents ── */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Support Agents</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">You can create up to 10 agents (e.g. NetBot=billing, Bilal=technical). If a keyword in the customer's message matches, that agent replies with its own name, scope, purpose, TTS provider, gender and voice — if nothing matches, the Default Voice / Bot Name is used. You can test each agent's own TTS provider (Gemini/Azure/Edge-TTS).</p>
+              <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Support Agents</h3>
+              <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">You can create up to 10 agents (e.g. NetBot=billing, Bilal=technical). If a keyword in the customer's message matches, that agent replies with its own name, scope, purpose, TTS provider, gender and voice — if nothing matches, the Default Voice / Bot Name is used. You can test each agent's own TTS provider (Gemini/Azure/Edge-TTS).</p>
             </div>
             <button
               onClick={startNewAgent}
-              className="flex-shrink-0 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+              className="flex-shrink-0 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
             >
               + New Agent
             </button>
           </div>
 
           {(!wabotAgents || wabotAgents.length === 0) && editingAgentId === null && (
-            <p className="text-xs text-slate-400 font-bold py-4">No extra agents created yet — only the single Default Voice persona is active. Create your first specialized agent with "+ New Agent".</p>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold py-4">No extra agents created yet — only the single Default Voice persona is active. Create your first specialized agent with "+ New Agent".</p>
           )}
 
           <div className="space-y-3">
             {(wabotAgents || []).map(agent => (
-              <div key={agent.id} className="rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-4">
+              <div key={agent.id} className="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)] p-4">
                 {editingAgentId === agent.id && agentDraft ? (
                   <div className="space-y-3">
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Agent Name</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Agent Name</label>
                       <input
                         value={agentDraft.name}
                         onChange={e => setAgentDraft(d => d ? { ...d, name: e.target.value } : d)}
                         placeholder="e.g. Bilal"
-                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                        className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Specialization Scope</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Specialization Scope</label>
                       <textarea
                         rows={3}
                         value={agentDraft.scope}
                         onChange={e => setAgentDraft(d => d ? { ...d, scope: e.target.value } : d)}
                         placeholder="e.g. Only handles technical/connection issues (net slow, router, disconnect) — does not answer billing/payment questions"
-                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                        className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Routing Keywords (comma se separate)</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Routing Keywords (comma se separate)</label>
                       <input
                         value={agentDraft.keywords.join(', ')}
                         onChange={e => setAgentDraft(d => d ? { ...d, keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) } : d)}
                         placeholder="e.g. net not working, router, slow, disconnect"
-                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                        className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Voice</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Voice</label>
                       <div className="flex gap-2">
                         <select
                           value={agentDraft.voice}
                           onChange={e => setAgentDraft(d => d ? { ...d, voice: e.target.value } : d)}
-                          className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                          className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                         >
                           {GEMINI_VOICES.map(v => (
                             <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
@@ -2580,7 +2595,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         <button
                           onClick={() => playVoicePreview(agentDraft.voice)}
                           disabled={previewingVoice === agentDraft.voice}
-                          className="flex-shrink-0 flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                          className="flex-shrink-0 flex items-center gap-1.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                         >
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                           {previewingVoice === agentDraft.voice ? '...' : 'Preview'}
@@ -2589,11 +2604,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Purpose</label>
+                        <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Purpose</label>
                         <select
                           value={agentDraft.purpose || 'general'}
                           onChange={e => setAgentDraft(d => d ? { ...d, purpose: e.target.value as WABotAgent['purpose'] } : d)}
-                          className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                          className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                         >
                           <option value="billing">Billing</option>
                           <option value="complaint">Complaint</option>
@@ -2604,11 +2619,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Gender</label>
+                        <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Gender</label>
                         <select
                           value={agentDraft.gender || 'female'}
                           onChange={e => setAgentDraft(d => d ? { ...d, gender: e.target.value as WABotAgent['gender'] } : d)}
-                          className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                          className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                         >
                           <option value="female">Female</option>
                           <option value="male">Male</option>
@@ -2616,12 +2631,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">TTS Provider</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">TTS Provider</label>
                       <div className="flex gap-2">
                         <select
                           value={agentDraft.ttsProvider || 'gemini'}
                           onChange={e => setAgentDraft(d => d ? { ...d, ttsProvider: e.target.value as WABotAgent['ttsProvider'] } : d)}
-                          className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                          className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                         >
                           <option value="gemini">Gemini (Roman Urdu native)</option>
                           <option value="azure">Azure (free tier — script-based)</option>
@@ -2630,50 +2645,50 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         <button
                           onClick={() => playVoicePreview(agentDraft.voice, undefined, agentDraft.ttsProvider, agentDraft.gender)}
                           disabled={previewingVoice === agentDraft.voice}
-                          className="flex-shrink-0 flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                          className="flex-shrink-0 flex items-center gap-1.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                         >
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                           {previewingVoice === agentDraft.voice ? '...' : 'Test'}
                         </button>
                       </div>
                       {agentDraft.ttsProvider === 'azure' && (
-                        <p className="text-[10px] text-amber-500 font-bold mt-1">If no Azure key is set, this automatically falls back to Edge-TTS (free).</p>
+                        <p className="text-[10px] text-[var(--nb-warning)] font-bold mt-1">If no Azure key is set, this automatically falls back to Edge-TTS (free).</p>
                       )}
-                      {previewError && <p className="text-[10px] text-rose-400 font-bold mt-1">{previewError}</p>}
-                      {previewConfirm && <p className="text-[10px] text-[#00A884] font-bold mt-1">{previewConfirm}</p>}
+                      {previewError && <p className="text-[10px] text-[var(--nb-danger)] font-bold mt-1">{previewError}</p>}
+                      {previewConfirm && <p className="text-[10px] text-[var(--nb-accent)] font-bold mt-1">{previewConfirm}</p>}
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={saveAgentDraft} className="flex-1 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
-                      <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                      <button onClick={saveAgentDraft} className="flex-1 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
+                      <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
                     <button onClick={() => editAgent(agent)} className="min-w-0 text-left flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-black text-[#111B21] dark:text-white">{agent.name}</span>
-                        <span className="text-[9px] bg-[#00A884]/10 text-[#00A884] border border-[#00A884]/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.voice}</span>
-                        <span className="text-[9px] bg-[#00A884]/10 text-[#00A884] border border-[#00A884]/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.ttsProvider || 'gemini'}</span>
-                        <span className="text-[9px] bg-slate-500/10 text-slate-400 border border-slate-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{(agent.purpose || 'general').replace('_', ' ')}</span>
+                        <span className="text-sm font-black text-[var(--nb-text-1)]">{agent.name}</span>
+                        <span className="text-[9px] bg-[var(--nb-accent-soft)] text-[var(--nb-accent)] border border-[var(--nb-accent)] px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.voice}</span>
+                        <span className="text-[9px] bg-[var(--nb-accent-soft)] text-[var(--nb-accent)] border border-[var(--nb-accent)] px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{agent.ttsProvider || 'gemini'}</span>
+                        <span className="text-[9px] bg-[var(--nb-surface-2)] text-[var(--nb-text-3)] border border-[var(--nb-border)] px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">{(agent.purpose || 'general').replace('_', ' ')}</span>
                         {!agent.active && (
-                          <span className="text-[9px] bg-slate-500/10 text-slate-400 border border-slate-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Paused</span>
+                          <span className="text-[9px] bg-[var(--nb-surface-2)] text-[var(--nb-text-3)] border border-[var(--nb-border)] px-1.5 py-0.5 rounded-md font-black uppercase tracking-widest">Paused</span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 font-semibold truncate">{agent.scope || 'No scope description'}</p>
+                      <p className="text-xs text-[var(--nb-text-3)] font-semibold truncate">{agent.scope || 'No scope description'}</p>
                       {agent.keywords.length > 0 && (
-                        <p className="text-[10px] text-slate-400 font-bold mt-1 truncate">Keywords: {agent.keywords.join(', ')}</p>
+                        <p className="text-[10px] text-[var(--nb-text-3)] font-bold mt-1 truncate">Keywords: {agent.keywords.join(', ')}</p>
                       )}
                     </button>
                     <div className="flex-shrink-0 flex items-center gap-2">
                       <button
                         onClick={() => toggleAgentActive(agent.id)}
-                        className="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-lg font-black text-[10px] uppercase tracking-widest"
+                        className="px-3 py-1.5 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-lg font-black text-[10px] uppercase tracking-widest"
                       >
                         {agent.active ? 'Pause' : 'Resume'}
                       </button>
                       <button
                         onClick={() => deleteAgent(agent.id)}
-                        className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg font-black text-[10px] uppercase tracking-widest"
+                        className="px-3 py-1.5 bg-[var(--nb-surface-2)] hover:bg-[var(--nb-surface-3)] text-[var(--nb-danger)] border border-[var(--nb-danger)] rounded-lg font-black text-[10px] uppercase tracking-widest"
                       >
                         Delete
                       </button>
@@ -2684,43 +2699,43 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
             ))}
 
             {editingAgentId && agentDraft && !(wabotAgents || []).some(a => a.id === editingAgentId) && (
-              <div className="rounded-2xl border border-[#00A884]/25 dark:border-[#00A884]/20 bg-[#00A884]/5 dark:bg-[#00A884]/[0.03] p-4">
+              <div className="rounded-2xl border border-[var(--nb-accent)] bg-[var(--nb-accent-soft)] p-4">
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Agent Name</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Agent Name</label>
                     <input
                       value={agentDraft.name}
                       onChange={e => setAgentDraft(d => d ? { ...d, name: e.target.value } : d)}
                       placeholder="e.g. Bilal"
-                      className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Specialization Scope</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Specialization Scope</label>
                     <textarea
                       rows={3}
                       value={agentDraft.scope}
                       onChange={e => setAgentDraft(d => d ? { ...d, scope: e.target.value } : d)}
                       placeholder="e.g. Only handles technical/connection issues (net slow, router, disconnect) — does not answer billing/payment questions"
-                      className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Routing Keywords (comma se separate)</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Routing Keywords (comma se separate)</label>
                     <input
                       value={agentDraft.keywords.join(', ')}
                       onChange={e => setAgentDraft(d => d ? { ...d, keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) } : d)}
                       placeholder="e.g. net not working, router, slow, disconnect"
-                      className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-semibold outline-none text-[#111B21] dark:text-white placeholder-slate-400"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Voice</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Voice</label>
                     <div className="flex gap-2">
                       <select
                         value={agentDraft.voice}
                         onChange={e => setAgentDraft(d => d ? { ...d, voice: e.target.value } : d)}
-                        className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                        className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                       >
                         {GEMINI_VOICES.map(v => (
                           <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
@@ -2729,7 +2744,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       <button
                         onClick={() => playVoicePreview(agentDraft.voice)}
                         disabled={previewingVoice === agentDraft.voice}
-                        className="flex-shrink-0 flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                        className="flex-shrink-0 flex items-center gap-1.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                       >
                         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                         {previewingVoice === agentDraft.voice ? '...' : 'Preview'}
@@ -2738,11 +2753,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Purpose</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Purpose</label>
                       <select
                         value={agentDraft.purpose || 'general'}
                         onChange={e => setAgentDraft(d => d ? { ...d, purpose: e.target.value as WABotAgent['purpose'] } : d)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                        className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                       >
                         <option value="billing">Billing</option>
                         <option value="complaint">Complaint</option>
@@ -2753,11 +2768,11 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">Gender</label>
+                      <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">Gender</label>
                       <select
                         value={agentDraft.gender || 'female'}
                         onChange={e => setAgentDraft(d => d ? { ...d, gender: e.target.value as WABotAgent['gender'] } : d)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                        className="w-full px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                       >
                         <option value="female">Female</option>
                         <option value="male">Male</option>
@@ -2765,12 +2780,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-widest">TTS Provider</label>
+                    <label className="text-xs font-bold text-[var(--nb-text-2)] block mb-1.5 uppercase tracking-widest">TTS Provider</label>
                     <div className="flex gap-2">
                       <select
                         value={agentDraft.ttsProvider || 'gemini'}
                         onChange={e => setAgentDraft(d => d ? { ...d, ttsProvider: e.target.value as WABotAgent['ttsProvider'] } : d)}
-                        className="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white"
+                        className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                       >
                         <option value="gemini">Gemini (Roman Urdu native)</option>
                         <option value="azure">Azure (free tier — script-based)</option>
@@ -2779,21 +2794,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       <button
                         onClick={() => playVoicePreview(agentDraft.voice, undefined, agentDraft.ttsProvider, agentDraft.gender)}
                         disabled={previewingVoice === agentDraft.voice}
-                        className="flex-shrink-0 flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                        className="flex-shrink-0 flex items-center gap-1.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-50 text-white px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                       >
                         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                         {previewingVoice === agentDraft.voice ? '...' : 'Test'}
                       </button>
                     </div>
                     {agentDraft.ttsProvider === 'azure' && (
-                      <p className="text-[10px] text-amber-500 font-bold mt-1">If no Azure key is set, this automatically falls back to Edge-TTS (free).</p>
+                      <p className="text-[10px] text-[var(--nb-warning)] font-bold mt-1">If no Azure key is set, this automatically falls back to Edge-TTS (free).</p>
                     )}
-                    {previewError && <p className="text-[10px] text-rose-400 font-bold mt-1">{previewError}</p>}
-                    {previewConfirm && <p className="text-[10px] text-[#00A884] font-bold mt-1">{previewConfirm}</p>}
+                    {previewError && <p className="text-[10px] text-[var(--nb-danger)] font-bold mt-1">{previewError}</p>}
+                    {previewConfirm && <p className="text-[10px] text-[var(--nb-accent)] font-bold mt-1">{previewConfirm}</p>}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={saveAgentDraft} className="flex-1 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
-                    <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                    <button onClick={saveAgentDraft} className="flex-1 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Save</button>
+                    <button onClick={() => { setEditingAgentId(null); setAgentDraft(null); }} className="px-4 py-2 bg-[var(--nb-surface-3)] text-[var(--nb-text-2)] rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -2803,26 +2818,26 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       ) : view === 'topup' ? (
         <div className="flex-1 bg-white dark:bg-[#000000] rounded-2xl border border-slate-100 dark:border-white/5 overflow-y-auto p-6 custom-scrollbar">
           <div className="mb-6">
-            <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-tight">Message Quota</h3>
-            <p className="text-xs text-slate-400 font-bold mt-1">NetBot usage for the current billing cycle — text and voice replies are tracked separately.</p>
+            <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">Message Quota</h3>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">NetBot usage for the current billing cycle — text and voice replies are tracked separately.</p>
           </div>
 
           {quotaLoading ? (
-            <p className="text-xs text-slate-400 font-bold py-6 text-center">Loading...</p>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold py-6 text-center">Loading...</p>
           ) : quotaError ? (
-            <p className="text-xs text-rose-400 font-bold py-6 text-center">{quotaError}</p>
+            <p className="text-xs text-[var(--nb-danger)] font-bold py-6 text-center">{quotaError}</p>
           ) : quota ? (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-[#00A884]/25 bg-[#00A884]/5 p-4">
+              <div className="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-accent-soft)] p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-3)]">Plan</span>
                   {quota.serviceStatus && quota.serviceStatus !== 'active' && (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500">{quota.serviceStatus}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-[var(--nb-surface-2)] text-[var(--nb-danger)]">{quota.serviceStatus}</span>
                   )}
                 </div>
-                <p className="text-sm font-black text-[#111B21] dark:text-white capitalize">{(quota.planType || 'unknown').replace('_', ' ')}</p>
+                <p className="text-sm font-black text-[var(--nb-text-1)] capitalize">{(quota.planType || 'unknown').replace('_', ' ')}</p>
                 {quota.cycleEndDate && (
-                  <p className="text-[11px] text-slate-400 font-bold mt-1">Cycle ends: {quota.cycleEndDate}</p>
+                  <p className="text-[11px] text-[var(--nb-text-3)] font-bold mt-1">Cycle ends: {quota.cycleEndDate}</p>
                 )}
               </div>
 
@@ -2830,41 +2845,41 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               {quota.voiceQuota > 0 ? (
                 <QuotaBar label="Voice Replies" used={quota.voiceUsed} limit={quota.voiceQuota} />
               ) : (
-                <div className="rounded-2xl border border-slate-100 dark:border-white/5 p-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice Replies</span>
-                  <p className="text-xs text-slate-400 font-bold mt-1">Voice replies are not included in this plan.</p>
+                <div className="rounded-2xl border border-[var(--nb-border)] p-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-3)]">Voice Replies</span>
+                  <p className="text-xs text-[var(--nb-text-3)] font-bold mt-1">Voice replies are not included in this plan.</p>
                 </div>
               )}
 
               <a
-                href={`https://wa.me/923042773453?text=${encodeURIComponent('Hello, I need NetBot credits/topup or plan upgrade.')}`}
+                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent('Hello, I need NetBot credits/topup or plan upgrade.')}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-2 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all"
+                className="flex items-center justify-center gap-2 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.38a9.9 9.9 0 004.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2z" /></svg>
                 Request Topup / Upgrade
               </a>
             </div>
           ) : (
-            <p className="text-xs text-slate-400 font-bold py-6 text-center">No quota data found.</p>
+            <p className="text-xs text-[var(--nb-text-3)] font-bold py-6 text-center">No quota data found.</p>
           )}
         </div>
       ) : view === 'updates' ? (
-        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6 custom-scrollbar">
-          <div className="flex items-center justify-between border-b border-[#E9EDEF] dark:border-[#222D34] pb-4">
+        <div className="flex-1 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <div className="flex items-center justify-between border-b border-[var(--nb-border)] pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black text-[#111B21] dark:text-[#E9EDEF] uppercase tracking-tight">NetBot System Updates &amp; Changelog</h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#00A884]/15 text-[#00A884] font-black text-[10px] uppercase tracking-wider">Live</span>
+                <h3 className="text-lg font-black text-[var(--nb-text-1)] uppercase tracking-tight">NetBot System Updates &amp; Changelog</h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-[var(--nb-accent-soft)] text-[var(--nb-accent)] font-black text-[10px] uppercase tracking-wider">Live</span>
               </div>
-              <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold mt-1">
+              <p className="text-xs text-[var(--nb-text-2)] font-semibold mt-1">
                 New features, UI improvements and performance updates for the NetBot and WABot inbox are tracked here.
               </p>
             </div>
             <button
               onClick={() => setView('inbox')}
-              className="px-3.5 py-2 rounded-xl bg-[#00A884] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#008069] transition-all flex items-center gap-1.5 shadow-sm"
+              className="px-3.5 py-2 rounded-xl bg-[var(--nb-accent)] text-white font-bold text-xs uppercase tracking-wider hover:bg-[var(--nb-accent-pressed)] transition-all flex items-center gap-1.5 shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
               Open Inbox
@@ -2873,27 +2888,27 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
           <div className="space-y-6">
             {CHANGELOG_ITEMS.map((release) => (
-              <div key={release.version} className="relative pl-6 border-l-2 border-[#00A884]/40 dark:border-[#00A884]/30 space-y-3">
-                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#00A884] border-2 border-white dark:border-[#111B21]" />
+              <div key={release.version} className="relative pl-6 border-l-2 border-[var(--nb-accent)] space-y-3">
+                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[var(--nb-accent)] border-2 border-[var(--nb-surface-1)]" />
                 <div className="flex items-center gap-2.5">
-                  <span className="font-mono font-black text-sm text-[#00A884]">{release.version}</span>
+                  <span className="font-mono font-black text-sm text-[var(--nb-accent)]">{release.version}</span>
                   <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider text-white ${release.badgeColor}`}>
                     {release.badge}
                   </span>
-                  <span className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0]">{release.date}</span>
+                  <span className="text-[11px] font-bold text-[var(--nb-text-2)]">{release.date}</span>
                 </div>
-                <h4 className="text-base font-bold text-[#111B21] dark:text-[#E9EDEF]">{release.title}</h4>
+                <h4 className="text-base font-bold text-[var(--nb-text-1)]">{release.title}</h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                   {release.features.map((feat, fIdx) => (
-                    <div key={fIdx} className="p-3.5 rounded-xl bg-[#F0F2F5]/80 dark:bg-[#202C33]/60 border border-[#E9EDEF] dark:border-[#222D34] space-y-1">
+                    <div key={fIdx} className="p-3.5 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)] space-y-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-white dark:bg-[#111B21] text-[#00A884] border border-[#E9EDEF] dark:border-[#222D34]">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-[var(--nb-surface-1)] text-[var(--nb-accent)] border border-[var(--nb-border)]">
                           {feat.tag}
                         </span>
-                        <h5 className="text-xs font-bold text-[#111B21] dark:text-[#E9EDEF] truncate">{feat.title}</h5>
+                        <h5 className="text-xs font-bold text-[var(--nb-text-1)] truncate">{feat.title}</h5>
                       </div>
-                      <p className="text-[11px] text-[#667781] dark:text-[#8696A0] leading-relaxed font-medium">
+                      <p className="text-[11px] text-[var(--nb-text-2)] leading-relaxed font-medium">
                         {feat.desc}
                       </p>
                     </div>
@@ -2904,9 +2919,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           </div>
         </div>
       ) : view === 'settings' ? (
-        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-6 custom-scrollbar">
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-3">Business / Bot Name</h4>
+        <div className="flex-1 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] mb-3">Business / Bot Name</h4>
             {editingBotName ? (
               <div className="flex items-center gap-2">
                 <input
@@ -2914,21 +2929,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   value={botNameInput}
                   onChange={e => setBotNameInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && saveBotName()}
-                  className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
+                  className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
                 />
-                <button onClick={saveBotName} className="px-4 py-2.5 bg-[#00A884] hover:bg-[#008069] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
+                <button onClick={saveBotName} className="px-4 py-2.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex-shrink-0">Save</button>
               </div>
             ) : (
-              <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">
+              <button onClick={() => setEditingBotName(true)} className="flex items-center gap-1.5 text-sm font-black text-[var(--nb-text-1)]">
                 {botNameInput}
-                <svg className="w-3.5 h-3.5 text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                <svg className="w-3.5 h-3.5 text-[var(--nb-text-3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
               </button>
             )}
           </section>
 
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-1">Business Profile</h4>
-            <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mb-2">Used in payment details, templates and quick replies. Stored in your settings — never hardcoded.</p>
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] mb-1">Business Profile</h4>
+            <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mb-2">Used in payment details, templates and quick replies. Stored in your settings — never hardcoded.</p>
             <BusinessProfileField label="Business name" value={identity.businessName} placeholder="e.g. Your Business" onSave={v => onUpdateBusinessProfile?.({ businessName: v })} />
             <BusinessProfileField label="Support number" value={identity.supportNumber} placeholder="e.g. 0300-1234567" onSave={v => onUpdateBusinessProfile?.({ supportNumber: v })} />
             <BusinessProfileField label="Bank name" value={identity.bankName} placeholder="e.g. Your Bank" onSave={v => onUpdateBusinessProfile?.({ bankName: v })} />
@@ -2936,18 +2951,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
             <BusinessProfileField label="Bank IBAN" value={identity.bankIban} placeholder="e.g. PK00BANK00000000000000" onSave={v => onUpdateBusinessProfile?.({ bankIban: v })} />
             <BusinessProfileField label="JazzCash number" value={identity.jazzcashNo} placeholder="e.g. 03009876543" onSave={v => onUpdateBusinessProfile?.({ jazzcashNo: v })} />
             <BusinessProfileField label="EasyPaisa number" value={identity.easypaisaNo} placeholder="e.g. 03009876543" onSave={v => onUpdateBusinessProfile?.({ easypaisaNo: v })} />
+            <BusinessProfileField label="Support email" value={identity.supportEmail} placeholder="e.g. support@example.com" onSave={v => onUpdateBusinessProfile?.({ supportEmail: v })} />
+            <BusinessProfileField label="Support phone" value={identity.supportPhone} placeholder="e.g. +92 300 1234567" onSave={v => onUpdateBusinessProfile?.({ supportPhone: v })} />
+            <BusinessProfileField label="Support WhatsApp (digits)" value={identity.supportWhatsApp} placeholder="e.g. 923001234567" onSave={v => onUpdateBusinessProfile?.({ supportWhatsApp: v })} />
           </section>
 
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">Theme</h4>
-                <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] mt-1">{wabotDark ? 'Dark' : 'Light'}</p>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)]">Theme</h4>
+                <p className="text-sm font-black text-[var(--nb-text-1)] mt-1">{wabotDark ? 'Dark' : 'Light'}</p>
               </div>
               <button
                 onClick={toggleWabotTheme}
                 title={wabotDark ? 'Light mode' : 'Dark mode'}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] active:scale-95 transition-all"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] active:scale-95 transition-all"
               >
                 {wabotDark ? (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
@@ -2958,13 +2976,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
             </div>
           </section>
 
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-3">TTS Voice</h4>
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] mb-3">TTS Voice</h4>
             <div className="flex flex-wrap gap-2">
               <select
                 value={selectedVoice}
                 onChange={e => saveDefaultVoice(e.target.value)}
-                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
+                className="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
               >
                 {GEMINI_VOICES.map(v => (
                   <option key={v.name} value={v.name}>{v.name} — {v.style}</option>
@@ -2973,76 +2991,76 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               <button
                 onClick={() => playVoicePreview(selectedVoice)}
                 disabled={previewingVoice === selectedVoice}
-                className="flex items-center gap-1.5 bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                className="flex items-center gap-1.5 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
               >
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                 {previewingVoice === selectedVoice ? 'Loading...' : 'Preview'}
               </button>
             </div>
-            {previewError && <p className="text-[11px] text-rose-400 font-bold mt-2">{previewError}</p>}
-            {previewConfirm && <p className="text-[11px] text-[#00A884] font-bold mt-2">{previewConfirm}</p>}
+            {previewError && <p className="text-[11px] text-[var(--nb-danger)] font-bold mt-2">{previewError}</p>}
+            {previewConfirm && <p className="text-[11px] text-[var(--nb-accent)] font-bold mt-2">{previewConfirm}</p>}
           </section>
 
-                    <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-1">Linked devices</h4>
-            <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mb-3">See every browser logged into NetBot Web, or log one out remotely.</p>
+                    <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] mb-1">Linked devices</h4>
+            <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mb-3">See every browser logged into NetBot Web, or log one out remotely.</p>
             <button
               onClick={() => setView('devices')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#00A884] hover:bg-[#008069] text-white font-black text-[11px] uppercase tracking-widest transition-all active:scale-95"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white font-black text-[11px] uppercase tracking-widest transition-all active:scale-95"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
               Manage linked devices
             </button>
           </section>
 
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] mb-1">Manager account</h4>
-            <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] break-all">{managerId || '—'}</p>
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] mb-1">Manager account</h4>
+            <p className="text-sm font-black text-[var(--nb-text-1)] break-all">{managerId || '—'}</p>
           </section>
         </div>
       ) : view === 'help' ? (
-        <div className="flex-1 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          <p className="text-xs font-bold text-[#667781] dark:text-[#8696A0]">Common NetBot questions, and how to reach support.</p>
+        <div className="flex-1 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          <p className="text-xs font-bold text-[var(--nb-text-2)]">Common NetBot questions, and how to reach support.</p>
           {[
             { q: 'How do I link NetBot Web?', a: 'Open NetBot Web on your computer and show the QR code. In the Android app go to App Settings → Link a Device and scan it — the web session logs into the same account.' },
             { q: 'How do I log out a computer remotely?', a: 'In the Android app go to App Settings → Link a Device. Every linked session shows its browser, OS and last-active time. Tap Log out.' },
             { q: 'The bot is still auto-replying after I sent a manual message.', a: 'A manual message pauses that chat. Use Resume on the thread to re-enable auto-replies.' },
             { q: 'How do I change the bot name or voice?', a: 'The bot name is in Settings. The default TTS voice and extra agents are under the Voice & Agents menu item.' },
-            { q: 'What if I lose my password?', a: 'Contact support@billcollector.online / WhatsApp +92 304 2773453 and we will help you recover access.' },
+            { q: 'What if I lose my password?', a: `Contact ${supportEmail} / WhatsApp ${supportPhone} and we will help you recover access.` },
           ].map((item, i) => {
             const open = helpFaqOpen === i;
             return (
               <button
                 key={item.q}
                 onClick={() => setHelpFaqOpen(open ? null : i)}
-                className="w-full text-left p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40"
+                className="w-full text-left p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">{item.q}</span>
-                  <svg className={`w-4 h-4 flex-shrink-0 text-[#8696A0] transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  <span className="text-sm font-black text-[var(--nb-text-1)]">{item.q}</span>
+                  <svg className={`w-4 h-4 flex-shrink-0 text-[var(--nb-text-3)] transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </div>
-                {open && <p className="text-sm text-[#667781] dark:text-[#8696A0] font-semibold mt-2">{item.a}</p>}
+                {open && <p className="text-sm text-[var(--nb-text-2)] font-semibold mt-2">{item.a}</p>}
               </button>
             );
           })}
-          <section className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40 space-y-3">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">Contact support</h4>
-            <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">support@billcollector.online</p>
+          <section className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)] space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)]">Contact support</h4>
+            <p className="text-sm font-black text-[var(--nb-text-1)]">{supportEmail}</p>
             <a
-              href="mailto:support@billcollector.online"
-              className="flex items-center justify-center gap-2 bg-[#00A884] hover:bg-[#008069] text-white px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all"
+              href={`mailto:${supportEmail}`}
+              className="flex items-center justify-center gap-2 bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
               Email support
             </a>
             <a
-              href={`https://wa.me/923042773453?text=${encodeURIComponent('Hello, I need help with NetBot.')}`}
+              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent('Hello, I need help with NetBot.')}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 border border-[#00A884] text-[#00A884] px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:bg-[#00A884]/10"
+              className="flex items-center justify-center gap-2 border border-[var(--nb-accent)] text-[var(--nb-accent)] px-4 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:bg-[var(--nb-accent)]/10"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.38a9.9 9.9 0 004.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2z" /></svg>
-              WhatsApp +92 304 2773453
+              WhatsApp {supportPhone}
             </a>
           </section>
         </div>
@@ -3086,57 +3104,57 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       ) : (
     <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
-      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm`}>
-        <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0 space-y-2">
+      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] flex-col overflow-hidden`}>
+        <div className="p-3 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex-shrink-0 space-y-2">
           <div className="flex items-center gap-2">
             <input
               placeholder="Search conversations"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0]"
+              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-xs font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
             />
             {totalUnread > 0 && (
-              <span className="flex-shrink-0 bg-[#00A884] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
+              <span className="flex-shrink-0 bg-[var(--nb-accent)] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
             )}
           </div>
           {/* ── Smart Filter Pills ── */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
             <button
               onClick={() => setChatFilter('all')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               All
               <span className="text-[10px] opacity-80">({filterCounts.all})</span>
             </button>
             <button
               onClick={() => setChatFilter('unread')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               Unread
-              {filterCounts.unread > 0 && <span className="bg-[#00A884] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.unread}</span>}
+              {filterCounts.unread > 0 && <span className="bg-[var(--nb-accent)] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.unread}</span>}
             </button>
             <button
               onClick={() => setChatFilter('proofs')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               Payment Slips
-              {filterCounts.proofs > 0 && <span className="bg-amber-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.proofs}</span>}
+              {filterCounts.proofs > 0 && <span className="bg-[var(--nb-warning)] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.proofs}</span>}
             </button>
             <button
               onClick={() => setChatFilter('paused')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               Paused
-              {filterCounts.paused > 0 && <span className="bg-orange-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
+              {filterCounts.paused > 0 && <span className="bg-[var(--nb-warning)] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
             </button>
           </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--nb-divider)] custom-scrollbar">
           {filteredConversations.length === 0 ? (
             <div className="text-center py-10 px-4">
-              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold">No WhatsApp conversations found.</p>
+              <p className="text-sm text-[var(--nb-text-3)] font-bold">No WhatsApp conversations found.</p>
               {chatFilter !== 'all' && (
-                <button onClick={() => setChatFilter('all')} className="mt-2 text-xs text-[#00A884] font-bold underline">Show all chats</button>
+                <button onClick={() => setChatFilter('all')} className="mt-2 min-h-[44px] px-2 text-xs text-[var(--nb-accent)] font-bold underline">Show all chats</button>
               )}
             </div>
           ) : (
@@ -3144,25 +3162,25 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               <button
                 key={c.phone}
                 onClick={() => openConversation(c.phone)}
-                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
+                className={`w-full text-left p-3 border-b border-[var(--nb-divider)] flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[var(--nb-accent-soft)]' : 'hover:bg-[var(--nb-surface-2)]'}`}
               >
                 <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
-                  style={{ backgroundColor: c.paused ? '#F5A623' : avatarColor(c.phone) }}
+                  className="w-12 h-12 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
+                  style={{ backgroundColor: c.paused ? 'var(--nb-warning)' : avatarColor(c.phone) }}
                 >
                   {c.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</p>
-                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
+                    <p className="font-black text-sm text-[var(--nb-text-1)] truncate">{c.name}</p>
+                    <span className="text-[10px] text-[var(--nb-text-2)] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
                   </div>
-                  <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold truncate">
+                  <p className="text-xs text-[var(--nb-text-2)] font-semibold truncate">
                     {typePreview(c.lastType) || c.lastMessage}
                   </p>
                 </div>
                 {c.unreadCount > 0 && (
-                  <span className="bg-[#00A884] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{c.unreadCount}</span>
+                  <span className="bg-[var(--nb-accent)] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{c.unreadCount}</span>
                 )}
               </button>
             ))
@@ -3171,18 +3189,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       </div>
 
       {/* ── Thread — takes over full screen on mobile when a chat is open ── */}
-      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-[#EFEAE2] dark:bg-[#0B141A] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm min-w-0`}>
+      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-[var(--nb-bg)] rounded-2xl border border-[var(--nb-border)] flex-col overflow-hidden min-w-0`}>
         {!selectedConv ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold">
+          <div className="flex-1 flex items-center justify-center text-[var(--nb-text-3)] font-bold">
             Select a conversation
           </div>
         ) : (
           <>
-            <div className="p-3.5 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="p-3.5 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex items-center justify-between gap-3 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => setSelectedPhone(null)}
-                  className="sm:hidden p-2 -ml-2 text-[#667781] dark:text-[#8696A0] flex-shrink-0"
+                  className="sm:hidden min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 text-[var(--nb-text-2)] flex-shrink-0"
                   aria-label="Back to chat list"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
@@ -3196,12 +3214,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         onChange={e => setContactNameInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveContactName(); if (e.key === 'Escape') setEditingContactName(false); }}
                         placeholder={selectedConv.name}
-                        className="text-sm font-black bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] rounded-lg px-2 py-1 outline-none text-[#111B21] dark:text-[#E9EDEF] w-36"
+                        className="text-sm font-black bg-[var(--nb-surface-1)] border border-[var(--nb-border)] rounded-lg px-2 py-1 outline-none text-[var(--nb-text-1)] w-36"
                       />
-                      <button onClick={saveContactName} className="text-[#00A884] flex-shrink-0" aria-label="Save">
+                      <button onClick={saveContactName} className="text-[var(--nb-accent)] flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Save">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
                       </button>
-                      <button onClick={() => setEditingContactName(false)} className="text-[#667781] dark:text-[#8696A0] flex-shrink-0" aria-label="Cancel">
+                      <button onClick={() => setEditingContactName(false)} className="text-[var(--nb-text-2)] flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Cancel">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
@@ -3211,18 +3229,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       className="flex items-center gap-1.5 group"
                       title="Edit contact name"
                     >
-                      <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{selectedConv.name}</p>
-                      <svg className="w-3.5 h-3.5 text-slate-300 dark:text-slate-500 group-hover:text-[#00A884] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      <p className="font-black text-sm text-[var(--nb-text-1)] truncate">{selectedConv.name}</p>
+                      <svg className="w-3.5 h-3.5 text-[var(--nb-text-3)] group-hover:text-[var(--nb-accent)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
                   )}
-                  <p className="text-xs text-[#667781] dark:text-[#8696A0] font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
+                  <p className="text-xs text-[var(--nb-text-2)] font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0" />
             </div>
 
             {windowStatus && (
-              <div className={`px-3.5 py-2 flex items-center gap-2 flex-shrink-0 text-xs font-bold ${windowStatus.open ? 'bg-[#00A884]/15 text-[#008069] dark:text-[#00A884]' : 'bg-rose-500/10 text-rose-600 dark:text-rose-300'}`}>
+              <div className={`px-3.5 py-2 flex items-center gap-2 flex-shrink-0 text-xs font-bold ${windowStatus.open ? 'bg-[var(--nb-accent-soft)] text-[var(--nb-accent)]' : 'bg-[var(--nb-surface-2)] text-[var(--nb-danger)]'}`}>
                 {windowStatus.open ? (
                   <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 ) : (
@@ -3236,17 +3254,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               </div>
             )}
 
-            <div ref={threadContainerRef} style={{ backgroundColor: wabotDark ? wallpaperPreset.dark : wallpaperPreset.light }} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
+            <div ref={threadContainerRef} style={{ backgroundColor: wabotDark ? wallpaperPreset.dark : wallpaperPreset.light }} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[var(--nb-bg)] custom-scrollbar">
               {threadError && thread.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                  <div className="w-12 h-12 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <div className="w-12 h-12 rounded-full bg-[var(--nb-surface-2)] border border-[var(--nb-danger)] flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[var(--nb-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                   </div>
-                  <p className="text-sm font-bold text-slate-600 dark:text-slate-300 max-w-xs">{threadError}</p>
+                  <p className="text-sm font-bold text-[var(--nb-text-2)] max-w-xs">{threadError}</p>
                   <button
                     type="button"
                     onClick={() => selectedPhone && openConversation(selectedPhone)}
-                    className="px-4 py-2 rounded-xl bg-[#00A884] hover:bg-[#008069] text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+                    className="px-4 min-h-[44px] rounded-xl bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
                   >
                     Retry
                   </button>
@@ -3258,7 +3276,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     type="button"
                     onClick={loadOlderMessages}
                     disabled={loadingOlder}
-                    className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-white dark:bg-[#202C33] text-[#00A884] border border-[#E9EDEF] dark:border-[#222D34] shadow-sm hover:bg-[#F0F2F5] dark:hover:bg-[#2A3942] disabled:opacity-50 transition-all"
+                    className="text-[11px] font-black uppercase tracking-widest px-4 min-h-[44px] rounded-full bg-[var(--nb-surface-1)] text-[var(--nb-accent)] border border-[var(--nb-border)] hover:bg-[var(--nb-surface-2)] disabled:opacity-50 transition-all"
                   >
                     {loadingOlder ? 'Loading older messages\u2026' : 'Load older messages'}
                   </button>
@@ -3268,7 +3286,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 if (item.kind === 'date') {
                   return (
                     <div key={item.key} className="flex justify-center">
-                      <span className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0] bg-white dark:bg-[#1F2C34] border border-[#E9EDEF] dark:border-[#222D34] rounded-lg px-3 py-1 shadow-sm">{item.label}</span>
+                      <span className="text-[11px] font-bold text-[var(--nb-text-2)] bg-[var(--nb-surface-1)] border border-[var(--nb-border)] rounded-lg px-3 py-1">{item.label}</span>
                     </div>
                   );
                 }
@@ -3498,12 +3516,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 </button>
               </div>
             )}
-            <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-[#E9EDEF] dark:border-[#222D34] flex items-center gap-2 flex-shrink-0">
+            <div className="p-3 bg-[var(--nb-header)] border-t border-[var(--nb-border)] flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || recording}
                 title="Send a photo, video or document"
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#2A3942] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] disabled:opacity-40 active:scale-95 transition-all shadow-sm"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] disabled:opacity-40 active:scale-95 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
               </button>
@@ -3512,18 +3530,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 disabled={uploading || recording}
                 title="Send an official Meta template"
                 aria-label="Official templates"
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#2A3942] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] disabled:opacity-40 active:scale-95 transition-all shadow-sm"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] disabled:opacity-40 active:scale-95 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               </button>
 
               {recording ? (
-                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
-                  <span className="text-sm font-bold text-rose-600 dark:text-rose-300 flex-1">
+                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-danger)]">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--nb-danger)] animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-bold text-[var(--nb-danger)] flex-1">
                     Recording... {String(Math.floor(recSeconds / 60)).padStart(2, '0')}:{String(recSeconds % 60).padStart(2, '0')}
                   </span>
-                  <button onClick={cancelRecording} className="text-xs font-black uppercase tracking-widest text-slate-400">Cancel</button>
+                  <button onClick={cancelRecording} className="text-xs font-black uppercase tracking-widest text-[var(--nb-text-3)] min-h-[44px] px-2">Cancel</button>
                 </div>
               ) : (
                 <div className="flex-1 min-w-0 relative">
@@ -3531,24 +3549,24 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     <>
                       {/* ── UI/UX P3 (W23): tap-outside dismisses the palette on mobile ── */}
                       <div className="fixed inset-0 z-40" onClick={() => setShowSlashPalette(false)} />
-                    <div className="absolute bottom-full mb-3 left-0 w-full max-w-md bg-white dark:bg-[#202C33] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="p-2.5 bg-[#F0F2F5] dark:bg-[#111B21] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">Quick Replies (/commands)</span>
-                        <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] hover:text-[#00A884]">Close (Esc)</button>
+                    <div className="absolute bottom-full mb-3 left-0 w-full max-w-md bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="p-2.5 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--nb-text-2)]">Quick Replies (/commands)</span>
+                        <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[var(--nb-text-2)] hover:text-[var(--nb-accent)] min-h-[44px] px-2">Close (Esc)</button>
                       </div>
-                      <div className="max-h-60 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
+                      <div className="max-h-60 overflow-y-auto divide-y divide-[var(--nb-divider)] custom-scrollbar">
                         {slashMatches.map((cr, i) => (
                           <button
                             key={cr.cmd}
                             type="button"
                             onClick={() => { setInputText(cr.text); setShowSlashPalette(false); }}
                             onMouseEnter={() => setSlashHi(i)}
-                            className={`w-full text-left p-2.5 transition-colors flex items-start gap-2.5 group ${i === slashHi ? 'bg-[#00A884]/10 dark:bg-[#00A884]/15' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#2A3942]'}`}
+                            className={`w-full text-left p-2.5 transition-colors flex items-start gap-2.5 group ${i === slashHi ? 'bg-[var(--nb-accent-soft)]' : 'hover:bg-[var(--nb-surface-2)]'}`}
                           >
-                            <span className="px-2 py-0.5 rounded-md bg-[#00A884]/15 text-[#00A884] font-mono font-bold text-xs shrink-0 mt-0.5">{cr.cmd}</span>
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--nb-accent-soft)] text-[var(--nb-accent)] font-mono font-bold text-xs shrink-0 mt-0.5">{cr.cmd}</span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-[#111B21] dark:text-[#E9EDEF] truncate">{cr.title}</p>
-                              <p className="text-[10px] text-[#667781] dark:text-[#8696A0] truncate">{cr.desc}</p>
+                              <p className="text-xs font-bold text-[var(--nb-text-1)] truncate">{cr.title}</p>
+                              <p className="text-[10px] text-[var(--nb-text-2)] truncate">{cr.desc}</p>
                             </div>
                           </button>
                         ))}
@@ -3585,7 +3603,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     }}
                     placeholder="Type a message or / for quick replies..."
                     disabled={uploading}
-                    className="w-full p-3 rounded-xl bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0] disabled:opacity-50"
+                    className="w-full min-h-[44px] px-4 py-3 rounded-full bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-medium outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)] disabled:opacity-50"
                   />
                 </div>
               )}
@@ -3593,7 +3611,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               {recording ? (
                 <button
                   onClick={stopRecording}
-                  className="flex items-center gap-2 px-6 py-3.5 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
+                  className="flex items-center gap-2 px-6 py-3.5 min-h-[44px] bg-[var(--nb-danger)] text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
                 >
                   <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                   Send
@@ -3602,7 +3620,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 <button
                   onClick={handleSend}
                   disabled={sending}
-                  className="px-6 py-3.5 bg-[#00A884] disabled:opacity-40 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
+                  className="px-6 py-3.5 min-h-[44px] bg-[var(--nb-accent)] disabled:opacity-40 text-white rounded-full font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
                 >
                   Send
                 </button>
@@ -3611,7 +3629,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   onClick={startRecording}
                   disabled={uploading}
                   title="Voice message"
-                  className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-2xl bg-[#00A884] disabled:opacity-40 text-white active:scale-95 transition-all"
+                  className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-2xl bg-[var(--nb-accent)] disabled:opacity-40 text-white active:scale-95 transition-all"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 10v2a7 7 0 01-14 0v-2M12 19v4" /></svg>
                 </button>
