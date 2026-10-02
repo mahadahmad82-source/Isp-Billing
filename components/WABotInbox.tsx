@@ -623,6 +623,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
   const [contactNameInput, setContactNameInput] = useState('');
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [thread, setThread] = useState<WAMessage[]>([]);
+  // ── UI/UX P1 (W13): visible thread-load error + retry ──
+  const [threadError, setThreadError] = useState('');
   // ── Thread parity (Phase 2a): older-message pagination, reply quote, bubble context menu ──
   const [threadHasMore, setThreadHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -630,6 +632,16 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: WAMessage } | null>(null);
   // ── Phase 4: offline banner ──
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
+  // ── UI/UX P1 (W15): success confirmation for save actions ──
+  const [saveToast, setSaveToast] = useState('');
+  const saveToastTimer = useRef<number | null>(null);
+  const showSaveToast = (msg: string) => {
+    setSaveToast(msg);
+    if (saveToastTimer.current) window.clearTimeout(saveToastTimer.current);
+    saveToastTimer.current = window.setTimeout(() => setSaveToast(''), 2500);
+  };
+  // ── UI/UX P1 (W3): visible "Reconnecting" state when the realtime channel drops ──
+  const [reconnecting, setReconnecting] = useState(false);
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
     const goOffline = () => setIsOnline(false);
@@ -796,6 +808,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
   const saveDefaultVoice = (voice: string) => {
     setSelectedVoice(voice);
     onUpdateTtsVoice?.(voice);
+    showSaveToast('Voice saved');
   };
 
   const startNewAgent = () => {
@@ -817,6 +830,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     onUpdateWabotAgents?.(updated);
     setEditingAgentId(null);
     setAgentDraft(null);
+    showSaveToast('Agent saved');
   };
 
   const deleteAgent = (id: string) => {
@@ -877,6 +891,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
   const savePersonaNotes = () => {
     onUpdateBotPersonaNotes?.(personaDraft.trim());
+    showSaveToast('Persona saved');
   };
 
   const addBehaviorRule = () => {
@@ -889,6 +904,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     const rule: WABotBehaviorRule = { id: `rule-${Date.now()}`, trigger, response, active: true };
     onUpdateBotBehaviorRules?.([...(botBehaviorRules || []), rule]);
     setRuleDraft({ trigger: '', response: '' });
+    showSaveToast('Rule saved');
   };
 
   const toggleBehaviorRule = (id: string) => {
@@ -940,6 +956,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     setCatalogState(next);
     onUpdateRouterCatalog?.(next);
     setCatalogModal(null);
+    showSaveToast('Catalog saved');
   };
 
   const deleteRouter = (band: '2.4g' | '5g', id: string) => {
@@ -1007,6 +1024,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     const updated = { ...(botTemplates || {}), [key]: { ...existing, text: templateDraft } };
     onUpdateBotTemplates?.(updated);
     setEditingTemplateKey(null);
+    showSaveToast('Template saved');
   };
 
   const resetBotTemplateToDefault = (key: string) => {
@@ -1180,7 +1198,8 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       if (chatFilter === 'paused') return c.paused;
       if (chatFilter === 'proofs') {
         const isImgOrDoc = c.lastType === 'image' || c.lastType === 'document';
-        const textHasProof = /proof|slip|payment|paid|screen\s*shot|receipt|ada|bhej\s*di/i.test(c.lastMessage);
+        // UI/UX P1 (W20): bare "ada" matched unrelated text — require a payment verb next to it.
+        const textHasProof = /proof|slip|payment|paid|screen\s*shot|receipt|bhej\s*di|ada\s*(kar|ho|kiya?|kya|gay[ai]|diy?a?)\b/i.test(c.lastMessage);
         return isImgOrDoc || textHasProof;
       }
       return true;
@@ -1198,6 +1217,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
   const openConversation = useCallback(async (phone: string) => {
     setSelectedPhone(phone);
+    setThreadError('');
     // BUG FIX: thread wasn't cleared here, so switching contacts briefly rendered
     // the PREVIOUS conversation's messages (at whatever scroll position it was
     // left at) before the async fetch below resolved — this is exactly what
@@ -1238,6 +1258,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       setConversationSummaries(prev => prev.map(s => (s.customer_phone === phone ? { ...s, unread_count: 0 } : s)));
     } catch (e) {
       console.error('[WABotInbox] openConversation', e);
+      setThreadError('Could not load this conversation. Check your connection and try again.');
     }
   }, [managerId]);
 
@@ -1317,7 +1338,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
         }
       )
       .subscribe((status: string, err?: Error) => {
+        if (status === 'SUBSCRIBED') setReconnecting(false);
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setReconnecting(true);
           console.error('[WABotInbox] realtime channel', status, err?.message);
           // Websocket dropped — pull a fresh copy immediately instead of waiting for
           // the next poll tick, so a flaky connection never looks like "messages gone".
@@ -1857,6 +1880,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     setBotNameInput(name);
     setEditingBotName(false);
     onUpdateBotName?.(name);
+    showSaveToast('Bot name saved');
   };
 
   // Lets the manager give a contact a friendlier label in the thread list — purely a
@@ -1874,6 +1898,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
         .from('whatsapp_configs')
         .update({ contact_names: next })
         .eq('manager_id', managerId);
+      showSaveToast('Name saved');
     } catch (e) {
       console.error('[WABotInbox] saveContactName', e);
     }
@@ -1896,6 +1921,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
         <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
           You're offline - new messages will appear when you reconnect.
+        </div>
+      )}
+      {reconnecting && isOnline && (
+        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+          <svg className="w-4 h-4 flex-shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          Reconnecting&hellip; fetching the latest messages.
+        </div>
+      )}
+      {saveToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00A884] text-white text-sm font-bold shadow-lg">
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+          {saveToast}
         </div>
       )}
       {/* ── Header — single line like Android's "Wabot BillCollector" bar, with
@@ -2884,9 +2921,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           {[
             { q: 'How do I link NetBot Web?', a: 'Open NetBot Web on your computer and show the QR code. In the Android app go to App Settings → Link a Device and scan it — the web session logs into the same account.' },
             { q: 'How do I log out a computer remotely?', a: 'In the Android app go to App Settings → Link a Device. Every linked session shows its browser, OS and last-active time. Tap Log out.' },
-            { q: 'The bot is still auto-replying after I sent a manual message.', a: 'A manual message pauses that chat. Use Resume on the thread, or Pause All / Resume All Bots from the menu.' },
+            { q: 'The bot is still auto-replying after I sent a manual message.', a: 'A manual message pauses that chat. Use Resume on the thread to re-enable auto-replies.' },
             { q: 'How do I change the bot name or voice?', a: 'The bot name is in Settings. The default TTS voice and extra agents are under the Voice & Agents menu item.' },
-            { q: 'What if I lose my password?', a: 'Use account recovery on the login screen, or contact support@billcollector.online / WhatsApp +92 304 2773453.' },
+            { q: 'What if I lose my password?', a: 'Contact support@billcollector.online / WhatsApp +92 304 2773453 and we will help you recover access.' },
           ].map((item, i) => {
             const open = helpFaqOpen === i;
             return (
@@ -3115,6 +3152,21 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
             )}
 
             <div ref={threadContainerRef} style={{ backgroundColor: wabotDark ? wallpaperPreset.dark : wallpaperPreset.light }} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
+              {threadError && thread.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                  <div className="w-12 h-12 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  </div>
+                  <p className="text-sm font-bold text-slate-600 dark:text-slate-300 max-w-xs">{threadError}</p>
+                  <button
+                    type="button"
+                    onClick={() => selectedPhone && openConversation(selectedPhone)}
+                    className="px-4 py-2 rounded-xl bg-[#00A884] hover:bg-[#008069] text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               {threadHasMore && (
                 <div className="flex justify-center pb-1">
                   <button
