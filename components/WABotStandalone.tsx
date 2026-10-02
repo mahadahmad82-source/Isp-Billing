@@ -504,19 +504,21 @@ export default function WABotStandalone() {
   }
 
   // ── LOADING ──────────────────────────────────────────────────────────
+  // ── Silk P2: transitional screens use Silk tokens so they render correctly
+  //    in BOTH light and dark mode (they were light-only before) ──
   if (phase === 'loading' || (phase === 'ready' && !state)) {
     return (
-      <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 overflow-hidden">
+      <div style={{ height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 overflow-hidden bg-[var(--nb-bg)]">
         <Avatar size={64} />
-        <p className="text-slate-400 text-xs uppercase tracking-widest animate-pulse">Loading NetBot…</p>
+        <p className="text-[var(--nb-text-3)] text-xs uppercase tracking-widest animate-pulse">Loading NetBot…</p>
         {/* ── UI/UX P1 (W16): a stuck boot explains itself instead of spinning forever ── */}
         {bootTimedOut && phase === 'loading' && (
           <div className="flex flex-col items-center gap-3 px-6 text-center">
-            <p className="text-sm text-slate-400">Still loading — check your connection.</p>
+            <p className="text-sm text-[var(--nb-text-3)]">Still loading — check your connection.</p>
             <button
               type="button"
               onClick={() => { setBootTimedOut(false); setBootNonce(n => n + 1); }}
-              className="text-xs bg-[#00A884] hover:bg-[#008069] text-white px-4 py-2 rounded-lg font-semibold active:scale-95 transition-all"
+              className="text-xs bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 min-h-[44px] rounded-lg font-semibold active:scale-95 transition-all"
             >
               Retry
             </button>
@@ -529,12 +531,12 @@ export default function WABotStandalone() {
   // ── ERROR ───────────────────────────────────────────────────────────
   if (phase === 'error') {
     return (
-      <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden">
+      <div style={{ height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden bg-[var(--nb-bg)]">
         <Avatar size={64} />
-        <p className="text-slate-500 text-sm">{errorMsg}</p>
+        <p className="text-[var(--nb-text-2)] text-sm">{errorMsg}</p>
         <button
           onClick={() => setPhase('loading')}
-          className="bg-[#00A884] hover:bg-[#008069] text-white px-5 py-2.5 rounded-full text-sm font-semibold"
+          className="bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-5 min-h-[44px] rounded-full text-sm font-semibold"
         >
           Retry
         </button>
