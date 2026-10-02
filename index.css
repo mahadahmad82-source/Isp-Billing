@@ -464,3 +464,59 @@ html:not(.dark) .bg-\[\#0b1120\] textarea {
     transition: none;
   }
 }
+
+/* ── NetBot Silk design tokens · P1 foundation ─────────────────────────────
+   Single source of truth for NetBot surfaces. Light values on :root, dark
+   values under .dark (the app toggles .dark on documentElement; matches the
+   Tailwind v4 `@custom-variant dark` above). Later Silk phases migrate
+   classNames to `bg-[var(--nb-surface-1)]` etc.
+   D1: Silk = modern-silk revision. D2: Copilot accent is #00A884 everywhere
+   (one-accent rule — the indigo/violet gradient is removed in Silk P4). */
+:root {
+  --nb-accent: #00A884;
+  --nb-accent-pressed: #008069;
+  --nb-accent-soft: rgba(0, 168, 132, 0.14);
+  --nb-bg: #EFEAE2;
+  --nb-bg-subtle: #F7F5F2;
+  --nb-surface-1: #FFFFFF;
+  --nb-surface-2: #F7F5F2;
+  --nb-surface-3: #FFFFFF;
+  --nb-header: #F0F2F5;
+  --nb-bubble-in: #FFFFFF;
+  --nb-bubble-out: #D9FDD3;
+  --nb-text-1: #111B21;
+  --nb-text-2: #54656F;
+  --nb-text-3: #8696A0;
+  --nb-divider: rgba(0, 0, 0, 0.08);
+  --nb-border: rgba(0, 0, 0, 0.12);
+  --nb-scrim: rgba(0, 0, 0, 0.55);
+  --nb-success: #159A4A;
+  --nb-info: #006699;
+  --nb-warning: #C9820A;
+  --nb-danger: #D9364F;
+  --nb-tick-read: #53BDEB;
+}
+.dark {
+  --nb-accent: #00A884;
+  --nb-accent-pressed: #008069;
+  --nb-accent-soft: rgba(0, 168, 132, 0.14);
+  --nb-bg: #0B141A;
+  --nb-bg-subtle: #0E151C;
+  --nb-surface-1: #111B21;
+  --nb-surface-2: #1F2C34;
+  --nb-surface-3: #2A3942;
+  --nb-header: #202C33;
+  --nb-bubble-in: #202C33;
+  --nb-bubble-out: #005C4B;
+  --nb-text-1: #E9EDEF;
+  --nb-text-2: #AEBAC1;
+  --nb-text-3: #8696A0;
+  --nb-divider: rgba(255, 255, 255, 0.08);
+  --nb-border: rgba(255, 255, 255, 0.12);
+  --nb-scrim: rgba(0, 0, 0, 0.55);
+  --nb-success: #2EB872;
+  --nb-info: #53BDEB;
+  --nb-warning: #F5A623;
+  --nb-danger: #F15C6D;
+  --nb-tick-read: #53BDEB;
+}
