@@ -77,6 +77,13 @@ export interface WABotBehaviorRule {
 
 export interface AppSettings {
   businessName: string;
+  // NetBot Web identity (UI/UX P2 / W10) — optional, read from manager settings
+  supportNumber?: string;
+  bankName?: string;
+  bankAccountNo?: string;
+  bankIban?: string;
+  easypaisaNo?: string;
+  jazzcashNo?: string;
   businessPhone: string;
   businessEmail: string;
   businessAddress: string;

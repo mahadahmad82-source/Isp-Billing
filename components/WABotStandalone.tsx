@@ -366,7 +366,7 @@ export default function WABotStandalone() {
         {/* Small brand row, top-left like whatsapp.com/download */}
         <div className="w-full max-w-3xl flex items-center gap-2 mb-5 px-1">
           <Avatar size={30} />
-          <span className="text-[15px] font-bold" style={{ color: '#25D366' }}>NetBot</span>
+          <span className="text-[15px] font-bold" style={{ color: '#00A884' }}>NetBot</span>
         </div>
 
         <div
@@ -378,7 +378,7 @@ export default function WABotStandalone() {
             <div className="flex flex-col-reverse sm:flex-row items-center gap-8 sm:gap-10">
               {/* Steps */}
               <div className="flex-1 w-full flex flex-col gap-5">
-                <h1 className="text-2xl font-black text-slate-900">Scan to log in</h1>
+                <h1 className="text-2xl font-black text-[#111B21]">Scan to log in</h1>
                 {sessionRevoked && (
                   <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 font-semibold">
                     This session was revoked from another device. Please log in again.
@@ -442,8 +442,8 @@ export default function WABotStandalone() {
             <div className="flex flex-col items-center gap-5">
               <Avatar size={72} />
               <div className="text-center">
-                <h1 className="text-xl font-black text-slate-900">NetBot</h1>
-                <p className="text-sm text-slate-500 mt-1">MahadNet's WhatsApp Assistant</p>
+                <h1 className="text-xl font-black text-[#111B21]">NetBot</h1>
+                <p className="text-sm text-slate-500 mt-1">WhatsApp Business Assistant</p>
               </div>
               {sessionRevoked && (
                 <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 text-center font-semibold">
@@ -547,6 +547,15 @@ export default function WABotStandalone() {
 
   const activeCompany = (state.companies || []).find(c => c.id === state.activeCompanyId) || state.companies?.[0];
   const botName = activeCompany?.settings?.ayeshaBotName || state.settings?.ayeshaBotName || 'NetBot';
+  const businessProfile = {
+    businessName: activeCompany?.settings?.businessName || state.settings?.businessName || '',
+    supportNumber: activeCompany?.settings?.supportNumber || state.settings?.supportNumber || '',
+    bankName: activeCompany?.settings?.bankName || state.settings?.bankName || '',
+    bankAccountNo: activeCompany?.settings?.bankAccountNo || state.settings?.bankAccountNo || '',
+    bankIban: activeCompany?.settings?.bankIban || state.settings?.bankIban || '',
+    jazzcashNo: activeCompany?.settings?.jazzcashNo || state.settings?.jazzcashNo || '',
+    easypaisaNo: activeCompany?.settings?.easypaisaNo || state.settings?.easypaisaNo || '',
+  };
   const routerCatalog: RouterCatalog | undefined = activeCompany?.settings?.routerCatalog || state.settings?.routerCatalog;
   const botTemplates: Record<string, BotTemplate> | undefined = activeCompany?.settings?.botTemplates || state.settings?.botTemplates;
   const botPersonaNotes: string | undefined = (activeCompany?.settings as any)?.botPersonaNotes || (state.settings as any)?.botPersonaNotes;
@@ -559,6 +568,22 @@ export default function WABotStandalone() {
     setState(prev => {
       if (!prev) return prev;
       const newSettings = { ...(activeCompany?.settings || prev.settings), ayeshaBotName: name } as any;
+      const newCompanies = (prev.companies || []).map(c =>
+        c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
+      );
+      const newState: AppState = { ...prev, settings: newSettings, companies: newCompanies };
+      saveState(newState);
+      if (username) saveStateToSupabase(username, newState);
+      return newState;
+    });
+  };
+
+  // Business Profile (W10): same dual-save pattern as botName — stored in the
+  // manager's settings blob, never hardcoded in the UI.
+  const handleUpdateBusinessProfile = (patch: Record<string, string>) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newSettings = { ...(activeCompany?.settings || prev.settings), ...patch } as any;
       const newCompanies = (prev.companies || []).map(c =>
         c.id === (prev.activeCompanyId || c.id) ? { ...c, settings: newSettings } : c
       );
@@ -704,6 +729,8 @@ export default function WABotStandalone() {
           customers={filteredUsers}
           botName={botName}
           onUpdateBotName={handleUpdateBotName}
+          businessProfile={businessProfile}
+          onUpdateBusinessProfile={handleUpdateBusinessProfile}
           routerCatalog={routerCatalog}
           onUpdateRouterCatalog={handleUpdateRouterCatalog}
           botTemplates={botTemplates}
