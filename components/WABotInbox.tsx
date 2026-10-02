@@ -424,10 +424,39 @@ interface ChangelogRelease {
 
 const CHANGELOG_ITEMS: ChangelogRelease[] = [
   {
+    version: 'v2.6',
+    date: '2 October 2026',
+    title: 'Web-Android Parity: Shared Chat Features',
+    badge: 'Latest',
+    badgeColor: 'bg-[#00A884]',
+    features: [
+      {
+        tag: 'Parity',
+        title: 'Date Separators in Chat Threads',
+        desc: 'Messages are now grouped under Today / Yesterday / date pills, matching the Android app.',
+      },
+      {
+        tag: 'Parity',
+        title: 'Offline Banner',
+        desc: 'A banner appears at the top of the inbox when your connection drops, so you always know the chat list may be stale.',
+      },
+      {
+        tag: 'Parity',
+        title: 'Forward Messages',
+        desc: 'Right-click any message and choose Forward to send it to another chat - text goes as text, photos/videos/documents are re-sent from their existing link.',
+      },
+      {
+        tag: 'Parity',
+        title: 'NetBot Typing Indicator',
+        desc: 'When a customer writes on a chat where the bot is active, you now see an animated "NetBot is typing..." bubble before its reply lands.',
+      },
+    ],
+  },
+  {
     version: 'v2.5',
     date: '2 October 2026',
     title: 'Web-Android Parity: New Views & Settings Alignment',
-    badge: 'Latest',
+    badge: 'Parity',
     badgeColor: 'bg-[#00A884]',
     features: [
       {
@@ -448,7 +477,7 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
       {
         tag: 'Settings',
         title: 'Settings Aligned with Android',
-        desc: 'Persona notes and behavior rules now live only under Training (no more duplication). Settings adds Linked Devices management and shows the logged-in manager account, like the Android app.',
+        desc: 'Persona notes and behavior rules now live only under Teach NetBot (no more duplication). Settings adds Linked Devices management and shows the logged-in manager account, like the Android app.',
       },
     ],
   },
@@ -536,6 +565,21 @@ const CHANGELOG_ITEMS: ChangelogRelease[] = [
   },
 ];
 
+// WhatsApp-style date label for thread separators (Phase 4 parity with Android).
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const startOfDay = (dt: Date) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+  });
+}
+
 const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, themePref, onThemePrefChange, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
   const isDarkControlled = typeof theme !== 'undefined';
@@ -584,6 +628,52 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [replyTo, setReplyTo] = useState<WAMessage | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: WAMessage } | null>(null);
+  // ── Phase 4: offline banner ──
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+  // ── Phase 4: forward picker ──
+  const [forwardMsg, setForwardMsg] = useState<WAMessage | null>(null);
+  const [forwardQuery, setForwardQuery] = useState('');
+  // ── Phase 4: bot typing indicator ──
+  const [botTypingPhone, setBotTypingPhone] = useState<string | null>(null);
+  const botTypingTimer = useRef<number | null>(null);
+  const botTypingPhoneRef = useRef<string | null>(null);
+  useEffect(() => { botTypingPhoneRef.current = botTypingPhone; }, [botTypingPhone]);
+  const pausedPhonesRef = useRef<string[]>([]);
+  useEffect(() => { pausedPhonesRef.current = pausedPhones; }, [pausedPhones]);
+  const showBotTyping = useCallback((phone: string) => {
+    setBotTypingPhone(phone);
+    if (botTypingTimer.current) window.clearTimeout(botTypingTimer.current);
+    botTypingTimer.current = window.setTimeout(() => setBotTypingPhone(null), 30000);
+  }, []);
+  const clearBotTyping = useCallback(() => {
+    if (botTypingTimer.current) { window.clearTimeout(botTypingTimer.current); botTypingTimer.current = null; }
+    setBotTypingPhone(null);
+  }, []);
+  useEffect(() => () => { if (botTypingTimer.current) window.clearTimeout(botTypingTimer.current); }, []);
+  // ── Phase 4: thread with date separators ──
+  const threadWithDates = useMemo(() => {
+    const items: Array<{ kind: 'date'; key: string; label: string } | { kind: 'msg'; key: string; message: WAMessage }> = [];
+    let lastLabel = '';
+    for (const m of thread) {
+      const label = formatDateLabel(m.created_at);
+      if (label !== lastLabel) {
+        lastLabel = label;
+        items.push({ kind: 'date', key: `date-${label}-${m.id}`, label });
+      }
+      items.push({ kind: 'msg', key: m.id, message: m });
+    }
+    return items;
+  }, [thread]);
   const suppressThreadScrollRef = useRef(false);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
@@ -1197,6 +1287,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               supabase.from('whatsapp_messages').update({ is_read: true }).eq('id', m.id).then(() => {});
             }
           }
+          // Bot typing indicator (Phase 4): a customer message on an unpaused
+          // chat means the bot is about to reply - show "typing..." until its
+          // reply lands or 30s pass.
+          if (m.direction === 'in' && !pausedPhonesRef.current.includes(m.customer_phone)) {
+            showBotTyping(m.customer_phone);
+          } else if (m.direction === 'out' && botTypingPhoneRef.current === m.customer_phone) {
+            clearBotTyping();
+          }
         }
       )
       .on(
@@ -1432,6 +1530,42 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     } finally {
       setLoadingOlder(false);
     }
+  };
+
+  // -- Forward a message to another chat (Phase 4). Text goes as a text
+  // message; media is re-sent from its existing URL (already on R2/CDN, no
+  // re-upload). The realtime channel picks the sent message up, so the target
+  // chat updates live; an optimistic row covers instant feedback.
+  const forwardMessage = async (msg: WAMessage, toPhone: string) => {
+    const mediaSrc = msg.media_url || (msg.content?.startsWith('http') ? msg.content : null);
+    const isText = msg.type === 'text' && !!msg.content && !msg.content.startsWith('http');
+    if (!isText && !mediaSrc) return;
+    const fwdType = isText ? 'text' : (msg.type === 'video' ? 'video' : msg.type === 'document' ? 'document' : msg.type === 'audio' || msg.type === 'voice' ? 'audio' : 'image');
+    const payload: any = { to: '92' + toPhone, managerId };
+    if (isText) payload.body = msg.content;
+    else { payload.type = fwdType; payload.mediaUrl = mediaSrc; }
+    const optimistic: WAMessage = {
+      id: 'temp-fwd-' + Date.now(), manager_id: managerId, customer_phone: toPhone,
+      direction: 'out', type: fwdType as WAMessage['type'],
+      content: isText ? msg.content : mediaSrc, media_url: isText ? null : mediaSrc,
+      flagged_payment_proof: false, is_read: true, status: 'sent',
+      created_at: new Date().toISOString(),
+    };
+    setAllMessages(prev => [optimistic, ...prev]);
+    setForwardMsg(null);
+    try {
+      const res = await fetch('/api/wabot-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getWabotAuthHeaders()) },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        setAllMessages(prev => prev.map(m => (m.id === optimistic.id ? { ...m, status: 'failed' } : m)));
+      }
+    } catch (e) {
+      setAllMessages(prev => prev.map(m => (m.id === optimistic.id ? { ...m, status: 'failed' } : m)));
+    }
+    loadOverview();
   };
 
   // ── Retry a failed text message (mirrors Android's bubble Retry; media retry
@@ -1758,6 +1892,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       className="flex flex-col h-full min-h-[520px] gap-3 p-3 rounded-2xl overflow-hidden shadow-sm"
       style={{ background: wabotDark ? '#0C1317' : '#F0F2F5' }}
     >
+      {!isOnline && (
+        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
+          You're offline - new messages will appear when you reconnect.
+        </div>
+      )}
       {/* ── Header — single line like Android's "Wabot BillCollector" bar, with
           Training/Catalog/Templates/Agents & Voice + Bot Name tucked behind a
           ⋮ menu instead of always-visible tab buttons (matches Wabot-Android's
@@ -2987,12 +3127,20 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   </button>
                 </div>
               )}
-              {thread.map(m => {
+              {threadWithDates.map(item => {
+                if (item.kind === 'date') {
+                  return (
+                    <div key={item.key} className="flex justify-center">
+                      <span className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0] bg-white dark:bg-[#1F2C34] border border-[#E9EDEF] dark:border-[#222D34] rounded-lg px-3 py-1 shadow-sm">{item.label}</span>
+                    </div>
+                  );
+                }
+                const m = item.message;
                 const mediaSrc = m.media_url || (m.content?.startsWith('http') ? m.content : null);
                 const hasTranslation = !!m.translated_content && m.translated_content !== m.content;
                 const isPlaceholderText = m.content === '[voice note — transcription unavailable]';
                 return (
-                  <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={item.key} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
                     <div
                       onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, msg: m }); }}
                       className={`max-w-[75%] px-3.5 py-2 rounded-xl text-sm font-medium shadow-sm ${m.direction === 'out' ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-[#111B21] dark:text-[#E9EDEF] rounded-br-xs' : 'bg-white dark:bg-[#202C33] text-[#111B21] dark:text-[#E9EDEF] rounded-bl-xs border border-[#E9EDEF]/40 dark:border-[#222D34]/40'}`}>
@@ -3073,6 +3221,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   </div>
                 );
               })}
+              {botTypingPhone && botTypingPhone === selectedPhone && (
+                <div className="flex justify-start">
+                  <div className="px-4 py-3 rounded-xl bg-white dark:bg-[#202C33] border border-[#E9EDEF]/40 dark:border-[#222D34]/40 shadow-sm flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#667781] dark:text-[#8696A0]">NetBot is typing</span>
+                    <span className="flex items-center gap-1">
+                      {[0, 1, 2].map(i => (
+                        <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#8696A0] animate-bounce" style={{ animationDelay: (i * 0.2) + 's' }} />
+                      ))}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div ref={threadEndRef} />
             </div>
 
@@ -3095,6 +3255,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                     Reply
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => { setForwardMsg(ctxMenu.msg); setForwardQuery(''); setCtxMenu(null); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                    Forward
+                  </button>
                   {ctxMenu.msg.type === 'text' && ctxMenu.msg.content && (
                     <button
                       type="button"
@@ -3115,6 +3283,55 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       Delete
                     </button>
                   )}
+                </div>
+              </div>
+            )}
+
+            {forwardMsg && (
+              <div
+                className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50"
+                onClick={() => setForwardMsg(null)}
+              >
+                <div
+                  className="w-full max-w-sm bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-hidden shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-4 border-b border-[#E9EDEF] dark:border-[#222D34]">
+                    <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Forward to...</h4>
+                    <div className="flex items-center gap-2 px-3 py-2 mt-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#202C33]">
+                      <svg className="w-4 h-4 flex-shrink-0 text-[#667781] dark:text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      <input
+                        autoFocus
+                        value={forwardQuery}
+                        onChange={(e) => setForwardQuery(e.target.value)}
+                        placeholder="Search chats"
+                        className="flex-1 min-w-0 bg-transparent outline-none text-sm font-semibold text-[#111B21] dark:text-[#E9EDEF] placeholder-[#667781] dark:placeholder-[#8696A0]"
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                    {conversations
+                      .filter(c => {
+                        const q = forwardQuery.trim().toLowerCase();
+                        return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q.replace(/\D/g, ''));
+                      })
+                      .map(c => (
+                        <button
+                          key={c.phone}
+                          type="button"
+                          onClick={() => forwardMessage(forwardMsg, c.phone)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F0F2F5] dark:hover:bg-[#202C33]/60 transition-colors text-left"
+                        >
+                          <span className="w-10 h-10 rounded-full bg-[#00A884] text-white flex items-center justify-center text-sm font-black flex-shrink-0">
+                            {(c.name || '?').trim().slice(0, 1).toUpperCase()}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-black text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</span>
+                            <span className="block text-[11px] font-bold text-[#667781] dark:text-[#8696A0] truncate">{c.lastMessage || '+92' + c.phone}</span>
+                          </span>
+                        </button>
+                      ))}
+                  </div>
                 </div>
               </div>
             )}
