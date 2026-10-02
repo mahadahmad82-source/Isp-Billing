@@ -137,71 +137,71 @@ const WABotRecovery: React.FC<WABotRecoveryProps> = ({ managerId }) => {
   };
 
   return (
-    <div className="flex-1 min-h-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-      <div className="flex items-center gap-3 p-4 rounded-2xl bg-[#00A884]/10 border border-[#00A884]/20 mb-4">
-        <div className="w-11 h-11 rounded-xl bg-[#00A884] flex items-center justify-center flex-shrink-0">
+    <div className="flex-1 min-h-0 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+      <div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--nb-accent-soft)] border border-[var(--nb-accent)] mb-4">
+        <div className="w-11 h-11 rounded-xl bg-[var(--nb-accent)] flex items-center justify-center flex-shrink-0">
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0]">Pending recovery</p>
-          <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">{items.length} customers · Rs. {totalPending.toLocaleString()}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)]">Pending recovery</p>
+          <p className="text-sm font-black text-[var(--nb-text-1)]">{items.length} customers · Rs. {totalPending.toLocaleString()}</p>
         </div>
         <button
           onClick={load}
           title="Refresh"
-          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#202C33] border border-[#E9EDEF] dark:border-[#222D34] text-[#667781] dark:text-[#8696A0] active:scale-95 transition-all"
+          className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-[var(--nb-text-2)] active:scale-95 transition-all"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
         </button>
       </div>
 
       <div className="flex items-center gap-3 mb-4">
-        <label className="text-[10px] font-black uppercase tracking-widest text-[#667781] dark:text-[#8696A0] flex-shrink-0">Billing period</label>
+        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-2)] flex-shrink-0">Billing period</label>
         <select
           value={selectedPeriod}
           onChange={e => setSelectedPeriod(e.target.value)}
-          className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-[#F0F2F5] dark:bg-[#202C33] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-bold outline-none text-[#111B21] dark:text-[#E9EDEF]"
+          className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-[var(--nb-header)] border border-[var(--nb-border)] text-sm font-bold outline-none text-[var(--nb-text-1)]"
         >
           {periods.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 
       {notice && (
-        <p className="text-xs font-bold text-[#008069] dark:text-[#00A884] bg-[#00A884]/10 border border-[#00A884]/20 rounded-xl px-3 py-2 mb-4">{notice}</p>
+        <p className="text-xs font-bold text-[var(--nb-accent)] bg-[var(--nb-accent-soft)] border border-[var(--nb-accent)] rounded-xl px-3 py-2 mb-4">{notice}</p>
       )}
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <span className="w-8 h-8 rounded-full border-[3px] border-[#00A884] border-t-transparent animate-spin" />
+          <span className="w-8 h-8 rounded-full border-[3px] border-[var(--nb-accent)] border-t-transparent animate-spin" />
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">No pending recoveries for {selectedPeriod}</p>
-          <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold mt-1">Choose another period to review older pending recoveries.</p>
+          <p className="text-sm font-black text-[var(--nb-text-1)]">No pending recoveries for {selectedPeriod}</p>
+          <p className="text-xs text-[var(--nb-text-2)] font-semibold mt-1">Choose another period to review older pending recoveries.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {items.map(item => (
-            <div key={item.id} className="p-4 rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] bg-[#F0F2F5]/60 dark:bg-[#202C33]/40">
+            <div key={item.id} className="p-4 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface-2)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] truncate">{item.name}</p>
-                  {item.plan && <p className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0]">{item.plan}</p>}
+                  <p className="text-sm font-black text-[var(--nb-text-1)] truncate">{item.name}</p>
+                  {item.plan && <p className="text-[11px] font-bold text-[var(--nb-text-2)]">{item.plan}</p>}
                 </div>
-                <p className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF] flex-shrink-0">Rs. {Number(item.pendingAmount).toLocaleString()}</p>
+                <p className="text-sm font-black text-[var(--nb-text-1)] flex-shrink-0">Rs. {Number(item.pendingAmount).toLocaleString()}</p>
               </div>
-              <p className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0] mt-1">
+              <p className="text-[11px] font-bold text-[var(--nb-text-2)] mt-1">
                 {item.phone ? `+92${item.phone}` : 'No phone'} · {daysSince(item.creditDate)}
               </p>
-              {item.address && <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-0.5 truncate">{item.address}</p>}
-              <p className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0] mt-1">
+              {item.address && <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mt-0.5 truncate">{item.address}</p>}
+              <p className="text-[11px] font-bold text-[var(--nb-text-2)] mt-1">
                 Reminders sent: {item.reminderCount}/6{item.reminderCount >= 6 ? ' · Manual follow-up needed' : ''}
               </p>
               <div className="flex gap-2 mt-3">
                 {item.phone ? (
                   <a
                     href={`tel:+92${item.phone}`}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-black uppercase tracking-widest text-[#111B21] dark:text-[#E9EDEF] active:scale-95 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 min-h-[48px] rounded-full bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-xs font-black uppercase tracking-widest text-[var(--nb-text-1)] active:scale-[0.97] transition-all"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                     Call
@@ -210,7 +210,7 @@ const WABotRecovery: React.FC<WABotRecoveryProps> = ({ managerId }) => {
                 <button
                   onClick={() => sendTemplate(item)}
                   disabled={!item.phone || sendingId === item.id}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 min-h-[48px] rounded-full bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-45 text-white text-xs font-black uppercase tracking-widest active:scale-[0.97] transition-all"
                 >
                   {sendingId === item.id ? (
                     <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />

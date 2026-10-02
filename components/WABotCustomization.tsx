@@ -54,10 +54,10 @@ const WABotCustomization: React.FC<WABotCustomizationProps> = ({
   wabotDark,
 }) => {
   return (
-    <div className="flex-1 min-h-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] overflow-y-auto p-4 sm:p-6 space-y-8 custom-scrollbar">
+    <div className="flex-1 min-h-0 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-y-auto p-4 sm:p-6 space-y-8 custom-scrollbar">
       <section>
-        <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Appearance</h4>
-        <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1 mb-3">
+        <h4 className="text-sm font-black text-[var(--nb-text-1)]">Appearance</h4>
+        <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mt-1 mb-3">
           Choose dark, light, or follow your device's system setting.
         </p>
         <div className="grid grid-cols-3 gap-2.5">
@@ -70,8 +70,8 @@ const WABotCustomization: React.FC<WABotCustomizationProps> = ({
                 onClick={() => onThemePrefChange(m.key)}
                 className={`flex flex-col items-center gap-1.5 py-4 px-2 rounded-2xl border transition-all active:scale-95 ${
                   active
-                    ? 'bg-[#00A884] border-[#00A884] text-white shadow-sm'
-                    : 'bg-[#F0F2F5]/60 dark:bg-[#202C33]/40 border-[#E9EDEF] dark:border-[#222D34] text-[#667781] dark:text-[#8696A0] hover:border-[#00A884]/50'
+                    ? 'bg-[var(--nb-accent)] border-[var(--nb-accent)] text-white'
+                    : 'bg-[var(--nb-surface-2)] border-[var(--nb-border)] text-[var(--nb-text-2)] hover:border-[var(--nb-accent)]'
                 }`}
               >
                 {modeIcon(m.key)}
@@ -84,8 +84,8 @@ const WABotCustomization: React.FC<WABotCustomizationProps> = ({
       </section>
 
       <section>
-        <h4 className="text-sm font-black text-[#111B21] dark:text-[#E9EDEF]">Chat wallpaper</h4>
-        <p className="text-[11px] text-[#667781] dark:text-[#8696A0] font-semibold mt-1 mb-3">
+        <h4 className="text-sm font-black text-[var(--nb-text-1)]">Chat wallpaper</h4>
+        <p className="text-[11px] text-[var(--nb-text-2)] font-semibold mt-1 mb-3">
           Pick a background color for your chat screens.
         </p>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -101,24 +101,24 @@ const WABotCustomization: React.FC<WABotCustomizationProps> = ({
               >
                 <span
                   className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center ${
-                    active ? 'border-[#00A884] shadow-sm' : 'border-[#E9EDEF] dark:border-[#222D34]'
+                    active ? 'border-[var(--nb-accent)]' : 'border-[var(--nb-border)]'
                   }`}
                   style={{ backgroundColor: swatch }}
                 >
                   {active && (
-                    <svg className="w-5 h-5 text-[#00A884]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                    <svg className="w-5 h-5 text-[var(--nb-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
                   )}
                 </span>
-                <span className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0]">{w.label}</span>
+                <span className="text-[11px] font-bold text-[var(--nb-text-2)]">{w.label}</span>
               </button>
             );
           })}
         </div>
       </section>
 
-      <div className="flex items-center gap-3 p-4 rounded-2xl bg-[#F0F2F5]/60 dark:bg-[#202C33]/40 border border-[#E9EDEF] dark:border-[#222D34]">
-        <svg className="w-5 h-5 flex-shrink-0 text-[#667781] dark:text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <p className="text-[11px] font-semibold text-[#667781] dark:text-[#8696A0]">
+      <div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--nb-surface-2)] border border-[var(--nb-border)]">
+        <svg className="w-5 h-5 flex-shrink-0 text-[var(--nb-text-2)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <p className="text-[11px] font-semibold text-[var(--nb-text-2)]">
           Appearance choices are saved in this browser and apply across NetBot Web.
         </p>
       </div>
