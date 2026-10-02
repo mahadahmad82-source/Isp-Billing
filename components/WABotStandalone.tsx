@@ -24,14 +24,13 @@ const Avatar: React.FC<{ size?: number }> = ({ size = 96 }) => (
 // ── WhatsApp-Web-style numbered instruction row ("Scan to log in" list) ────
 const StepRow: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children }) => (
   <li className="flex items-start gap-3">
-    <span className="w-6 h-6 rounded-full border-2 border-slate-300 text-slate-500 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+    <span className="w-6 h-6 rounded-full border-2 border-[var(--nb-border)] text-[var(--nb-text-3)] text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
       {n}
     </span>
-    <span className="text-sm text-slate-600 leading-relaxed">{children}</span>
+    <span className="text-sm text-[var(--nb-text-2)] leading-relaxed">{children}</span>
   </li>
 );
 
-const BG = 'linear-gradient(135deg, #F0F4F8 0%, #E6EBF0 100%)';
 const PAIR_TOKEN_KEY = 'wabot_pair_token';
 
 type Phase = 'login' | 'loading' | 'ready' | 'error';
@@ -360,17 +359,17 @@ export default function WABotStandalone() {
   if (phase === 'login') {
     return (
       <div
-        style={{ background: BG, minHeight: '100dvh' }}
-        className="flex flex-col items-center px-4 sm:px-6 py-8 overflow-y-auto"
+        style={{ minHeight: '100dvh' }}
+        className="flex flex-col items-center px-4 sm:px-6 py-8 overflow-y-auto bg-[var(--nb-bg)]"
       >
         {/* Small brand row, top-left like whatsapp.com/download */}
         <div className="w-full max-w-3xl flex items-center gap-2 mb-5 px-1">
           <Avatar size={30} />
-          <span className="text-[15px] font-bold" style={{ color: '#00A884' }}>NetBot</span>
+          <span className="text-[15px] font-bold text-[var(--nb-accent)]">NetBot</span>
         </div>
 
         <div
-          className={`w-full bg-white rounded-3xl shadow-xl transition-all ${
+          className={`w-full bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] transition-all ${
             loginMode === 'qr' ? 'max-w-3xl p-6 sm:p-10' : 'max-w-sm p-7'
           }`}
         >
@@ -378,24 +377,24 @@ export default function WABotStandalone() {
             <div className="flex flex-col-reverse sm:flex-row items-center gap-8 sm:gap-10">
               {/* Steps */}
               <div className="flex-1 w-full flex flex-col gap-5">
-                <h1 className="text-2xl font-black text-[#111B21]">Scan to log in</h1>
+                <h1 className="text-[17px] font-semibold text-[var(--nb-text-1)]">Scan to log in</h1>
                 {sessionRevoked && (
-                  <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 font-semibold">
+                  <p className="text-xs text-[var(--nb-warning)] bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] rounded-xl px-4 py-2 font-semibold">
                     This session was revoked from another device. Please log in again.
                   </p>
                 )}
                 <ol className="space-y-4">
                   <StepRow n={1}>Open the NetBot Android app</StepRow>
                   <StepRow n={2}>
-                    Go to Settings and tap <span className="font-bold text-slate-800">Link a Device</span>
+                    Go to Settings and tap <span className="font-bold text-[var(--nb-text-1)]">Link a Device</span>
                   </StepRow>
                   <StepRow n={3}>Point your phone at this QR code to scan it</StepRow>
                 </ol>
-                {loginError && <p className="text-rose-500 text-xs">{loginError}</p>}
+                {loginError && <p className="text-[var(--nb-danger)] text-xs">{loginError}</p>}
                 <button
                   type="button"
                   onClick={() => setLoginMode('password')}
-                  className="text-sm text-[#00A884] font-semibold self-start"
+                  className="text-sm text-[var(--nb-accent)] font-semibold self-start min-h-[44px] inline-flex items-center"
                 >
                   Log in with username &amp; password
                 </button>
@@ -403,7 +402,7 @@ export default function WABotStandalone() {
 
               {/* QR box */}
               <div className="flex-shrink-0 flex flex-col items-center gap-3">
-                <div className="w-[220px] h-[220px] sm:w-[264px] sm:h-[264px] relative flex items-center justify-center bg-white rounded-2xl border-2 border-slate-100 overflow-hidden">
+                <div className="w-[220px] h-[220px] sm:w-[264px] sm:h-[264px] relative flex items-center justify-center bg-white rounded-2xl border-2 border-[var(--nb-border)] overflow-hidden"  /* bg-white is functional: QR needs a white quiet zone in both modes */>
                   {qrStatus === 'pending' && qrDataUrl && (
                     <>
                       <img src={qrDataUrl} alt="QR" className="w-full h-full" />
@@ -413,23 +412,23 @@ export default function WABotStandalone() {
                     </>
                   )}
                   {qrStatus === 'pending' && qrExpiresAt > 0 && (
-                    <p className="text-[11px] text-slate-400 font-semibold">Expires in {qrSecsLeft}s — scan with your phone</p>
+                    <p className="text-[11px] text-[#54656F] font-semibold">Expires in {qrSecsLeft}s — scan with your phone</p>
                   )}
                   {qrStatus === 'loading' && (
                     <div className="flex flex-col items-center gap-2.5">
-                      <div className="w-6 h-6 border-2 border-[#00A884]/25 border-t-[#00A884] rounded-full animate-spin" />
-                      <p className="text-xs text-slate-400">Generating QR…</p>
+                      <div className="w-6 h-6 border-2 border-[var(--nb-border)] border-t-[var(--nb-accent)] rounded-full animate-spin" />
+                      <p className="text-xs text-[#54656F]">Generating QR…</p>
                     </div>
                   )}
                   {(qrStatus === 'expired' || qrStatus === 'error') && (
                     <div className="absolute inset-0 bg-white flex flex-col items-center justify-center gap-3 px-4 text-center">
-                      <p className="text-xs text-rose-500 font-semibold">
+                      <p className="text-xs text-[var(--nb-danger)] font-semibold">
                         {qrStatus === 'expired' ? 'QR code expired' : 'Something went wrong'}
                       </p>
                       <button
                         type="button"
                         onClick={() => setQrRegenKey(k => k + 1)}
-                        className="text-xs bg-[#00A884] hover:bg-[#008069] text-white px-3.5 py-2 rounded-lg font-semibold active:scale-95 transition-all"
+                        className="text-xs bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-4 min-h-[44px] rounded-lg font-semibold active:scale-95 transition-all"
                       >
                         Try again
                       </button>
@@ -442,11 +441,11 @@ export default function WABotStandalone() {
             <div className="flex flex-col items-center gap-5">
               <Avatar size={72} />
               <div className="text-center">
-                <h1 className="text-xl font-black text-[#111B21]">NetBot</h1>
-                <p className="text-sm text-slate-500 mt-1">WhatsApp Business Assistant</p>
+                <h1 className="text-[17px] font-semibold text-[var(--nb-text-1)]">NetBot</h1>
+                <p className="text-sm text-[var(--nb-text-2)] mt-1">WhatsApp Business Assistant</p>
               </div>
               {sessionRevoked && (
-                <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 text-center font-semibold">
+                <p className="text-xs text-[var(--nb-warning)] bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] rounded-xl px-4 py-2 text-center font-semibold">
                   This session was revoked from another device. Please log in again.
                 </p>
               )}
@@ -457,7 +456,7 @@ export default function WABotStandalone() {
                   value={loginUser}
                   onChange={e => setLoginUser(e.target.value)}
                   placeholder="Username"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-[#00A884]"
+                  className="w-full min-h-[50px] bg-[var(--nb-surface-2)] rounded-xl px-4 py-3 text-sm text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)] border border-[var(--nb-border)] focus:outline-none focus:border-[var(--nb-accent)]"
                 />
                 <div className="relative w-full">
                   <input
@@ -465,13 +464,13 @@ export default function WABotStandalone() {
                     value={loginPass}
                     onChange={e => setLoginPass(e.target.value)}
                     placeholder="Password"
-                    className="w-full bg-slate-50 rounded-xl px-4 py-3 pr-12 text-sm text-slate-800 placeholder-slate-400 border border-slate-200 focus:outline-none focus:border-[#00A884]"
+                    className="w-full min-h-[50px] bg-[var(--nb-surface-2)] rounded-xl px-4 py-3 pr-12 text-sm text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)] border border-[var(--nb-border)] focus:outline-none focus:border-[var(--nb-accent)]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPass(v => !v)}
                     aria-label={showPass ? 'Hide password' : 'Show password'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--nb-text-3)] hover:text-[var(--nb-text-2)] active:scale-95 transition-all"
                   >
                     {showPass ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
@@ -480,11 +479,11 @@ export default function WABotStandalone() {
                     )}
                   </button>
                 </div>
-                {loginError && <p className="text-rose-500 text-xs px-1">{loginError}</p>}
+                {loginError && <p className="text-[var(--nb-danger)] text-xs px-1">{loginError}</p>}
                 <button
                   type="submit"
                   disabled={loggingIn}
-                  className="w-full bg-[#00A884] hover:bg-[#008069] disabled:opacity-50 text-white py-3 rounded-xl font-semibold mt-1 shadow-sm active:scale-95 transition-all"
+                  className="w-full min-h-[48px] bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] disabled:opacity-45 text-white rounded-full font-semibold mt-1 active:scale-[0.97] transition-all"
                 >
                   {loggingIn ? 'Logging in…' : 'Log In'}
                 </button>
@@ -492,7 +491,7 @@ export default function WABotStandalone() {
               <button
                 type="button"
                 onClick={() => { setLoginError(''); setQrRegenKey(k => k + 1); setLoginMode('qr'); }}
-                className="text-xs text-[#00A884] font-medium"
+                className="text-xs text-[var(--nb-accent)] font-medium min-h-[44px] inline-flex items-center"
               >
                 Log in with QR code
               </button>
@@ -710,12 +709,12 @@ export default function WABotStandalone() {
   const managerId = state.currentManager || username;
   if (!managerId) {
     return (
-      <div style={{ background: BG, height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden">
+      <div style={{ height: '100dvh' }} className="flex flex-col items-center justify-center gap-4 px-8 text-center overflow-hidden bg-[var(--nb-bg)]">
         <Avatar size={64} />
-        <p className="text-slate-500 text-sm">There was a problem with the session — please log in again.</p>
+        <p className="text-[var(--nb-text-2)] text-sm">There was a problem with the session — please log in again.</p>
         <button
           onClick={handleLogout}
-          className="bg-[#00A884] hover:bg-[#008069] text-white px-5 py-2.5 rounded-full text-sm font-semibold"
+          className="bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white px-5 min-h-[44px] rounded-full text-sm font-semibold"
         >
           Login Screen
         </button>
@@ -724,7 +723,7 @@ export default function WABotStandalone() {
   }
 
   return (
-    <div style={{ height: '100dvh' }} className="w-full flex flex-col bg-slate-50 overflow-hidden relative">
+    <div style={{ height: '100dvh' }} className="w-full flex flex-col bg-[var(--nb-bg)] overflow-hidden relative">
       <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <WABotInbox
           managerId={managerId}
