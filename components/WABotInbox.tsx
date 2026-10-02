@@ -2345,7 +2345,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
           {catalogModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <div className="bg-white dark:bg-[#202C33] rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <h3 className="text-base font-black text-[#111B21] dark:text-white mb-4">{catalogModal.item ? 'Edit Router' : 'Add New Router'} — {catalogModal.band === '2.4g' ? '2.4G' : '5G'}</h3>
                 <div className="space-y-3">
                   <input placeholder="Model (e.g. GS3101)" value={catalogForm.model} onChange={e => setCatalogForm(f => ({ ...f, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#111B21] border border-slate-200 dark:border-white/10 text-sm font-bold outline-none text-[#111B21] dark:text-white placeholder-slate-400" />
@@ -2430,7 +2430,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
           {showAddTemplateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <div className="bg-white dark:bg-[#202C33] rounded-2xl border border-slate-200 dark:border-white/10 w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <h3 className="text-base font-black text-[#111B21] dark:text-white mb-4">New Template</h3>
                 <div className="space-y-3">
                   <div>
