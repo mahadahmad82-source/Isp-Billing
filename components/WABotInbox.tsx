@@ -1991,19 +1991,19 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       style={{ background: wabotDark ? '#0C1317' : '#F0F2F5' }}
     >
       {!isOnline && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] text-[var(--nb-warning)] text-xs font-bold">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
           You're offline - new messages will appear when you reconnect.
         </div>
       )}
       {reconnecting && isOnline && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+        <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] text-[var(--nb-warning)] text-xs font-bold">
           <svg className="w-4 h-4 flex-shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           Reconnecting&hellip; fetching the latest messages.
         </div>
       )}
       {saveToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00A884] text-white text-sm font-bold shadow-lg">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--nb-accent)] text-white text-sm font-bold shadow-lg">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
           {saveToast}
         </div>
@@ -3086,57 +3086,57 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       ) : (
     <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
-      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm`}>
-        <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex-shrink-0 space-y-2">
+      <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] flex-col overflow-hidden`}>
+        <div className="p-3 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex-shrink-0 space-y-2">
           <div className="flex items-center gap-2">
             <input
               placeholder="Search conversations"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222D34] text-xs font-semibold outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0]"
+              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-xs font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
             />
             {totalUnread > 0 && (
-              <span className="flex-shrink-0 bg-[#00A884] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
+              <span className="flex-shrink-0 bg-[var(--nb-accent)] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
             )}
           </div>
           {/* ── Smart Filter Pills ── */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
             <button
               onClick={() => setChatFilter('all')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'all' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               All
               <span className="text-[10px] opacity-80">({filterCounts.all})</span>
             </button>
             <button
               onClick={() => setChatFilter('unread')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'unread' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               Unread
-              {filterCounts.unread > 0 && <span className="bg-[#00A884] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.unread}</span>}
+              {filterCounts.unread > 0 && <span className="bg-[var(--nb-accent)] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.unread}</span>}
             </button>
             <button
               onClick={() => setChatFilter('proofs')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'proofs' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               Payment Slips
-              {filterCounts.proofs > 0 && <span className="bg-amber-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.proofs}</span>}
+              {filterCounts.proofs > 0 && <span className="bg-[var(--nb-warning)] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.proofs}</span>}
             </button>
             <button
               onClick={() => setChatFilter('paused')}
-              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[#00A884] text-white shadow-xs' : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-slate-200/60 dark:hover:bg-white/5 border border-[#E9EDEF] dark:border-[#222D34]'}`}
+              className={`px-3 py-2 min-h-[40px] rounded-full transition-all flex items-center gap-1 shrink-0 ${chatFilter === 'paused' ? 'bg-[var(--nb-accent)] text-white' : 'bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-3)] border border-[var(--nb-border)]'}`}
             >
               Paused
-              {filterCounts.paused > 0 && <span className="bg-orange-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
+              {filterCounts.paused > 0 && <span className="bg-[var(--nb-warning)] text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">{filterCounts.paused}</span>}
             </button>
           </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--nb-divider)] custom-scrollbar">
           {filteredConversations.length === 0 ? (
             <div className="text-center py-10 px-4">
-              <p className="text-sm text-slate-400 dark:text-slate-500 font-bold">No WhatsApp conversations found.</p>
+              <p className="text-sm text-[var(--nb-text-3)] font-bold">No WhatsApp conversations found.</p>
               {chatFilter !== 'all' && (
-                <button onClick={() => setChatFilter('all')} className="mt-2 text-xs text-[#00A884] font-bold underline">Show all chats</button>
+                <button onClick={() => setChatFilter('all')} className="mt-2 min-h-[44px] px-2 text-xs text-[var(--nb-accent)] font-bold underline">Show all chats</button>
               )}
             </div>
           ) : (
@@ -3144,25 +3144,25 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               <button
                 key={c.phone}
                 onClick={() => openConversation(c.phone)}
-                className={`w-full text-left p-3.5 border-b border-[#E9EDEF]/40 dark:border-[#222D34]/40 flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[#F0F2F5] dark:bg-[#2A3942]' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#202C33]'}`}
+                className={`w-full text-left p-3 border-b border-[var(--nb-divider)] flex items-center gap-3 transition-all ${selectedPhone === c.phone ? 'bg-[var(--nb-accent-soft)]' : 'hover:bg-[var(--nb-surface-2)]'}`}
               >
                 <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
-                  style={{ backgroundColor: c.paused ? '#F5A623' : avatarColor(c.phone) }}
+                  className="w-12 h-12 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
+                  style={{ backgroundColor: c.paused ? 'var(--nb-warning)' : avatarColor(c.phone) }}
                 >
                   {c.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{c.name}</p>
-                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
+                    <p className="font-black text-sm text-[var(--nb-text-1)] truncate">{c.name}</p>
+                    <span className="text-[10px] text-[var(--nb-text-2)] font-bold flex-shrink-0">{timeAgo(c.lastTime)}</span>
                   </div>
-                  <p className="text-xs text-[#667781] dark:text-[#8696A0] font-semibold truncate">
+                  <p className="text-xs text-[var(--nb-text-2)] font-semibold truncate">
                     {typePreview(c.lastType) || c.lastMessage}
                   </p>
                 </div>
                 {c.unreadCount > 0 && (
-                  <span className="bg-[#00A884] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{c.unreadCount}</span>
+                  <span className="bg-[var(--nb-accent)] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{c.unreadCount}</span>
                 )}
               </button>
             ))
@@ -3171,18 +3171,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       </div>
 
       {/* ── Thread — takes over full screen on mobile when a chat is open ── */}
-      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-[#EFEAE2] dark:bg-[#0B141A] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] flex-col overflow-hidden shadow-sm min-w-0`}>
+      <div className={`${selectedPhone ? 'flex' : 'hidden sm:flex'} flex-1 bg-[var(--nb-bg)] rounded-2xl border border-[var(--nb-border)] flex-col overflow-hidden min-w-0`}>
         {!selectedConv ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold">
+          <div className="flex-1 flex items-center justify-center text-[var(--nb-text-3)] font-bold">
             Select a conversation
           </div>
         ) : (
           <>
-            <div className="p-3.5 bg-[#F0F2F5] dark:bg-[#202C33] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="p-3.5 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex items-center justify-between gap-3 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => setSelectedPhone(null)}
-                  className="sm:hidden p-2 -ml-2 text-[#667781] dark:text-[#8696A0] flex-shrink-0"
+                  className="sm:hidden min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 text-[var(--nb-text-2)] flex-shrink-0"
                   aria-label="Back to chat list"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
@@ -3196,12 +3196,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                         onChange={e => setContactNameInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveContactName(); if (e.key === 'Escape') setEditingContactName(false); }}
                         placeholder={selectedConv.name}
-                        className="text-sm font-black bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] rounded-lg px-2 py-1 outline-none text-[#111B21] dark:text-[#E9EDEF] w-36"
+                        className="text-sm font-black bg-[var(--nb-surface-1)] border border-[var(--nb-border)] rounded-lg px-2 py-1 outline-none text-[var(--nb-text-1)] w-36"
                       />
-                      <button onClick={saveContactName} className="text-[#00A884] flex-shrink-0" aria-label="Save">
+                      <button onClick={saveContactName} className="text-[var(--nb-accent)] flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Save">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
                       </button>
-                      <button onClick={() => setEditingContactName(false)} className="text-[#667781] dark:text-[#8696A0] flex-shrink-0" aria-label="Cancel">
+                      <button onClick={() => setEditingContactName(false)} className="text-[var(--nb-text-2)] flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Cancel">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
@@ -3211,18 +3211,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                       className="flex items-center gap-1.5 group"
                       title="Edit contact name"
                     >
-                      <p className="font-black text-sm text-[#111B21] dark:text-[#E9EDEF] truncate">{selectedConv.name}</p>
-                      <svg className="w-3.5 h-3.5 text-slate-300 dark:text-slate-500 group-hover:text-[#00A884] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      <p className="font-black text-sm text-[var(--nb-text-1)] truncate">{selectedConv.name}</p>
+                      <svg className="w-3.5 h-3.5 text-[var(--nb-text-3)] group-hover:text-[var(--nb-accent)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
                   )}
-                  <p className="text-xs text-[#667781] dark:text-[#8696A0] font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
+                  <p className="text-xs text-[var(--nb-text-2)] font-bold truncate">+92{selectedConv.phone}{selectedConv.username ? ` • @${selectedConv.username}` : ''}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0" />
             </div>
 
             {windowStatus && (
-              <div className={`px-3.5 py-2 flex items-center gap-2 flex-shrink-0 text-xs font-bold ${windowStatus.open ? 'bg-[#00A884]/15 text-[#008069] dark:text-[#00A884]' : 'bg-rose-500/10 text-rose-600 dark:text-rose-300'}`}>
+              <div className={`px-3.5 py-2 flex items-center gap-2 flex-shrink-0 text-xs font-bold ${windowStatus.open ? 'bg-[var(--nb-accent-soft)] text-[var(--nb-accent)]' : 'bg-[var(--nb-surface-2)] text-[var(--nb-danger)]'}`}>
                 {windowStatus.open ? (
                   <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 ) : (
@@ -3236,17 +3236,17 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               </div>
             )}
 
-            <div ref={threadContainerRef} style={{ backgroundColor: wabotDark ? wallpaperPreset.dark : wallpaperPreset.light }} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[#EFEAE2] dark:bg-[#0B141A] custom-scrollbar">
+            <div ref={threadContainerRef} style={{ backgroundColor: wabotDark ? wallpaperPreset.dark : wallpaperPreset.light }} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-[var(--nb-bg)] custom-scrollbar">
               {threadError && thread.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                  <div className="w-12 h-12 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <div className="w-12 h-12 rounded-full bg-[var(--nb-surface-2)] border border-[var(--nb-danger)] flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[var(--nb-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                   </div>
-                  <p className="text-sm font-bold text-slate-600 dark:text-slate-300 max-w-xs">{threadError}</p>
+                  <p className="text-sm font-bold text-[var(--nb-text-2)] max-w-xs">{threadError}</p>
                   <button
                     type="button"
                     onClick={() => selectedPhone && openConversation(selectedPhone)}
-                    className="px-4 py-2 rounded-xl bg-[#00A884] hover:bg-[#008069] text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+                    className="px-4 min-h-[44px] rounded-xl bg-[var(--nb-accent)] hover:bg-[var(--nb-accent-pressed)] text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
                   >
                     Retry
                   </button>
@@ -3258,7 +3258,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     type="button"
                     onClick={loadOlderMessages}
                     disabled={loadingOlder}
-                    className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-white dark:bg-[#202C33] text-[#00A884] border border-[#E9EDEF] dark:border-[#222D34] shadow-sm hover:bg-[#F0F2F5] dark:hover:bg-[#2A3942] disabled:opacity-50 transition-all"
+                    className="text-[11px] font-black uppercase tracking-widest px-4 min-h-[44px] rounded-full bg-[var(--nb-surface-1)] text-[var(--nb-accent)] border border-[var(--nb-border)] hover:bg-[var(--nb-surface-2)] disabled:opacity-50 transition-all"
                   >
                     {loadingOlder ? 'Loading older messages\u2026' : 'Load older messages'}
                   </button>
@@ -3268,7 +3268,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 if (item.kind === 'date') {
                   return (
                     <div key={item.key} className="flex justify-center">
-                      <span className="text-[11px] font-bold text-[#667781] dark:text-[#8696A0] bg-white dark:bg-[#1F2C34] border border-[#E9EDEF] dark:border-[#222D34] rounded-lg px-3 py-1 shadow-sm">{item.label}</span>
+                      <span className="text-[11px] font-bold text-[var(--nb-text-2)] bg-[var(--nb-surface-1)] border border-[var(--nb-border)] rounded-lg px-3 py-1">{item.label}</span>
                     </div>
                   );
                 }
@@ -3498,12 +3498,12 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 </button>
               </div>
             )}
-            <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-[#E9EDEF] dark:border-[#222D34] flex items-center gap-2 flex-shrink-0">
+            <div className="p-3 bg-[var(--nb-header)] border-t border-[var(--nb-border)] flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || recording}
                 title="Send a photo, video or document"
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#2A3942] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] disabled:opacity-40 active:scale-95 transition-all shadow-sm"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] disabled:opacity-40 active:scale-95 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
               </button>
@@ -3512,18 +3512,18 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 disabled={uploading || recording}
                 title="Send an official Meta template"
                 aria-label="Official templates"
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-[#2A3942] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222D34] disabled:opacity-40 active:scale-95 transition-all shadow-sm"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] disabled:opacity-40 active:scale-95 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               </button>
 
               {recording ? (
-                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
-                  <span className="text-sm font-bold text-rose-600 dark:text-rose-300 flex-1">
+                <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-danger)]">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--nb-danger)] animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-bold text-[var(--nb-danger)] flex-1">
                     Recording... {String(Math.floor(recSeconds / 60)).padStart(2, '0')}:{String(recSeconds % 60).padStart(2, '0')}
                   </span>
-                  <button onClick={cancelRecording} className="text-xs font-black uppercase tracking-widest text-slate-400">Cancel</button>
+                  <button onClick={cancelRecording} className="text-xs font-black uppercase tracking-widest text-[var(--nb-text-3)] min-h-[44px] px-2">Cancel</button>
                 </div>
               ) : (
                 <div className="flex-1 min-w-0 relative">
@@ -3531,24 +3531,24 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     <>
                       {/* ── UI/UX P3 (W23): tap-outside dismisses the palette on mobile ── */}
                       <div className="fixed inset-0 z-40" onClick={() => setShowSlashPalette(false)} />
-                    <div className="absolute bottom-full mb-3 left-0 w-full max-w-md bg-white dark:bg-[#202C33] rounded-2xl border border-[#E9EDEF] dark:border-[#222D34] shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="p-2.5 bg-[#F0F2F5] dark:bg-[#111B21] border-b border-[#E9EDEF] dark:border-[#222D34] flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">Quick Replies (/commands)</span>
-                        <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] hover:text-[#00A884]">Close (Esc)</button>
+                    <div className="absolute bottom-full mb-3 left-0 w-full max-w-md bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="p-2.5 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--nb-text-2)]">Quick Replies (/commands)</span>
+                        <button onClick={() => setShowSlashPalette(false)} className="text-[10px] font-bold text-[var(--nb-text-2)] hover:text-[var(--nb-accent)] min-h-[44px] px-2">Close (Esc)</button>
                       </div>
-                      <div className="max-h-60 overflow-y-auto divide-y divide-[#E9EDEF]/50 dark:divide-[#222D34]/50 custom-scrollbar">
+                      <div className="max-h-60 overflow-y-auto divide-y divide-[var(--nb-divider)] custom-scrollbar">
                         {slashMatches.map((cr, i) => (
                           <button
                             key={cr.cmd}
                             type="button"
                             onClick={() => { setInputText(cr.text); setShowSlashPalette(false); }}
                             onMouseEnter={() => setSlashHi(i)}
-                            className={`w-full text-left p-2.5 transition-colors flex items-start gap-2.5 group ${i === slashHi ? 'bg-[#00A884]/10 dark:bg-[#00A884]/15' : 'hover:bg-[#F5F6F6] dark:hover:bg-[#2A3942]'}`}
+                            className={`w-full text-left p-2.5 transition-colors flex items-start gap-2.5 group ${i === slashHi ? 'bg-[var(--nb-accent-soft)]' : 'hover:bg-[var(--nb-surface-2)]'}`}
                           >
-                            <span className="px-2 py-0.5 rounded-md bg-[#00A884]/15 text-[#00A884] font-mono font-bold text-xs shrink-0 mt-0.5">{cr.cmd}</span>
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--nb-accent-soft)] text-[var(--nb-accent)] font-mono font-bold text-xs shrink-0 mt-0.5">{cr.cmd}</span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-[#111B21] dark:text-[#E9EDEF] truncate">{cr.title}</p>
-                              <p className="text-[10px] text-[#667781] dark:text-[#8696A0] truncate">{cr.desc}</p>
+                              <p className="text-xs font-bold text-[var(--nb-text-1)] truncate">{cr.title}</p>
+                              <p className="text-[10px] text-[var(--nb-text-2)] truncate">{cr.desc}</p>
                             </div>
                           </button>
                         ))}
@@ -3585,7 +3585,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                     }}
                     placeholder="Type a message or / for quick replies..."
                     disabled={uploading}
-                    className="w-full p-3 rounded-xl bg-white dark:bg-[#2A3942] border border-[#E9EDEF] dark:border-[#222D34] text-sm font-medium outline-none text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#667781] dark:placeholder:text-[#8696A0] disabled:opacity-50"
+                    className="w-full min-h-[44px] px-4 py-3 rounded-full bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-sm font-medium outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)] disabled:opacity-50"
                   />
                 </div>
               )}
@@ -3593,7 +3593,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
               {recording ? (
                 <button
                   onClick={stopRecording}
-                  className="flex items-center gap-2 px-6 py-3.5 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
+                  className="flex items-center gap-2 px-6 py-3.5 min-h-[44px] bg-[var(--nb-danger)] text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
                 >
                   <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                   Send
@@ -3602,7 +3602,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 <button
                   onClick={handleSend}
                   disabled={sending}
-                  className="px-6 py-3.5 bg-[#00A884] disabled:opacity-40 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
+                  className="px-6 py-3.5 min-h-[44px] bg-[var(--nb-accent)] disabled:opacity-40 text-white rounded-full font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
                 >
                   Send
                 </button>
@@ -3611,7 +3611,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                   onClick={startRecording}
                   disabled={uploading}
                   title="Voice message"
-                  className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-2xl bg-[#00A884] disabled:opacity-40 text-white active:scale-95 transition-all"
+                  className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-2xl bg-[var(--nb-accent)] disabled:opacity-40 text-white active:scale-95 transition-all"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 10v2a7 7 0 01-14 0v-2M12 19v4" /></svg>
                 </button>
