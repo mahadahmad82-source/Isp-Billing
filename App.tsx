@@ -5,6 +5,7 @@ import { loadState, saveState, getActiveSession, setActiveSession, getAccounts, 
 import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById, getRemoteUpdatedAt } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
+import { useBusinessType } from './hooks/useBusinessType';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { getWabotAuthHeaders } from './utils/whatsapp';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
@@ -337,6 +338,7 @@ const App: React.FC = () => {
   const [lastSavedTime, setLastSavedTime] = useState<string>(new Date().toLocaleTimeString());
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
+  const businessType = useBusinessType(activeManager, userRole); // 'isp' unless admin set another type
   const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, {
     dutyStatus: 'online' | 'offline';
     lastCheckIn?: string;
@@ -2057,6 +2059,7 @@ const App: React.FC = () => {
           </div>
         )}
         <Layout 
+          businessType={businessType}
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
           theme={state.theme || 'light'} 
