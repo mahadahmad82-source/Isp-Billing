@@ -411,9 +411,6 @@ export default function WABotStandalone() {
                       </div>
                     </>
                   )}
-                  {qrStatus === 'pending' && qrExpiresAt > 0 && (
-                    <p className="text-[11px] text-[var(--nb-text-2)] font-semibold">Expires in {qrSecsLeft}s — scan with your phone</p>
-                  )}
                   {qrStatus === 'loading' && (
                     <div className="flex flex-col items-center gap-2.5">
                       <div className="w-6 h-6 border-2 border-[var(--nb-border)] border-t-[var(--nb-accent)] rounded-full animate-spin" />
@@ -435,6 +432,9 @@ export default function WABotStandalone() {
                     </div>
                   )}
                 </div>
+                {qrStatus === 'pending' && qrExpiresAt > 0 && (
+                  <p className="text-[11px] text-[var(--nb-text-2)] font-semibold text-center">Expires in {qrSecsLeft}s — scan with your phone</p>
+                )}
               </div>
             </div>
           ) : (
