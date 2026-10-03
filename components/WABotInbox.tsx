@@ -5,6 +5,7 @@ import WABotRecovery from './WABotRecovery';
 import WABotCustomization, { WALLPAPER_PRESETS, DEFAULT_WALLPAPER, ThemePref } from './WABotCustomization';
 import WABotContacts from './WABotContacts';
 import WABotLinkedDevices from './WABotLinkedDevices';
+import WABotCopilotBubble from './WABotCopilotBubble';
 import CopilotTab from './CopilotTab';
 import type { CopilotLogEntry } from '../types';
 import { DEFAULT_BOT_TEMPLATES } from '../utils/botTemplateDefaults';
@@ -639,6 +640,50 @@ function BusinessProfileField({ label, value, placeholder, onSave }: {
   );
 }
 
+// ── Customizable tool rail: all 16 NetBot views with rail icons (inline SVGs
+// reused from the ⋮ menu). WABotViewKey mirrors the view union in useState. ──
+type WABotViewKey = 'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages' | 'copilot' | 'recovery' | 'customization' | 'devices';
+
+const ALL_RAIL_VIEWS: { key: WABotViewKey; label: string; icon: string }[] = [
+  { key: 'inbox', label: 'Inbox', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+  { key: 'teach', label: 'Teach NetBot', icon: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4 11.5-11.5z' },
+  { key: 'training', label: 'Training', icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21 12.083 12.083 0 015.84 10.578L12 14zm0 0v7' },
+  { key: 'copilot', label: 'Copilot', icon: 'M12 4c.7 4.2 3.1 7.6 7.3 8.3-4.2.7-6.6 4.1-7.3 8.3-.7-4.2-3.1-7.6-7.3-8.3C8.9 11.6 11.3 8.2 12 4z' },
+  { key: 'catalog', label: 'Router Catalog', icon: 'M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9' },
+  { key: 'templates', label: 'Bot Templates', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { key: 'agents', label: 'Voice & Agents', icon: 'M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z' },
+  { key: 'topup', label: 'Topup', icon: 'M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 100 6h3.75A2.25 2.25 0 0021 13.5v-1.5zM18 9.75V7.5a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 7.5v9a2.25 2.25 0 002.25 2.25h10.5A2.25 2.25 0 0018 16.5v-2.25' },
+  { key: 'updates', label: 'Updates & Changelog', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+  { key: 'settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  { key: 'outages', label: 'Network Outages', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+  { key: 'help', label: 'Help & Support', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { key: 'recovery', label: 'Pending Recoveries', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { key: 'customization', label: 'Customization', icon: 'M7 21a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
+  { key: 'contacts', label: 'Contacts', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+  { key: 'devices', label: 'Linked Devices', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+];
+
+const RAIL_PINS_KEY = 'wabot_rail_pins';
+const DEFAULT_RAIL_PINS: WABotViewKey[] = ['inbox', 'copilot', 'training', 'catalog', 'templates', 'settings'];
+
+// Pinned rail views, persisted in localStorage. Unknown keys are dropped;
+// Inbox is always pinned (it's home).
+const loadRailPins = (): WABotViewKey[] => {
+  try {
+    const raw = localStorage.getItem(RAIL_PINS_KEY);
+    if (raw) {
+      const arr: unknown = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        const valid = arr.filter((k): k is WABotViewKey =>
+          typeof k === 'string' && ALL_RAIL_VIEWS.some(v => v.key === k));
+        if (!valid.includes('inbox')) valid.unshift('inbox');
+        if (valid.length > 0) return valid;
+      }
+    }
+  } catch { /* ignore */ }
+  return [...DEFAULT_RAIL_PINS];
+};
+
 const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHistory, onCopilotHistoryChange, botName, onUpdateBotName, businessProfile, onUpdateBusinessProfile, routerCatalog, onUpdateRouterCatalog, botTemplates, onUpdateBotTemplates, ttsVoice, onUpdateTtsVoice, wabotAgents, onUpdateWabotAgents, botPersonaNotes, onUpdateBotPersonaNotes, botBehaviorRules, onUpdateBotBehaviorRules, theme, onToggleTheme, themePref, onThemePrefChange, onLogout, outageLogs, onUpdateOutageLogs, totalUsers }) => {
   // Synchronized theme: uses manager/app theme prop if provided, or listens to document.documentElement / localStorage
   const isDarkControlled = typeof theme !== 'undefined';
@@ -816,6 +861,31 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
   // ── Tab views & settings navigation ──
   const [view, setView] = useState<'inbox' | 'teach' | 'training' | 'catalog' | 'templates' | 'agents' | 'topup' | 'updates' | 'contacts' | 'settings' | 'help' | 'outages' | 'copilot' | 'recovery' | 'customization' | 'devices'>('inbox');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [railMenuOpen, setRailMenuOpen] = useState(false);
+  // Closes both the top-right ⋮ menu and the desktop rail's More dropdown.
+  const closeMenus = () => { setMenuOpen(false); setRailMenuOpen(false); };
+
+  // ── Customizable tool rail: pinned views (persisted), "+" opens the pin sheet.
+  // Inbox is always pinned — it can't be unpinned. ──
+  const [railPins, setRailPins] = useState<WABotViewKey[]>(() => loadRailPins());
+  const [pinSheetOpen, setPinSheetOpen] = useState(false);
+
+  const toggleRailPin = (key: WABotViewKey) => {
+    if (key === 'inbox') return; // home is always pinned
+    setRailPins(prev => {
+      const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
+      try { localStorage.setItem(RAIL_PINS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  // Escape dismisses the pin sheet
+  useEffect(() => {
+    if (!pinSheetOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPinSheetOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pinSheetOpen]);
   // ── Chat wallpaper (Phase 2b parity with Android Customization) ──
   const [wallpaper, setWallpaper] = useState<string>(() => {
     try { return localStorage.getItem('wabot_wallpaper') || DEFAULT_WALLPAPER; } catch { return DEFAULT_WALLPAPER; }
@@ -1790,6 +1860,207 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     }
   };
 
+  // ── Bulk pause/resume (Android parity with HeaderMenu bulk toggle): pause or
+  // resume the bot on every conversation currently in the list, persisted with
+  // the same whatsapp_configs.paused_phones update as togglePause. ──
+  const allPaused = conversations.length > 0 && conversations.every(c => pausedPhones.includes(c.phone));
+  const [bulkConfirm, setBulkConfirm] = useState<null | 'pause' | 'resume'>(null);
+
+  // Escape dismisses the bulk confirm sheet
+  useEffect(() => {
+    if (!bulkConfirm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setBulkConfirm(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [bulkConfirm]);
+
+  // The movable Copilot bubble stays hidden after drag-to-close until the user
+  // opens the Copilot view once (e.g. from the menu) — then it comes back.
+  useEffect(() => {
+    if (view === 'copilot') {
+      try { localStorage.removeItem('wabot_copilot_bubble_closed'); } catch { /* ignore */ }
+    }
+  }, [view]);
+
+  const pauseAllBots = async () => {
+    const allPhones = Array.from(new Set([...pausedPhones, ...conversations.map(c => c.phone)]));
+    setPausedPhones(allPhones);
+    setBulkConfirm(null);
+    try {
+      // Stamp paused_at for every paused phone, same as togglePause (bump_paused_at),
+      // so the webhook's 15-min auto-resume measures from now — not from a stale
+      // timestamp left by an earlier pause, which would resume some phones at once.
+      const { data: cfg } = await supabase.from('whatsapp_configs').select('paused_at').eq('manager_id', managerId).maybeSingle();
+      const nowIso = new Date().toISOString();
+      const pausedAtMap: Record<string, string> = { ...((cfg as any)?.paused_at || {}) };
+      for (const ph of allPhones) pausedAtMap[ph] = nowIso;
+      await supabase.from('whatsapp_configs').update({ paused_phones: allPhones, paused_at: pausedAtMap }).eq('manager_id', managerId);
+    } catch (e) {
+      console.error('[WABotInbox] pauseAllBots', e);
+    }
+  };
+
+  const resumeAllBots = async () => {
+    setPausedPhones([]);
+    setBulkConfirm(null);
+    try {
+      // Clear paused_at too (togglePause resume uses clear_paused_at) so no stale
+      // timers survive to auto-resume a phone paused again later.
+      await supabase.from('whatsapp_configs').update({ paused_phones: [], paused_at: {} }).eq('manager_id', managerId);
+    } catch (e) {
+      console.error('[WABotInbox] resumeAllBots', e);
+    }
+  };
+
+  // ── Overflow menu panel items (shared by the top-right ⋮ menu on mobile
+  // and the desktop tool rail's More dropdown). Includes the D4 account row,
+  // the bulk pause/resume item (Android parity), all view links, and Logout. ──
+  const renderMenuItems = () => (<>
+{/* ── Silk D4: account row (username/plan) at the top of the ⋮ menu.
+                    username = managerId prop; plan = loaded quota planType (may be
+                    unset until the Topup view loads it — no extra fetching). ── */}
+                <div className="px-4 py-3 border-b border-[var(--nb-border)]">
+                  <p className="text-sm font-black text-[var(--nb-text-1)] truncate">{managerId}</p>
+                  {quota?.planType ? (
+                    <p className="text-[11px] font-bold text-[var(--nb-text-2)] capitalize mt-0.5">{quota.planType.replace('_', ' ')}</p>
+                  ) : null}
+                </div>
+                {/* ── Bulk pause/resume (Android parity): under the D4 account row ── */}
+                <button
+                  onClick={() => { setBulkConfirm(allPaused ? 'resume' : 'pause'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  {allPaused ? (
+                    <svg className="w-4 h-4 flex-shrink-0 text-[var(--nb-accent)]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4 flex-shrink-0 text-[var(--nb-warning)]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" /></svg>
+                  )}
+                  {allPaused ? 'Resume all bots' : 'Pause all bots'}
+                </button>
+                <button
+                  onClick={() => { setView('teach'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4 11.5-11.5z" /></svg>
+                  Teach NetBot
+                  {(botBehaviorRules || []).filter(rule => rule.active).length > 0 && <span className="ml-auto bg-[var(--nb-accent)] text-white text-[9px] font-black px-2 py-1 rounded-full">{(botBehaviorRules || []).filter(rule => rule.active).length}</span>}
+                </button>
+                <button
+                  onClick={() => { setView('training'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21 12.083 12.083 0 015.84 10.578L12 14zm0 0v7" /></svg>
+                  Training
+                  {unreviewedCount > 0 && <span className="ml-auto bg-[var(--nb-warning)] text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>}
+                </button>
+                <button
+                  onClick={() => { setView('copilot'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0 text-[var(--nb-accent)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4c.7 4.2 3.1 7.6 7.3 8.3-4.2.7-6.6 4.1-7.3 8.3-.7-4.2-3.1-7.6-7.3-8.3C8.9 11.6 11.3 8.2 12 4z" /></svg>
+                  Copilot
+                </button>
+                <button
+                  onClick={() => { setView('catalog'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
+                  Router Catalog
+                </button>
+                <button
+                  onClick={() => { setView('templates'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Bot Templates
+                </button>
+                <button
+                  onClick={() => { setView('agents'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+                  Voice &amp; Agents
+                </button>
+                <button
+                  onClick={() => { setView('topup'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 100 6h3.75A2.25 2.25 0 0021 13.5v-1.5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9.75V7.5a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 7.5v9a2.25 2.25 0 002.25 2.25h10.5A2.25 2.25 0 0018 16.5v-2.25" /></svg>
+                  Topup
+                </button>
+                <button
+                  onClick={() => { setView('updates'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 text-[var(--nb-accent)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  <div className="flex-1 flex items-center justify-between text-left">
+                    <span>Updates &amp; Changelog</span>
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-[var(--nb-accent-soft)] text-[var(--nb-accent)]">New</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setView('settings'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  Settings
+                </button>
+                <button
+                  onClick={() => { setView('outages'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  Network Outages
+                </button>
+                <button
+                  onClick={() => { setView('help'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Help &amp; Support
+                </button>
+                <button
+                  onClick={() => { setView('recovery'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Pending Recoveries
+                </button>
+                <button
+                  onClick={() => { setView('customization'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                  Customization
+                </button>
+                <button
+                  onClick={() => { setView('contacts'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                  Contacts
+                </button>
+                <button
+                  onClick={() => { setView('devices'); closeMenus(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  Linked Devices
+                </button>
+                {onLogout && (
+                  <>
+                    <div className="h-px bg-[var(--nb-divider)] my-2" />
+                    <button
+                      onClick={() => { closeMenus(); onLogout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-danger)] hover:bg-[var(--nb-surface-2)] transition-all"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                      Logout
+                    </button>
+                  </>
+                )}
+  </>);
+
   // ── Mic: record + send a voice note, the same way WhatsApp's own mic works ──
   const pickRecorderMimeType = (): string => {
     const candidates = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'];
@@ -1992,6 +2263,39 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     }
   };
 
+  // ── Silk tool rail (desktop, proposal §9): 64px persistent nav on md+ screens.
+  // Icon-button helper: 44px target, tooltip via title, accent-soft active state. ──
+  const railBtn = (
+    key: string,
+    title: string,
+    active: boolean,
+    onClick: () => void,
+    iconPath: string,
+    badge?: number,
+  ) => (
+    <button
+      key={key}
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      className={`relative w-11 h-11 flex items-center justify-center rounded-xl transition-all active:scale-[0.97] ${
+        active
+          ? 'bg-[var(--nb-accent-soft)] text-[var(--nb-accent)]'
+          : 'text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-2)]'
+      }`}
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={iconPath} />
+      </svg>
+      {badge != null && badge > 0 && (
+        <span className="absolute top-0.5 right-0.5 bg-[var(--nb-warning)] text-white text-[9px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[70vh] text-[var(--nb-text-3)] font-bold">
@@ -2002,9 +2306,49 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
 
   return (
     <div
-      className="flex flex-col h-full min-h-[520px] gap-3 p-3 rounded-2xl overflow-hidden shadow-sm"
+      className="flex flex-col md:flex-row h-full min-h-[520px] rounded-2xl overflow-hidden shadow-sm"
       style={{ background: wabotDark ? '#0C1317' : '#F0F2F5' }}
     >
+      {/* ── Silk tool rail (desktop, proposal §9): persistent nav on md+ screens.
+          Mobile (<md) keeps the existing single-pane header + ⋮ menu. ── */}
+      <div className="hidden md:flex flex-col items-center w-16 flex-shrink-0 bg-[var(--nb-surface-1)] border-r border-[var(--nb-divider)] py-3 gap-1">
+        {/* ── Pinned rail items (user-customizable, persisted) ── */}
+        {railPins.map(k => {
+          const meta = ALL_RAIL_VIEWS.find(v => v.key === k)!;
+          return railBtn(meta.key, meta.label, view === meta.key, () => setView(meta.key), meta.icon, meta.key === 'training' ? unreviewedCount : undefined);
+        })}
+        {/* ── "+" — pin views to the rail ── */}
+        <button
+          type="button"
+          title="Customize rail"
+          aria-label="Customize rail"
+          onClick={() => setPinSheetOpen(true)}
+          className="w-11 h-11 flex items-center justify-center rounded-full border border-dashed border-[var(--nb-border)] text-[var(--nb-text-2)] hover:text-[var(--nb-accent)] hover:border-[var(--nb-accent)] transition-all active:scale-[0.97]"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+        </button>
+        <div className="mt-auto relative w-full flex justify-center">
+          <button
+            type="button"
+            title="More"
+            aria-label="More"
+            onClick={() => setRailMenuOpen(o => !o)}
+            className="w-11 h-11 flex items-center justify-center rounded-xl text-[var(--nb-text-2)] hover:bg-[var(--nb-surface-2)] transition-all active:scale-[0.97]"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z" /></svg>
+          </button>
+          {railMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setRailMenuOpen(false)} />
+              <div style={{ maxHeight: '70dvh', overflowY: 'auto' }} className="absolute left-full bottom-0 ml-2 z-50 w-64 bg-[var(--nb-surface-3)] border border-[var(--nb-border)] rounded-xl shadow-lg py-2">
+                {renderMenuItems()}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Inner content column: carries the previous outer padding/gap */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 gap-3 p-3 overflow-hidden">
       {!isOnline && (
         <div className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[var(--nb-surface-2)] border border-[var(--nb-warning)] text-[var(--nb-warning)] text-xs font-bold">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
@@ -2049,7 +2393,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
             <button
               onClick={() => setMenuOpen(o => !o)}
               title="Settings"
-              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] active:scale-[0.97] transition-all relative"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] active:scale-[0.97] transition-all relative md:hidden"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z" /></svg>
               {unreviewedCount > 0 && (
@@ -2062,137 +2406,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
               <div style={{ maxHeight: '70dvh', overflowY: 'auto' }} className="absolute top-11 right-0 z-50 w-64 bg-[var(--nb-surface-3)] border border-[var(--nb-border)] rounded-xl shadow-lg py-2">
-                {/* ── Silk D4: account row (username/plan) at the top of the ⋮ menu.
-                    username = managerId prop; plan = loaded quota planType (may be
-                    unset until the Topup view loads it — no extra fetching). ── */}
-                <div className="px-4 py-3 border-b border-[var(--nb-border)]">
-                  <p className="text-sm font-black text-[var(--nb-text-1)] truncate">{managerId}</p>
-                  {quota?.planType ? (
-                    <p className="text-[11px] font-bold text-[var(--nb-text-2)] capitalize mt-0.5">{quota.planType.replace('_', ' ')}</p>
-                  ) : null}
-                </div>
-                <button
-                  onClick={() => { setView('teach'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4 11.5-11.5z" /></svg>
-                  Teach NetBot
-                  {(botBehaviorRules || []).filter(rule => rule.active).length > 0 && <span className="ml-auto bg-[var(--nb-accent)] text-white text-[9px] font-black px-2 py-1 rounded-full">{(botBehaviorRules || []).filter(rule => rule.active).length}</span>}
-                </button>
-                <button
-                  onClick={() => { setView('training'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21 12.083 12.083 0 015.84 10.578L12 14zm0 0v7" /></svg>
-                  Training
-                  {unreviewedCount > 0 && <span className="ml-auto bg-[var(--nb-warning)] text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">{unreviewedCount}</span>}
-                </button>
-                <button
-                  onClick={() => { setView('copilot'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0 text-[var(--nb-accent)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4c.7 4.2 3.1 7.6 7.3 8.3-4.2.7-6.6 4.1-7.3 8.3-.7-4.2-3.1-7.6-7.3-8.3C8.9 11.6 11.3 8.2 12 4z" /></svg>
-                  Copilot
-                </button>
-                <button
-                  onClick={() => { setView('catalog'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
-                  Router Catalog
-                </button>
-                <button
-                  onClick={() => { setView('templates'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  Bot Templates
-                </button>
-                <button
-                  onClick={() => { setView('agents'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
-                  Voice &amp; Agents
-                </button>
-                <button
-                  onClick={() => { setView('topup'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 100 6h3.75A2.25 2.25 0 0021 13.5v-1.5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9.75V7.5a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 7.5v9a2.25 2.25 0 002.25 2.25h10.5A2.25 2.25 0 0018 16.5v-2.25" /></svg>
-                  Topup
-                </button>
-                <button
-                  onClick={() => { setView('updates'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 text-[var(--nb-accent)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  <div className="flex-1 flex items-center justify-between text-left">
-                    <span>Updates &amp; Changelog</span>
-                    <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-[var(--nb-accent-soft)] text-[var(--nb-accent)]">New</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => { setView('settings'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  Settings
-                </button>
-                <button
-                  onClick={() => { setView('outages'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  Network Outages
-                </button>
-                <button
-                  onClick={() => { setView('help'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Help &amp; Support
-                </button>
-                <button
-                  onClick={() => { setView('recovery'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Pending Recoveries
-                </button>
-                <button
-                  onClick={() => { setView('customization'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                  Customization
-                </button>
-                <button
-                  onClick={() => { setView('contacts'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                  Contacts
-                </button>
-                <button
-                  onClick={() => { setView('devices'); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-2)] transition-all"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                  Linked Devices
-                </button>
-                {onLogout && (
-                  <>
-                    <div className="h-px bg-[var(--nb-divider)] my-2" />
-                    <button
-                      onClick={() => { setMenuOpen(false); onLogout(); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--nb-danger)] hover:bg-[var(--nb-surface-2)] transition-all"
-                    >
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                      Logout
-                    </button>
-                  </>
-                )}
+                {renderMenuItems()}
               </div>
             </>
           )}
@@ -3824,6 +4038,109 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       )}
     </div>
     )}
+      {/* ── Rail pin sheet (customizable tool rail): Silk bottom sheet with grabber
+          + scrim. Lists all 16 views with pin/unpin toggles; Inbox is always pinned.
+          Dismisses on backdrop click or Escape. ── */}
+      {pinSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-[var(--nb-scrim)] flex items-end justify-center"
+          onClick={() => setPinSheetOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Customize rail"
+        >
+          <div
+            className="w-full max-w-md bg-[var(--nb-surface-1)] rounded-t-[20px] border-t border-x border-[var(--nb-border)] max-h-[70dvh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="pt-3 pb-1 flex justify-center flex-shrink-0">
+              <div className="w-9 h-1 rounded-full bg-[var(--nb-text-3)]" />
+            </div>
+            <div className="px-4 pt-1 pb-2 flex-shrink-0">
+              <h5 className="text-[17px] font-semibold text-[var(--nb-text-1)]">Pin to rail</h5>
+              <p className="text-[13px] text-[var(--nb-text-2)]">Choose which views appear on the rail. Inbox is always pinned.</p>
+            </div>
+            <div className="overflow-y-auto px-2 pb-4 custom-scrollbar">
+              {ALL_RAIL_VIEWS.map(v => {
+                const pinned = railPins.includes(v.key);
+                const locked = v.key === 'inbox';
+                return (
+                  <button
+                    key={v.key}
+                    type="button"
+                    disabled={locked}
+                    onClick={() => toggleRailPin(v.key)}
+                    className="w-full flex items-center gap-3 px-3 min-h-[48px] rounded-xl text-left transition-all active:scale-[0.99] hover:bg-[var(--nb-surface-2)] disabled:opacity-60"
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0 text-[var(--nb-text-2)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={v.icon} />
+                    </svg>
+                    <span className="flex-1 text-[15px] font-semibold text-[var(--nb-text-1)]">{v.label}</span>
+                    {locked ? (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--nb-text-3)]">Always</span>
+                    ) : (
+                      <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${pinned ? 'bg-[var(--nb-accent)] border-[var(--nb-accent)]' : 'border-[var(--nb-border)]'}`}>
+                        {pinned && (
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Bulk pause/resume confirm sheet (Android parity): Silk confirm sheet,
+          never window.confirm. Dismisses on backdrop click or Escape. ── */}
+      {bulkConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--nb-scrim)]"
+          onClick={() => setBulkConfirm(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={bulkConfirm === 'pause' ? 'Pause all bots' : 'Resume all bots'}
+        >
+          <div
+            className="w-full max-w-sm bg-[var(--nb-surface-1)] rounded-2xl p-4 border border-[var(--nb-border)]"
+            onClick={e => e.stopPropagation()}
+          >
+            <h5 className="text-[17px] font-semibold text-[var(--nb-text-1)]">
+              {bulkConfirm === 'pause' ? 'Pause all bots?' : 'Resume all bots?'}
+            </h5>
+            <p className="mt-1 text-[15px] text-[var(--nb-text-2)]">
+              {bulkConfirm === 'pause'
+                ? 'The bot will stop auto-replying on every conversation until you resume — you can still reply manually.'
+                : 'The bot will start auto-replying again on every conversation.'}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkConfirm(null)}
+                className="flex-1 min-h-[48px] rounded-full bg-[var(--nb-surface-3)] text-[var(--nb-text-1)] text-[15px] font-semibold active:scale-[0.97] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { bulkConfirm === 'pause' ? pauseAllBots() : resumeAllBots(); }}
+                className={`flex-1 min-h-[48px] rounded-full text-white text-[15px] font-semibold active:scale-[0.97] transition-all ${bulkConfirm === 'pause' ? 'bg-[var(--nb-danger)]' : 'bg-[var(--nb-accent)]'}`}
+              >
+                {bulkConfirm === 'pause' ? 'Pause All' : 'Resume All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Movable Copilot bubble: hidden on the copilot view itself ── */}
+      {view !== 'copilot' && (
+        <WABotCopilotBubble
+          onOpenCopilot={() => { closeMenus(); setView('copilot'); }}
+          onCloseHint={showSaveToast}
+        />
+      )}
+      </div>
     </div>
   );
 };
