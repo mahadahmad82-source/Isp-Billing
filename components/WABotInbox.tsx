@@ -2370,35 +2370,50 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           ⋮ menu instead of always-visible tab buttons (matches Wabot-Android's
           HeaderMenu.tsx) — a back button replaces it on non-inbox screens. ── */}
       {view === 'inbox' ? (
-        <div className="flex gap-2 flex-shrink-0 items-center justify-between relative">
-          <h3 className="text-base font-black text-[var(--nb-accent)] uppercase tracking-tight truncate">NetBot</h3>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {selectedConv && (
-              <>
-                <button
-                  onClick={togglePause}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
-                >
-                  {selectedConv.paused ? (
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" /></svg>
-                  )}
-                  {selectedConv.paused ? 'Resume' : 'Pause'}
-                </button>
-              </>
+        <div className="flex gap-2 flex-shrink-0 items-center relative">
+          <span className="text-[13px] font-black text-[var(--nb-accent)] uppercase tracking-tight flex-shrink-0">NetBot</span>
+          <div className="relative flex-1 min-w-0">
+            <input
+              placeholder="Search conversations"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full min-w-0 pl-3 pr-8 py-1.5 rounded-full bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-xs font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
+            />
+            {search.length > 0 && (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-[var(--nb-text-3)] hover:text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-3)] transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
             )}
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              title="Settings"
-              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] active:scale-[0.97] transition-all relative md:hidden"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z" /></svg>
-              {unreviewedCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[var(--nb-warning)] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">{unreviewedCount}</span>
-              )}
-            </button>
           </div>
+          {selectedConv && (
+            <button
+              onClick={togglePause}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex-shrink-0 ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
+            >
+              {selectedConv.paused ? (
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" /></svg>
+              )}
+              {selectedConv.paused ? 'Resume' : 'Pause'}
+            </button>
+          )}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            title="Settings"
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] text-[var(--nb-text-2)] border border-[var(--nb-border)] active:scale-[0.97] transition-all relative md:hidden"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z" /></svg>
+            {unreviewedCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[var(--nb-warning)] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">{unreviewedCount}</span>
+            )}
+          </button>
 
           {menuOpen && (
             <>
@@ -3326,28 +3341,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     <div className="flex flex-1 gap-3 min-h-0 overflow-hidden">
       {/* ── Chat list — full width on mobile until a chat is opened, fixed sidebar on desktop ── */}
       <div className={`${selectedPhone ? 'hidden sm:flex' : 'flex'} w-full sm:w-[350px] lg:w-[380px] flex-shrink-0 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] flex-col overflow-hidden`}>
-        <div className="p-3 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex-shrink-0 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 min-w-0">
-              <input
-                placeholder="Search conversations"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full min-w-0 pl-3 pr-8 py-1.5 rounded-full bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-xs font-semibold outline-none text-[var(--nb-text-1)] placeholder:text-[var(--nb-text-3)]"
-              />
-              {search.length > 0 && (
-                <button
-                  onClick={() => setSearch('')}
-                  aria-label="Clear search"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-[var(--nb-text-3)] hover:text-[var(--nb-text-1)] hover:bg-[var(--nb-surface-3)] transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
+        <div className="p-3 bg-[var(--nb-header)] border-b border-[var(--nb-border)] flex-shrink-0">
           {/* ── Smart Filter Pills ── */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
             <button
