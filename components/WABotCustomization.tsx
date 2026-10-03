@@ -68,7 +68,7 @@ const WABotCustomization: React.FC<WABotCustomizationProps> = ({
                 key={m.key}
                 type="button"
                 onClick={() => onThemePrefChange(m.key)}
-                className={`flex flex-col items-center gap-1.5 py-4 px-2 rounded-2xl border transition-all active:scale-95 ${
+                className={`flex flex-col items-center gap-1.5 py-4 px-2 rounded-2xl border transition-all active:scale-[0.97] ${
                   active
                     ? 'bg-[var(--nb-accent)] border-[var(--nb-accent)] text-white'
                     : 'bg-[var(--nb-surface-2)] border-[var(--nb-border)] text-[var(--nb-text-2)] hover:border-[var(--nb-accent)]'
@@ -97,7 +97,7 @@ const WABotCustomization: React.FC<WABotCustomizationProps> = ({
                 key={w.key}
                 type="button"
                 onClick={() => onWallpaperChange(w.key)}
-                className="flex flex-col items-center gap-1.5 active:scale-95 transition-all"
+                className="flex flex-col items-center gap-1.5 active:scale-[0.97] transition-all"
               >
                 <span
                   className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center ${

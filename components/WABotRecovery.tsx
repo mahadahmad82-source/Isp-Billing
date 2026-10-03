@@ -50,9 +50,12 @@ const WABotRecovery: React.FC<WABotRecoveryProps> = ({ managerId }) => {
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  // ── Silk P5: surfaced load errors (was console-only, showing a misleading empty state) ──
+  const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
     if (!managerId) { setLoading(false); return; }
+    setLoadError('');
     try {
       const { data } = await supabase.from('manager_data').select('data').eq('manager_id', managerId).maybeSingle();
       const state = data?.data || {};
@@ -70,6 +73,7 @@ const WABotRecovery: React.FC<WABotRecoveryProps> = ({ managerId }) => {
       setSelectedPeriod(prev => (ordered.includes(prev) ? prev : (ordered[0] || currentPeriod())));
     } catch (e) {
       console.error('[WABotRecovery] load', e);
+      setLoadError('Could not load recovery data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -149,7 +153,7 @@ const WABotRecovery: React.FC<WABotRecoveryProps> = ({ managerId }) => {
         <button
           onClick={load}
           title="Refresh"
-          className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-[var(--nb-text-2)] active:scale-95 transition-all"
+          className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl bg-[var(--nb-surface-1)] border border-[var(--nb-border)] text-[var(--nb-text-2)] active:scale-[0.97] transition-all"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
         </button>
@@ -173,6 +177,11 @@ const WABotRecovery: React.FC<WABotRecoveryProps> = ({ managerId }) => {
       {loading ? (
         <div className="flex justify-center py-16">
           <span className="w-8 h-8 rounded-full border-[3px] border-[var(--nb-accent)] border-t-transparent animate-spin" />
+        </div>
+      ) : loadError ? (
+        <div className="text-center py-16">
+          <p className="text-sm font-bold text-[var(--nb-danger)]">{loadError}</p>
+          <button onClick={load} className="mt-3 px-5 min-h-[44px] rounded-full bg-[var(--nb-accent)] text-white text-xs font-black uppercase tracking-widest">Retry</button>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16">
