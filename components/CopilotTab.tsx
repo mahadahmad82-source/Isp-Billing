@@ -14,8 +14,8 @@ export default function CopilotTab(props: UseCopilotOptions) {
   useEffect(() => { logEndRef.current?.scrollIntoView({ block: 'end' }); }, [c.log, c.pending]);
 
   return (
-    <div className="animate-in fade-in duration-200 max-w-3xl mx-auto pb-24">
-      <div className="bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-hidden flex flex-col" style={{ minHeight: '70vh' }}>
+    <div className="animate-in fade-in duration-200 max-w-3xl mx-auto w-full flex-1 min-h-0 flex flex-col">
+      <div className="bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-hidden flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between px-5 md:px-7 py-4 bg-[var(--nb-header)] border-b border-[var(--nb-border)] shrink-0">
           <div className="flex items-center gap-3">
@@ -32,7 +32,7 @@ export default function CopilotTab(props: UseCopilotOptions) {
         </div>
 
         {/* Conversation */}
-        <div className="flex-1 overflow-y-auto px-5 md:px-7 py-5 space-y-3 text-sm" style={{ minHeight: '40vh' }}>
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 md:px-7 py-5 space-y-3 text-sm">
           {c.log.length === 0 && (
             <div className="text-[var(--nb-text-3)] text-xs leading-relaxed space-y-2 py-4">
               <p className="font-bold text-[var(--nb-text-2)] uppercase tracking-widest text-[10px]">Try asking</p>
