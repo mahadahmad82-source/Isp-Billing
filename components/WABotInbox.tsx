@@ -1887,7 +1887,14 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     setPausedPhones(allPhones);
     setBulkConfirm(null);
     try {
-      await supabase.from('whatsapp_configs').update({ paused_phones: allPhones }).eq('manager_id', managerId);
+      // Stamp paused_at for every paused phone, same as togglePause (bump_paused_at),
+      // so the webhook's 15-min auto-resume measures from now — not from a stale
+      // timestamp left by an earlier pause, which would resume some phones at once.
+      const { data: cfg } = await supabase.from('whatsapp_configs').select('paused_at').eq('manager_id', managerId).maybeSingle();
+      const nowIso = new Date().toISOString();
+      const pausedAtMap: Record<string, string> = { ...((cfg as any)?.paused_at || {}) };
+      for (const ph of allPhones) pausedAtMap[ph] = nowIso;
+      await supabase.from('whatsapp_configs').update({ paused_phones: allPhones, paused_at: pausedAtMap }).eq('manager_id', managerId);
     } catch (e) {
       console.error('[WABotInbox] pauseAllBots', e);
     }
@@ -1897,7 +1904,9 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
     setPausedPhones([]);
     setBulkConfirm(null);
     try {
-      await supabase.from('whatsapp_configs').update({ paused_phones: [] }).eq('manager_id', managerId);
+      // Clear paused_at too (togglePause resume uses clear_paused_at) so no stale
+      // timers survive to auto-resume a phone paused again later.
+      await supabase.from('whatsapp_configs').update({ paused_phones: [], paused_at: {} }).eq('manager_id', managerId);
     } catch (e) {
       console.error('[WABotInbox] resumeAllBots', e);
     }
