@@ -3286,7 +3286,7 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           </section>
         </div>
       ) : view === 'copilot' ? (
-        <div className="flex-1 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-hidden min-h-0">
+        <div className="flex-1 bg-[var(--nb-surface-1)] rounded-2xl border border-[var(--nb-border)] overflow-hidden min-h-0 flex flex-col">
           <CopilotTab
             users={customers || []}
             history={copilotHistory}
