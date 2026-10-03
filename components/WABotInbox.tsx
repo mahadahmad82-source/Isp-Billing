@@ -1348,8 +1348,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
       .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
   }, [conversationSummaries, customerByPhone, pausedPhones, contactNames, search]);
 
-  const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unreadCount, 0), [conversations]);
-
   const filteredConversations = useMemo(() => {
     return conversations.filter(c => {
       if (chatFilter === 'unread') return c.unreadCount > 0;
@@ -3349,9 +3347,6 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
                 </button>
               )}
             </div>
-            {totalUnread > 0 && (
-              <span className="flex-shrink-0 bg-[var(--nb-accent)] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{totalUnread}</span>
-            )}
           </div>
           {/* ── Smart Filter Pills ── */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-[11px] font-bold">
