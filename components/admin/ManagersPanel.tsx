@@ -7,7 +7,16 @@ import {
   extractRpcError, safeInt, checkAdminSession,
 } from './managersPanelUtils';
 
-export default function ManagersPanel(): JSX.Element {
+export interface ManagersPanelProps {
+  /** Fired after the server confirmed a manager deletion (host can clean up its own local caches). */
+  onManagerDeleted?: (username: string) => void;
+  /** Fired after the server confirmed a password reset (host can refresh its locally cached account). */
+  onPasswordReset?: (username: string, newPassword: string) => void;
+  /** Fired after any confirmed server-side change (suspend/reactivate, business type, delete). */
+  onDataChanged?: () => void;
+}
+
+export default function ManagersPanel({ onManagerDeleted, onPasswordReset, onDataChanged }: ManagersPanelProps = {}): React.ReactElement {
   const [managers, setManagers] = useState<ManagerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -114,7 +123,9 @@ export default function ManagersPanel(): JSX.Element {
       )}
       {selected && (
         <ManagerSheet manager={selected} onClose={() => setSelected(null)}
-          onChanged={load} onDeleted={() => { setSelected(null); load(); }} />
+          onChanged={() => { load(); onDataChanged?.(); }}
+          onDeleted={() => { const u = selected.username; setSelected(null); load(); onManagerDeleted?.(u); onDataChanged?.(); }}
+          onPasswordReset={onPasswordReset} />
       )}
     </div>
   );
@@ -216,8 +227,9 @@ function ManagerCard({ m, onOpen }: { m: ManagerRow; onOpen: () => void }) {
 }
 
 /* ── Detail sheet: bottom sheet on phone, side panel on desktop ── */
-function ManagerSheet({ manager, onClose, onChanged, onDeleted }: {
+function ManagerSheet({ manager, onClose, onChanged, onDeleted, onPasswordReset }: {
   manager: ManagerRow; onClose: () => void; onChanged: () => void; onDeleted: () => void;
+  onPasswordReset?: (username: string, newPassword: string) => void;
 }) {
   const [mgr, setMgr] = useState<ManagerRow>(manager);
   const [draftType, setDraftType] = useState<BusinessType>(normalizeBusinessType(manager.business_type));
@@ -338,14 +350,14 @@ function ManagerSheet({ manager, onClose, onChanged, onDeleted }: {
           </div>
         </Modal>
       )}
-      {showReset && <ResetModal username={mgr.username} onClose={() => setShowReset(false)} />}
+      {showReset && <ResetModal username={mgr.username} onClose={() => setShowReset(false)} onReset={pw => onPasswordReset?.(mgr.username, pw)} />}
       {showDelete && <DeleteModal username={mgr.username} onClose={() => setShowDelete(false)} onDone={() => { setShowDelete(false); onDeleted(); }} />}
     </div>
   );
 }
 
 /* ── Reset password modal ── */
-function ResetModal({ username, onClose }: { username: string; onClose: () => void }) {
+function ResetModal({ username, onClose, onReset }: { username: string; onClose: () => void; onReset?: (newPassword: string) => void }) {
   const [pw, setPw] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -360,6 +372,7 @@ function ResetModal({ username, onClose }: { username: string; onClose: () => vo
       const { data, error } = await supabase.rpc('admin_reset_manager_password', { p_username: username, p_new_password: pw.trim() });
       if (error || (data && !data.success)) { setMsg({ ok: false, text: extractRpcError(error, data) }); return; }
       setMsg({ ok: true, text: 'Password updated successfully.' });
+      onReset?.(pw.trim());
       setTimeout(onClose, 1200);
     } catch (e: unknown) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : 'Reset failed.' });

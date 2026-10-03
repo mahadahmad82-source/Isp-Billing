@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
+import ManagersPanel from './admin/ManagersPanel';
 import { mergeById } from '../utils/supabaseSync';
 import { ensureWhatsAppBotPlan, type PricingPlan } from '../utils/pricing';
 import WABotAdminClients from './WABotAdminClients';
@@ -913,10 +914,25 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
       {/* ══════════ MANAGERS ══════════ */}
       {!loading && tab === 'managers' && (
         <div className="space-y-4">
+          {/* Manager accounts: ManagersPanel replaces the old manager card list. Local-cache cleanup
+              that handleDelete/handleReset used to do stays here so nothing regresses. */}
+          <ManagersPanel
+            onManagerDeleted={(username) => {
+              removeAccount(username);
+              localStorage.removeItem(`myisp_data_${username}`);
+              setManagers(prev => prev.filter(m => m.username !== username));
+            }}
+            onPasswordReset={(username, newPassword) => {
+              const existing = getAccounts().find((a: any) => a.username === username);
+              if (existing) saveAccount({ ...existing, password: newPassword });
+            }}
+            onDataChanged={loadManagers}
+          />
+          {/* Sub-Manager / Agent accounts are not part of get_admin_manager_stats_v2, so they keep their own section. */}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-48">
               <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input type="text" placeholder="Search manager..." value={searchMgr} onChange={e => setSearchMgr(e.target.value)}
+              <input type="text" placeholder="Search sub-managers..." value={searchMgr} onChange={e => setSearchMgr(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.06] bg-slate-800/60 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 backdrop-blur-sm" />
             </div>
             <div className="flex gap-1 bg-slate-800/60 border border-white/[0.06] rounded-2xl p-1">
@@ -930,7 +946,6 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           </div>
           <div className="space-y-5">
             {[
-              { key: 'managers', label: 'Manager Accounts', accounts: sortedManagerAccounts, icon: <Users className="w-4 h-4 text-indigo-400" /> },
               { key: 'sub-managers', label: 'Sub-Manager / Agent Accounts', accounts: sortedSubManagerAccounts, icon: <UserCheck className="w-4 h-4 text-emerald-400" /> },
             ].map(section => (
               <section key={section.key} className="space-y-3">
@@ -1023,7 +1038,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                 ))}
               </section>
             ))}
-            {sortedManagerAccounts.length === 0 && sortedSubManagerAccounts.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No accounts found.</p></div>}
+            {sortedSubManagerAccounts.length === 0 && <div className="text-center py-16 flex flex-col items-center text-slate-600"><Inbox className="w-12 h-12 mb-3" /><p className="font-bold text-sm">No sub-manager accounts found.</p></div>}
           </div>
         </div>
       )}
