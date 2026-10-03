@@ -2371,13 +2371,13 @@ const WABotInbox: React.FC<WABotInboxProps> = ({ managerId, customers, copilotHi
           HeaderMenu.tsx) — a back button replaces it on non-inbox screens. ── */}
       {view === 'inbox' ? (
         <div className="flex gap-2 flex-shrink-0 items-center justify-between relative">
-          <h3 className="text-base font-black text-black dark:text-white uppercase tracking-tight truncate">NetBot</h3>
+          <h3 className="text-base font-black text-[var(--nb-accent)] uppercase tracking-tight truncate">NetBot</h3>
           <div className="flex items-center gap-2 flex-shrink-0">
             {selectedConv && (
               <>
                 <button
                   onClick={togglePause}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${selectedConv.paused ? 'bg-[#00A884] text-white' : 'bg-amber-500 text-white'}`}
                 >
                   {selectedConv.paused ? (
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
