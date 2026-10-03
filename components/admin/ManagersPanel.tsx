@@ -263,7 +263,7 @@ function ManagerSheet({ manager, onClose, onChanged, onDeleted }: {
   );
 
   return (
-    <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={`Manager details for ${mgr.business_name}`}>
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`Manager details for ${mgr.business_name}`}>
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="absolute inset-x-0 bottom-0 md:inset-y-0 md:right-0 md:left-auto md:w-[420px] max-h-[92dvh] md:max-h-none overflow-y-auto rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none bg-white dark:bg-[#0f172a] border-t md:border-t-0 md:border-l border-[#e2e8f0] dark:border-white/10 p-5 pb-8">
         <div className="w-10 h-1 rounded-full bg-[#e2e8f0] dark:bg-white/15 mx-auto mb-4 md:hidden" />
@@ -326,7 +326,7 @@ function ManagerSheet({ manager, onClose, onChanged, onDeleted }: {
       {confirmType && (
         <Modal onClose={() => !typeBusy && setConfirmType(false)} title="Change business type?">
           <p className="text-sm text-[#475569] dark:text-[#cbd5e1] mb-5">
-            Is manager ka business type badalne se uske menu/tabs badal jayenge. Jaari rakhein?
+            Changing this manager's business type will change their menu and tabs. Continue?
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setConfirmType(false)} disabled={typeBusy}
