@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ProfileDialog from './ProfileDialog';
 import NotificationCenter from './NotificationCenter';
-import { AppNotification, AccessRights, ModuleKey } from '../types';
+import { AppNotification, AccessRights, ModuleKey, BusinessType } from '../types';
+import { isTabEnabled } from '../utils/businessType';
 import { logoBase64 } from '../utils/logoBase64';
 import { avatarBase64 } from '../utils/avatarBase64';
 import LanguageToggle from './LanguageToggle';
 import { Language, t } from '../utils/i18n';
 
 interface LayoutProps {
+  businessType?: BusinessType; // undefined => 'isp' (no tabs hidden)
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -168,6 +170,7 @@ const Layout: React.FC<LayoutProps> = ({
   currentEmail = '',
   onNavigateCustomers,
   subManagerAccessRights,
+  businessType,
   onEmailChanged,
 }) => {
   const [customersExpanded, setCustomersExpanded] = useState(false);
@@ -241,6 +244,11 @@ const Layout: React.FC<LayoutProps> = ({
   // legacy/unconfigured agents keep seeing exactly what they saw before this feature.
   if (userRole === 'sub-manager' && subManagerAccessRights) {
     tabs = tabs.filter(tab => subManagerAccessRights[tab.id as ModuleKey]?.view !== false);
+  }
+
+  // Multi-business: hide tabs that don't apply to this business type. ISP hides nothing.
+  if (!isAdmin && userRole !== 'sub-manager' && businessType) {
+    tabs = tabs.filter(tab => isTabEnabled(businessType, tab.id));
   }
 
   const isDark = theme === 'dark';
