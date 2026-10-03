@@ -451,7 +451,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         // WhatsApp / Email fallback channels below instead of a dead retry.
         // TODO(backend/Claude): fix R2 bucket CORS policy + verify R2_* env vars on Vercel.
         if (/failed to fetch|networkerror/i.test(msg)) {
-          showError('Upload connection fail ho gaya. Neeche WhatsApp ya Email se receipt bhej dein — plan verify ho jayega.');
+          showError('Upload connection fail ho gaya. Neeche WhatsApp par receipt bhej dein — plan verify ho jayega.');
         } else {
           showError(msg || 'Proof upload failed, try again.');
         }
@@ -828,10 +828,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   target="_blank" rel="noreferrer"
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-700 hover:text-emerald-800 transition-colors flex items-center justify-center gap-1.5">
                   Also inform on WhatsApp (optional)
-                </a>
-                <a href={`mailto:support@billcollector.online?subject=${encodeURIComponent(`Payment receipt — ${tierPaymentPending.label} plan (${phone})`)}&body=${encodeURIComponent(`Assalam-o-Alaikum,\n\nMaine ${tierPaymentPending.label} plan ke liye payment kar di hai. Receipt is email ke sath attach kar raha hun.\n\nBusiness: ${businessName || '-'}\nPhone: ${phone}\n\nShukriya.`)}`}
-                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center gap-1.5">
-                  Or email your receipt instead (optional)
                 </a>
                 <button type="button" onClick={() => setView('signup-netbot')}
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-500 hover:text-indigo-600 transition-colors">
