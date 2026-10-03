@@ -36,7 +36,7 @@ const GlobeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentCol
 const CpuIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" /></svg>);
 
 // ── Input with left icon (outside component to prevent keyboard dismiss on re-render) ──
-const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode }) => (
+const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement, maxLength }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode; maxLength?: number }) => (
   <div className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all duration-300 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     style={{ background: 'rgba(255,255,255,0.75)', borderColor: 'rgba(99,102,241,0.18)' }}>
     <span className="text-indigo-400 flex-shrink-0">{icon}</span>
@@ -46,6 +46,7 @@ const InputField = ({ icon, type = 'text', placeholder, value, onChange, disable
       value={value}
       onChange={onChange}
       disabled={disabled}
+      maxLength={maxLength}
       className="flex-1 bg-transparent text-slate-900 text-sm font-medium placeholder:text-slate-400 outline-none min-w-0"
       style={{ caretColor: '#818cf8' }}
     />
@@ -113,6 +114,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   }, []);
 
   const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
+
+  // supabase-js rpc() never throws on server errors — it returns { data, error }.
+  // Normalizes both failure shapes (Postgres-level error, or a { ok:false }
+  // JSON payload from the RPC itself) into one message, or null on success.
+  const rpcErrorMessage = (data: any, error: any): string | null => {
+    if (error) return error.message || 'Server error';
+    if (data && typeof data === 'object' && (data as any).ok === false) return (data as any).error || 'Server error';
+    return null;
+  };
 
   const finishLogin = async (finalUsername: string) => {
     onLogin(finalUsername);
@@ -391,7 +401,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const handleSelectTier = async (tier: string, label: string) => {
     setTierBusy(true);
     try {
-      await supabase.rpc('select_signup_tier', { p_tier: tier });
+      // NOTE: supabase-js rpc() returns { data, error } — it does NOT throw on
+      // server errors, so the error must be checked explicitly. A missing /
+      // misbehaving select_signup_tier RPC used to fake-success here and the
+      // plan was never recorded.
+      // TODO(backend/Claude): select_signup_tier(p_tier text) must exist in
+      // Supabase as SECURITY DEFINER (upserts manager_subscriptions).
+      const { data, error } = await supabase.rpc('select_signup_tier', { p_tier: tier });
+      const rpcMsg = rpcErrorMessage(data, error);
+      if (rpcMsg) {
+        showError(`Plan save nahi ho saka (${rpcMsg}). Dobara try karein.`);
+        return;
+      }
       if (tier === 'free') {
         setView('signup-netbot');
       } else {
@@ -419,8 +440,34 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     try {
       const ext = proofFile.name.split('.').pop() || 'jpg';
       const path = `signup-proofs/${phone}-${Date.now()}.${ext}`;
-      const publicUrl = await uploadMediaToR2(path, proofFile, proofFile.type || 'image/jpeg');
-      await supabase.rpc('submit_signup_payment_proof', { p_proof_url: publicUrl });
+      let publicUrl: string;
+      try {
+        publicUrl = await uploadMediaToR2(path, proofFile, proofFile.type || 'image/jpeg');
+      } catch (uploadErr: any) {
+        const msg = uploadErr?.message || '';
+        // fetch() throws TypeError "Failed to fetch" only on network-level
+        // failures (R2 bucket CORS preflight / bad R2 endpoint env var /
+        // connectivity) — never on HTTP error statuses. Point the user at the
+        // WhatsApp / Email fallback channels below instead of a dead retry.
+        // TODO(backend/Claude): fix R2 bucket CORS policy + verify R2_* env vars on Vercel.
+        if (/failed to fetch|networkerror/i.test(msg)) {
+          showError('Upload connection fail ho gaya. Neeche WhatsApp ya Email se receipt bhej dein — plan verify ho jayega.');
+        } else {
+          showError(msg || 'Proof upload failed, try again.');
+        }
+        return;
+      }
+      // Same silent-failure trap as handleSelectTier: rpc() never throws, so
+      // check the error return or the proof is never linked to the account.
+      // TODO(backend/Claude): submit_signup_payment_proof(p_proof_url text)
+      // must exist in Supabase as SECURITY DEFINER (sets payment_proof_url +
+      // status='pending_payment' on the caller's manager_subscriptions row).
+      const { data: proofData, error: proofErr } = await supabase.rpc('submit_signup_payment_proof', { p_proof_url: publicUrl });
+      const proofRpcMsg = rpcErrorMessage(proofData, proofErr);
+      if (proofRpcMsg) {
+        showError(`Proof upload ho gaya lekin record save nahi ho saka (${proofRpcMsg}). Support se rabta karein.`);
+        return;
+      }
       setProofSubmitted(true);
     } catch (err: any) {
       showError(err?.message || 'Proof upload failed, try again.');
@@ -671,8 +718,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   OTP sent to: <strong>{forgotIdentifier}</strong>
                 </div>
                 <div>
-                  <label className={labelCls}>6-Digit OTP</label>
-                  <InputField icon={<LockIcon />} placeholder="Enter OTP" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} />
+                  <label className={labelCls}>8-Digit OTP</label>
+                  <InputField icon={<LockIcon />} placeholder="Enter OTP" value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} maxLength={8} />
                 </div>
                 <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
                   style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
@@ -694,8 +741,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   OTP sent to: <strong>{pendingSignupEmail}</strong>
                 </div>
                 <div>
-                  <label className={labelCls}>6-Digit OTP</label>
-                  <InputField icon={<LockIcon />} placeholder="Enter OTP" value={signupOtp} onChange={e => setSignupOtp(e.target.value)} />
+                  <label className={labelCls}>8-Digit OTP</label>
+                  <InputField icon={<LockIcon />} placeholder="Enter OTP" value={signupOtp} onChange={e => setSignupOtp(e.target.value)} maxLength={8} />
                 </div>
                 <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] text-white transition-all active:scale-95 hover:-translate-y-0.5"
                   style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
@@ -781,6 +828,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   target="_blank" rel="noreferrer"
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-700 hover:text-emerald-800 transition-colors flex items-center justify-center gap-1.5">
                   Also inform on WhatsApp (optional)
+                </a>
+                <a href={`mailto:support@billcollector.online?subject=${encodeURIComponent(`Payment receipt — ${tierPaymentPending.label} plan (${phone})`)}&body=${encodeURIComponent(`Assalam-o-Alaikum,\n\nMaine ${tierPaymentPending.label} plan ke liye payment kar di hai. Receipt is email ke sath attach kar raha hun.\n\nBusiness: ${businessName || '-'}\nPhone: ${phone}\n\nShukriya.`)}`}
+                  className="w-full py-3 rounded-2xl font-bold text-[11px] text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center gap-1.5">
+                  Or email your receipt instead (optional)
                 </a>
                 <button type="button" onClick={() => setView('signup-netbot')}
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-slate-500 hover:text-indigo-600 transition-colors">
