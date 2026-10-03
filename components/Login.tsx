@@ -116,11 +116,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const showError = (msg: string) => { setError(msg); setTimeout(() => setError(''), 4000); };
 
   // supabase-js rpc() never throws on server errors — it returns { data, error }.
-  // Normalizes both failure shapes (Postgres-level error, or a { ok:false }
-  // JSON payload from the RPC itself) into one message, or null on success.
+  // Normalizes all failure shapes (Postgres-level error, or an { ok:false } /
+  // { success:false } JSON payload from the RPC itself) into one message, or
+  // null on success.
   const rpcErrorMessage = (data: any, error: any): string | null => {
     if (error) return error.message || 'Server error';
-    if (data && typeof data === 'object' && (data as any).ok === false) return (data as any).error || 'Server error';
+    if (data && typeof data === 'object' && ((data as any).ok === false || (data as any).success === false)) {
+      return (data as any).error || 'Server error';
+    }
     return null;
   };
 
@@ -410,7 +413,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       const { data, error } = await supabase.rpc('select_signup_tier', { p_tier: tier });
       const rpcMsg = rpcErrorMessage(data, error);
       if (rpcMsg) {
-        showError(`Plan save nahi ho saka (${rpcMsg}). Dobara try karein.`);
+        showError(`Couldn't save your plan (${rpcMsg}). Please try again.`);
         return;
       }
       if (tier === 'free') {
@@ -451,7 +454,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         // WhatsApp / Email fallback channels below instead of a dead retry.
         // TODO(backend/Claude): fix R2 bucket CORS policy + verify R2_* env vars on Vercel.
         if (/failed to fetch|networkerror/i.test(msg)) {
-          showError('Upload connection fail ho gaya. Neeche WhatsApp par receipt bhej dein — plan verify ho jayega.');
+          showError('Upload connection failed. Please send your receipt on WhatsApp below — your plan will be verified.');
         } else {
           showError(msg || 'Proof upload failed, try again.');
         }
@@ -465,7 +468,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       const { data: proofData, error: proofErr } = await supabase.rpc('submit_signup_payment_proof', { p_proof_url: publicUrl });
       const proofRpcMsg = rpcErrorMessage(proofData, proofErr);
       if (proofRpcMsg) {
-        showError(`Proof upload ho gaya lekin record save nahi ho saka (${proofRpcMsg}). Support se rabta karein.`);
+        showError(`Proof uploaded but couldn't be recorded (${proofRpcMsg}). Please contact support.`);
         return;
       }
       setProofSubmitted(true);
