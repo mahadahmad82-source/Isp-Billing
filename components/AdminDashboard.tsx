@@ -1391,7 +1391,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label:'Trial',   color:'text-amber-400',   grad:'from-amber-900/40 to-amber-800/20', count: subscriptions.filter(s=>s.status==='trial').length },
+              { label:'Pending', color:'text-orange-400',  grad:'from-orange-900/40 to-orange-800/20', count: subscriptions.filter(s=>s.status==='pending_payment').length },
               { label:'Active',  color:'text-emerald-400', grad:'from-emerald-900/40 to-emerald-800/20', count: subscriptions.filter(s=>s.status==='active').length },
               { label:'Locked',  color:'text-rose-400',    grad:'from-rose-900/40 to-rose-800/20', count: subscriptions.filter(s=>s.status==='locked').length },
               { label:'Expired', color:'text-slate-500',   grad:'from-slate-800/40 to-slate-700/20', count: subscriptions.filter(s=>s.status==='expired').length },
@@ -1408,7 +1408,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
               <div className="flex flex-wrap gap-2">
                 {managers.filter(m => !subscriptions.find(s => s.manager_id === m.username)).map(m => (
                   <button key={m.username}
-                    onClick={() => updateSubscription(m.username, { plan:'starter', status:'trial', trial_ends_at: new Date(Date.now()+30*86400000).toISOString() })}
+                    onClick={() => updateSubscription(m.username, { plan:'free', status:'active' })}
                     className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-black hover:bg-amber-500/20 transition-all active:scale-95">
                     + Add @{m.username}
                   </button>
@@ -1425,7 +1425,7 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
               {subscriptions.map((sub) => {
                 const mgr = managers.find(m => m.username === sub.manager_id);
                 const statusCfg: Record<string, { color: string; bg: string; label: string }> = {
-                  trial:   { color:'text-amber-400',   bg:'bg-amber-500/10 border-amber-500/30',   label:'TRIAL' },
+                  trial:   { color:'text-amber-400',   bg:'bg-amber-500/10 border-amber-500/30',   label:'LEGACY TRIAL' }, // display-only: trial discontinued, approve or lock these
                   active:  { color:'text-emerald-400', bg:'bg-emerald-500/10 border-emerald-500/30', label:'ACTIVE' },
                   locked:  { color:'text-rose-400',    bg:'bg-rose-500/10 border-rose-500/30',     label:'LOCKED' },
                   expired: { color:'text-slate-500',   bg:'bg-slate-500/10 border-slate-500/30',   label:'EXPIRED' },
@@ -1466,10 +1466,6 @@ const AdminDashboard: React.FC<Props> = ({ activeTab = 'admin-overview', setActi
                       {sub.status!=='active' && <button onClick={()=>updateSubscription(sub.manager_id,{status:'active'})}
                         className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black hover:bg-emerald-500/20 transition-all flex items-center gap-1 active:scale-95">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                      </button>}
-                      {sub.status!=='trial' && <button onClick={()=>updateSubscription(sub.manager_id,{status:'trial',trial_ends_at:new Date(Date.now()+30*86400000).toISOString()})}
-                        className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-black hover:bg-amber-500/20 transition-all flex items-center gap-1 active:scale-95">
-                        <Clock className="w-3.5 h-3.5" /> Trial Reset
                       </button>}
                       {sub.status!=='locked' ? <button onClick={()=>updateSubscription(sub.manager_id,{status:'locked'})}
                         className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-black hover:bg-rose-500/20 transition-all flex items-center gap-1 active:scale-95">
