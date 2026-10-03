@@ -59,16 +59,14 @@ export default function WABotStandalone() {
       return old === 'dark' || old === 'light' ? old : 'system';
     } catch { return 'system'; }
   });
-  const [systemDark, setSystemDark] = useState(() =>
+  const [systemDark] = useState(() =>
     typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   );
 
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
-    try { mq.addEventListener('change', onChange); } catch { /* older browsers */ }
-    return () => { try { mq.removeEventListener('change', onChange); } catch { /* older browsers */ } };
-  }, []);
+  // NOTE: 'system' resolves the OS theme ONCE at load. We deliberately do NOT
+  // live-follow prefers-color-scheme changes mid-session — that made the app
+  // flip dark/light "khud ba khud" whenever the OS/browser theme signal changed.
+  // Users who want a locked theme pick Dark/Light in Customization.
 
   const resolvedTheme = themePref === 'system' ? (systemDark ? 'dark' : 'light') : themePref;
 
