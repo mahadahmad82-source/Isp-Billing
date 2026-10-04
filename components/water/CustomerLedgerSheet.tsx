@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { WaterLedgerRow, WaterCustomer } from './waterTypes';
 import { todayKarachi, formatRs, formatDue, waNumber92, toISODate } from './waterTypes';
@@ -239,6 +239,7 @@ function PaymentForm({ managerId, customerId, busy, setBusy, onDone, onError }: 
   const [method, setMethod] = useState<string>('cash');
   const [date, setDate] = useState(() => todayKarachi());
   const [note, setNote] = useState('');
+  const refKey = useRef<string>(crypto.randomUUID()); // same key on retry => DB ignores a duplicate if the first save actually went through
 
   const save = async () => {
     if (busy || amount <= 0) return;
@@ -252,7 +253,7 @@ function PaymentForm({ managerId, customerId, busy, setBusy, onDone, onError }: 
           amount,
           method,
           note: note.trim() || null,
-          client_ref: crypto.randomUUID(),
+          client_ref: refKey.current,
         },
         { onConflict: 'manager_id,client_ref', ignoreDuplicates: true }
       );
