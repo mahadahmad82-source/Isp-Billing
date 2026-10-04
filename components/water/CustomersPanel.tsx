@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { WaterCustomer, WaterCustomerSettings } from './waterTypes';
 import { todayKarachi, formatRs } from './waterTypes';
@@ -175,6 +175,7 @@ function CustomerSettingsSheet({ managerId, customer, existing, onClose, onSaved
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [openingBottles, setOpeningBottles] = useState(0);
+  const openingRef = useRef<string | null>(null); // stable per attempt; reset after success
   const [confirmOpening, setConfirmOpening] = useState(false);
 
   const openingChanged = existing != null && existing.opening_balance !== opening;
@@ -210,7 +211,8 @@ function CustomerSettingsSheet({ managerId, customer, existing, onClose, onSaved
     setBusy(true);
     setMsg(null);
     try {
-      const { error } = await supabase.from('water_deliveries').insert({
+      if (!openingRef.current) openingRef.current = crypto.randomUUID();
+      const { error } = await supabase.from('water_deliveries').upsert({
         manager_id: managerId,
         customer_id: customer.id,
         delivery_date: todayKarachi(),
@@ -220,9 +222,10 @@ function CustomerSettingsSheet({ managerId, customer, existing, onClose, onSaved
         rate_per_bottle: null,
         source: 'manager',
         note: 'Opening balance',
-        client_ref: crypto.randomUUID(),
-      });
+        client_ref: openingRef.current,
+      }, { onConflict: 'manager_id,client_ref', ignoreDuplicates: true });
       if (error) throw new Error(error.message);
+      openingRef.current = null;
       setConfirmOpening(false);
       setOpeningBottles(0);
       onSaved();
