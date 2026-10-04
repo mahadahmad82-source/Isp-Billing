@@ -3628,6 +3628,18 @@ export default async function handler(req: any, res: any) {
       } catch (e: any) { console.error('[rate-limit]', e?.message); }
     }
 
+    // Multi-tenant routing (isolated from the ISP bot): a message that arrives on a WATER tenant's own
+    // WhatsApp number is handled entirely by lib/waterBot. Fail-safe by design: this bot's own number,
+    // ISP tenants, unknown numbers and any error before the routing decision all fall through to the
+    // ISP flow below, untouched. Own-number messages skip this block with a single string comparison.
+    try {
+      const _inboundPnid = req.body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+      if (_inboundPnid && _inboundPnid !== process.env.PHONE_NUMBER_ID) {
+        const { tryHandleTenantWebhook } = await import('../lib/waterBot/dispatcher.js');
+        if (await tryHandleTenantWebhook(req, res, { supabaseUrl: SUPABASE_URL, serviceKey: SUPABASE_KEY })) return;
+      }
+    } catch (e: any) { console.error('[tenant-dispatch]', e?.message); }
+
     voiceReplyTargets.clear(); // defensive: never carry voice-reply state across invocations
     CURRENT_PLAN_TYPE = null; // defensive: never carry a previous invocation's plan_type
     CURRENT_VOICE_ALLOWED = true; // defensive: reset until checkQuota() runs this invocation
