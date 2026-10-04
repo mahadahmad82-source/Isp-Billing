@@ -7,15 +7,17 @@ import TodayPanel from './TodayPanel';
 import CustomersPanel from './CustomersPanel';
 import OrdersPanel from './OrdersPanel';
 import InboxPanel from './InboxPanel';
+import LedgerPanel from './LedgerPanel';
 
-type SubTab = 'today' | 'orders' | 'routes' | 'vehicles' | 'customers' | 'inbox';
+type SubTab = 'today' | 'orders' | 'routes' | 'vehicles' | 'customers' | 'ledger' | 'inbox';
 
 interface Props {
   managerId: string;
   customers: WaterCustomer[];
+  businessName?: string;
 }
 
-export default function WaterHub({ managerId, customers }: Props): React.JSX.Element {
+export default function WaterHub({ managerId, customers, businessName }: Props): React.JSX.Element {
   const [sub, setSub] = useState<SubTab>('today');
   const [inboxTick, setInboxTick] = useState(0);
   const [unhandled, setUnhandled] = useState(0);
@@ -72,6 +74,7 @@ export default function WaterHub({ managerId, customers }: Props): React.JSX.Ele
         {chip('routes', 'Routes')}
         {chip('vehicles', 'Vehicles')}
         {chip('customers', 'Customers')}
+        {chip('ledger', 'Ledger')}
         {chip('inbox', 'Inbox', unhandled)}
       </div>
       {sub === 'today' && <TodayPanel managerId={managerId} />}
@@ -79,6 +82,7 @@ export default function WaterHub({ managerId, customers }: Props): React.JSX.Ele
       {sub === 'routes' && <RoutesPanel managerId={managerId} customers={liveCustomers} />}
       {sub === 'vehicles' && <VehiclesPanel managerId={managerId} />}
       {sub === 'customers' && <CustomersPanel managerId={managerId} customers={liveCustomers} />}
+      {sub === 'ledger' && <LedgerPanel managerId={managerId} customers={liveCustomers} businessName={businessName} />}
       {sub === 'inbox' && (
         <InboxPanel managerId={managerId} customers={liveCustomers} onUpdate={() => setInboxTick(t => t + 1)} />
       )}
