@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { WaterRouteSheet, WaterRouteSheetStop } from './waterTypes';
 import { Stepper } from './VehiclesPanel';
@@ -28,7 +28,7 @@ interface RowState {
 
 const clampQty = (v: number) => Math.max(0, Math.min(1000, Math.trunc(v) || 0));
 
-export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): JSX.Element {
+export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): React.JSX.Element {
   const [sheet, setSheet] = useState<WaterRouteSheet | null>(null);
   const [rows, setRows] = useState<RowState[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,6 +104,14 @@ export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): 
     return { delivered, empties, cash, count };
   }, [rows]);
 
+  // One idempotency key per customer for this open sheet: a retry after a lost response reuses the SAME key
+  // (DB ignores the duplicate), while a new entry after a void/save gets a fresh key.
+  const refsRef = useRef<Record<string, string>>({});
+  const refFor = (customerId: string): string => {
+    if (!refsRef.current[customerId]) refsRef.current[customerId] = crypto.randomUUID();
+    return refsRef.current[customerId];
+  };
+
   const saveAll = async () => {
     if (busy) return;
     setBusy(true);
@@ -123,7 +131,7 @@ export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): 
           amount_collected: r.cash,
           rate_per_bottle: r.stop.rate_per_bottle,
           source: 'paper' as const,
-          client_ref: crypto.randomUUID(), // retry-safe: no double entry
+          client_ref: refFor(r.stop.customer_id), // retry-safe: same key on retry, no double entry
         }));
       if (payload.length === 0) {
         setMsg({ ok: false, text: 'Nothing to save — all rows are skipped or empty.' });
@@ -133,6 +141,7 @@ export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): 
         .from('water_deliveries')
         .upsert(payload, { onConflict: 'manager_id,client_ref', ignoreDuplicates: true });
       if (error) throw new Error(error.message);
+      refsRef.current = {}; // saved: next entries (e.g. after a void) must use new keys
       setMsg({ ok: true, text: `Saved ${payload.length} ${payload.length === 1 ? 'entry' : 'entries'}.` });
       await load(); // refresh done flags; retry stays safe via client_ref
       onDone();
