@@ -34,7 +34,7 @@ const td: React.CSSProperties = {
 };
 const tdEmpty: React.CSSProperties = { ...td, minHeight: '28px', height: '28px' };
 
-export default function PrintRouteSheet({ planId, onClose }: Props): JSX.Element {
+export default function PrintRouteSheet({ planId, onClose }: Props): React.JSX.Element {
   const [sheet, setSheet] = useState<WaterRouteSheet | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
