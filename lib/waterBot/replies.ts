@@ -5,7 +5,7 @@ export interface WaterCtx {
   found: boolean;
   matches?: number;
   customer?: WaterCtxCustomer;
-  settings?: { rate_per_bottle: number; usual_bottles: number } | null;
+  settings?: { rate_per_bottle: number; usual_bottles: number; opening_balance?: number } | null;
   ledger?: { bottles_out: number; billed: number; collected_on_delivery: number; last_delivery_date: string | null } | null;
   payments?: number;
   last_payment_date?: string | null;
@@ -51,9 +51,12 @@ export function cancelText(r: { cancelled: number; already_planned: number }): s
 export function balanceText(ctx: WaterCtx, business: string): string {
   const l = ctx.ledger;
   const billed = Number(l?.billed || 0), collected = Number(l?.collected_on_delivery || 0), paid = Number(ctx.payments || 0);
-  if (!l || (billed === 0 && paid === 0 && collected === 0)) return 'Abhi tak hamare record mein koi delivery ya payment darj nahi hai.';
-  const due = billed - collected - paid;
-  const lines = [`Aap ka hisaab:`, `Total bill: ${rs(billed)}`, `Ada kiya: ${rs(collected + paid)}`];
+  const opening = Number(ctx.settings?.opening_balance || 0);
+  if (!l || (billed === 0 && paid === 0 && collected === 0 && opening === 0)) return 'Abhi tak hamare record mein koi delivery ya payment darj nahi hai.';
+  const due = opening + billed - collected - paid;
+  const lines = [`Aap ka hisaab:`];
+  if (opening !== 0) lines.push(`Pichla baqaya: ${rs(opening)}`);
+  lines.push(`Total bill: ${rs(billed)}`, `Ada kiya: ${rs(collected + paid)}`);
   if (due > 0) lines.push(`Baqaya: ${rs(due)}`);
   else if (due < 0) lines.push(`Advance: ${rs(-due)}`);
   else lines.push('Baqaya: Rs. 0');
