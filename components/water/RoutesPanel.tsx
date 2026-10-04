@@ -18,7 +18,7 @@ const customerName = (customers: WaterCustomer[], id: string): string => {
   return c.name || '(deleted customer)';
 };
 
-export default function RoutesPanel({ managerId, customers }: Props): JSX.Element {
+export default function RoutesPanel({ managerId, customers }: Props): React.JSX.Element {
   const [routes, setRoutes] = useState<WaterRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
