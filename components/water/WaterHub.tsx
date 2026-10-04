@@ -11,7 +11,7 @@ interface Props {
   customers: WaterCustomer[];
 }
 
-export default function WaterHub({ managerId, customers }: Props): JSX.Element {
+export default function WaterHub({ managerId, customers }: Props): React.JSX.Element {
   const [sub, setSub] = useState<SubTab>('routes');
   const liveCustomers = customers.filter(c => c.status !== 'deleted');
 
