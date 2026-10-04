@@ -101,6 +101,13 @@ test('handler: balance/bottles/status come only from DB numbers', async () => {
   assert.match(balanceText({ found: true, ledger: null, payments: 0 } as any, 'X'), /koi delivery ya payment darj nahi/);
 });
 
+test('balance includes opening balance', async () => {
+  const f = fakeDeps({ ...baseCtx, settings: { rate_per_bottle: 120, usual_bottles: 2, opening_balance: 1000 } });
+  await handleWaterText(f.deps, tenant, '923001234567', 'hisaab', 'wo1');
+  assert.match(f.sent[0], /Pichla baqaya: Rs\. 1,000/); assert.match(f.sent[0], /Baqaya: Rs\. 1,440/);
+  assert.match(balanceText({ found: true, ledger: { bottles_out: 0, billed: 0, collected_on_delivery: 0, last_delivery_date: null }, settings: { rate_per_bottle: 0, usual_bottles: 1, opening_balance: 500 }, payments: 0 } as any, 'X'), /Baqaya: Rs\. 500/);
+});
+
 test('handler: unknown number is logged, never creates an order, supplier notified', async () => {
   const f = fakeDeps({ found: false });
   const r = await handleWaterText(f.deps, tenant, '923009999999', '2 bottle bhej do', 'w6');
