@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { WaterCustomer } from './waterTypes';
 import VehiclesPanel from './VehiclesPanel';
 import RoutesPanel from './RoutesPanel';
+import TodayPanel from './TodayPanel';
 
 type SubTab = 'routes' | 'vehicles' | 'today';
 
@@ -44,12 +45,7 @@ export default function WaterHub({ managerId, customers }: Props): JSX.Element {
       </div>
       {sub === 'routes' && <RoutesPanel managerId={managerId} customers={liveCustomers} />}
       {sub === 'vehicles' && <VehiclesPanel managerId={managerId} />}
-      {sub === 'today' && (
-        <div className="rounded-3xl bg-white dark:bg-[#0f172a] border border-[#e2e8f0] dark:border-white/10 p-8 text-center">
-          <p className="text-lg font-black text-[#0f172a] dark:text-white mb-1">Today</p>
-          <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">Coming next</p>
-        </div>
-      )}
+      {sub === 'today' && <TodayPanel managerId={managerId} />}
     </div>
   );
 }

@@ -96,3 +96,46 @@ export function daysSummary(days: number[] | null | undefined): string {
   if (ds.length === 7) return 'Daily';
   return ds.map(d => DAY_SHORT[d]).join(' ');
 }
+
+/* ── water_route_sheet RPC result (W2) ── */
+
+export interface WaterRouteSheetStop {
+  position: number;
+  customer_id: string;
+  name: string | null;
+  phone: string | null;
+  address: string | null;
+  area: string | null;
+  usual_bottles: number;
+  rate_per_bottle: number;
+  bottles_out: number;
+  delivered_today: number;
+  done: boolean;
+  pending_order_qty: number | null;
+}
+
+export interface WaterRouteSheet {
+  plan: {
+    id: string;
+    date: string;
+    status: string;
+    loaded_bottles: number;
+    returned_bottles: number | null;
+    rider: string | null;
+  };
+  route: { id: string; name: string; area: string | null };
+  vehicle: { id: string; name: string; plate: string | null; type: string } | null;
+  stops: WaterRouteSheetStop[];
+}
+
+/** 'YYYY-MM-DD' in local timezone (for DB plan_date). */
+export function toISODate(d: Date): string {
+  return d.toLocaleDateString('en-CA');
+}
+
+/** en-PK display for a 'YYYY-MM-DD' date, e.g. "Sat, 4 Oct". */
+export function formatDayPK(iso: string): string {
+  const d = new Date(iso + 'T00:00');
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' });
+}
