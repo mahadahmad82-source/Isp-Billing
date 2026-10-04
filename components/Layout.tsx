@@ -251,6 +251,11 @@ const Layout: React.FC<LayoutProps> = ({
     tabs = tabs.filter(tab => isTabEnabled(businessType, tab.id));
   }
 
+  // Water module (W1): Water Hub tab — only for water-business accounts. ISP sees nothing new.
+  if (businessType === 'water' && !isAdmin) {
+    tabs.push({ id: 'water-hub', label: 'Water', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7 6.7 8.6a7 7 0 1 0 10.6 0Z" /></svg> });
+  }
+
   const isDark = theme === 'dark';
 
   return (

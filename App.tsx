@@ -50,6 +50,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import ContactPage from './components/ContactPage';
 import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
+import WaterHub from './components/water/WaterHub';
 import ErrorBoundary from './components/ErrorBoundary';
 import TourGuide, { WELCOME_STEPS, TAB_STEPS } from './components/TourGuide';
 import { useSubscription, canAccess as canAccessFeature } from './hooks/useSubscription';
@@ -2130,6 +2131,7 @@ const App: React.FC = () => {
               managerId={activeManager || state.currentManager || ''}
             />
           )}
+          {!tabLoading && activeTab === 'water-hub' && <WaterHub managerId={activeManager!} customers={state.users} />}
           {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} managerId={activeManager || state.currentManager || ''} subManagers={state.subManagers || []} />}
           {!tabLoading && activeTab === 'receipts' && <ReceiptGenerator key={`receipts-${receiptMountKey}`} users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} managerId={activeManager || 'mahadnet'} />}
           {!tabLoading && activeTab === 'recoveries' && (

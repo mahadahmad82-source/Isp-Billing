@@ -30,7 +30,7 @@ export const HIDDEN_TABS: Record<BusinessType, string[]> = {
 // Tabs that exist only for a business type (added by later phases).
 export const EXTRA_TABS: Record<BusinessType, string[]> = {
   isp: [],
-  water: [],
+  water: ['water-hub'],
 };
 
 export const isTabEnabled = (type: BusinessType, tabId: string): boolean =>
