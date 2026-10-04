@@ -50,7 +50,7 @@ export default async function handler(req: any, res: any) {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
 
-  if (action === 'add-token' || action === 'r2-presign-upload') {
+  if (action === 'add-token' || action === 'r2-presign-upload' || action === 'admin-create-manager') {
     // Browser path: only an authenticated admin may use this action.
     const isAdmin = await verifyAdminSession(token);
     if (!isAdmin) return res.status(401).json({ error: 'Unauthorized — admin session required' });
@@ -79,6 +79,8 @@ export default async function handler(req: any, res: any) {
       return handleAddToken(req, res);
     case 'r2-presign-upload':
       return handleR2PresignUpload(req, res);
+    case 'admin-create-manager':
+      return handleAdminCreateManager(req, res, token);
     case 'migrate-legacy-sub-manager-auth':
       return handleMigrateLegacySubManagerAuth(req, res);
     case 'create-sub-manager-auth':
@@ -419,6 +421,22 @@ async function getCallerContext(accessToken: string): Promise<CallerContext | nu
   } catch (e: any) {
     console.error('[getCallerContext]', e?.message);
     return null;
+  }
+}
+
+// -- Action: admin-create-manager ------------------------------------
+// Admin-only (gated above by verifyAdminSession). Creates login + profile + business type in one step; rolls back on failure.
+async function handleAdminCreateManager(req: any, res: any, token: string) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const caller = await getCallerContext(token);
+    if (!caller || caller.role !== 'admin') return res.status(403).json({ error: 'Admin session required' });
+    const { createManagerAccount } = await import('../lib/adminAccounts.js');
+    const r = await createManagerAccount(adminSupabase, caller.userId, req.body || {});
+    return res.status(r.status).json(r.body);
+  } catch (e: any) {
+    console.error('[admin-create-manager]', e?.message);
+    return res.status(500).json({ success: false, error: 'Could not create the account. Please try again.' });
   }
 }
 
