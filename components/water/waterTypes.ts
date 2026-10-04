@@ -74,7 +74,70 @@ export interface WaterCustomerSettings {
   rate_per_bottle: number;
   usual_bottles: number;
   deposit_amount: number;
+  opening_balance: number; /* purana udhaar jab supplier ne app shuru ki (positive = customer ne dena hai) */
   notes: string | null;
+}
+
+/* ── W3 interfaces ── */
+
+export interface WaterOrder {
+  id: string;
+  manager_id: string;
+  customer_id: string;
+  qty: number;
+  delivery_date: string;
+  status: 'new' | 'planned' | 'delivered' | 'cancelled';
+  source: 'whatsapp' | 'manager' | 'app';
+  note: string | null;
+  created_at: string;
+}
+
+export interface WaterPayment {
+  id: string;
+  manager_id: string;
+  customer_id: string;
+  pay_date: string;
+  amount: number;
+  method: 'cash' | 'jazzcash' | 'easypaisa' | 'bank' | 'other';
+  note: string | null;
+  client_ref: string | null;
+  created_at: string;
+  voided_at: string | null;
+  void_reason: string | null;
+}
+
+export interface WaterInboxItem {
+  id: string;
+  manager_id: string;
+  customer_id: string | null;
+  phone: string;
+  kind: 'complaint' | 'message' | 'unknown_customer';
+  body: string;
+  handled: boolean;
+  created_at: string;
+}
+
+export interface WaterLedgerRow {
+  manager_id: string;
+  customer_id: string;
+  bottles_out: number;
+  billed: number;
+  collected_on_delivery: number;
+  payments: number;
+  balance_due: number;
+  opening_balance: number;
+  last_delivery_date: string | null;
+  last_payment_date: string | null;
+}
+
+export interface WaterPeriodRow {
+  customer_id: string;
+  bottles_delivered: number;
+  empties_returned: number;
+  billed: number;
+  collected: number;
+  payments: number;
+  delivery_days: number;
 }
 
 export const VEHICLE_TYPES = ['bike', 'rickshaw', 'van', 'truck'] as const;
@@ -138,4 +201,34 @@ export function formatDayPK(iso: string): string {
   const d = new Date(iso + 'T00:00');
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** Today's date in Pakistan time (Asia/Karachi) as 'YYYY-MM-DD'. */
+export function todayKarachi(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+}
+
+/** "Rs. 1,250,000" — thousands separators. Negative => caller decides (see formatDue). */
+export function formatRs(n: number | null | undefined): string {
+  const v = Number.isFinite(n) ? Math.trunc(n as number) : 0;
+  return 'Rs. ' + Math.abs(v).toLocaleString('en-US');
+}
+
+/** Balance display: positive => "Rs. X", negative => "Advance Rs. X", zero => "Rs. 0". */
+export function formatDue(balanceDue: number | null | undefined): string {
+  const v = Number.isFinite(balanceDue) ? Math.trunc(balanceDue as number) : 0;
+  if (v < 0) return 'Advance Rs. ' + Math.abs(v).toLocaleString('en-US');
+  return 'Rs. ' + v.toLocaleString('en-US');
+}
+
+/** Digits only, no leading +. */
+export function digitsOnly(phone: string | null | undefined): string {
+  return (phone || '').replace(/\D/g, '');
+}
+
+/** wa.me number: last 10 digits + 92 prefix (Pakistan mobiles). */
+export function waNumber92(phone: string | null | undefined): string {
+  const d = digitsOnly(phone);
+  if (!d) return '';
+  return '92' + d.slice(-10);
 }

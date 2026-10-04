@@ -142,6 +142,20 @@ export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): 
         .upsert(payload, { onConflict: 'manager_id,client_ref', ignoreDuplicates: true });
       if (error) throw new Error(error.message);
       refsRef.current = {}; // saved: next entries (e.g. after a void) must use new keys
+      // W3a: mark this day's open orders delivered for the saved customers.
+      // Best-effort only — the delivery is already saved, so this must never fail the save.
+      try {
+        const { error: ordErr } = await supabase
+          .from('water_orders')
+          .update({ status: 'delivered' })
+          .eq('manager_id', managerId)
+          .eq('delivery_date', plan.plan_date)
+          .in('status', ['new', 'planned'])
+          .in('customer_id', payload.map(p => p.customer_id));
+        if (ordErr) console.warn('water orders auto-deliver failed:', ordErr.message);
+      } catch (e) {
+        console.warn('water orders auto-deliver failed:', e);
+      }
       setMsg({ ok: true, text: `Saved ${payload.length} ${payload.length === 1 ? 'entry' : 'entries'}.` });
       await load(); // refresh done flags; retry stays safe via client_ref
       onDone();
