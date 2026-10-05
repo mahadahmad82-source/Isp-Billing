@@ -6,6 +6,8 @@ import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById, getRemoteUpdatedAt } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { useBusinessType } from './hooks/useBusinessType';
+import { useBusinessTypeGate } from './hooks/useBusinessTypeGate';
+import BusinessTypeGate from './components/auth/BusinessTypeGate';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { getWabotAuthHeaders } from './utils/whatsapp';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
@@ -340,6 +342,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const businessType = useBusinessType(activeManager, userRole); // 'isp' unless admin set another type
+  const typeGate = useBusinessTypeGate(activeManager, userRole); // M5: incomplete signup => pick type before the app
   const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, {
     dutyStatus: 'online' | 'offline';
     lastCheckIn?: string;
@@ -2037,6 +2040,25 @@ const App: React.FC = () => {
             onResolveComplaint={handleSubmitComplaintResolution}
           />
         )}
+      </ErrorBoundary>
+    );
+  }
+  // M5: business-type gate — accounts whose type was never chosen (abandoned
+  // signup, OTP path, or a failed save RPC) pick it here before seeing the app.
+  // Admins, sub-managers and logged-out users are never affected (the hook
+  // resolves them to needsSelection=false). Loading shows a bare spinner so
+  // the old UI never flashes before the gate decision.
+  if (typeGate.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f7fc] dark:bg-[#0b0f1a]">
+        <div className="w-10 h-10 rounded-full border-[3px] border-indigo-500/25 border-t-indigo-500 animate-spin" aria-label="Loading" />
+      </div>
+    );
+  }
+  if (typeGate.needsSelection) {
+    return (
+      <ErrorBoundary>
+        <BusinessTypeGate gate={typeGate} />
       </ErrorBoundary>
     );
   }
