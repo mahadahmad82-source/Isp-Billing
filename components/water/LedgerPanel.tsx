@@ -9,12 +9,18 @@ interface Props {
   managerId: string;
   customers: WaterCustomer[];
   businessName?: string;
+  /** M6a: open this customer's ledger sheet once rows load (dashboard top-dues). */
+  focusCustomerId?: string | null;
+  onFocusConsumed?: () => void;
+  /** M6a: open the Record-payment form inside the focused customer's sheet. */
+  requestPay?: boolean;
+  onRequestPayConsumed?: () => void;
 }
 
 type Sort = 'due' | 'name' | 'last';
 type Filter = 'all' | 'due' | 'advance';
 
-export default function LedgerPanel({ managerId, customers, businessName }: Props): React.JSX.Element {
+export default function LedgerPanel({ managerId, customers, businessName, focusCustomerId, onFocusConsumed, requestPay, onRequestPayConsumed }: Props): React.JSX.Element {
   const live = useMemo(() => customers.filter(c => c.status !== 'deleted'), [customers]);
   const [rows, setRows] = useState<WaterLedgerRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +29,7 @@ export default function LedgerPanel({ managerId, customers, businessName }: Prop
   const [filter, setFilter] = useState<Filter>('all');
   const [view, setView] = useState<'ledger' | 'month'>('ledger');
   const [openCustomer, setOpenCustomer] = useState<WaterLedgerRow | null>(null);
+  const [startWithPay, setStartWithPay] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,6 +49,19 @@ export default function LedgerPanel({ managerId, customers, businessName }: Prop
   }, [managerId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // M6a: deep-open a customer's ledger sheet (from the dashboard's top dues),
+  // optionally with the Record-payment form already open.
+  useEffect(() => {
+    if (!focusCustomerId || rows.length === 0) return;
+    const row = rows.find(r => r.customer_id === focusCustomerId);
+    if (row) {
+      setOpenCustomer(row);
+      setStartWithPay(!!requestPay);
+    }
+    onFocusConsumed?.();
+    onRequestPayConsumed?.();
+  }, [focusCustomerId, rows, requestPay, onFocusConsumed, onRequestPayConsumed]);
 
   const nameOf = (id: string) => live.find(c => c.id === id)?.name || '(deleted customer)';
 
@@ -181,7 +201,8 @@ export default function LedgerPanel({ managerId, customers, businessName }: Prop
           customerName={nameOf(openCustomer.customer_id)}
           ledger={openCustomer}
           businessName={businessName}
-          onClose={() => setOpenCustomer(null)}
+          startWithPay={startWithPay}
+          onClose={() => { setOpenCustomer(null); setStartWithPay(false); }}
           onChanged={load}
         />
       )}

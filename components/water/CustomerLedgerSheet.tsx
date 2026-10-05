@@ -10,6 +10,8 @@ interface Props {
   customerName: string;
   ledger: WaterLedgerRow;
   businessName?: string;
+  /** M6a: open with the Record-payment form already expanded (dashboard quick action). */
+  startWithPay?: boolean;
   onClose: () => void;
   onChanged: () => void;
 }
@@ -26,11 +28,11 @@ const METHOD_LABELS: Record<string, string> = {
 const inputCls =
   'w-full min-h-[48px] px-4 rounded-2xl bg-[#f8fafc] dark:bg-white/[0.03] border border-[#e2e8f0] dark:border-white/10 text-base text-[#0f172a] dark:text-white placeholder-[#94a3b8] outline-none focus:border-[#3b82f6]';
 
-export default function CustomerLedgerSheet({ managerId, customer, customerName, ledger, businessName, onClose, onChanged }: Props): React.JSX.Element {
+export default function CustomerLedgerSheet({ managerId, customer, customerName, ledger, businessName, startWithPay, onClose, onChanged }: Props): React.JSX.Element {
   const [entries, setEntries] = useState<TLEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [allTime, setAllTime] = useState(false);
-  const [showPay, setShowPay] = useState(false);
+  const [showPay, setShowPay] = useState(!!startWithPay);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [voidTarget, setVoidTarget] = useState<TLEntry | null>(null);

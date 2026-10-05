@@ -7,6 +7,9 @@ import { SheetShell, Stepper } from './VehiclesPanel';
 interface Props {
   managerId: string;
   customers: WaterCustomer[];
+  /** M6a: open the Add-order sheet (dashboard quick action). */
+  requestAdd?: boolean;
+  onRequestAddConsumed?: () => void;
 }
 
 type Filter = 'all' | 'new' | 'planned' | 'delivered' | 'cancelled';
@@ -21,7 +24,7 @@ const STATUS_LABEL: Record<WaterOrder['status'], string> = {
   cancelled: 'Cancelled',
 };
 
-export default function OrdersPanel({ managerId, customers }: Props): React.JSX.Element {
+export default function OrdersPanel({ managerId, customers, requestAdd, onRequestAddConsumed }: Props): React.JSX.Element {
   const live = useMemo(() => customers.filter(c => c.status !== 'deleted'), [customers]);
   const [dateIso, setDateIso] = useState(() => todayKarachi());
   const [filter, setFilter] = useState<Filter>('all');
@@ -30,6 +33,14 @@ export default function OrdersPanel({ managerId, customers }: Props): React.JSX.
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // M6a: dashboard "Add order" quick action opens the Add-order sheet.
+  useEffect(() => {
+    if (requestAdd) {
+      setShowAdd(true);
+      onRequestAddConsumed?.();
+    }
+  }, [requestAdd, onRequestAddConsumed]);
 
   const load = useCallback(async () => {
     setError(null);
