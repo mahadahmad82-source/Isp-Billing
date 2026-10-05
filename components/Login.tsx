@@ -316,6 +316,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!signupBusinessType) { setView('signup-business-type'); showError('Please choose your business type first.'); return; }
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
     if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
     if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) { showError('This Phone Number is already taken.'); return; }
@@ -374,11 +375,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     // only this RPC can set it, exactly once. Never fail the signup over it;
     // the in-app gate (useBusinessTypeGate) asks if this didn't stick.
     try {
-      const { data: btData } = await supabase.rpc('set_my_business_type', { p_type: signupBusinessType ?? 'isp' });
-      if (!(btData as { success?: boolean } | null)?.success) console.warn('[Signup] business type not confirmed:', btData);
+      if (signupBusinessType) {
+        const { data: btData } = await supabase.rpc('set_my_business_type', { p_type: signupBusinessType });
+        if ((btData as { success?: boolean } | null)?.success) {
+          try { localStorage.setItem(`bc_business_type_set_${phone}`, '1'); } catch { /* ignore */ }
+        } else console.warn('[Signup] business type not confirmed:', btData);
+      }
     } catch (btErr) { console.warn('[Signup] set_my_business_type failed:', btErr); }
     // Keep the per-manager cache in sync so the right tabs render on first paint.
-    try { localStorage.setItem(`bc_business_type_${phone}`, signupBusinessType ?? 'isp'); } catch { /* ignore */ }
+    try { if (signupBusinessType) localStorage.setItem(`bc_business_type_${phone}`, signupBusinessType); } catch { /* ignore */ }
     const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
     saveAccount(newAccount); setAccounts(getAccounts());
     writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
@@ -388,7 +393,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     // transfer (see select_signup_tier / admin_record_subscription_payment).
     // TODO(product): water plans not defined yet — skip the tier + NetBot
     // upsell steps for water signups; go straight into the app like "Skip".
-    if ((signupBusinessType ?? 'isp') === 'water') { handleSkipNetbot(); return; }
+    if (signupBusinessType === 'water') { handleSkipNetbot(); return; }
     setView('signup-tier');
   };
 
