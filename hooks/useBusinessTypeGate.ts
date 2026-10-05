@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import type { BusinessType } from '../types';
 import { normalizeBusinessType } from '../utils/businessType';
 
+const GATE_WAIT_MS = 2500;
+
 export interface BusinessTypeGateState {
   needsSelection: boolean;
   loading: boolean;
@@ -20,8 +22,14 @@ export function useBusinessTypeGate(
   activeManager: string | null | undefined,
   userRole: string,
 ): BusinessTypeGateState {
+  // Launch speed: once an account is known to be settled on this device ('1' cached) the app opens
+  // immediately and the check only re-verifies in the background. Without a cache (first launch on
+  // this device) we wait for the profile, but never longer than GATE_WAIT_MS: slow/offline networks
+  // fail OPEN (no lock-out); if the answer arrives later and says "not chosen", the gate appears then.
+  const setKey = activeManager ? `bc_business_type_set_${activeManager}` : '';
+  const isCachedSet = (): boolean => { try { return !!setKey && localStorage.getItem(setKey) === '1'; } catch { return false; } };
   const [needsSelection, setNeedsSelection] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => !!activeManager && userRole === 'manager' && !isCachedSet());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -31,8 +39,10 @@ export function useBusinessTypeGate(
       return;
     }
     let cancelled = false;
-    setLoading(true);
+    const cached = isCachedSet();
+    setLoading(!cached);
     setError('');
+    const failOpen = cached ? null : setTimeout(() => { if (!cancelled) setLoading(false); }, GATE_WAIT_MS);
     (async () => {
       try {
         const { data: sess } = await supabase.auth.getSession();
@@ -51,7 +61,9 @@ export function useBusinessTypeGate(
           setError(qErr.message);
           setNeedsSelection(false);
         } else {
-          setNeedsSelection((row as { business_type_set?: boolean } | null)?.business_type_set === false);
+          const notChosen = (row as { business_type_set?: boolean } | null)?.business_type_set === false;
+          setNeedsSelection(notChosen);
+          if (!notChosen && setKey) { try { localStorage.setItem(setKey, '1'); } catch { /* ignore */ } }
         }
       } catch (e: unknown) {
         if (!cancelled) {
@@ -62,7 +74,7 @@ export function useBusinessTypeGate(
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; if (failOpen) clearTimeout(failOpen); };
   }, [activeManager, userRole]);
 
   const choose = useCallback(async (t: BusinessType) => {
@@ -76,7 +88,10 @@ export function useBusinessTypeGate(
       // Keep the per-manager cache in sync, then tell useBusinessType to re-read
       // so the app's tabs switch immediately without a reload.
       try {
-        if (activeManager) localStorage.setItem(`bc_business_type_${activeManager}`, normalizeBusinessType(t));
+        if (activeManager) {
+          localStorage.setItem(`bc_business_type_${activeManager}`, normalizeBusinessType(t));
+          localStorage.setItem(`bc_business_type_set_${activeManager}`, '1');
+        }
       } catch { /* ignore */ }
       window.dispatchEvent(new Event('bc-business-type-changed'));
       setNeedsSelection(false);
