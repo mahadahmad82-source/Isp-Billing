@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
+import type { UserRecord } from '../../types';
 import type { WaterCustomer, WaterCustomerSettings } from './waterTypes';
-import { todayKarachi, formatRs } from './waterTypes';
+import { formatRs } from './waterTypes';
 import { SheetShell, Stepper } from './VehiclesPanel';
+import CustomerFormSheet from './CustomerFormSheet';
+import BulkCustomerSheet from './BulkCustomerSheet';
 
 interface Props {
   managerId: string;
   customers: WaterCustomer[];
+  onAddUser: (u: UserRecord) => void;
+  onBulkAddUsers: (u: UserRecord[]) => void;
+  onUpdateUser: (id: string, update: Partial<UserRecord>) => void;
+  /** M6a: open the add-customer form (from the dashboard quick action). */
+  requestAdd?: boolean;
+  onRequestAddConsumed?: () => void;
 }
 
-const inputCls =
-  'w-full min-h-[48px] px-4 rounded-2xl bg-[#f8fafc] dark:bg-white/[0.03] border border-[#e2e8f0] dark:border-white/10 text-base text-[#0f172a] dark:text-white placeholder-[#94a3b8] outline-none focus:border-[#3b82f6]';
-
-export default function CustomersPanel({ managerId, customers }: Props): React.JSX.Element {
+export default function CustomersPanel({ managerId, customers, onAddUser, onBulkAddUsers, onUpdateUser, requestAdd, onRequestAddConsumed }: Props): React.JSX.Element {
   const live = useMemo(() => customers.filter(c => c.status !== 'deleted'), [customers]);
   const [settings, setSettings] = useState<Map<string, WaterCustomerSettings>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -20,7 +26,17 @@ export default function CustomersPanel({ managerId, customers }: Props): React.J
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheetCustomer, setSheetCustomer] = useState<WaterCustomer | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+
+  // M6a: dashboard "Add customer" quick action opens the form.
+  useEffect(() => {
+    if (requestAdd) {
+      setAddOpen(true);
+      onRequestAddConsumed?.();
+    }
+  }, [requestAdd, onRequestAddConsumed]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,15 +93,25 @@ export default function CustomersPanel({ managerId, customers }: Props): React.J
           className="w-full min-h-[48px] pl-4 pr-3 rounded-2xl bg-white dark:bg-[#0f172a] border border-[#e2e8f0] dark:border-white/10 text-base text-[#0f172a] dark:text-white placeholder-[#94a3b8] outline-none focus:border-[#3b82f6]"
         />
       </div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-2 mb-3">
         <p className="text-sm font-bold text-[#64748b] dark:text-[#94a3b8]">
           {filtered.length} customer{filtered.length === 1 ? '' : 's'}
           {missingRate.length > 0 ? ` • ${missingRate.length} missing rate` : ''}
         </p>
-        <button type="button" onClick={() => setBulkOpen(true)}
-          className="min-h-[48px] px-4 rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white">
-          Bulk rate
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button type="button" onClick={() => setAddOpen(true)}
+            className="min-h-[48px] px-4 rounded-2xl bg-[#1d4ed8] text-white text-sm font-bold">
+            Add customer
+          </button>
+          <button type="button" onClick={() => setPasteOpen(true)}
+            className="min-h-[48px] px-4 rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white">
+            Bulk add
+          </button>
+          <button type="button" onClick={() => setBulkOpen(true)}
+            className="min-h-[48px] px-4 rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white">
+            Bulk rate
+          </button>
+        </div>
       </div>
 
       {loading && <p className="text-sm text-[#64748b] dark:text-[#94a3b8] text-center py-8">Loading…</p>}
@@ -123,7 +149,7 @@ export default function CustomersPanel({ managerId, customers }: Props): React.J
                   className="flex-1 min-w-0 text-left min-h-[48px]">
                   <div className="text-base font-black text-[#0f172a] dark:text-white truncate">{c.name}</div>
                   <div className="text-xs text-[#64748b] dark:text-[#94a3b8] font-semibold truncate">
-                    {c.area || 'No area'} • {s ? `${formatRs(s.rate_per_bottle)}/bottle • ${s.usual_bottles}/day` : 'No settings'}
+                    {c.area || 'No area'} • {s ? `${formatRs(s.rate_per_bottle)}/bottle • ${s.usual_bottles}/day • ${s.billing_mode === 'daily' ? 'Daily' : 'Monthly'}` : 'No settings'}
                   </div>
                 </button>
                 {noRate && (
@@ -138,12 +164,35 @@ export default function CustomersPanel({ managerId, customers }: Props): React.J
       )}
 
       {sheetCustomer && (
-        <CustomerSettingsSheet
+        <CustomerFormSheet
           managerId={managerId}
           customer={sheetCustomer}
-          existing={settings.get(sheetCustomer.id) || null}
+          existingSettings={settings.get(sheetCustomer.id) || null}
+          customers={live}
           onClose={() => setSheetCustomer(null)}
           onSaved={() => { setSheetCustomer(null); load(); }}
+          onAddUser={onAddUser}
+          onUpdateUser={onUpdateUser}
+        />
+      )}
+      {addOpen && (
+        <CustomerFormSheet
+          managerId={managerId}
+          customer={null}
+          customers={live}
+          onClose={() => setAddOpen(false)}
+          onSaved={() => { setAddOpen(false); load(); }}
+          onAddUser={onAddUser}
+          onUpdateUser={onUpdateUser}
+        />
+      )}
+      {pasteOpen && (
+        <BulkCustomerSheet
+          managerId={managerId}
+          customers={live}
+          onClose={() => setPasteOpen(false)}
+          onSaved={() => { setPasteOpen(false); load(); }}
+          onBulkAddUsers={onBulkAddUsers}
         />
       )}
       {bulkOpen && (
@@ -156,149 +205,6 @@ export default function CustomersPanel({ managerId, customers }: Props): React.J
         />
       )}
     </div>
-  );
-}
-
-/* ── Per-customer settings sheet ── */
-function CustomerSettingsSheet({ managerId, customer, existing, onClose, onSaved }: {
-  managerId: string;
-  customer: WaterCustomer;
-  existing: WaterCustomerSettings | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [rate, setRate] = useState(existing?.rate_per_bottle ?? 0);
-  const [usual, setUsual] = useState(existing?.usual_bottles ?? 1);
-  const [deposit, setDeposit] = useState(existing?.deposit_amount ?? 0);
-  const [opening, setOpening] = useState(existing?.opening_balance ?? 0);
-  const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [openingBottles, setOpeningBottles] = useState(0);
-  const openingRef = useRef<string | null>(null); // stable per attempt; reset after success
-  const [confirmOpening, setConfirmOpening] = useState(false);
-
-  const openingChanged = existing != null && existing.opening_balance !== opening;
-
-  const save = async () => {
-    if (busy) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const { error } = await supabase.from('water_customer_settings').upsert(
-        {
-          manager_id: managerId,
-          customer_id: customer.id,
-          rate_per_bottle: rate,
-          usual_bottles: usual,
-          deposit_amount: deposit,
-          opening_balance: opening,
-          notes: notes.trim() || null,
-        },
-        { onConflict: 'manager_id,customer_id' }
-      );
-      if (error) throw new Error(error.message);
-      onSaved();
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : 'Save failed.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const addOpeningBottles = async () => {
-    if (busy || openingBottles <= 0) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      if (!openingRef.current) openingRef.current = crypto.randomUUID();
-      const { error } = await supabase.from('water_deliveries').upsert({
-        manager_id: managerId,
-        customer_id: customer.id,
-        delivery_date: todayKarachi(),
-        bottles_delivered: openingBottles,
-        empties_returned: 0,
-        amount_collected: 0,
-        rate_per_bottle: null,
-        source: 'manager',
-        note: 'Opening balance',
-        client_ref: openingRef.current,
-      }, { onConflict: 'manager_id,client_ref', ignoreDuplicates: true });
-      if (error) throw new Error(error.message);
-      openingRef.current = null;
-      setConfirmOpening(false);
-      setOpeningBottles(0);
-      onSaved();
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : 'Could not add opening bottles.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <SheetShell title={customer.name} onClose={onClose} busy={busy}>
-      {msg && (
-        <div className="text-sm font-semibold px-3 py-2.5 rounded-2xl mb-3 bg-[rgba(239,68,68,0.12)] text-[#b91c1c] dark:text-[#f87171]">
-          {msg}
-        </div>
-      )}
-      <span className="block text-xs font-black uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8] mb-1.5">Rate per bottle (Rs.)</span>
-      <div className="mb-4"><Stepper value={rate} onChange={setRate} min={0} max={100000} label="Rate per bottle" /></div>
-      <span className="block text-xs font-black uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8] mb-1.5">Usual bottles / day</span>
-      <div className="mb-4"><Stepper value={usual} onChange={setUsual} min={0} max={1000} label="Usual bottles per day" /></div>
-      <span className="block text-xs font-black uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8] mb-1.5">Deposit (Rs.)</span>
-      <div className="mb-4"><Stepper value={deposit} onChange={setDeposit} min={0} max={10000000} label="Deposit amount" /></div>
-      <span className="block text-xs font-black uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8] mb-1.5">Opening balance (Rs.)</span>
-      <div className="mb-1"><Stepper value={opening} onChange={setOpening} min={0} max={10000000} label="Opening balance" /></div>
-      {openingChanged && (
-        <p className="text-xs font-bold text-[#92400e] dark:text-[#fbbf24] bg-[rgba(245,158,11,0.12)] rounded-2xl px-3 py-2 mb-3">
-          Changing this will change the customer&apos;s balance.
-        </p>
-      )}
-      <div className="mb-4" />
-      <label className="block text-xs font-black uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8] mb-1.5" htmlFor="ws-notes">
-        Notes
-      </label>
-      <input id="ws-notes" type="text" value={notes} onChange={e => setNotes(e.target.value)}
-        placeholder="Notes" className={`${inputCls} mb-4`} />
-      <button type="button" onClick={save} disabled={busy}
-        className="w-full min-h-[48px] rounded-2xl bg-[#1d4ed8] text-white text-base font-bold disabled:opacity-40 mb-5">
-        {busy ? 'Saving…' : 'Save'}
-      </button>
-
-      <div className="rounded-2xl bg-[#f8fafc] dark:bg-white/[0.03] border border-[#e2e8f0] dark:border-white/10 p-4">
-        <p className="text-sm font-black text-[#0f172a] dark:text-white mb-1">Opening bottles</p>
-        <p className="text-xs text-[#64748b] dark:text-[#94a3b8] mb-2">How many bottles does the customer already have?</p>
-        <div className="mb-2"><Stepper value={openingBottles} onChange={setOpeningBottles} min={0} max={10000} label="Opening bottles" /></div>
-        <button type="button" onClick={() => setConfirmOpening(true)} disabled={busy || openingBottles <= 0}
-          className="w-full min-h-[48px] rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-base font-bold text-[#0f172a] dark:text-white disabled:opacity-40">
-          Add
-        </button>
-      </div>
-
-      {confirmOpening && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Confirm opening bottles">
-          <div className="absolute inset-0 bg-black/70" onClick={() => !busy && setConfirmOpening(false)} />
-          <div className="relative z-10 w-full sm:max-w-sm bg-white dark:bg-[#0f172a] rounded-t-[2rem] sm:rounded-[2rem] border border-[#e2e8f0] dark:border-white/10 p-5 pb-6">
-            <p className="text-base font-bold text-[#0f172a] dark:text-white mb-5">
-              Add {openingBottles} opening {openingBottles === 1 ? 'bottle' : 'bottles'} for {customer.name}?
-              This entry cannot be edited later, it can only be voided.
-            </p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setConfirmOpening(false)} disabled={busy}
-                className="flex-1 min-h-[48px] rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-base font-bold text-[#0f172a] dark:text-white disabled:opacity-50">
-                Cancel
-              </button>
-              <button type="button" onClick={addOpeningBottles} disabled={busy}
-                className="flex-1 min-h-[48px] rounded-2xl bg-[#1d4ed8] text-white text-base font-bold disabled:opacity-50">
-                {busy ? 'Adding…' : 'Add'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </SheetShell>
   );
 }
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getBusinessType, normalizeBusinessType, isTabEnabled, getTerms,
-  HIDDEN_TABS, DEFAULT_BUSINESS_TYPE,
+  WATER_TABS, DEFAULT_BUSINESS_TYPE,
 } from '../utils/businessType';
 
 test('missing or unknown businessType falls back to isp', () => {
@@ -13,16 +13,18 @@ test('missing or unknown businessType falls back to isp', () => {
   assert.equal(normalizeBusinessType(null), DEFAULT_BUSINESS_TYPE);
 });
 
-test('isp hides no tabs (ISP app unchanged)', () => {
-  assert.deepEqual(HIDDEN_TABS.isp, []);
-  for (const t of ['dashboard', 'users', 'outage', 'equipment', 'expiries', 'dealer-sales', 'anything-new']) {
+test('isp keeps every tab visible (ISP app unchanged)', () => {
+  for (const t of ['dashboard', 'users', 'outage', 'equipment', 'expiries', 'dealer-sales', 'water-hub', 'anything-new']) {
     assert.equal(isTabEnabled('isp', t), true);
   }
 });
 
-test('water hides ISP-only tabs but keeps generic ones and unknown ones', () => {
-  for (const t of ['outage', 'equipment', 'expiries', 'dealer-sales']) assert.equal(isTabEnabled('water', t), false);
-  for (const t of ['dashboard', 'users', 'receipts', 'settings', 'complaints', 'anything-new']) assert.equal(isTabEnabled('water', t), true);
+test('water allowlist: only the 7 water-first tabs are enabled', () => {
+  assert.deepEqual(WATER_TABS, ['dashboard', 'water-hub', 'water-billing', 'expenses', 'water-reports', 'team', 'settings']);
+  for (const t of WATER_TABS) assert.equal(isTabEnabled('water', t), true);
+  for (const t of ['users', 'receipts', 'recoveries', 'outage', 'equipment', 'expiries', 'dealer-sales', 'reports', 'analytics', 'anything-new']) {
+    assert.equal(isTabEnabled('water', t), false);
+  }
 });
 
 test('isp terminology equals the labels used today', () => {

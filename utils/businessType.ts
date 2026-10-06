@@ -19,13 +19,18 @@ export const normalizeBusinessType = (value: unknown): BusinessType =>
 export const getBusinessType = (state?: Pick<AppState, 'businessType'> | null): BusinessType =>
   normalizeBusinessType(state?.businessType);
 
-// Tabs hidden for a business type (exclusion list: any tab not listed stays
-// visible, so a new/unknown tab can never disappear by accident).
-// ISP hides nothing => the ISP app is unchanged.
-export const HIDDEN_TABS: Record<BusinessType, string[]> = {
-  isp: [],
-  water: ['outage', 'equipment', 'expiries', 'dealer-sales'],
-};
+// Water-first shell (M6a): allowlist. A water account sees ONLY these tabs, in
+// this order. ISP keeps everything (unchanged), so a new/unknown tab can never
+// disappear for ISP by accident.
+export const WATER_TABS: string[] = [
+  'dashboard',
+  'water-hub',
+  'water-billing',
+  'expenses',
+  'water-reports',
+  'team',
+  'settings',
+];
 
 // Tabs that exist only for a business type (added by later phases).
 export const EXTRA_TABS: Record<BusinessType, string[]> = {
@@ -33,8 +38,11 @@ export const EXTRA_TABS: Record<BusinessType, string[]> = {
   water: ['water-hub'],
 };
 
-export const isTabEnabled = (type: BusinessType, tabId: string): boolean =>
-  !HIDDEN_TABS[normalizeBusinessType(type)].includes(tabId);
+export const isTabEnabled = (type: BusinessType, tabId: string): boolean => {
+  const t = normalizeBusinessType(type);
+  if (t === 'water') return WATER_TABS.includes(tabId);
+  return true; // ISP: every tab stays visible, exactly as before.
+};
 
 // Terminology per business type (UI labels only). ISP values are the labels
 // the app uses today.

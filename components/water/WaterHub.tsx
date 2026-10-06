@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import type { WaterCustomer } from './waterTypes';
+import type { UserRecord } from '../../types';
+import type { WaterCustomer, WaterNavRequest } from './waterTypes';
 import VehiclesPanel from './VehiclesPanel';
 import RoutesPanel from './RoutesPanel';
 import TodayPanel from './TodayPanel';
@@ -15,13 +16,36 @@ interface Props {
   managerId: string;
   customers: WaterCustomer[];
   businessName?: string;
+  /** M6a: navigation request from WaterDashboard quick actions / top dues. Consumed once. */
+  navRequest?: WaterNavRequest | null;
+  onNavRequestConsumed?: () => void;
+  onAddUser?: (u: UserRecord) => void;
+  onBulkAddUsers?: (u: UserRecord[]) => void;
+  onUpdateUser?: (id: string, update: Partial<UserRecord>) => void;
 }
 
-export default function WaterHub({ managerId, customers, businessName }: Props): React.JSX.Element {
+export default function WaterHub({ managerId, customers, businessName, navRequest, onNavRequestConsumed, onAddUser, onBulkAddUsers, onUpdateUser }: Props): React.JSX.Element {
   const [sub, setSub] = useState<SubTab>('today');
   const [inboxTick, setInboxTick] = useState(0);
   const [unhandled, setUnhandled] = useState(0);
+  const [focusCustomerId, setFocusCustomerId] = useState<string | null>(null);
+  const [requestAddCustomer, setRequestAddCustomer] = useState(false);
+  const [requestNewPlan, setRequestNewPlan] = useState(false);
+  const [requestAddOrder, setRequestAddOrder] = useState(false);
+  const [requestPay, setRequestPay] = useState(false);
   const liveCustomers = customers.filter(c => c.status !== 'deleted');
+
+  // M6a: consume one-shot navigation requests (dashboard quick actions / top dues).
+  useEffect(() => {
+    if (!navRequest) return;
+    setSub(navRequest.sub);
+    setFocusCustomerId(navRequest.customerId || null);
+    setRequestAddCustomer(navRequest.action === 'add-customer');
+    setRequestNewPlan(navRequest.action === 'new-plan');
+    setRequestAddOrder(navRequest.action === 'add-order');
+    setRequestPay(navRequest.action === 'record-payment' && !!navRequest.customerId);
+    onNavRequestConsumed?.();
+  }, [navRequest, onNavRequestConsumed]);
 
   const loadUnhandled = useCallback(async () => {
     try {
@@ -77,12 +101,45 @@ export default function WaterHub({ managerId, customers, businessName }: Props):
         {chip('ledger', 'Ledger')}
         {chip('inbox', 'Inbox', unhandled)}
       </div>
-      {sub === 'today' && <TodayPanel managerId={managerId} />}
-      {sub === 'orders' && <OrdersPanel managerId={managerId} customers={liveCustomers} />}
+      {sub === 'today' && (
+        <TodayPanel
+          managerId={managerId}
+          requestAdd={requestNewPlan}
+          onRequestAddConsumed={() => setRequestNewPlan(false)}
+        />
+      )}
+      {sub === 'orders' && (
+        <OrdersPanel
+          managerId={managerId}
+          customers={liveCustomers}
+          requestAdd={requestAddOrder}
+          onRequestAddConsumed={() => setRequestAddOrder(false)}
+        />
+      )}
       {sub === 'routes' && <RoutesPanel managerId={managerId} customers={liveCustomers} />}
       {sub === 'vehicles' && <VehiclesPanel managerId={managerId} />}
-      {sub === 'customers' && <CustomersPanel managerId={managerId} customers={liveCustomers} />}
-      {sub === 'ledger' && <LedgerPanel managerId={managerId} customers={liveCustomers} businessName={businessName} />}
+      {sub === 'customers' && (
+        <CustomersPanel
+          managerId={managerId}
+          customers={liveCustomers}
+          onAddUser={onAddUser}
+          onBulkAddUsers={onBulkAddUsers}
+          onUpdateUser={onUpdateUser}
+          requestAdd={requestAddCustomer}
+          onRequestAddConsumed={() => setRequestAddCustomer(false)}
+        />
+      )}
+      {sub === 'ledger' && (
+        <LedgerPanel
+          managerId={managerId}
+          customers={liveCustomers}
+          businessName={businessName}
+          focusCustomerId={focusCustomerId}
+          onFocusConsumed={() => setFocusCustomerId(null)}
+          requestPay={requestPay}
+          onRequestPayConsumed={() => setRequestPay(false)}
+        />
+      )}
       {sub === 'inbox' && (
         <InboxPanel managerId={managerId} customers={liveCustomers} onUpdate={() => setInboxTick(t => t + 1)} />
       )}

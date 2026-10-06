@@ -8,12 +8,15 @@ import PrintRouteSheet from './PrintRouteSheet';
 
 interface Props {
   managerId: string;
+  /** M6a: open the Add-plan sheet (dashboard quick action). */
+  requestAdd?: boolean;
+  onRequestAddConsumed?: () => void;
 }
 
 const inputCls =
   'w-full min-h-[48px] px-4 rounded-2xl bg-[#f8fafc] dark:bg-white/[0.03] border border-[#e2e8f0] dark:border-white/10 text-base text-[#0f172a] dark:text-white placeholder-[#94a3b8] outline-none focus:border-[#3b82f6]';
 
-export default function TodayPanel({ managerId }: Props): React.JSX.Element {
+export default function TodayPanel({ managerId, requestAdd, onRequestAddConsumed }: Props): React.JSX.Element {
   const [dateIso, setDateIso] = useState(() => toISODate(new Date()));
   const [plans, setPlans] = useState<WaterDailyPlan[]>([]);
   const [routes, setRoutes] = useState<WaterRoute[]>([]);
@@ -24,6 +27,14 @@ export default function TodayPanel({ managerId }: Props): React.JSX.Element {
   const [closePlan, setClosePlan] = useState<WaterDailyPlan | null>(null);
   const [entryPlan, setEntryPlan] = useState<WaterDailyPlan | null>(null);
   const [printPlanId, setPrintPlanId] = useState<string | null>(null);
+
+  // M6a: dashboard "New plan" quick action opens the Add-plan sheet.
+  useEffect(() => {
+    if (requestAdd) {
+      setShowAdd(true);
+      onRequestAddConsumed?.();
+    }
+  }, [requestAdd, onRequestAddConsumed]);
 
   const load = useCallback(async (iso: string) => {
     setLoading(true);

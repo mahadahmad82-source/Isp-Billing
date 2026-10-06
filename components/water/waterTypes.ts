@@ -75,7 +75,28 @@ export interface WaterCustomerSettings {
   usual_bottles: number;
   deposit_amount: number;
   opening_balance: number; /* purana udhaar jab supplier ne app shuru ki (positive = customer ne dena hai) */
+  billing_mode: 'daily' | 'monthly'; /* daily = har delivery par paisa/receipt, monthly = mahine ka bill */
   notes: string | null;
+}
+
+/* ── M6a: water-first navigation ── */
+
+/** WaterHub sub-tabs (mirrors WaterHub's internal SubTab). */
+export type WaterSubTab = 'today' | 'orders' | 'routes' | 'vehicles' | 'customers' | 'ledger' | 'inbox';
+
+/** One-shot form actions a WaterNavRequest can trigger after switching sub-tab. */
+export type WaterNavAction = 'add-customer' | 'new-plan' | 'add-order' | 'record-payment';
+
+/**
+ * A navigation request into WaterHub (e.g. from WaterDashboard quick actions).
+ * Passed as a prop; WaterHub consumes it and notifies the parent.
+ */
+export interface WaterNavRequest {
+  sub: WaterSubTab;
+  /** Open this customer's ledger sheet after switching to the ledger sub-tab. */
+  customerId?: string;
+  /** Extra action once the sub-tab is open (e.g. open the add-customer form). */
+  action?: WaterNavAction;
 }
 
 /* ── W3 interfaces ── */
