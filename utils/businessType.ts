@@ -23,10 +23,14 @@ export const getBusinessType = (state?: Pick<AppState, 'businessType'> | null): 
 // this order. ISP keeps everything (unchanged), so a new/unknown tab can never
 // disappear for ISP by accident.
 export const WATER_TABS: string[] = [
+  // R1 redesign (2026-10-06): 5-tab IA. Dashboard, Deliveries, Customers,
+  // Billing, More. The remaining ids stay renderable (reachable from More)
+  // but are no longer top-level tabs.
   'dashboard',
-  'water-hub',
-  'water-ledger',
+  'water-hub',       // Deliveries
+  'water-customers', // Customers (+Ledger merged in)
   'water-billing',
+  'water-more',      // More: expenses/reports/analytics/routes/vehicles/riders/settings
   'expenses',
   'water-reports',
   'water-analytics',

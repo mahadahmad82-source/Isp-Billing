@@ -100,6 +100,28 @@ export interface WaterNavRequest {
   action?: WaterNavAction;
 }
 
+/**
+ * R1 redesign (2026-10-06): dashboard navigation target for the 5-tab water IA.
+ * The dashboard tells App which tab to open plus that tab's one-shot request.
+ */
+export interface DashboardNavTarget {
+  tab: 'dashboard' | 'water-hub' | 'water-customers' | 'water-billing' | 'water-more';
+  /** When tab === 'water-hub' (Deliveries): sub-section + one-shot action. */
+  hubSub?: 'today' | 'orders' | 'inbox';
+  hubAction?: WaterNavAction;
+  /** When tab === 'water-customers'. */
+  customersView?: 'directory' | 'dues';
+  customerId?: string;
+  customersAction?: 'add-customer' | 'record-payment';
+}
+
+/** R1: one-shot request into the Customers tab (directory | dues). */
+export interface WaterCustomerNavRequest {
+  view?: 'directory' | 'dues';
+  customerId?: string;
+  action?: 'add-customer' | 'record-payment';
+}
+
 /* ── W3 interfaces ── */
 
 export interface WaterOrder {

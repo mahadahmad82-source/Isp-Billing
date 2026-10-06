@@ -53,14 +53,15 @@ import ContactPage from './components/ContactPage';
 import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import WaterHub from './components/water/WaterHub';
-import LedgerPanel from './components/water/LedgerPanel';
+import WaterCustomersTab from './components/water/WaterCustomersTab';
+import WaterMoreTab from './components/water/WaterMoreTab';
 import WaterAnalytics from './components/water/WaterAnalytics';
 import WaterDashboard from './components/water/WaterDashboard';
 import WaterBillingTab from './components/water/WaterBillingTab';
 import WaterReports from './components/water/WaterReports';
 import WaterRiderGate from './components/water/WaterRiderGate';
 import WaterRiderHome from './components/water/WaterRiderHome';
-import type { WaterNavRequest } from './components/water/waterTypes';
+import type { WaterNavRequest, WaterCustomerNavRequest, DashboardNavTarget } from './components/water/waterTypes';
 import { WATER_TABS } from './utils/businessType';
 import ErrorBoundary from './components/ErrorBoundary';
 import TourGuide, { WELCOME_STEPS, TAB_STEPS } from './components/TourGuide';
@@ -166,7 +167,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-ledger','water-billing','water-reports','water-analytics'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-more','water-reports','water-analytics'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -175,6 +176,19 @@ const App: React.FC = () => {
   const [tabLoading, setTabLoading] = useState(false);
   // M6a: one-shot navigation request from WaterDashboard → WaterHub (quick actions / top dues).
   const [waterNavRequest, setWaterNavRequest] = useState<WaterNavRequest | null>(null);
+  // R1: one-shot navigation request from WaterDashboard → Customers tab.
+  const [customerNavRequest, setCustomerNavRequest] = useState<WaterCustomerNavRequest | null>(null);
+
+  // R1: dashboard navigation for the 5-tab water IA.
+  const handleDashboardNavigate = (target: DashboardNavTarget) => {
+    if (target.tab === 'water-hub' && (target.hubSub || target.hubAction)) {
+      setWaterNavRequest({ sub: target.hubSub || 'today', action: target.hubAction });
+    }
+    if (target.tab === 'water-customers' && (target.customersView || target.customerId || target.customersAction)) {
+      setCustomerNavRequest({ view: target.customersView, customerId: target.customerId, action: target.customersAction });
+    }
+    setActiveTab(target.tab);
+  };
 
   // Sync URL hash with activeTab — enables right-click "Open in new tab"
   React.useEffect(() => {
@@ -2190,23 +2204,27 @@ const App: React.FC = () => {
               managerId={activeManager || state.currentManager || ''}
             />
           )}
-          {!tabLoading && activeTab === 'water-hub' && <WaterHub managerId={activeManager!} customers={state.users} businessName={currentSettings.businessName}
-            navRequest={waterNavRequest} onNavRequestConsumed={() => setWaterNavRequest(null)}
-            onAddUser={handleAddUser} onBulkAddUsers={handleBulkAddUsers} onUpdateUser={handleWaterUpdateUser} />}
-          {/* M6c: Ledger as a top-level tab (manager only). Same component as the hub's Ledger sub-tab. */}
-          {!tabLoading && activeTab === 'water-ledger' && businessType === 'water' && userRole !== 'sub-manager' && (
-            <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
-              <h1 className="text-xl font-black text-[#0f172a] dark:text-white mb-4">Ledger</h1>
-              <LedgerPanel managerId={activeManager!} customers={state.users} businessName={currentSettings.businessName} />
-            </div>
+          {!tabLoading && activeTab === 'water-hub' && <WaterHub managerId={activeManager!} customers={state.users}
+            navRequest={waterNavRequest} onNavRequestConsumed={() => setWaterNavRequest(null)} />}
+          {/* R1: Customers tab — Directory + Dues (ledger merged in). Replaces the old Ledger tab. */}
+          {!tabLoading && activeTab === 'water-customers' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <WaterCustomersTab managerId={activeManager!} customers={state.users} businessName={currentSettings.businessName}
+              onAddUser={handleAddUser} onBulkAddUsers={handleBulkAddUsers} onUpdateUser={handleWaterUpdateUser}
+              navRequest={customerNavRequest} onNavRequestConsumed={() => setCustomerNavRequest(null)} />
           )}
+          {/* R1: More tab — expenses/reports/analytics/routes/vehicles/riders/settings. */}
+          {!tabLoading && activeTab === 'water-more' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <WaterMoreTab managerId={activeManager!} customers={state.users} onNavigateTab={(t) => setActiveTab(t)} />
+          )}
+          {/* R1: old water-ledger tab removed (merged into Customers). Stale #water-ledger hashes fall back to dashboard via validTabs. */}
           {/* M6c: Analytics tab (manager only). */}
           {!tabLoading && activeTab === 'water-analytics' && businessType === 'water' && userRole !== 'sub-manager' && <WaterAnalytics managerId={activeManager || ''}
             customers={state.users} expenses={state.businessExpenses || []} />}
           {!tabLoading && activeTab === 'dashboard' && businessType === 'water' && <WaterDashboard managerId={activeManager || ''}
             customers={state.users}
             businessName={currentSettings.businessName}
-            onNavigate={(req) => { setWaterNavRequest(req); setActiveTab('water-hub'); }} />}
+            expenses={state.businessExpenses || []}
+            onNavigate={handleDashboardNavigate} />}
           {!tabLoading && activeTab === 'water-billing' && businessType === 'water' && userRole !== 'sub-manager' && <WaterBillingTab managerId={activeManager || ''}
             customers={state.users} settings={currentSettings} />}
           {!tabLoading && activeTab === 'water-reports' && businessType === 'water' && userRole !== 'sub-manager' && <WaterReports managerId={activeManager || ''}

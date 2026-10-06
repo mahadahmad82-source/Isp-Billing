@@ -1,49 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import type { UserRecord } from '../../types';
 import type { WaterCustomer, WaterNavRequest } from './waterTypes';
-import VehiclesPanel from './VehiclesPanel';
-import RoutesPanel from './RoutesPanel';
 import TodayPanel from './TodayPanel';
-import CustomersPanel from './CustomersPanel';
 import OrdersPanel from './OrdersPanel';
 import InboxPanel from './InboxPanel';
-import LedgerPanel from './LedgerPanel';
 
-type SubTab = 'today' | 'orders' | 'routes' | 'vehicles' | 'customers' | 'ledger' | 'inbox';
+// R1 redesign: Deliveries tab — Today, Orders, Inbox only.
+// Customers/Ledger -> Customers tab; Routes/Vehicles -> More tab.
+type SubTab = 'today' | 'orders' | 'inbox';
 
 interface Props {
   managerId: string;
   customers: WaterCustomer[];
-  businessName?: string;
   /** M6a: navigation request from WaterDashboard quick actions / top dues. Consumed once. */
   navRequest?: WaterNavRequest | null;
   onNavRequestConsumed?: () => void;
-  onAddUser?: (u: UserRecord) => void;
-  onBulkAddUsers?: (u: UserRecord[]) => void;
-  onUpdateUser?: (id: string, update: Partial<UserRecord>) => void;
 }
 
-export default function WaterHub({ managerId, customers, businessName, navRequest, onNavRequestConsumed, onAddUser, onBulkAddUsers, onUpdateUser }: Props): React.JSX.Element {
+export default function WaterHub({ managerId, customers, navRequest, onNavRequestConsumed }: Props): React.JSX.Element {
   const [sub, setSub] = useState<SubTab>('today');
   const [inboxTick, setInboxTick] = useState(0);
   const [unhandled, setUnhandled] = useState(0);
-  const [focusCustomerId, setFocusCustomerId] = useState<string | null>(null);
-  const [requestAddCustomer, setRequestAddCustomer] = useState(false);
   const [requestNewPlan, setRequestNewPlan] = useState(false);
   const [requestAddOrder, setRequestAddOrder] = useState(false);
-  const [requestPay, setRequestPay] = useState(false);
   const liveCustomers = customers.filter(c => c.status !== 'deleted');
 
-  // M6a: consume one-shot navigation requests (dashboard quick actions / top dues).
+  // M6a: consume one-shot navigation requests (dashboard quick actions).
+  // R1: only today/orders/inbox subs remain; other requests are ignored safely.
   useEffect(() => {
     if (!navRequest) return;
-    setSub(navRequest.sub);
-    setFocusCustomerId(navRequest.customerId || null);
-    setRequestAddCustomer(navRequest.action === 'add-customer');
+    if (navRequest.sub === 'today' || navRequest.sub === 'orders' || navRequest.sub === 'inbox') {
+      setSub(navRequest.sub);
+    }
     setRequestNewPlan(navRequest.action === 'new-plan');
     setRequestAddOrder(navRequest.action === 'add-order');
-    setRequestPay(navRequest.action === 'record-payment' && !!navRequest.customerId);
     onNavRequestConsumed?.();
   }, [navRequest, onNavRequestConsumed]);
 
@@ -87,18 +77,14 @@ export default function WaterHub({ managerId, customers, businessName, navReques
   };
 
   return (
-    <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+    <div className="px-4 py-4 md:px-6 max-w-6xl mx-auto">
       <div className="mb-4">
-        <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Water</h1>
-        <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">Daily delivery, bottles and cash</p>
+        <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Deliveries</h1>
+        <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">Today's plans, orders and inbox</p>
       </div>
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0" role="tablist" aria-label="Water sections">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0" role="tablist" aria-label="Delivery sections">
         {chip('today', 'Today')}
         {chip('orders', 'Orders')}
-        {chip('routes', 'Routes')}
-        {chip('vehicles', 'Vehicles')}
-        {chip('customers', 'Customers')}
-        {chip('ledger', 'Ledger')}
         {chip('inbox', 'Inbox', unhandled)}
       </div>
       {sub === 'today' && (
@@ -114,30 +100,6 @@ export default function WaterHub({ managerId, customers, businessName, navReques
           customers={liveCustomers}
           requestAdd={requestAddOrder}
           onRequestAddConsumed={() => setRequestAddOrder(false)}
-        />
-      )}
-      {sub === 'routes' && <RoutesPanel managerId={managerId} customers={liveCustomers} />}
-      {sub === 'vehicles' && <VehiclesPanel managerId={managerId} />}
-      {sub === 'customers' && (
-        <CustomersPanel
-          managerId={managerId}
-          customers={liveCustomers}
-          onAddUser={onAddUser}
-          onBulkAddUsers={onBulkAddUsers}
-          onUpdateUser={onUpdateUser}
-          requestAdd={requestAddCustomer}
-          onRequestAddConsumed={() => setRequestAddCustomer(false)}
-        />
-      )}
-      {sub === 'ledger' && (
-        <LedgerPanel
-          managerId={managerId}
-          customers={liveCustomers}
-          businessName={businessName}
-          focusCustomerId={focusCustomerId}
-          onFocusConsumed={() => setFocusCustomerId(null)}
-          requestPay={requestPay}
-          onRequestPayConsumed={() => setRequestPay(false)}
         />
       )}
       {sub === 'inbox' && (
