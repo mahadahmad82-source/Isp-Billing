@@ -191,7 +191,7 @@ export default function BulkEntry({ managerId, plan, onClose, onDone }: Props): 
 
   return (
     <div className="fixed inset-0 z-50 bg-[#f1f5f9] dark:bg-[#020617]" role="dialog" aria-modal="true" aria-label="Enter deliveries">
-      <div className="h-full flex flex-col max-w-3xl mx-auto">
+      <div className="h-full flex flex-col max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-[#0f172a] border-b border-[#e2e8f0] dark:border-white/10">
           <button type="button" onClick={onClose} aria-label="Close delivery entry"

@@ -146,7 +146,7 @@ export default function WaterReports({ managerId, expenses }: Props): React.JSX.
   );
 
   return (
-    <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+    <div className="px-4 py-4 md:px-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Reports</h1>
         <button type="button" onClick={downloadCsv} disabled={!summary}

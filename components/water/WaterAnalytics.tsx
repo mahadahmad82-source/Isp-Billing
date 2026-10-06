@@ -137,7 +137,7 @@ export default function WaterAnalytics({ managerId, customers, expenses }: Props
   const secTitleTight = 'text-[11px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8]';
 
   return (
-    <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+    <div className="px-4 py-4 md:px-6 max-w-6xl mx-auto">
       <h1 className="text-xl font-black text-[#0f172a] dark:text-white mb-4">Analytics</h1>
 
       {error && (

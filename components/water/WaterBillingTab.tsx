@@ -15,7 +15,7 @@ export default function WaterBillingTab({ managerId, customers, settings }: Prop
   const [tab, setTab] = useState<'receipts' | 'bills'>('receipts');
 
   return (
-    <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+    <div className="px-4 py-4 md:px-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Billing</h1>
         <div className="flex rounded-2xl overflow-hidden border border-[#e2e8f0] dark:border-white/10" role="tablist" aria-label="Billing views">
