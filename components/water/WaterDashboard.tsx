@@ -57,6 +57,7 @@ const waLink = (phone: string, name: string, due: number, business: string): str
 export default function WaterDashboard({ managerId, customers, businessName, expenses, onNavigate }: Props): React.JSX.Element {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [days30, setDays30] = useState<DayRow[]>([]);
+  const [monthCollected, setMonthCollected] = useState(0);
   const [ridersToday, setRidersToday] = useState<RiderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,16 +67,33 @@ export default function WaterDashboard({ managerId, customers, businessName, exp
     setError(null);
     try {
       const today = todayKarachi();
-      const [sRes, r30Res, rTodayRes] = await Promise.all([
+      const from30 = addDays(today, -29);
+      const monthStart = `${today.slice(0, 7)}-01`;
+      const [sRes, r30Res, rTodayRes, rMonthRes, payRes] = await Promise.all([
         supabase.rpc('water_dashboard_summary', { p_date: today }),
-        supabase.rpc('water_report_summary', { p_from: addDays(today, -29), p_to: today }),
+        supabase.rpc('water_report_summary', { p_from: from30, p_to: today }),
         supabase.rpc('water_report_summary', { p_from: today, p_to: today }),
+        supabase.rpc('water_report_summary', { p_from: monthStart, p_to: today }),
+        supabase.from('water_payments').select('pay_date, amount').is('voided_at', null).gte('pay_date', from30).lte('pay_date', today),
       ]);
       if (sRes.error) throw new Error(sRes.error.message);
       if (r30Res.error) throw new Error(r30Res.error.message);
       if (rTodayRes.error) throw new Error(rTodayRes.error.message);
+      if (rMonthRes.error) throw new Error(rMonthRes.error.message);
+      if (payRes.error) throw new Error(payRes.error.message);
       setSummary(sRes.data as DashboardSummary);
-      setDays30(((r30Res.data as { by_day?: DayRow[] } | null)?.by_day) || []);
+      // by_day.collected is cash taken on delivery only; add ledger payments per day so the
+      // chart matches Reports (Collected = on-delivery + payments).
+      const byDate = new Map<string, DayRow>();
+      (((r30Res.data as { by_day?: DayRow[] } | null)?.by_day) || []).forEach(d => byDate.set(d.date, { ...d }));
+      ((payRes.data as { pay_date: string; amount: number }[] | null) || []).forEach(pm => {
+        const row = byDate.get(pm.pay_date) || { date: pm.pay_date, bottles: 0, billed: 0, collected: 0 };
+        row.collected = num(row.collected) + num(pm.amount);
+        byDate.set(pm.pay_date, row);
+      });
+      setDays30(Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)));
+      const mt = rMonthRes.data as { totals?: { collected_on_delivery?: number }; payments_received?: number } | null;
+      setMonthCollected(num(mt?.totals?.collected_on_delivery) + num(mt?.payments_received));
       setRidersToday(((rTodayRes.data as { by_rider?: RiderRow[] } | null)?.by_rider) || []);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not load dashboard.');
@@ -100,9 +118,6 @@ export default function WaterDashboard({ managerId, customers, businessName, exp
 
   const t = summary?.today;
   const monthKey = todayKarachi().slice(0, 7);
-  const monthCollected = useMemo(
-    () => days30.filter(d => d.date.startsWith(monthKey)).reduce((a, d) => a + num(d.collected), 0),
-    [days30, monthKey]);
   const monthExpenses = useMemo(
     () => expenses.filter(e => (e.date || '').startsWith(monthKey)).reduce((a, e) => a + num(e.amount), 0),
     [expenses, monthKey]);
