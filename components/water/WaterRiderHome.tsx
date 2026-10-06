@@ -123,7 +123,7 @@ export default function WaterRiderHome({ riderUsername, managerUsername, onLogou
   const closeDay = async () => {
     if (busy || !planId) return;
     if (pending > 0) {
-      setMsg(`Pehle pending sync mukammal karein (${pending} entries baqi hain).`);
+      setMsg(`Finish syncing first (${pending} entr${pending === 1 ? 'y is' : 'ies are'} still pending).`);
       flush();
       return;
     }
@@ -150,7 +150,7 @@ export default function WaterRiderHome({ riderUsername, managerUsername, onLogou
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-[#f4f7fc] dark:bg-[#0b0f1a]">
         <p className="text-base font-bold text-[#0f172a] dark:text-white mb-2">Session issue</p>
-        <p className="text-sm text-[#64748b] dark:text-[#94a3b8] mb-4">Apna manager link nahi mila. Dobara login karein.</p>
+        <p className="text-sm text-[#64748b] dark:text-[#94a3b8] mb-4">Your manager link was not found. Please log in again.</p>
         <button type="button" onClick={onLogout} className="min-h-[52px] px-8 rounded-2xl bg-[#1d4ed8] text-white text-base font-bold">Log out</button>
       </div>
     );
@@ -206,7 +206,7 @@ export default function WaterRiderHome({ riderUsername, managerUsername, onLogou
         {loading && <p className="text-sm text-[#94a3b8] text-center py-8">Loading plans…</p>}
 
         {!loading && plans.length === 0 && (
-          <p className="text-sm text-[#94a3b8] text-center py-8">Aaj ke liye koi plan nahi hai.</p>
+          <p className="text-sm text-[#94a3b8] text-center py-8">No plan for today.</p>
         )}
 
         {!loading && plans.length > 1 && (
