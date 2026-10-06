@@ -90,7 +90,7 @@ export default function RiderStopCard({
 
   const voidEntry = async () => {
     if (busy || !reason.trim()) {
-      if (!reason.trim()) setMsg({ ok: false, text: 'Void reason likhna zaroori hai.' });
+      if (!reason.trim()) setMsg({ ok: false, text: 'A void reason is required.' });
       return;
     }
     setBusy(true);
@@ -194,7 +194,7 @@ export default function RiderStopCard({
                 <button type="button" onClick={voidEntry} disabled={busy}
                   className="flex-1 min-h-[48px] rounded-2xl bg-[#dc2626] text-white text-sm font-bold disabled:opacity-50">{busy ? 'Voiding…' : 'Confirm void'}</button>
               </div>
-              <p className="text-[11px] text-[#94a3b8] mt-2">Sirf aaj ki apni entry void ho sakti hai.</p>
+              <p className="text-[11px] text-[#94a3b8] mt-2">You can only void your own entry from today.</p>
             </div>
           )}
         </>
