@@ -342,10 +342,13 @@ export interface BusinessExpense {
   id: string;
   title: string;
   amount: number;
-  category: 'salary' | 'equipment' | 'rent' | 'utilities' | 'marketing' | 'other';
+  // M6b: widened to string so water categories fit; ISP keeps its own list in UI.
+  category: string;
   date: string;             // ISO date
   notes?: string;
   createdAt: string;
+  /** M6b: optional vehicle link (water only); additive, sync merge untouched. */
+  vehicleId?: string;
 }
 
 // ─── ACCESS RIGHTS MATRIX (Feature A — Granular Access Rights + Area Lock) ───
