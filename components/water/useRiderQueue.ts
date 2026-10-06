@@ -67,8 +67,11 @@ export function useRiderQueue(riderUsername: string) {
         // Only after a confirmed save.
         const rest = read().filter(x => x.client_ref !== e.client_ref);
         persist(rest);
-      } catch {
-        break; // stop at first failure; retry later
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String((err as { message?: string })?.message || err);
+        const offline = !navigator.onLine || /failed to fetch|networkerror|network request failed/i.test(msg);
+        if (offline) break; // network is down — stop, retry later
+        continue; // server rejected this one entry: keep it, but don't block the rest of the queue
       }
     }
   }, [read, persist]);
