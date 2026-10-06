@@ -65,6 +65,7 @@ export interface WaterDelivery {
   created_at: string;
   voided_at: string | null;
   void_reason: string | null;
+  receipt_no: string | null; /* M6b: 'R-000123', DB assigns on insert */
 }
 
 export interface WaterCustomerSettings {
@@ -122,6 +123,28 @@ export interface WaterPayment {
   method: 'cash' | 'jazzcash' | 'easypaisa' | 'bank' | 'other';
   note: string | null;
   client_ref: string | null;
+  created_at: string;
+  voided_at: string | null;
+  void_reason: string | null;
+  receipt_no: string | null; /* M6b: 'R-000123', DB assigns on insert */
+}
+
+/* ── M6b: monthly bills (read-only client table; created only via RPC) ── */
+
+export interface WaterBill {
+  id: string;
+  manager_id: string;
+  bill_no: string; /* 'B-000045' */
+  customer_id: string;
+  period_from: string; /* 'YYYY-MM-DD' */
+  period_to: string; /* 'YYYY-MM-DD' */
+  opening_due: number;
+  bottles_delivered: number;
+  empties_returned: number;
+  billed: number;
+  paid: number;
+  closing_due: number;
+  bottles_out: number;
   created_at: string;
   voided_at: string | null;
   void_reason: string | null;

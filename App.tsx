@@ -54,7 +54,8 @@ import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import WaterHub from './components/water/WaterHub';
 import WaterDashboard from './components/water/WaterDashboard';
-import WaterPlaceholder from './components/water/WaterPlaceholder';
+import WaterBillingTab from './components/water/WaterBillingTab';
+import WaterReports from './components/water/WaterReports';
 import type { WaterNavRequest } from './components/water/waterTypes';
 import { WATER_TABS } from './utils/businessType';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -2176,8 +2177,10 @@ const App: React.FC = () => {
             customers={state.users}
             businessName={currentSettings.businessName}
             onNavigate={(req) => { setWaterNavRequest(req); setActiveTab('water-hub'); }} />}
-          {!tabLoading && activeTab === 'water-billing' && businessType === 'water' && <WaterPlaceholder title="Billing" text="Generate bills, void bills, and manage billing — coming in M6b." />}
-          {!tabLoading && activeTab === 'water-reports' && businessType === 'water' && <WaterPlaceholder title="Reports" text="Deliveries, payments, and expense reports — coming in M6b." />}
+          {!tabLoading && activeTab === 'water-billing' && businessType === 'water' && userRole !== 'sub-manager' && <WaterBillingTab managerId={activeManager || ''}
+            customers={state.users} settings={currentSettings} />}
+          {!tabLoading && activeTab === 'water-reports' && businessType === 'water' && userRole !== 'sub-manager' && <WaterReports managerId={activeManager || ''}
+            expenses={state.businessExpenses || []} />}
           {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} managerId={activeManager || state.currentManager || ''} subManagers={state.subManagers || []} />}
           {!tabLoading && activeTab === 'receipts' && <ReceiptGenerator key={`receipts-${receiptMountKey}`} users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} managerId={activeManager || 'mahadnet'} />}
           {!tabLoading && activeTab === 'recoveries' && (
@@ -2330,6 +2333,8 @@ const App: React.FC = () => {
                   saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
                 });
               }}
+              businessType={businessType}
+              managerId={activeManager || ''}
             />
           )}
           {!tabLoading && activeTab === 'analytics' && userRole !== 'sub-manager' && (
