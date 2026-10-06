@@ -19,8 +19,8 @@ test('isp keeps every tab visible (ISP app unchanged)', () => {
   }
 });
 
-test('water allowlist: only the 7 water-first tabs are enabled', () => {
-  assert.deepEqual(WATER_TABS, ['dashboard', 'water-hub', 'water-billing', 'expenses', 'water-reports', 'team', 'settings']);
+test('water allowlist: only the 9 water-first tabs are enabled', () => {
+  assert.deepEqual(WATER_TABS, ['dashboard', 'water-hub', 'water-ledger', 'water-billing', 'expenses', 'water-reports', 'water-analytics', 'team', 'settings']);
   for (const t of WATER_TABS) assert.equal(isTabEnabled('water', t), true);
   for (const t of ['users', 'receipts', 'recoveries', 'outage', 'equipment', 'expiries', 'dealer-sales', 'reports', 'analytics', 'anything-new']) {
     assert.equal(isTabEnabled('water', t), false);

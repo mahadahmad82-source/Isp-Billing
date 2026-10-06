@@ -25,9 +25,11 @@ export const getBusinessType = (state?: Pick<AppState, 'businessType'> | null): 
 export const WATER_TABS: string[] = [
   'dashboard',
   'water-hub',
+  'water-ledger',
   'water-billing',
   'expenses',
   'water-reports',
+  'water-analytics',
   'team',
   'settings',
 ];

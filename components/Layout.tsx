@@ -270,19 +270,28 @@ const Layout: React.FC<LayoutProps> = ({
     const order: { id: string; label: string }[] = [
       { id: 'dashboard', label: 'Dashboard' },
       { id: 'water-hub', label: 'Water' },
+      { id: 'water-ledger', label: 'Ledger' },
       { id: 'water-billing', label: 'Billing' },
       { id: 'expenses', label: 'Expenses' },
       { id: 'water-reports', label: 'Reports' },
+      { id: 'water-analytics', label: 'Analytics' },
       { id: 'team', label: 'Riders' },
       { id: 'settings', label: 'Settings' },
     ];
+    // M6c: ledger gets a book icon; analytics reuses the chart icon.
+    const ledgerIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>;
+    const iconFor = (id: string) => {
+      if (id === 'water-billing') return receiptIcon;
+      if (id === 'water-ledger') return ledgerIcon;
+      return chartIcon;
+    };
     tabs = order.map(o => {
       const base = byId.get(o.id);
       if (base) return { ...base, label: o.label };
       return {
         id: o.id,
         label: o.label,
-        icon: (o.id === 'water-billing' ? receiptIcon : chartIcon) || fallbackIcon,
+        icon: iconFor(o.id) || fallbackIcon,
       };
     });
   }
