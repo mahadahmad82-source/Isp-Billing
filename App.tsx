@@ -53,9 +53,13 @@ import ContactPage from './components/ContactPage';
 import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import WaterHub from './components/water/WaterHub';
+import LedgerPanel from './components/water/LedgerPanel';
+import WaterAnalytics from './components/water/WaterAnalytics';
 import WaterDashboard from './components/water/WaterDashboard';
 import WaterBillingTab from './components/water/WaterBillingTab';
 import WaterReports from './components/water/WaterReports';
+import WaterRiderGate from './components/water/WaterRiderGate';
+import WaterRiderHome from './components/water/WaterRiderHome';
 import type { WaterNavRequest } from './components/water/waterTypes';
 import { WATER_TABS } from './utils/businessType';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -162,7 +166,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-billing','water-reports'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-ledger','water-billing','water-reports','water-analytics'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -350,9 +354,10 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const businessType = useBusinessType(activeManager, userRole); // 'isp' unless admin set another type
   // M6a: water managers with a stale cached ISP-only tab land on the water dashboard.
+  // M6c: explicitly manager-only — riders never hit this (their type resolves to 'isp' anyway).
   useEffect(() => {
-    if (businessType === 'water' && !WATER_TABS.includes(activeTab)) setActiveTab('dashboard');
-  }, [businessType, activeTab]);
+    if (userRole === 'manager' && businessType === 'water' && !WATER_TABS.includes(activeTab)) setActiveTab('dashboard');
+  }, [userRole, businessType, activeTab]);
   const typeGate = useBusinessTypeGate(activeManager, userRole); // M5: incomplete signup => pick type before the app
   const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, {
     dutyStatus: 'online' | 'offline';
@@ -1871,12 +1876,16 @@ const App: React.FC = () => {
       ? filteredUsers.filter(u => agentAreas.includes(u.area || ''))
       : filteredUsers;
     const activeAccount = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
+    // M6c: water riders — the manager's username (for RLS-scoped delivery payloads).
+    const riderManagerUsername = activeAccount?.role === 'sub-manager' ? (activeAccount.managerUsername || '') : '';
     const isRealAuthSubManager = !!activeAccount?.authUserId;
     const effectiveDutyStatus = isRealAuthSubManager ? liveDutyStatus : currentAgent?.dutyStatus;
     const canLogReceipts = isRealAuthSubManager
       ? effectiveDutyStatus === 'online'
       : canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
-    return (
+    // M6c: keep the ISP agent UI exactly as-is, but let water riders see their
+    // delivery app instead (WaterRiderGate decides via my_business_type).
+    const subManagerView = (
       <ErrorBoundary>
         {activeTab === 'settings' ? (<SubManagerSettings agent={currentAgent} theme={state.theme || 'light'} onToggleTheme={handleToggleTheme} onBack={() => setActiveTab('team')} onLogout={handleLogout} onSave={async (updates) => { if (isRealAuthSubManager) { const headers = await getWabotAuthHeaders(); const response = await fetch('/api/admin-maintenance?action=agent-update-profile', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(updates) }); if (!response.ok) throw new Error('Profile could not be saved.'); } setState(prev => { const next = { ...prev, subManagers: (prev.subManagers || []).map(agent => agent.id === currentAgent?.id ? { ...agent, ...updates } : agent) }; saveState(next); saveStateToSupabase(next.currentManager || activeManager || '', next); return next; }); }} />) : activeTab === 'receipts' ? (
           !canLogReceipts ? (
@@ -2059,6 +2068,17 @@ const App: React.FC = () => {
         )}
       </ErrorBoundary>
     );
+    return (
+      <ErrorBoundary>
+        <WaterRiderGate fallback={subManagerView}>
+          <WaterRiderHome
+            riderUsername={activeManager || ''}
+            managerUsername={riderManagerUsername}
+            onLogout={handleLogout}
+          />
+        </WaterRiderGate>
+      </ErrorBoundary>
+    );
   }
   // M5: business-type gate — accounts whose type was never chosen (abandoned
   // signup, OTP path, or a failed save RPC) pick it here before seeing the app.
@@ -2173,6 +2193,16 @@ const App: React.FC = () => {
           {!tabLoading && activeTab === 'water-hub' && <WaterHub managerId={activeManager!} customers={state.users} businessName={currentSettings.businessName}
             navRequest={waterNavRequest} onNavRequestConsumed={() => setWaterNavRequest(null)}
             onAddUser={handleAddUser} onBulkAddUsers={handleBulkAddUsers} onUpdateUser={handleWaterUpdateUser} />}
+          {/* M6c: Ledger as a top-level tab (manager only). Same component as the hub's Ledger sub-tab. */}
+          {!tabLoading && activeTab === 'water-ledger' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+              <h1 className="text-xl font-black text-[#0f172a] dark:text-white mb-4">Ledger</h1>
+              <LedgerPanel managerId={activeManager!} customers={state.users} businessName={currentSettings.businessName} />
+            </div>
+          )}
+          {/* M6c: Analytics tab (manager only). */}
+          {!tabLoading && activeTab === 'water-analytics' && businessType === 'water' && userRole !== 'sub-manager' && <WaterAnalytics managerId={activeManager || ''}
+            customers={state.users} expenses={state.businessExpenses || []} />}
           {!tabLoading && activeTab === 'dashboard' && businessType === 'water' && <WaterDashboard managerId={activeManager || ''}
             customers={state.users}
             businessName={currentSettings.businessName}
