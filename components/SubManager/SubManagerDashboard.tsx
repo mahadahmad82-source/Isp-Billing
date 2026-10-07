@@ -340,6 +340,47 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
     { id: 'pending', label: `Pending (${counts.pending})` }
   ] as const;
 
+  // Pending Recovery list for the PDF/print export — pending dues only,
+  // honoring the current search term and sort so the printout matches the screen.
+  const recoveryPdfUsers = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const list = augmentedUsers.filter(u => {
+      if (u.displayStatus !== 'pending' || u.status === 'deleted') return false;
+      if (!term) return true;
+      return String(u.name || '').toLowerCase().includes(term) ||
+             String(u.username || '').toLowerCase().includes(term) ||
+             String(u.phone || '').includes(term);
+    });
+    if (sortConfig.key && sortConfig.direction) {
+      list.sort((a: any, b: any) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return list;
+  }, [augmentedUsers, searchTerm, sortConfig]);
+
+  const recoveryPdfTotal = useMemo(
+    () => recoveryPdfUsers.reduce((sum, u) => sum + (u.displayBalance || 0), 0),
+    [recoveryPdfUsers]
+  );
+
+  const recoveryPeriodLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+
+  const handleDownloadRecoveryPdf = () => {
+    // Opens the system print dialog for the isolated Pending Recovery list.
+    // On Android/Chrome the print destination can be "Save as PDF", so the
+    // sub-manager keeps an offline copy for field collection (no internet/phone needed).
+    document.body.classList.add('printing-agent-recovery');
+    const cleanup = () => document.body.classList.remove('printing-agent-recovery');
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.requestAnimationFrame(() => window.print());
+    window.setTimeout(cleanup, 1500);
+  };
+
   const handleAgentBackup = () => {
     // Only exports the agent's collected data, per prompt: "The agent backup does not require any specific format."
     const agentData = {
@@ -492,18 +533,85 @@ const SubManagerDashboard: React.FC<SubManagerDashboardProps> = ({
                 />
               </div>
 
-              <div className="flex bg-white dark:bg-white/[0.03] p-1 rounded-lg sm:rounded-xl border border-slate-200 dark:border-white/5 w-full sm:w-auto">
-                {filterTabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setFilter(tab.id as any)}
-                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all ${
-                      filter === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="flex w-full sm:w-auto items-center gap-2">
+                <div className="flex bg-white dark:bg-white/[0.03] p-1 rounded-lg sm:rounded-xl border border-slate-200 dark:border-white/5 flex-1 sm:flex-none">
+                  {filterTabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setFilter(tab.id as any)}
+                      className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        filter === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleDownloadRecoveryPdf}
+                  disabled={recoveryPdfUsers.length === 0}
+                  title="Download Pending Recovery list as PDF (opens print dialog — choose 'Save as PDF')"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 disabled:opacity-30 shrink-0"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span className="hidden sm:inline">Recovery PDF</span>
+                  <span className="sm:hidden">PDF</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Print-only Pending Recovery list — isolated in the print dialog via body.printing-agent-recovery */}
+            <div className="print-recovery-content" style={{ display: 'none' }} aria-hidden="true">
+              <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: '#000000', background: '#ffffff', padding: 8 }}>
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{settings?.businessName || 'BillCollector'}</h1>
+                  <p style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 0' }}>Pending Recovery List — {recoveryPeriodLabel}</p>
+                  <p style={{ fontSize: 11, margin: '4px 0 0' }}>
+                    Agent: {subManagerName}{agentArea ? ` • Area: ${agentArea}` : ''} • Generated: {new Date().toLocaleString('en-PK')}
+                  </p>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr>
+                      {['#', 'Client', 'Phone', 'Address', 'Plan', 'Dues (Rs.)'].map(h => (
+                        <th key={h} style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', background: '#eeeeee' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recoveryPdfUsers.map((u, i) => (
+                      <tr key={u.id}>
+                        <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>{i + 1}</td>
+                        <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>
+                          <span style={{ fontWeight: 700 }}>{u.name}</span>
+                          <br />
+                          <span style={{ fontSize: 9 }}>@{u.username}</span>
+                        </td>
+                        <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>{u.phone || '-'}</td>
+                        <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>{u.address || '-'}</td>
+                        <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>{u.plan || '-'}</td>
+                        <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>
+                          {(u.displayBalance || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={5} style={{ border: '1px solid #000000', padding: '6px 8px', fontWeight: 800, textAlign: 'right' }}>
+                        Total ({recoveryPdfUsers.length} clients)
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'right', fontWeight: 800 }}>
+                        Rs. {recoveryPdfTotal.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <div style={{ marginTop: 28, display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                  <span>Collected by: ________________</span>
+                  <span>Date: ________________</span>
+                  <span>Signature: ________________</span>
+                </div>
               </div>
             </div>
 
