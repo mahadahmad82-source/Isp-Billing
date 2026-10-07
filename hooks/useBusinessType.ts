@@ -37,5 +37,13 @@ export function useBusinessType(activeManager: string | null | undefined, userRo
     return () => { cancelled = true; };
   }, [activeManager, userRole]);
 
+  // M5: re-read the cache when the gate (or signup) saves a new type, so the
+  // app's tabs switch immediately without a reload.
+  useEffect(() => {
+    const refresh = () => setType(readCache(activeManager));
+    window.addEventListener('bc-business-type-changed', refresh);
+    return () => window.removeEventListener('bc-business-type-changed', refresh);
+  }, [activeManager]);
+
   return type;
 }

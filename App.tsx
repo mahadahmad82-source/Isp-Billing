@@ -6,6 +6,8 @@ import { canAccess } from './utils/accessControl';
 import { saveStateToSupabase, smartLoadAndSync, loadStateFromSupabase, flushPendingSync, onSyncStatus, SyncStatus, mergeById, getRemoteUpdatedAt } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 import { useBusinessType } from './hooks/useBusinessType';
+import { useBusinessTypeGate } from './hooks/useBusinessTypeGate';
+import BusinessTypeGate from './components/auth/BusinessTypeGate';
 import { showLocalNotification, sendPushNotification } from './lib/pushNotifications';
 import { getWabotAuthHeaders } from './utils/whatsapp';
 import { Language, setStoredLanguage, getStoredLanguage } from './utils/i18n';
@@ -50,6 +52,17 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import ContactPage from './components/ContactPage';
 import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
+import WaterHub from './components/water/WaterHub';
+import WaterCustomersTab from './components/water/WaterCustomersTab';
+import WaterMoreTab from './components/water/WaterMoreTab';
+import WaterAnalytics from './components/water/WaterAnalytics';
+import WaterDashboard from './components/water/WaterDashboard';
+import WaterBillingTab from './components/water/WaterBillingTab';
+import WaterReports from './components/water/WaterReports';
+import WaterRiderGate from './components/water/WaterRiderGate';
+import WaterRiderHome from './components/water/WaterRiderHome';
+import type { WaterNavRequest, WaterCustomerNavRequest, DashboardNavTarget } from './components/water/waterTypes';
+import { WATER_TABS } from './utils/businessType';
 import ErrorBoundary from './components/ErrorBoundary';
 import TourGuide, { WELCOME_STEPS, TAB_STEPS } from './components/TourGuide';
 import { useSubscription, canAccess as canAccessFeature } from './hooks/useSubscription';
@@ -154,13 +167,28 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-more','water-reports','water-analytics'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [showTabTour, setShowTabTour] = useState(false);
   const [showTourReminder, setShowTourReminder] = useState(false);
   const [tabLoading, setTabLoading] = useState(false);
+  // M6a: one-shot navigation request from WaterDashboard → WaterHub (quick actions / top dues).
+  const [waterNavRequest, setWaterNavRequest] = useState<WaterNavRequest | null>(null);
+  // R1: one-shot navigation request from WaterDashboard → Customers tab.
+  const [customerNavRequest, setCustomerNavRequest] = useState<WaterCustomerNavRequest | null>(null);
+
+  // R1: dashboard navigation for the 5-tab water IA.
+  const handleDashboardNavigate = (target: DashboardNavTarget) => {
+    if (target.tab === 'water-hub' && (target.hubSub || target.hubAction)) {
+      setWaterNavRequest({ sub: target.hubSub || 'today', action: target.hubAction });
+    }
+    if (target.tab === 'water-customers' && (target.customersView || target.customerId || target.customersAction)) {
+      setCustomerNavRequest({ view: target.customersView, customerId: target.customerId, action: target.customersAction });
+    }
+    setActiveTab(target.tab);
+  };
 
   // Sync URL hash with activeTab — enables right-click "Open in new tab"
   React.useEffect(() => {
@@ -339,6 +367,12 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
   const businessType = useBusinessType(activeManager, userRole); // 'isp' unless admin set another type
+  // M6a: water managers with a stale cached ISP-only tab land on the water dashboard.
+  // M6c: explicitly manager-only — riders never hit this (their type resolves to 'isp' anyway).
+  useEffect(() => {
+    if (userRole === 'manager' && businessType === 'water' && !WATER_TABS.includes(activeTab)) setActiveTab('dashboard');
+  }, [userRole, businessType, activeTab]);
+  const typeGate = useBusinessTypeGate(activeManager, userRole); // M5: incomplete signup => pick type before the app
   const [liveTeamStatus, setLiveTeamStatus] = useState<Record<string, {
     dutyStatus: 'online' | 'offline';
     lastCheckIn?: string;
@@ -1611,8 +1645,14 @@ const App: React.FC = () => {
     });
   };
 
-  const handlePlanChange = (userId: string, oldPlan: string, newPlan: string, oldFee: number, newFee: number, reason?: string) => {
-    const user = state.users.find(u => u.id === userId);
+  // M6a: water forms edit a few profile fields; merge onto the existing record so the
+  // existing dual-save (localStorage + Supabase) path is reused unchanged.
+  const handleWaterUpdateUser = (id: string, update: Partial<UserRecord>) => {
+    const existing = state.users.find(u => u.id === id);
+    if (existing) handleFullUpdateUser({ ...existing, ...update } as UserRecord);
+  };
+
+  const handlePlanChange = (userId: string, oldPlan: string, newPlan: string, oldFee: number, newFee: number, reason?: string) => {    const user = state.users.find(u => u.id === userId);
     if (!user) return;
     const entry: PlanChange = {
       id: `PC-${Date.now()}`,
@@ -1850,12 +1890,16 @@ const App: React.FC = () => {
       ? filteredUsers.filter(u => agentAreas.includes(u.area || ''))
       : filteredUsers;
     const activeAccount = activeManager ? getAccounts().find(a => a.username === activeManager) : undefined;
+    // M6c: water riders — the manager's username (for RLS-scoped delivery payloads).
+    const riderManagerUsername = activeAccount?.role === 'sub-manager' ? (activeAccount.managerUsername || '') : '';
     const isRealAuthSubManager = !!activeAccount?.authUserId;
     const effectiveDutyStatus = isRealAuthSubManager ? liveDutyStatus : currentAgent?.dutyStatus;
     const canLogReceipts = isRealAuthSubManager
       ? effectiveDutyStatus === 'online'
       : canAccess(currentAgent?.accessRights, 'receipts', 'receipt');
-    return (
+    // M6c: keep the ISP agent UI exactly as-is, but let water riders see their
+    // delivery app instead (WaterRiderGate decides via my_business_type).
+    const subManagerView = (
       <ErrorBoundary>
         {activeTab === 'settings' ? (<SubManagerSettings agent={currentAgent} theme={state.theme || 'light'} onToggleTheme={handleToggleTheme} onBack={() => setActiveTab('team')} onLogout={handleLogout} onSave={async (updates) => { if (isRealAuthSubManager) { const headers = await getWabotAuthHeaders(); const response = await fetch('/api/admin-maintenance?action=agent-update-profile', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(updates) }); if (!response.ok) throw new Error('Profile could not be saved.'); } setState(prev => { const next = { ...prev, subManagers: (prev.subManagers || []).map(agent => agent.id === currentAgent?.id ? { ...agent, ...updates } : agent) }; saveState(next); saveStateToSupabase(next.currentManager || activeManager || '', next); return next; }); }} />) : activeTab === 'receipts' ? (
           !canLogReceipts ? (
@@ -2038,6 +2082,36 @@ const App: React.FC = () => {
         )}
       </ErrorBoundary>
     );
+    return (
+      <ErrorBoundary>
+        <WaterRiderGate fallback={subManagerView}>
+          <WaterRiderHome
+            riderUsername={activeManager || ''}
+            managerUsername={riderManagerUsername}
+            onLogout={handleLogout}
+          />
+        </WaterRiderGate>
+      </ErrorBoundary>
+    );
+  }
+  // M5: business-type gate — accounts whose type was never chosen (abandoned
+  // signup, OTP path, or a failed save RPC) pick it here before seeing the app.
+  // Admins, sub-managers and logged-out users are never affected (the hook
+  // resolves them to needsSelection=false). Loading shows a bare spinner so
+  // the old UI never flashes before the gate decision.
+  if (typeGate.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f7fc] dark:bg-[#0b0f1a]">
+        <div className="w-10 h-10 rounded-full border-[3px] border-indigo-500/25 border-t-indigo-500 animate-spin" aria-label="Loading" />
+      </div>
+    );
+  }
+  if (typeGate.needsSelection) {
+    return (
+      <ErrorBoundary>
+        <BusinessTypeGate gate={typeGate} />
+      </ErrorBoundary>
+    );
   }
   return (
     <ErrorBoundary>
@@ -2106,7 +2180,7 @@ const App: React.FC = () => {
               <div className="h-32 bg-white/10 rounded-2xl border border-white/5"></div>
             </div>
           )}
-          {!tabLoading && activeTab === 'dashboard' && (
+          {!tabLoading && activeTab === 'dashboard' && businessType !== 'water' && (
             <Dashboard 
               users={filteredUsers} 
               receipts={filteredReceipts} 
@@ -2130,6 +2204,31 @@ const App: React.FC = () => {
               managerId={activeManager || state.currentManager || ''}
             />
           )}
+          {!tabLoading && activeTab === 'water-hub' && <WaterHub managerId={activeManager!} customers={state.users}
+            navRequest={waterNavRequest} onNavRequestConsumed={() => setWaterNavRequest(null)} />}
+          {/* R1: Customers tab — Directory + Dues (ledger merged in). Replaces the old Ledger tab. */}
+          {!tabLoading && activeTab === 'water-customers' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <WaterCustomersTab managerId={activeManager!} customers={state.users} businessName={currentSettings.businessName}
+              onAddUser={handleAddUser} onBulkAddUsers={handleBulkAddUsers} onUpdateUser={handleWaterUpdateUser}
+              navRequest={customerNavRequest} onNavRequestConsumed={() => setCustomerNavRequest(null)} />
+          )}
+          {/* R1: More tab — expenses/reports/analytics/routes/vehicles/riders/settings. */}
+          {!tabLoading && activeTab === 'water-more' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <WaterMoreTab managerId={activeManager!} customers={state.users} onNavigateTab={(t) => setActiveTab(t)} />
+          )}
+          {/* R1: old water-ledger tab removed (merged into Customers). Stale #water-ledger hashes fall back to dashboard via validTabs. */}
+          {/* M6c: Analytics tab (manager only). */}
+          {!tabLoading && activeTab === 'water-analytics' && businessType === 'water' && userRole !== 'sub-manager' && <WaterAnalytics managerId={activeManager || ''}
+            customers={state.users} expenses={state.businessExpenses || []} />}
+          {!tabLoading && activeTab === 'dashboard' && businessType === 'water' && <WaterDashboard managerId={activeManager || ''}
+            customers={state.users}
+            businessName={currentSettings.businessName}
+            expenses={state.businessExpenses || []}
+            onNavigate={handleDashboardNavigate} />}
+          {!tabLoading && activeTab === 'water-billing' && businessType === 'water' && userRole !== 'sub-manager' && <WaterBillingTab managerId={activeManager || ''}
+            customers={state.users} settings={currentSettings} />}
+          {!tabLoading && activeTab === 'water-reports' && businessType === 'water' && userRole !== 'sub-manager' && <WaterReports managerId={activeManager || ''}
+            expenses={state.businessExpenses || []} />}
           {!tabLoading && activeTab === 'users' && <UserManagement users={filteredUsers} receipts={filteredReceipts} settings={currentSettings} onAddUser={handleAddUser} onUpdateUser={handleFullUpdateUser} onDeleteUser={handleDeleteUser} onBulkAddUsers={handleBulkAddUsers} onBulkDeleteUsers={handleBulkDeleteUsers} onBulkUpdateUsers={handleBulkUpdateUsers} setLoadingMessage={setLoadingMessage} initialFilter={userFilter} customerStatusFilter={customerStatusFilter} onClearCustomerStatusFilter={() => setCustomerStatusFilter('all')} onPlanChange={handlePlanChange} managerId={activeManager || state.currentManager || ''} subManagers={state.subManagers || []} />}
           {!tabLoading && activeTab === 'receipts' && <ReceiptGenerator key={`receipts-${receiptMountKey}`} users={state.users || filteredUsers} receipts={filteredReceipts} settings={currentSettings} subManagers={state.subManagers || []} onAddReceipt={handleAddReceipt} onUpdateReceipt={handleUpdateReceipt} onUpdateUser={handleUpdateUser} onDeleteReceipt={handleDeleteReceipt} setLoadingMessage={setLoadingMessage} preSelectUser={preSelectReceiptUser} onPreSelectConsumed={() => setPreSelectReceiptUser(null)} defaultCollectedBy={activeManager || 'admin'} managerId={activeManager || 'mahadnet'} />}
           {!tabLoading && activeTab === 'recoveries' && (
@@ -2174,7 +2273,7 @@ const App: React.FC = () => {
               onSetUserStatus={handleCopilotSetUserStatus}
             />
           )}
-          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} copilotWidgetVisible={!state.copilotWidgetClosed} onToggleCopilotWidget={(visible) => handleCopilotWidgetClosedChange(!visible)} />}
+          {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} copilotWidgetVisible={!state.copilotWidgetClosed} onToggleCopilotWidget={(visible) => handleCopilotWidgetClosedChange(!visible)} businessType={businessType} />}
           {(activeTab === 'admin' || activeTab.startsWith('admin-')) && isAdmin && <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />}
           {!tabLoading && activeTab === 'complaints' && userRole !== 'sub-manager' && (
             <ComplaintManager
@@ -2282,6 +2381,8 @@ const App: React.FC = () => {
                   saveState(newState); saveStateToSupabase(activeManager || '', newState); return newState;
                 });
               }}
+              businessType={businessType}
+              managerId={activeManager || ''}
             />
           )}
           {!tabLoading && activeTab === 'analytics' && userRole !== 'sub-manager' && (

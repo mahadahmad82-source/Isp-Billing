@@ -1,6 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { ManagerAccount } from '../types';
+import type { BusinessType } from '../types';
+import { BUSINESS_TYPE_LABELS } from '../utils/businessType';
+import BusinessTypePicker from './auth/BusinessTypePicker';
 import { getAccounts, saveAccount, setActiveSession, clearAllAccounts, removeAccount, writeLog } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { uploadMediaToR2 } from '../utils/whatsapp';
@@ -16,7 +19,7 @@ interface LoginProps {
 }
 
 const ADMIN_USERNAME = 'admin';
-type ViewType = 'recent' | 'login' | 'signup' | 'signup-otp' | 'signup-tier' | 'signup-netbot' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
+type ViewType = 'recent' | 'login' | 'signup' | 'signup-business-type' | 'signup-otp' | 'signup-tier' | 'signup-netbot' | 'otp' | 'forgot' | 'forgot-otp' | 'forgot-newpass' | 'agentLogin';
 
 // ── Icons (outside component to prevent re-render remounting) ──
 const EyeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>);
@@ -82,6 +85,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [signupOtp, setSignupOtp] = useState('');
+  const [signupBusinessType, setSignupBusinessType] = useState<BusinessType | null>(null);
   const [tierPaymentPending, setTierPaymentPending] = useState<{ tier: string; label: string } | null>(null);
   // BUG FIX: these were added earlier this session but lost when a later
   // full-file JSX edit was based on a stale raw.githubusercontent.com fetch
@@ -325,6 +329,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!signupBusinessType) { setView('signup-business-type'); showError('Please choose your business type first.'); return; }
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
     if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
     if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) { showError('This Phone Number is already taken.'); return; }
@@ -332,7 +337,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     if (trimmedEmail && (!trimmedEmail.includes('@') || trimmedEmail.endsWith('@myisp.local'))) { showError('Please enter a valid email address.'); return; }
     const cnicDigits = cnic.replace(/[^0-9]/g, '');
     if (cnic && cnicDigits.length !== 13) { showError('CNIC must be 13 digits (XXXXX-XXXXXXX-X).'); return; }
-    setIsLoading(true); setLoadingText('Initialising New Node...'); setError('');
+    setIsLoading(true); setLoadingText('Creating your account...'); setError('');
     try {
       // Use the real email (if given) as the actual login/auth email — this is
       // what makes email-OTP "Forgot Password" work later. Without one, we fall
@@ -379,6 +384,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', user.id);
       }
     }
+    // M5: one-time business type save. The column is not directly updatable —
+    // only this RPC can set it, exactly once. Never fail the signup over it;
+    // the in-app gate (useBusinessTypeGate) asks if this didn't stick.
+    try {
+      if (signupBusinessType) {
+        const { data: btData } = await supabase.rpc('set_my_business_type', { p_type: signupBusinessType });
+        if ((btData as { success?: boolean } | null)?.success) {
+          try { localStorage.setItem(`bc_business_type_set_${phone}`, '1'); } catch { /* ignore */ }
+        } else console.warn('[Signup] business type not confirmed:', btData);
+      }
+    } catch (btErr) { console.warn('[Signup] set_my_business_type failed:', btErr); }
+    // Keep the per-manager cache in sync so the right tabs render on first paint.
+    try { if (signupBusinessType) localStorage.setItem(`bc_business_type_${phone}`, signupBusinessType); } catch { /* ignore */ }
     const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
     saveAccount(newAccount); setAccounts(getAccounts());
     writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
@@ -386,6 +404,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     // Free activates immediately, paid tiers go to a payment-instructions
     // screen and stay on Free-level access until an admin verifies the
     // transfer (see select_signup_tier / admin_record_subscription_payment).
+    // TODO(product): water plans not defined yet — skip the tier + NetBot
+    // upsell steps for water signups; go straight into the app like "Skip".
+    if (signupBusinessType === 'water') { handleSkipNetbot(); return; }
     setView('signup-tier');
   };
 
@@ -552,7 +573,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     setSignupOtp(''); setPendingSignupEmail('');
   };
 
-  const handleGoToSignup = () => { resetFields(); setView('signup'); };
+  const handleGoToSignup = () => { resetFields(); setSignupBusinessType(null); setView('signup-business-type'); };
   const handleGoToLogin = () => { resetFields(); setSelectedAccount(null); setView('login'); };
   const handleGoToRecent = () => { resetFields(); setSelectedAccount(null); setView('recent'); };
 
@@ -562,13 +583,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     if (updated.length === 0) setView('login');
   };
 
-  const handleClearAllAccounts = () => { clearAllAccounts(); setAccounts([]); setSelectedAccount(null); setView('signup'); setShowClearConfirm(false); };
+  const handleClearAllAccounts = () => { clearAllAccounts(); setAccounts([]); setSelectedAccount(null); setView('signup-business-type'); setShowClearConfirm(false); };
 
   const labelCls = "text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block";
 
   // ── Card heading based on view ──
   const getHeading = () => {
-    if (view === 'signup') return { title: 'Create Account', sub: 'Register your new ISP node' };
+    if (view === 'signup-business-type') return { title: 'Business Type', sub: 'What type of business do you run?' };
+    if (view === 'signup') return { title: 'Create Account', sub: 'Create your business account' };
     if (view === 'signup-otp') return { title: 'Verify Email', sub: 'Enter the code sent to you' };
     if (view === 'recent') return { title: 'Continue As', sub: 'Select your profile to sign in' };
     if (view === 'forgot') return { title: 'Reset Password', sub: 'Enter your username or recovery email' };
@@ -600,7 +622,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <LanguageToggle language={language} onChange={handleLanguageChange} variant="pill" />
       </div>
 
-      <div className={`w-full relative z-[10] ${view === 'signup-tier' || view === 'signup-netbot' ? 'max-w-md' : 'max-w-sm'}`}>
+      <div className={`w-full relative z-[10] ${view === 'signup-tier' || view === 'signup-netbot' || view === 'signup-business-type' ? 'max-w-md' : 'max-w-sm'}`}>
 
         {/* Logo */}
         <div className="text-center mb-6 animate-in fade-in slide-in-from-top-6 duration-700 relative">
@@ -752,6 +774,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   {isLoading ? loadingText : 'Verify & Create Node'}
                 </button>
               </form>
+            )}
+
+            {/* ── BUSINESS TYPE (first signup step) ── */}
+            {view === 'signup-business-type' && (
+              <BusinessTypePicker
+                value={signupBusinessType}
+                onChange={setSignupBusinessType}
+                onContinue={() => setView('signup')}
+                onBack={() => setView(accounts.length > 0 ? 'recent' : 'login')}
+                continueLabel="Continue"
+              />
             )}
 
             {/* ── PLAN SELECTION (after successful signup) ── */}
@@ -907,6 +940,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   </button>
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{view === 'signup' ? 'New Node' : 'Secure Access'}</span>
                 </div>
+
+                {/* Business type chip (signup only) — back to the picker */}
+                {view === 'signup' && (
+                  <button type="button" onClick={() => setView('signup-business-type')}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all min-h-[48px]"
+                    style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.25)' }}>
+                    <span className="text-[11px] font-bold text-slate-600">
+                      Business type: <span className="text-indigo-600 font-black">{signupBusinessType ? BUSINESS_TYPE_LABELS[signupBusinessType] : 'Not chosen'}</span>
+                    </span>
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Change</span>
+                  </button>
+                )}
 
                 {/* Business Name (signup only) */}
                 {view === 'signup' && (

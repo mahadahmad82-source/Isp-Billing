@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { BusinessExpense, UserRecord, AppSettings } from '../types';
 
 interface BusinessExpensesProps {
@@ -8,9 +9,13 @@ interface BusinessExpensesProps {
   settings?: AppSettings;
   onAdd: (e: Omit<BusinessExpense, 'id' | 'createdAt'>) => void;
   onDelete: (id: string) => void;
+  /** M6b: water gets its own categories + optional vehicle link; ISP unchanged. */
+  businessType?: string;
+  managerId?: string;
 }
 
-const CATEGORIES = ['salary','equipment','rent','utilities','bandwidth','marketing','other'] as const;
+const ISP_CATEGORIES = ['salary','equipment','rent','utilities','bandwidth','marketing','other'] as const;
+const WATER_CATEGORIES = ['fuel','vehicle_maintenance','rider_salary','plant_electricity','filters_chemicals','bottles_purchase','rent','other'] as const;
 const CAT_COLORS: Record<string, string> = {
   salary:    'bg-indigo-500/10 text-indigo-500',
   equipment: 'bg-amber-500/10 text-amber-500',
@@ -18,10 +23,20 @@ const CAT_COLORS: Record<string, string> = {
   utilities: 'bg-sky-500/10 text-sky-500',
   marketing: 'bg-violet-500/10 text-violet-500',
   bandwidth: 'bg-cyan-500/10 text-cyan-500',
+  fuel: 'bg-orange-500/10 text-orange-500',
+  vehicle_maintenance: 'bg-amber-500/10 text-amber-600',
+  rider_salary: 'bg-indigo-500/10 text-indigo-500',
+  plant_electricity: 'bg-yellow-500/10 text-yellow-600',
+  filters_chemicals: 'bg-cyan-500/10 text-cyan-600',
+  bottles_purchase: 'bg-sky-500/10 text-sky-500',
   other:     'bg-slate-200 dark:bg-white/5 text-slate-500',
 };
+const FALLBACK_CAT_COLOR = 'bg-slate-200 dark:bg-white/5 text-slate-500';
+/** Old/unknown categories never crash the label — title-case fallback. */
+const catLabel = (cat: string) => cat.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+const catColor = (cat: string) => CAT_COLORS[cat] || FALLBACK_CAT_COLOR;
 
-const blankForm = () => ({ title: '', amount: 0, category: 'other' as const, date: new Date().toISOString().split('T')[0], notes: '' });
+const blankForm = () => ({ title: '', amount: 0, category: 'other' as string, date: new Date().toISOString().split('T')[0], notes: '', vehicleId: '' });
 
 // Generate last 12 months + current + next month options (Android-safe: no input type="month")
 const generateMonthOptions = () => {
@@ -37,10 +52,26 @@ const generateMonthOptions = () => {
 };
 const MONTH_OPTIONS = generateMonthOptions();
 
-const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts, users = [], settings, onAdd, onDelete }) => {
+const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts, users = [], settings, onAdd, onDelete, businessType, managerId }) => {
+  // M6b: water uses its own category list; ISP keeps the original list exactly.
+  const isWater = businessType === 'water';
+  const CATEGORIES: readonly string[] = isWater ? WATER_CATEGORIES : ISP_CATEGORIES;
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blankForm);
+  const [vehicles, setVehicles] = useState<{ id: string; name: string; plate: string | null }[]>([]);
+
+  // Water only: active vehicles for the optional vehicle dropdown.
+  useEffect(() => {
+    if (!isWater || !managerId) return;
+    supabase.from('water_vehicles').select('id,name,plate').eq('manager_id', managerId).eq('is_active', true).order('name')
+      .then(({ data }) => { if (data) setVehicles(data as { id: string; name: string; plate: string | null }[]); });
+  }, [isWater, managerId]);
+  const vehicleName = (id?: string) => {
+    if (!id) return null;
+    const v = vehicles.find(x => x.id === id);
+    return v ? (v.plate ? `${v.name} (${v.plate})` : v.name) : null;
+  };
 
   // ✅ Convert YYYY-MM to "May 2026" format to match r.period (same as Recovery Ledger)
   const selectedPeriod = useMemo(() => {
@@ -87,12 +118,26 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
   const handleSubmit = (ev: React.FormEvent) => {
     ev.preventDefault();
     const expenseMonth = form.date.slice(0, 7); // "YYYY-MM"
-    onAdd({ ...form, amount: parseFloat(String(form.amount)) || 0 });
+    // M6b: vehicleId is additive/optional (water only); empty means no vehicle.
+    const { vehicleId, ...rest } = form;
+    onAdd({ ...rest, amount: parseFloat(String(form.amount)) || 0, ...(isWater && vehicleId ? { vehicleId } : {}) });
     setForm(blankForm());
     setShowForm(false);
     // Auto-switch view to the month where expense was saved
     if (expenseMonth !== month) setMonth(expenseMonth);
   };
+
+  // M6b: water — fuel/maintenance totals per vehicle (small card).
+  const vehicleTotals = useMemo(() => {
+    if (!isWater) return [];
+    const map = new Map<string, number>();
+    for (const e of monthExpenses) {
+      if ((e.category === 'fuel' || e.category === 'vehicle_maintenance') && e.vehicleId) {
+        map.set(e.vehicleId, (map.get(e.vehicleId) || 0) + (Number(e.amount) || 0));
+      }
+    }
+    return [...map.entries()].map(([id, amt]) => ({ id, name: vehicleName(id) || 'Vehicle', amt }));
+  }, [isWater, monthExpenses, vehicles]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -149,9 +194,24 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
             {Object.entries(byCategory).map(([cat, amt]) => (
               <div key={cat} className="flex items-center justify-between bg-slate-50 dark:bg-white/[0.02] rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase ${CAT_COLORS[cat]}`}>{cat}</span>
+                  <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase ${catColor(cat)}`}>{catLabel(cat)}</span>
                 </div>
                 <p className="text-xs font-black text-slate-900 dark:text-white">Rs. {(Number(amt) || 0).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* M6b: water — fuel/maintenance totals per vehicle */}
+      {isWater && vehicleTotals.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Fuel & Maintenance by Vehicle</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {vehicleTotals.map(v => (
+              <div key={v.id} className="flex items-center justify-between bg-slate-50 dark:bg-white/[0.02] rounded-2xl px-4 py-3">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{v.name}</span>
+                <p className="text-xs font-black text-slate-900 dark:text-white ml-2">Rs. {(Number(v.amt) || 0).toLocaleString()}</p>
               </div>
             ))}
           </div>
@@ -168,10 +228,10 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
             {monthExpenses.map(exp => (
               <div key={exp.id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-white/[0.01] group">
                 <div className="flex items-center gap-4">
-                  <span className={`px-2.5 py-1 rounded-xl text-[9px] font-bold uppercase ${CAT_COLORS[exp.category]}`}>{exp.category}</span>
+                  <span className={`px-2.5 py-1 rounded-xl text-[9px] font-bold uppercase ${catColor(exp.category)}`}>{catLabel(exp.category)}</span>
                   <div>
                     <p className="text-sm font-bold text-slate-900 dark:text-white">{exp.title}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(exp.date).toLocaleDateString()} {exp.notes ? `· ${exp.notes}` : ''}</p>
+                    <p className="text-[10px] text-slate-400">{new Date(exp.date).toLocaleDateString()}{vehicleName(exp.vehicleId) ? ` · ${vehicleName(exp.vehicleId)}` : ''}{exp.notes ? ` · ${exp.notes}` : ''}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -212,9 +272,9 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Category</label>
-                  <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as any })}
+                  <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                     className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+                    {CATEGORIES.map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
                   </select>
                 </div>
               </div>
@@ -226,9 +286,18 @@ const BusinessExpenses: React.FC<BusinessExpensesProps> = ({ expenses, receipts,
                   onChange={e => setForm({ ...form, date: e.target.value })}
                   className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
               </div>
+              {isWater && vehicles.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vehicle (Optional)</label>
+                  <select value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}
+                    className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                    <option value="">No vehicle</option>
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate ? `${v.name} (${v.plate})` : v.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
-                <input type="text" placeholder="Any additional notes..." value={form.notes}
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notes (Optional)</label>                <input type="text" placeholder="Any additional notes..." value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
                   className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
               </div>

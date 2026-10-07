@@ -131,6 +131,9 @@ const PAGE_TITLES: Record<string, string> = {
   'admin-pricing':       'Admin — Pricing Plans',
   'admin-app-releases':  'Admin — App Releases',
   team:       'Team Hub',
+  'water-hub': 'Water',
+  'water-billing': 'Billing',
+  'water-reports': 'Reports',
   expenses:   'Expenses',
   analytics:  'Analytics',
   outage:     'Outage',
@@ -249,6 +252,49 @@ const Layout: React.FC<LayoutProps> = ({
   // Multi-business: hide tabs that don't apply to this business type. ISP hides nothing.
   if (!isAdmin && userRole !== 'sub-manager' && businessType) {
     tabs = tabs.filter(tab => isTabEnabled(businessType, tab.id));
+  }
+
+  // Water module (W1): Water Hub tab — only for water-business accounts. ISP sees nothing new.
+  if (businessType === 'water' && !isAdmin) {
+    tabs.push({ id: 'water-hub', label: 'Water', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7 6.7 8.6a7 7 0 1 0 10.6 0Z" /></svg> });
+  }
+
+  // M6a: water-first navigation — curated allowlist in fixed order with water labels.
+  // ISP navigation above is completely untouched.
+  const isWaterNav = businessType === 'water' && !isAdmin && userRole !== 'sub-manager';
+  if (isWaterNav) {
+    const byId = new Map(tabs.map(tb => [tb.id, tb]));
+    const receiptIcon = byId.get('receipts')?.icon;
+    const chartIcon = byId.get('analytics')?.icon;
+    const fallbackIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
+    // R1 redesign (2026-10-06): 5-tab IA — Dashboard, Deliveries, Customers,
+    // Billing, More. ISP navigation above is completely untouched.
+    const order: { id: string; label: string }[] = [
+      { id: 'dashboard', label: 'Dashboard' },
+      { id: 'water-hub', label: 'Deliveries' },
+      { id: 'water-customers', label: 'Customers' },
+      { id: 'water-billing', label: 'Billing' },
+      { id: 'water-more', label: 'More' },
+    ];
+    const dropIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7s6.5 7 6.5 11.3a6.5 6.5 0 1 1-13 0C5.5 9.7 12 2.7 12 2.7z" /></svg>;
+    const usersIcon = byId.get('users')?.icon;
+    const moreIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>;
+    const iconFor = (id: string) => {
+      if (id === 'water-hub') return dropIcon;
+      if (id === 'water-customers') return usersIcon;
+      if (id === 'water-billing') return receiptIcon;
+      if (id === 'water-more') return moreIcon;
+      return chartIcon;
+    };
+    tabs = order.map(o => {
+      const base = byId.get(o.id);
+      if (base) return { ...base, label: o.label };
+      return {
+        id: o.id,
+        label: o.label,
+        icon: iconFor(o.id) || fallbackIcon,
+      };
+    });
   }
 
   const isDark = theme === 'dark';
@@ -433,7 +479,7 @@ const Layout: React.FC<LayoutProps> = ({
 
         {/* Version label */}
         <div className="px-5 py-2">
-          <p className={`text-[8px] font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-indigo-400'}`}>ISP MANAGER v2.5</p>
+          <p className={`text-[8px] font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-indigo-400'}`}>{isWaterNav ? 'WATER v2.0' : 'ISP MANAGER v2.5'}</p>
         </div>
 
         {/* Nav Items */}
@@ -455,7 +501,8 @@ const Layout: React.FC<LayoutProps> = ({
                       setCustomersExpanded(prev => !prev);
                       setActiveTab(tab.id);
                       setDrawerOpen(false);
-                    } else if (isExpenses) {
+                    } else if (isExpenses && !isWaterNav) {
+                      // Water has no Copilot/Analytics sub-items — plain navigation.
                       setExpensesExpanded(prev => !prev);
                     } else {
                       setActiveTab(tab.id);
@@ -470,7 +517,7 @@ const Layout: React.FC<LayoutProps> = ({
                 >
                   <span className="shrink-0">{tab.icon}</span>
                   <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>
-                  {(isCustomers || isExpenses) && (
+                  {(isCustomers || (isExpenses && !isWaterNav)) && (
                     <svg className={`w-4 h-4 transition-transform
                       ${isCustomers && (customersExpanded || isActive) ? 'rotate-180' : ''}
                       ${isExpenses  && (expensesExpanded  || isExpensesGroupActive) ? 'rotate-180' : ''}`}
@@ -502,7 +549,7 @@ const Layout: React.FC<LayoutProps> = ({
                 )}
 
                 {/* Expenses Sub-items: Expenses · Copilot · Analytics */}
-                {isExpenses && (expensesExpanded || isExpensesGroupActive) && (
+                {isExpenses && !isWaterNav && (expensesExpanded || isExpensesGroupActive) && (
                   <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-500/30 pl-3">
                     {/* Expenses */}
                     <a href="#expenses" onClick={(e) => { e.preventDefault(); setActiveTab('expenses'); setDrawerOpen(false); }}

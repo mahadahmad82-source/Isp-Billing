@@ -6,8 +6,18 @@ import {
   ManagerRow, ManagerFilter, SortKey, formatRs, formatEnPK, presenceOf, presenceLabel,
   extractRpcError, safeInt, checkAdminSession,
 } from './managersPanelUtils';
+import CreateManagerSheet from './CreateManagerSheet';
 
-export default function ManagersPanel(): JSX.Element {
+export interface ManagersPanelProps {
+  /** Fired after the server confirmed a manager deletion (host can clean up its own local caches). */
+  onManagerDeleted?: (username: string) => void;
+  /** Fired after the server confirmed a password reset (host can refresh its locally cached account). */
+  onPasswordReset?: (username: string, newPassword: string) => void;
+  /** Fired after any confirmed server-side change (suspend/reactivate, business type, delete). */
+  onDataChanged?: () => void;
+}
+
+export default function ManagersPanel({ onManagerDeleted, onPasswordReset, onDataChanged }: ManagersPanelProps = {}): React.ReactElement {
   const [managers, setManagers] = useState<ManagerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -15,6 +25,7 @@ export default function ManagersPanel(): JSX.Element {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('recent');
   const [selected, setSelected] = useState<ManagerRow | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setLoadError(null);
@@ -70,10 +81,16 @@ export default function ManagersPanel(): JSX.Element {
           <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Managers</h1>
           <p className="text-xs text-[#64748b] dark:text-[#94a3b8]">{counts.total} total accounts</p>
         </div>
-        <button type="button" onClick={load} disabled={loading} aria-label="Refresh manager list"
-          className="min-h-[44px] min-w-[44px] px-3 rounded-2xl bg-white dark:bg-[#0f172a] border border-[#e2e8f0] dark:border-white/10 text-[#0f172a] dark:text-white flex items-center justify-center gap-2 disabled:opacity-50">
-          <IconRefresh spin={loading} /><span className="text-sm font-bold hidden sm:inline">Refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setShowCreate(true)}
+            className="min-h-[44px] px-4 rounded-2xl bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2">
+            <IconPlus />Create Account
+          </button>
+          <button type="button" onClick={load} disabled={loading} aria-label="Refresh manager list"
+            className="min-h-[44px] min-w-[44px] px-3 rounded-2xl bg-white dark:bg-[#0f172a] border border-[#e2e8f0] dark:border-white/10 text-[#0f172a] dark:text-white flex items-center justify-center gap-2 disabled:opacity-50">
+            <IconRefresh spin={loading} /><span className="text-sm font-bold hidden sm:inline">Refresh</span>
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-4 gap-2 mb-4">
         <StatTile label="Total" value={counts.total} />
@@ -105,7 +122,8 @@ export default function ManagersPanel(): JSX.Element {
           action={<button type="button" onClick={load} className="min-h-[44px] px-6 rounded-2xl bg-[#1d4ed8] text-white text-sm font-bold">Retry</button>} />
       )}
       {!loading && !loadError && filtered.length === 0 && (
-        <StateBox icon={<IconUsers />} tone="blue" title="No managers found" text="Try a different search or filter." />
+        <StateBox icon={<IconUsers />} tone="blue" title="No managers found" text="Try a different search or filter."
+          action={<button type="button" onClick={() => setShowCreate(true)} className="min-h-[44px] px-6 rounded-2xl bg-[#1d4ed8] text-white text-sm font-bold">Create Account</button>} />
       )}
       {!loading && !loadError && filtered.length > 0 && (
         <div className="flex flex-col gap-3 pb-8">
@@ -114,7 +132,13 @@ export default function ManagersPanel(): JSX.Element {
       )}
       {selected && (
         <ManagerSheet manager={selected} onClose={() => setSelected(null)}
-          onChanged={load} onDeleted={() => { setSelected(null); load(); }} />
+          onChanged={() => { load(); onDataChanged?.(); }}
+          onDeleted={() => { const u = selected.username; setSelected(null); load(); onManagerDeleted?.(u); onDataChanged?.(); }}
+          onPasswordReset={onPasswordReset} />
+      )}
+      {showCreate && (
+        <CreateManagerSheet open={showCreate} onClose={() => setShowCreate(false)}
+          onCreated={() => { load(); onDataChanged?.(); }} />
       )}
     </div>
   );
@@ -216,8 +240,9 @@ function ManagerCard({ m, onOpen }: { m: ManagerRow; onOpen: () => void }) {
 }
 
 /* ── Detail sheet: bottom sheet on phone, side panel on desktop ── */
-function ManagerSheet({ manager, onClose, onChanged, onDeleted }: {
+function ManagerSheet({ manager, onClose, onChanged, onDeleted, onPasswordReset }: {
   manager: ManagerRow; onClose: () => void; onChanged: () => void; onDeleted: () => void;
+  onPasswordReset?: (username: string, newPassword: string) => void;
 }) {
   const [mgr, setMgr] = useState<ManagerRow>(manager);
   const [draftType, setDraftType] = useState<BusinessType>(normalizeBusinessType(manager.business_type));
@@ -338,14 +363,14 @@ function ManagerSheet({ manager, onClose, onChanged, onDeleted }: {
           </div>
         </Modal>
       )}
-      {showReset && <ResetModal username={mgr.username} onClose={() => setShowReset(false)} />}
+      {showReset && <ResetModal username={mgr.username} onClose={() => setShowReset(false)} onReset={pw => onPasswordReset?.(mgr.username, pw)} />}
       {showDelete && <DeleteModal username={mgr.username} onClose={() => setShowDelete(false)} onDone={() => { setShowDelete(false); onDeleted(); }} />}
     </div>
   );
 }
 
 /* ── Reset password modal ── */
-function ResetModal({ username, onClose }: { username: string; onClose: () => void }) {
+function ResetModal({ username, onClose, onReset }: { username: string; onClose: () => void; onReset?: (newPassword: string) => void }) {
   const [pw, setPw] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -360,6 +385,7 @@ function ResetModal({ username, onClose }: { username: string; onClose: () => vo
       const { data, error } = await supabase.rpc('admin_reset_manager_password', { p_username: username, p_new_password: pw.trim() });
       if (error || (data && !data.success)) { setMsg({ ok: false, text: extractRpcError(error, data) }); return; }
       setMsg({ ok: true, text: 'Password updated successfully.' });
+      onReset?.(pw.trim());
       setTimeout(onClose, 1200);
     } catch (e: unknown) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : 'Reset failed.' });
@@ -484,6 +510,7 @@ function Ic({ children, className = 'w-5 h-5' }: { children: React.ReactNode; cl
   );
 }
 const IconSearch = () => (<Ic><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></Ic>);
+const IconPlus = () => (<Ic><path d="M12 5v14M5 12h14" /></Ic>);
 const IconRefresh = ({ spin }: { spin?: boolean }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`w-5 h-5 ${spin ? 'animate-spin' : ''}`} aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
 );

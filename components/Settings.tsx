@@ -20,9 +20,13 @@ interface SettingsProps {
   /** Floating Copilot widget visibility (restore path for the drag-to-close widget). */
   copilotWidgetVisible?: boolean;
   onToggleCopilotWidget?: (visible: boolean) => void;
+  /** 'water' hides ISP-only sections (Internet Plans, NetBot) and the Copilot toggle. */
+  businessType?: string;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager, onReplayWelcomeTour, onResetFeatureTips, copilotWidgetVisible = true, onToggleCopilotWidget }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onRestoreState, onWipeData, fullState, onLogout, onBulkUpdateUsers, activeManager, onReplayWelcomeTour, onResetFeatureTips, copilotWidgetVisible = true, onToggleCopilotWidget, businessType }) => {
+  // M6a: water managers see only generic sections.
+  const isWater = businessType === 'water';
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
@@ -593,7 +597,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
     { id: 'notifications', label: 'Notifications' },
     { id: 'data', label: 'Backup & Data' },
     { id: 'help', label: 'Help' },
-  ];
+    // M6a: water hides the ISP-only sections entirely.
+  ].filter(item => !isWater || (item.id !== 'plans' && item.id !== 'netbot'));
 
   const settingsCard = 'bg-white dark:bg-[#0f172a] p-6 lg:p-8 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm';
 
@@ -815,7 +820,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
              </div>
             </div>
 
-            {/* Floating Copilot widget visibility */}
+            {!isWater && (<>
+            {/* Floating Copilot widget visibility (ISP only) */}
             <div className="pt-6 border-t border-slate-100 dark:border-white/5">
               <div className="flex items-center justify-between bg-slate-50 dark:bg-[#030712] rounded-3xl p-6 border border-slate-100 dark:border-white/5">
                 <div className="flex-1 pr-4">
@@ -835,6 +841,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
                 </button>
               </div>
             </div>
+            </>)}
          </div>
       )}
 
@@ -997,7 +1004,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
       </>
       )}
 
-      {settingsNav === 'netbot' && (
+      {!isWater && settingsNav === 'netbot' && (
         <div className={`${settingsCard} space-y-8`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
@@ -1157,7 +1164,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
         </div>
       )}
 
-      {settingsNav === 'plans' && (
+      {!isWater && settingsNav === 'plans' && (
         <div className={`${settingsCard} space-y-8`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
