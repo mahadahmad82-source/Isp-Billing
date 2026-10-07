@@ -279,6 +279,33 @@ html, body {
     overflow: visible !important;
     max-height: none !important;
   }
+
+  /* Sub-manager Pending Recovery PDF: isolate the print-only recovery list */
+  body.printing-agent-recovery * {
+    visibility: hidden !important;
+  }
+
+  body.printing-agent-recovery .print-recovery-content,
+  body.printing-agent-recovery .print-recovery-content * {
+    visibility: visible !important;
+  }
+
+  body.printing-agent-recovery .print-recovery-content {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+  }
 }
 
 @keyframes loading-bar {
