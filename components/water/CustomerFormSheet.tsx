@@ -185,14 +185,21 @@ export default function CustomerFormSheet({
     try {
       const { data, error } = await supabase
         .from('water_customer_ledger')
-        .select('balance_due')
+        .select('balance_due, bottles_out')
         .eq('manager_id', managerId)
         .eq('customer_id', customer.id)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      const due = Number((data as { balance_due?: number } | null)?.balance_due || 0);
+      const row = data as { balance_due?: number; bottles_out?: number } | null;
+      const due = Number(row?.balance_due || 0);
+      const out = Number(row?.bottles_out || 0);
       if (due !== 0) {
-        setMsg(`Cannot deactivate: this customer still has a balance of Rs. ${Math.abs(due).toLocaleString('en-US')}. Settle it first.`);
+        setMsg(`Cannot deactivate: customer still has a balance of Rs. ${Math.abs(due).toLocaleString('en-US')}. Settle it first.`);
+        setConfirmDeactivate(false);
+        return;
+      }
+      if (out > 0) {
+        setMsg(`Cannot deactivate: customer still holds ${out} bottle${out === 1 ? '' : 's'} - collect empties first.`);
         setConfirmDeactivate(false);
         return;
       }

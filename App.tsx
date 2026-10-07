@@ -366,7 +366,7 @@ const App: React.FC = () => {
   const [lastSavedTime, setLastSavedTime] = useState<string>(new Date().toLocaleTimeString());
   const [isAdmin, setIsAdmin] = useState(activeManager === 'admin');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'sub-manager'>('manager');
-  const businessType = useBusinessType(activeManager, userRole); // 'isp' unless admin set another type
+  const { type: businessType, loading: businessTypeLoading } = useBusinessType(activeManager, userRole); // 'isp' unless admin set another type
   // M6a: water managers with a stale cached ISP-only tab land on the water dashboard.
   // M6c: explicitly manager-only — riders never hit this (their type resolves to 'isp' anyway).
   useEffect(() => {
@@ -2111,6 +2111,16 @@ const App: React.FC = () => {
       <ErrorBoundary>
         <BusinessTypeGate gate={typeGate} />
       </ErrorBoundary>
+    );
+  }
+  // Final Sweep B2: fresh login / new device with no cached type — show a bare
+  // spinner instead of flashing the ISP nav until the type resolves. Cache hits
+  // resolve instantly, so ISP managers see no slowdown.
+  if (businessTypeLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f7fc] dark:bg-[#0b0f1a]">
+        <div className="w-10 h-10 rounded-full border-[3px] border-indigo-500/25 border-t-indigo-500 animate-spin" aria-label="Loading" />
+      </div>
     );
   }
   return (

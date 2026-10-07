@@ -10,40 +10,65 @@ import { DEFAULT_BUSINESS_TYPE, normalizeBusinessType } from '../utils/businessT
 
 const cacheKey = (manager: string) => `bc_business_type_${manager}`;
 
-const readCache = (manager?: string | null): BusinessType => {
-  if (!manager) return DEFAULT_BUSINESS_TYPE;
-  try { return normalizeBusinessType(localStorage.getItem(cacheKey(manager))); } catch { return DEFAULT_BUSINESS_TYPE; }
+const readCacheRaw = (manager?: string | null): string | null => {
+  if (!manager) return null;
+  try { return localStorage.getItem(cacheKey(manager)); } catch { return null; }
 };
 
-export function useBusinessType(activeManager: string | null | undefined, userRole: string): BusinessType {
-  const [type, setType] = useState<BusinessType>(() => readCache(activeManager));
+const readCache = (manager?: string | null): BusinessType => {
+  const raw = readCacheRaw(manager);
+  return raw == null ? DEFAULT_BUSINESS_TYPE : normalizeBusinessType(raw);
+};
+
+export interface BusinessTypeState {
+  type: BusinessType;
+  /**
+   * Final Sweep B2: true only while this manager+role's type is not yet
+   * resolved AND no cache exists. While true, App shows a bare spinner
+   * instead of flashing the ISP nav. Cache hits resolve instantly (loading
+   * stays false), so ISP managers are never slowed down.
+   */
+  loading: boolean;
+}
+
+export function useBusinessType(activeManager: string | null | undefined, userRole: string): BusinessTypeState {
+  const [state, setState] = useState<BusinessTypeState>(() => {
+    const raw = readCacheRaw(activeManager);
+    const needsResolve = !!activeManager && userRole === 'manager' && raw == null;
+    return { type: raw == null ? DEFAULT_BUSINESS_TYPE : normalizeBusinessType(raw), loading: needsResolve };
+  });
 
   useEffect(() => {
-    if (!activeManager || userRole !== 'manager') { setType(DEFAULT_BUSINESS_TYPE); return; }
-    setType(readCache(activeManager));
+    const raw = readCacheRaw(activeManager);
+    if (!activeManager || userRole !== 'manager') { setState({ type: DEFAULT_BUSINESS_TYPE, loading: false }); return; }
+    // Cache hit: instant and correct — never show the spinner for these.
+    setState({ type: raw == null ? DEFAULT_BUSINESS_TYPE : normalizeBusinessType(raw), loading: raw == null });
     let cancelled = false;
+    // Safety net: a stalled network must never leave the spinner up forever (falls back to ISP, as on failure).
+    const stallTimer = window.setTimeout(() => { if (!cancelled) setState(s => (s.loading ? { ...s, loading: false } : s)); }, 6000);
     (async () => {
       try {
         const { data: sess } = await supabase.auth.getSession();
         const uid = sess?.session?.user?.id;
-        if (!uid) return;
+        if (!uid) { if (!cancelled) setState(s => ({ ...s, loading: false })); return; }
         const { data: row, error } = await supabase.from('profiles').select('business_type').eq('id', uid).maybeSingle();
-        if (cancelled || error || !row) return;
+        if (cancelled) return;
+        if (error || !row) { setState(s => ({ ...s, loading: false })); return; }
         const t = normalizeBusinessType((row as { business_type?: unknown }).business_type);
-        setType(t);
+        setState({ type: t, loading: false });
         try { localStorage.setItem(cacheKey(activeManager), t); } catch { /* ignore */ }
-      } catch { /* keep cached/default */ }
+      } catch { if (!cancelled) setState(s => ({ ...s, loading: false })); }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; window.clearTimeout(stallTimer); };
   }, [activeManager, userRole]);
 
   // M5: re-read the cache when the gate (or signup) saves a new type, so the
   // app's tabs switch immediately without a reload.
   useEffect(() => {
-    const refresh = () => setType(readCache(activeManager));
+    const refresh = () => setState({ type: readCache(activeManager), loading: false });
     window.addEventListener('bc-business-type-changed', refresh);
     return () => window.removeEventListener('bc-business-type-changed', refresh);
   }, [activeManager]);
 
-  return type;
+  return state;
 }
