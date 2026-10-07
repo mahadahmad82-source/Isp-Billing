@@ -8,6 +8,10 @@
 // Fields live directly on manager_data.data.users[] (overdueLastReminderSent,
 // overdueReminderCount) — same JSONB blob the app already dual-saves.
 
+// Single shared balance formula (canonical: utils/computeBalance.ts) — the same
+// figure the Receipt Generator shows.
+import { computeCustomerBalance } from '../utils/computeBalance.js';
+
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
 
@@ -77,12 +81,18 @@ export default async function handler(req: any, res: any) {
       if (row.manager_id !== BOUND_MANAGER_ID) continue;
       const data = row.data || {};
       const users: any[] = data.users || [];
+      const receipts: any[] = data.receipts || [];
+      const planPrices: Record<string, number> = data.settings?.planPrices || {};
+      const periodNow = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
       let changed = false;
       const newPendingNotifs: any[] = [];
 
       for (const u of users) {
         if (!u || u.status === 'deleted' || !u.expiryDate) continue;
-        const bal = u.balance ?? 0;
+        // Real outstanding dues via the shared formula — the stale user.balance
+        // field never includes missed-month arrears, so long-pending customers
+        // were reminded for less than they owe (or skipped entirely at 0).
+        const bal = computeCustomerBalance(u, receipts, periodNow, planPrices);
         if (bal <= 0) continue; // no dues — nothing to remind about
 
         const exp = new Date(u.expiryDate);
