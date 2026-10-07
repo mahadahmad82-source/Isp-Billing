@@ -14,6 +14,10 @@ import { Jimp, JimpMime } from 'jimp';
 // (ERR_MODULE_NOT_FOUND: /var/task/lib/ttsProviders), which meant NetBot
 // stopped replying to every single inbound customer message, not just voice ones.
 import type { TtsProvider, TtsGender } from '../lib/ttsProviders';
+// Single shared balance formula (canonical: utils/computeBalance.ts) — the same
+// figure the Receipt Generator shows. Verified at build time via esbuild bundle;
+// kept as a top-level value import like ../lib/*.js above.
+import { computeCustomerBalance } from '../utils/computeBalance.js';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
@@ -2474,8 +2478,11 @@ function welcomeMenu(salutation: string, name?: string, botName: string = 'NetBo
   return tmpl('greeting_welcome_menu', { greeting, bot_name: botName });
 }
 
-function billReply(user: any, receipts: any[]): string {
-  const bal = user.balance ?? 0;
+function billReply(user: any, receipts: any[], planPrices?: Record<string, number>): string {
+  // Outstanding dues via the shared balance formula — NOT the stale user.balance
+  // field (never recomputed on receipt save, never includes missed-month arrears).
+  const periodNow = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+  const bal = computeCustomerBalance(user, receipts || [], periodNow, planPrices);
   const expDate = user.expiryDate
     ? new Date(user.expiryDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })
     : 'N/A';
@@ -2570,8 +2577,12 @@ function fiberUpsellPitch(): string {
 // Checked before troubleshooting tips / complaint-ticket creation — a suspended
 // account (unpaid balance or expired package) is the real cause of "no internet"
 // far more often than a router fault, so billing is confirmed clear first.
-function accountBillingBlockedReply(user: any): string | null {
-  const bal = user.balance ?? 0;
+function accountBillingBlockedReply(user: any, receipts?: any[], planPrices?: Record<string, number>): string | null {
+  // Real outstanding dues via the shared balance formula — the stale user.balance
+  // field could read 0 while months of unpaid dues never landed on it, which made
+  // this check wrongly conclude billing was clear.
+  const periodNow = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+  const bal = computeCustomerBalance(user, receipts || [], periodNow, planPrices);
   // Compare against the exact current moment, not midnight — expiry carries a
   // specific time (network cuts users off at that exact time), so a midnight-only
   // check kept treating already-cut-off customers as "not expired" for the rest
@@ -4241,7 +4252,7 @@ export default async function handler(req: any, res: any) {
             await sendOutageResponse(from, outageType, typedFound.user, typedFound.rowData?.settings?.ayeshaBotName);
             continue;
           }
-          const billingBlockType = accountBillingBlockedReply(typedFound.user);
+          const billingBlockType = accountBillingBlockedReply(typedFound.user, typedFound.receipts, typedFound.planPrices);
           if (billingBlockType) { await sendText(from, billingBlockType); continue; }
           const ackType = await acknowledgeIssue(originalIssue, typedFound.rowData?.settings?.ayeshaBotName);
           await startDiagnosticFlow(from, typedFound, originalIssue, ackType);
@@ -4336,7 +4347,7 @@ export default async function handler(req: any, res: any) {
 
           const outageD = getRelevantUpdate(foundD.rowData, text, foundD.user, { complaint: true });
           if (outageD) { await sendOutageResponse(from, outageD, foundD.user, foundD.rowData?.settings?.ayeshaBotName); continue; }
-          const billingBlockD = accountBillingBlockedReply(foundD.user);
+          const billingBlockD = accountBillingBlockedReply(foundD.user, foundD.receipts, foundD.planPrices);
           if (billingBlockD) { await sendText(from, billingBlockD); continue; }
 
           // Customer replying with their router brand/model after we asked for it —
@@ -4622,7 +4633,7 @@ export default async function handler(req: any, res: any) {
         // type is freshly (re)confirmed a couple steps below in the complaint flow.
         const outage = getRelevantUpdate(found.rowData, text, found.user, { complaint: true });
         if (outage && !outageConnectionScope(outage)) { await sendOutageResponse(from, outage, found.user, found.rowData?.settings?.ayeshaBotName); continue; }
-        const billingBlock = accountBillingBlockedReply(found.user);
+        const billingBlock = accountBillingBlockedReply(found.user, found.receipts, found.planPrices);
         if (billingBlock) { await sendText(from, billingBlock); continue; }
         // Carry the resolved identity forward so the rest of the complaint flow (which
         // re-looks-up the customer at each step) doesn't lose it if the phone number itself
@@ -4633,7 +4644,7 @@ export default async function handler(req: any, res: any) {
       }
       if (intent === 'menu_bill') {
         if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-        await sendText(from, billReply(found.user, found.receipts));
+        await sendText(from, billReply(found.user, found.receipts, found.planPrices));
         continue;
       }
       if (intent === 'menu_expiry') {
@@ -4668,18 +4679,18 @@ export default async function handler(req: any, res: any) {
           // Receipt exists but has no stored image (e.g. created before this feature) —
           // fall back to the text summary instead of leaving the customer with nothing.
           await sendText(from, tmpl('receipt_not_available', { name: user.name }));
-          await sendText(from, billReply(user, receipts));
+          await sendText(from, billReply(user, receipts, rowData?.settings?.planPrices));
         } else {
           await sendText(from, tmpl('receipt_none_found', { name: user.name }));
         }
         continue;
       }
-      if (intent === 'bill')            { await sendText(from, billReply(user, receipts)); continue; }
+      if (intent === 'bill')            { await sendText(from, billReply(user, receipts, rowData?.settings?.planPrices)); continue; }
       // Customer is disputing/confused about their balance — proactively send the full
       // payment ledger too, so they can see exactly which month's payment is missing
       // instead of going back and forth over a number.
       if (intent === 'bill_dispute') {
-        await sendText(from, billReply(user, receipts));
+        await sendText(from, billReply(user, receipts, rowData?.settings?.planPrices));
         await sendText(from, tmpl('payment_history_context_note'));
         await sendText(from, paymentHistoryReply(user, receipts));
         continue;
@@ -4716,7 +4727,7 @@ export default async function handler(req: any, res: any) {
       const packagesListForGroq = Object.entries(planPricesForGroq).map(([n, p]) => `${n} — Rs.${p}`).join(', ') || 'Mahad bhai se confirm karein';
       const customerDiscount = user.persistentDiscount || 0;
       const customerNetFee = Math.max(0, (user.monthlyFee || planPricesForGroq?.[user.plan] || 0) - customerDiscount);
-      const custData = `Customer: ${user.name} | Package: ${user.plan} | Monthly (net${customerDiscount > 0 ? ', discount already applied — mat repeat karo full price' : ''}): Rs.${customerNetFee} | Balance: Rs.${user.balance ?? 0} | Expiry: ${user.expiryDate || 'N/A'}${customerDiscount > 0 ? `\nSpecial Discount: Rs.${customerDiscount}/month — is customer ko yeh discount diya gaya hai, yeh already Monthly (net) mein shamil hai. Kabhi bhi full/system price mat quote karna.` : ''}
+      const custData = `Customer: ${user.name} | Package: ${user.plan} | Monthly (net${customerDiscount > 0 ? ', discount already applied — mat repeat karo full price' : ''}): Rs.${customerNetFee} | Balance: Rs.${computeCustomerBalance(user, receipts || [], new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()), planPricesForGroq)} | Expiry: ${user.expiryDate || 'N/A'}${customerDiscount > 0 ? `\nSpecial Discount: Rs.${customerDiscount}/month — is customer ko yeh discount diya gaya hai, yeh already Monthly (net) mein shamil hai. Kabhi bhi full/system price mat quote karna.` : ''}
 
 REAL BANK ACCOUNTS — agar account number/bank details maange to YEHI EXACT digits do, kabhi khud se number mat banao:
 ${tmpl('bank_accounts')}
