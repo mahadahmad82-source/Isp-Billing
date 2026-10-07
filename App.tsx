@@ -2595,6 +2595,8 @@ const App: React.FC = () => {
           {!tabLoading && activeTab === 'reminders' && userRole !== 'sub-manager' && (
             <BulkReminder
               users={filteredUsers}
+              receipts={filteredReceipts}
+              planPrices={currentSettings.planPrices}
               settings={{ businessName: currentSettings.businessName, businessPhone: currentSettings.businessPhone, messageTemplates: currentSettings.messageTemplates }}
             />
           )}
