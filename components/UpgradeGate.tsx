@@ -10,7 +10,7 @@ interface Props {
   children?: React.ReactNode;
 }
 
-const TIER_ORDER = { trial: 0, starter: 1, business: 2, pro: 3, suspended: -1 };
+const TIER_ORDER = { starter: 1, business: 2, pro: 3, suspended: -1 };
 
 const UPGRADE_INFO: Record<string, { icon: React.FC<{ className?: string }>; desc: string; tier: string }> = {
   equipment:  { icon: AntennaIcon, desc: 'Track routers, ONUs, and other devices', tier: 'Business' },
@@ -23,7 +23,7 @@ const UPGRADE_INFO: Record<string, { icon: React.FC<{ className?: string }>; des
 };
 
 const UpgradeGate: React.FC<Props> = ({ sub, feature, featureName, children }) => {
-  const tier = sub.isTrialExpired ? 'starter' : sub.tier;
+  const tier = sub.tier;
   const features = TIER_FEATURES[tier];
   const hasAccess = typeof (features as any)[feature] === 'boolean' ? (features as any)[feature] : true;
 
@@ -55,7 +55,6 @@ const UpgradeGate: React.FC<Props> = ({ sub, feature, featureName, children }) =
           <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Your Current Plan</p>
           <p className="font-black text-lg">
             {TIER_FEATURES[tier].label}
-            {sub.isTrialExpired && <span className="text-red-400 text-sm ml-2">(Trial Expired)</span>}
           </p>
         </div>
 
