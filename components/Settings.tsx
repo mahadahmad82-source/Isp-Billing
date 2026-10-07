@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, sendPushNotification } from '../lib/pushNotifications';
 import { AppSettings, ReceiptDesign, AppState, UserRecord, ManagerAccount, DefaultPlanPricing, Receipt } from '../types';
+import PlanUpgradeCard from './PlanUpgradeCard';
 import { getAccounts, saveAccount, removeAccount } from '../utils/storage';
 import * as XLSX from 'xlsx';
 import { logoBase64 } from '../utils/logoBase64';
@@ -590,6 +591,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
 
   const SETTINGS_NAV = [
     { id: 'profile', label: 'Business Profile' },
+    { id: 'plan', label: 'Plan & Billing' },
     { id: 'appearance', label: 'Appearance' },
     { id: 'receipts', label: 'Receipts' },
     { id: 'plans', label: 'Internet Plans' },
@@ -760,6 +762,14 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onResto
           </div>
         )}
       </>
+      )}
+
+      {settingsNav === 'plan' && (
+        <PlanUpgradeCard
+          managerId={activeManager}
+          customerCount={(fullState.users || []).length}
+          subManagerCount={(fullState.subManagers || []).length}
+        />
       )}
 
       {settingsNav === 'appearance' && (
