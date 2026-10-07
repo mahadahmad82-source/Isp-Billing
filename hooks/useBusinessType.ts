@@ -44,6 +44,8 @@ export function useBusinessType(activeManager: string | null | undefined, userRo
     // Cache hit: instant and correct — never show the spinner for these.
     setState({ type: raw == null ? DEFAULT_BUSINESS_TYPE : normalizeBusinessType(raw), loading: raw == null });
     let cancelled = false;
+    // Safety net: a stalled network must never leave the spinner up forever (falls back to ISP, as on failure).
+    const stallTimer = window.setTimeout(() => { if (!cancelled) setState(s => (s.loading ? { ...s, loading: false } : s)); }, 6000);
     (async () => {
       try {
         const { data: sess } = await supabase.auth.getSession();
@@ -57,7 +59,7 @@ export function useBusinessType(activeManager: string | null | undefined, userRo
         try { localStorage.setItem(cacheKey(activeManager), t); } catch { /* ignore */ }
       } catch { if (!cancelled) setState(s => ({ ...s, loading: false })); }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; window.clearTimeout(stallTimer); };
   }, [activeManager, userRole]);
 
   // M5: re-read the cache when the gate (or signup) saves a new type, so the
