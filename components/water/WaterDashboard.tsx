@@ -339,7 +339,7 @@ export default function WaterDashboard({ managerId, customers, businessName, exp
             <div className={`${card} p-5`}>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-base font-black text-[#0f172a] dark:text-white">Riders today</h2>
-                <button type="button" onClick={() => onNavigate({ tab: 'water-more' })}
+                <button type="button" onClick={() => onNavigate({ tab: 'team' })}
                   className="text-[11px] font-black uppercase tracking-widest text-[#1d4ed8] dark:text-[#93c5fd]">Manage</button>
               </div>
               {ridersToday.length === 0 && (

@@ -101,11 +101,12 @@ export interface WaterNavRequest {
 }
 
 /**
- * R1 redesign (2026-10-06): dashboard navigation target for the 5-tab water IA.
- * The dashboard tells App which tab to open plus that tab's one-shot request.
+ * Sidebar nav (2026-10-07, from approved dashboard mockup): dashboard
+ * navigation target. The dashboard tells App which tab to open plus that
+ * tab's one-shot request.
  */
 export interface DashboardNavTarget {
-  tab: 'dashboard' | 'water-hub' | 'water-customers' | 'water-billing' | 'water-more';
+  tab: 'dashboard' | 'water-hub' | 'water-customers' | 'water-billing' | 'team';
   /** When tab === 'water-hub' (Deliveries): sub-section + one-shot action. */
   hubSub?: 'today' | 'orders' | 'inbox';
   hubAction?: WaterNavAction;
