@@ -1,17 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { UserRecord, MessageTemplate } from '../types';
+import { UserRecord, Receipt, MessageTemplate } from '../types';
+import { computeCustomerBalance } from '../utils/computeBalance';
 import { useIsDark } from '../hooks/useIsDark';
 import { DEFAULT_MESSAGE_TEMPLATES } from '../utils/messageTemplates';
 import { MobileIcon, MapPinIcon, CheckIcon, CalendarIcon, CrossCircleIcon, ClipboardIcon, EditIcon, CelebrateIcon } from './icons/UiIcons';
 
 interface Props {
   users: UserRecord[];
+  receipts: Receipt[];
+  planPrices?: Record<string, number>;
   settings: { businessName?: string; businessPhone?: string; reminderTemplate?: string; messageTemplates?: Record<string, MessageTemplate> };
 }
 
 const DEFAULT_TEMPLATE = DEFAULT_MESSAGE_TEMPLATES.bulk_reminder.text;
 
-const BulkReminder: React.FC<Props> = ({ users, settings }) => {
+const BulkReminder: React.FC<Props> = ({ users, receipts, planPrices, settings }) => {
   const isDark = useIsDark();
   const [daysFilter, setDaysFilter] = useState<number>(3);
   const [filterType, setFilterType] = useState<'expiring' | 'expired' | 'both'>('both');
@@ -46,7 +49,12 @@ const BulkReminder: React.FC<Props> = ({ users, settings }) => {
     const expStr = exp ? exp.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
     const diffDays = exp ? Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
     const statusStr = diffDays >= 0 ? `Expires in ${diffDays} days` : `Expired ${Math.abs(diffDays)} days ago`;
-    const balance = u.balance && u.balance > 0 ? u.balance : u.monthlyFee || 0;
+    // Outstanding dues via the shared balance formula (utils/computeBalance) — the same
+    // figure the Receipt Generator shows. The old code fell back to the full monthlyFee
+    // whenever user.balance was 0/unset, so paid-up customers were reminded for a whole
+    // month they didn't owe, and stale balances never included missed-month arrears.
+    const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
+    const balance = computeCustomerBalance(u, receipts, currentPeriod, planPrices);
     return template
       .replace('{name}', u.name)
       .replace('{status}', statusStr)

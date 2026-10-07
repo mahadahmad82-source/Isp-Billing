@@ -6,6 +6,7 @@ import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import ReceiptGenerator from './ReceiptGenerator';
+import { computeCustomerBalance } from '../utils/computeBalance';
 import { PhoneIcon, PrinterIcon } from './icons/UiIcons';
 
 // Kept in sync with the same helper in ReceiptGenerator.tsx so recharge/expiry
@@ -285,10 +286,17 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         const hasPaid = userReceipts.length > 0;
         const paidSum = userReceipts.reduce((s, r) => s + (r.paidAmount - (r.advanceAmount || 0)), 0);
         const advanceSum = userReceipts.reduce((s, r) => s + (r.advanceAmount || 0), 0);
-        const lastReceipt = userReceipts[userReceipts.length - 1];
-        // Non-payers count their outstanding user.balance too — without this, the % looked
-        // artificially high because non-payers contributed nothing to the "expected" side.
-        const balanceSum = hasPaid ? (lastReceipt?.balanceAmount ?? 0) : (u.balance ?? 0);
+        // Latest receipt by date — the raw filter order is not chronological, so an
+        // unsorted "last" pick could grab an older receipt's balance.
+        const lastReceipt = [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        // Payers: remaining dues after this period's payment (the receipt's own figure).
+        // Non-payers: full outstanding dues via the shared balance formula
+        // (last previous receipt balance + missed-month arrears). The old code used the
+        // stale user.balance field here, which is never recomputed when receipts are saved
+        // and never includes missed months — dues were understated, which also skewed the %.
+        const balanceSum = hasPaid
+          ? (lastReceipt?.balanceAmount ?? 0)
+          : computeCustomerBalance(u, deferredReceipts || [], period, settings.planPrices, true);
         totalPaid += paidSum + advanceSum;
         totalAdvance += advanceSum;
         totalBalance += balanceSum;
@@ -325,14 +333,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       const paidSum = userReceipts.reduce((sum, r) => sum + (r.paidAmount - (r.advanceAmount || 0)), 0);
       const advanceSum = userReceipts.reduce((sum, r) => sum + (r.advanceAmount || 0), 0);
       
-      // FIXED: Read balance exactly from Excel import — no phantom arrears
-      // If user has receipts, use the receipt's explicit balanceAmount
-      // If no receipts but has balance on user record, show that balance
-      // If no receipts and no balance → 0 (not paid but no arrears)
-      const lastReceipt = userReceipts[userReceipts.length - 1];
+      // Balance: payers show the remaining dues after this period's payment
+      // (latest receipt's explicit balanceAmount, by date — the filter order is not
+      // chronological). Non-payers show full outstanding dues via the shared balance
+      // formula (utils/computeBalance): last previous receipt balance + missed-month
+      // arrears. The old code used the stale user.balance field for non-payers, which is
+      // never recomputed when receipts are saved and never includes missed months.
+      const lastReceipt = [...userReceipts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
       const balanceSum = hasPaid
         ? (lastReceipt?.balanceAmount ?? 0)
-        : (u.balance ?? 0);
+        : computeCustomerBalance(u, deferredReceipts || [], selectedMonth, settings.planPrices, true);
 
       // Recharge Date = cycle-start date, same convention as the receipt view:
       // prefer the actual stored rechargeDate off the latest receipt this period,

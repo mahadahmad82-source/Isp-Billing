@@ -7,6 +7,7 @@ import { generateId } from '../utils/storage';
 import { generateProfessionalMessage } from '../services/geminiService';
 import { shareToWhatsApp, getWabotAuthHeaders, uploadMediaToR2 } from '../utils/whatsapp';
 import { renderMessageTemplate } from '../utils/messageTemplates';
+import { computeCustomerBalance } from '../utils/computeBalance';
 import { supabase } from '../lib/supabase';
 
 interface ReceiptGeneratorProps {
@@ -193,8 +194,10 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
       ? settings.planPrices[user.plan] 
       : (user.monthlyFee || 0);
     
-    // 2. Detect Arrears/Advance from most recent PREVIOUS receipt
-    // Exclude the current billing period so we never carry forward the same month's balance
+    // 2. Detect Arrears/Advance — single shared formula (utils/computeBalance):
+    //    last previous receipt's balanceAmount (period-sorted, current period excluded)
+    //    + (fee − discount) for every missed month with no SUCCESS receipt.
+    // Exclude the current billing period so we never carry forward the same month's balance.
     // overrideMonth/overrideYear let callers pass the target period explicitly (e.g. Recovery
     // Ledger preselect) — billingMonth/billingYear state may not have re-rendered yet when this
     // runs synchronously right after setBillingMonth/setBillingYear, and reading stale state here
@@ -202,62 +205,8 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     const effectiveMonth = overrideMonth || billingMonth;
     const effectiveYear = overrideYear || billingYear;
     const currentBillingPeriod = `${effectiveMonth} ${effectiveYear}`;
-    const userReceipts = receipts.filter(r => r.userId === user.id);
-
-    // Reliable period parser: "May 2026" → new Date("May 1, 2026")
-    const parseMonthYear = (str: string) => {
-      if (!str) return null;
-      const parts = str.trim().split(' ');
-      if (parts.length < 2) return null;
-      const d = new Date(`${parts[0]} 1, ${parts[1]}`);
-      return isNaN(d.getTime()) ? null : d;
-    };
-
-    // Sort by parsed PERIOD (not receipt creation date) to get true latest billing period.
-    // If a period fails to parse (legacy-imported data), fall back to comparing raw receipt
-    // `date` so a malformed period string can't silently misorder which receipt is "latest".
-    const previousReceipts = [...userReceipts]
-      .filter(r => r.period && r.period !== currentBillingPeriod)
-      .sort((a, b) => {
-        const da = parseMonthYear(a.period);
-        const db = parseMonthYear(b.period);
-        if (!da || !db) return new Date(b.date).getTime() - new Date(a.date).getTime();
-        return db.getTime() - da.getTime();
-      });
-    const latestPreviousReceipt = previousReceipts.length > 0 ? previousReceipts[0] : null;
-
-    // Use balanceAmount from most recent PREVIOUS receipt
-    // If no previous receipt exists at all → fallback to Master Directory balance (user.balance)
-    const lastReceiptBalance = latestPreviousReceipt
-      ? (latestPreviousReceipt.balanceAmount || 0)
-      : (user.balance || 0);
-
-    // Persistent discount must be known before the missed-months loop so each missed
-    // month charges the discounted fee, not the gross fee.
     const persistentDisc = user.persistentDiscount || 0;
-
-    // Detect missed months: iterate each month between last receipt and current period
-    // Only add fee for months that have NO receipt at all (not just gap math).
-    // Each missed month adds (fee - discount) — same net amount the customer would have
-    // owed if they had been billed that month — so arrears never inflate by the discount.
-    let missedMonthsArrears = 0;
-    if (latestPreviousReceipt && latestPreviousReceipt.period) {
-      const currentDate = parseMonthYear(currentBillingPeriod);
-      const lastDate = parseMonthYear(latestPreviousReceipt.period);
-      if (currentDate && lastDate && currentDate > lastDate) {
-        const cursor = new Date(lastDate);
-        cursor.setMonth(cursor.getMonth() + 1);
-        while (cursor < currentDate) {
-          const mName = cursor.toLocaleString('en-US', { month: 'long' });
-          const mYear = cursor.getFullYear().toString();
-          const mPeriod = `${mName} ${mYear}`;
-          const hasPaid = userReceipts.some(r => r.period === mPeriod && r.status === PaymentStatus.SUCCESS);
-          if (!hasPaid) missedMonthsArrears += Math.max(0, fee - persistentDisc);
-          cursor.setMonth(cursor.getMonth() + 1);
-        }
-      }
-    }
-    const balance = lastReceiptBalance + missedMonthsArrears;
+    const balance = computeCustomerBalance(user, receipts, currentBillingPeriod, settings.planPrices);
     
     setMonthlyFee(fee);
     setPreviousBalance(balance);
