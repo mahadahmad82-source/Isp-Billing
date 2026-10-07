@@ -36,7 +36,6 @@ jobs:
             "components/Layout.tsx"
             "components/UserManagement.tsx"
             "components/ReceiptGenerator.tsx"
-            "components/Archives.tsx"
             "components/Insights.tsx"
             "components/Settings.tsx"
             "components/BusinessAnalytics.tsx"
