@@ -54,7 +54,8 @@ import FAQPage from './components/FAQPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import WaterHub from './components/water/WaterHub';
 import WaterCustomersTab from './components/water/WaterCustomersTab';
-import WaterMoreTab from './components/water/WaterMoreTab';
+import RoutesPanel from './components/water/RoutesPanel';
+import VehiclesPanel from './components/water/VehiclesPanel';
 import WaterAnalytics from './components/water/WaterAnalytics';
 import WaterDashboard from './components/water/WaterDashboard';
 import WaterBillingTab from './components/water/WaterBillingTab';
@@ -167,7 +168,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-more','water-reports','water-analytics'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-reports','water-analytics','water-routes','water-vehicles'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -197,7 +198,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-reports','water-analytics','water-routes','water-vehicles'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -2212,9 +2213,24 @@ const App: React.FC = () => {
               onAddUser={handleAddUser} onBulkAddUsers={handleBulkAddUsers} onUpdateUser={handleWaterUpdateUser}
               navRequest={customerNavRequest} onNavRequestConsumed={() => setCustomerNavRequest(null)} />
           )}
-          {/* R1: More tab — expenses/reports/analytics/routes/vehicles/riders/settings. */}
-          {!tabLoading && activeTab === 'water-more' && businessType === 'water' && userRole !== 'sub-manager' && (
-            <WaterMoreTab managerId={activeManager!} customers={state.users} onNavigateTab={(t) => setActiveTab(t)} />
+          {/* Sidebar nav: Routes / Vehicles are direct tabs (no More tab). */}
+          {!tabLoading && activeTab === 'water-routes' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <div className="px-4 py-4 md:px-6 max-w-6xl mx-auto">
+              <div className="mb-4">
+                <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Routes</h1>
+                <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">Delivery routes and order</p>
+              </div>
+              <RoutesPanel managerId={activeManager!} customers={state.users} />
+            </div>
+          )}
+          {!tabLoading && activeTab === 'water-vehicles' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <div className="px-4 py-4 md:px-6 max-w-6xl mx-auto">
+              <div className="mb-4">
+                <h1 className="text-xl font-black text-[#0f172a] dark:text-white">Vehicles</h1>
+                <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">Bikes, loaders and vans</p>
+              </div>
+              <VehiclesPanel managerId={activeManager!} />
+            </div>
           )}
           {/* R1: old water-ledger tab removed (merged into Customers). Stale #water-ledger hashes fall back to dashboard via validTabs. */}
           {/* M6c: Analytics tab (manager only). */}

@@ -7,6 +7,7 @@ import { logoBase64 } from '../utils/logoBase64';
 import { avatarBase64 } from '../utils/avatarBase64';
 import LanguageToggle from './LanguageToggle';
 import { Language, t } from '../utils/i18n';
+import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
   businessType?: BusinessType; // undefined => 'isp' (no tabs hidden)
@@ -131,8 +132,11 @@ const PAGE_TITLES: Record<string, string> = {
   'admin-pricing':       'Admin — Pricing Plans',
   'admin-app-releases':  'Admin — App Releases',
   team:       'Team Hub',
-  'water-hub': 'Water',
+  'water-hub': 'Deliveries',
+  'water-customers': 'Customers',
   'water-billing': 'Billing',
+  'water-routes': 'Routes',
+  'water-vehicles': 'Vehicles',
   'water-reports': 'Reports',
   expenses:   'Expenses',
   analytics:  'Analytics',
@@ -143,6 +147,12 @@ const PAGE_TITLES: Record<string, string> = {
   reminders:  'Reminders',
   templates:  'Message Templates',
 };
+
+// ─────────────────────────────────────────────
+// Water sidebar nav item types (approved dashboard mockup, 2026-10-07)
+// ─────────────────────────────────────────────
+interface WaterNavItem { id: string; label: string; icon: React.ReactNode }
+interface WaterNavSection { title: string; items: WaterNavItem[] }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
@@ -197,6 +207,20 @@ const Layout: React.FC<LayoutProps> = ({
   const [profileOpen, setProfileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileInitialTab, setProfileInitialTab] = useState<'profile'|'security'|'session'>('profile');
+  const [waterInboxCount, setWaterInboxCount] = useState(0);
+
+  // Deliveries badge (approved mockup): unhandled inbox count for water accounts.
+  useEffect(() => {
+    if (businessType !== 'water' || isAdmin || !activeManager) return;
+    let cancelled = false;
+    supabase
+      .from('water_inbox')
+      .select('id', { count: 'exact', head: true })
+      .eq('manager_id', activeManager)
+      .eq('handled', false)
+      .then(({ count, error }) => { if (!cancelled && !error) setWaterInboxCount(count || 0); });
+    return () => { cancelled = true; };
+  }, [businessType, isAdmin, activeManager, activeTab]);
 
   let tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <svg className={`${activeTab === 'dashboard' ? 'animate-bounce' : ''} w-5 h-5`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> },
@@ -259,43 +283,81 @@ const Layout: React.FC<LayoutProps> = ({
     tabs.push({ id: 'water-hub', label: 'Water', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7 6.7 8.6a7 7 0 1 0 10.6 0Z" /></svg> });
   }
 
-  // M6a: water-first navigation — curated allowlist in fixed order with water labels.
-  // ISP navigation above is completely untouched.
-  const isWaterNav = businessType === 'water' && !isAdmin && userRole !== 'sub-manager';
+  // Water sidebar nav (2026-10-07, from approved dashboard mockup): persistent
+  // left sidebar on desktop (md+), themed drawer on mobile. DAILY: Dashboard,
+  // Deliveries, Customers, Billing; MANAGE: Expenses, Reports, Analytics;
+  // SETUP: Routes, Vehicles, Riders, Settings. No "More" tab — every
+  // destination is a direct nav item. ISP navigation above is completely untouched.
+  const isWaterNav = businessType === 'water' && !isAdmin;
+  let waterSections: WaterNavSection[] = [];
   if (isWaterNav) {
     const byId = new Map(tabs.map(tb => [tb.id, tb]));
-    const receiptIcon = byId.get('receipts')?.icon;
-    const chartIcon = byId.get('analytics')?.icon;
-    const fallbackIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
-    // R1 redesign (2026-10-06): 5-tab IA — Dashboard, Deliveries, Customers,
-    // Billing, More. ISP navigation above is completely untouched.
-    const order: { id: string; label: string }[] = [
-      { id: 'dashboard', label: 'Dashboard' },
-      { id: 'water-hub', label: 'Deliveries' },
-      { id: 'water-customers', label: 'Customers' },
-      { id: 'water-billing', label: 'Billing' },
-      { id: 'water-more', label: 'More' },
-    ];
     const dropIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7s6.5 7 6.5 11.3a6.5 6.5 0 1 1-13 0C5.5 9.7 12 2.7 12 2.7z" /></svg>;
-    const usersIcon = byId.get('users')?.icon;
-    const moreIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>;
-    const iconFor = (id: string) => {
+    const trendIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 17l6-6 4 4 8-8M15 7h6v6" /></svg>;
+    const routeIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.5-2.5v-13L9 7l6-2.5L20.5 7v13L15 17.5 9 20zM9 7v13M15 4.5v13" /></svg>;
+    const vehicleIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11m-14 0h14a2 2 0 0 1 2 2v4h-2.5m-13.5 0H3v-4a2 2 0 0 1 2-2zm2.5 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm11 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" /></svg>;
+    const iconFor = (id: string): React.ReactNode => {
       if (id === 'water-hub') return dropIcon;
-      if (id === 'water-customers') return usersIcon;
-      if (id === 'water-billing') return receiptIcon;
-      if (id === 'water-more') return moreIcon;
-      return chartIcon;
+      if (id === 'water-analytics') return trendIcon;
+      if (id === 'water-routes') return routeIcon;
+      if (id === 'water-vehicles') return vehicleIcon;
+      return byId.get(id)?.icon;
     };
-    tabs = order.map(o => {
-      const base = byId.get(o.id);
-      if (base) return { ...base, label: o.label };
-      return {
-        id: o.id,
-        label: o.label,
-        icon: iconFor(o.id) || fallbackIcon,
-      };
-    });
+    const sectionDef: { title: string; ids: { id: string; label: string }[] }[] = [
+      { title: 'Daily', ids: [
+        { id: 'dashboard', label: 'Dashboard' },
+        { id: 'water-hub', label: 'Deliveries' },
+        { id: 'water-customers', label: 'Customers' },
+        { id: 'water-billing', label: 'Billing' },
+      ]},
+      { title: 'Manage', ids: [
+        { id: 'expenses', label: 'Expenses' },
+        { id: 'water-reports', label: 'Reports' },
+        { id: 'water-analytics', label: 'Analytics' },
+      ]},
+      { title: 'Setup', ids: [
+        { id: 'water-routes', label: 'Routes' },
+        { id: 'water-vehicles', label: 'Vehicles' },
+        { id: 'team', label: 'Riders' },
+        { id: 'settings', label: 'Settings' },
+      ]},
+    ];
+    waterSections = sectionDef
+      .map(s => ({
+        title: s.title,
+        items: s.ids
+          .filter(o => byId.has(o.id))
+          .map(o => ({ id: o.id, label: o.label, icon: iconFor(o.id) })),
+      }))
+      .filter(s => s.items.length > 0);
   }
+
+  // Shared water nav item renderer (desktop sidebar + mobile drawer).
+  const renderWaterNavItem = (item: WaterNavItem) => {
+    const isActive = activeTab === item.id;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left ${isActive
+          ? 'bg-[#dbeafe] dark:bg-[rgba(59,130,246,0.18)]'
+          : 'hover:bg-[#f8fafc] dark:hover:bg-white/5'}`}
+      >
+        <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${isActive
+          ? 'bg-[#1d4ed8] text-white shadow-lg shadow-blue-600/30'
+          : 'bg-[#f1f5f9] dark:bg-white/5 text-[#1d4ed8] dark:text-[#93c5fd]'}`}>
+          {item.icon}
+        </span>
+        <span className={`flex-1 text-[15px] font-bold ${isActive ? 'text-[#1e40af] dark:text-[#93c5fd]' : 'text-[#0f172a] dark:text-white'}`}>
+          {item.label}
+        </span>
+        {item.id === 'water-hub' && waterInboxCount > 0 && (
+          <span className="text-xs font-black px-2 py-0.5 rounded-full bg-[#dc2626] text-white">{waterInboxCount}</span>
+        )}
+      </button>
+    );
+  };
 
   const isDark = theme === 'dark';
 
@@ -332,6 +394,7 @@ const Layout: React.FC<LayoutProps> = ({
           <button
             onClick={() => setDrawerOpen(true)}
             className={`p-1.5 rounded-xl border transition-all shadow-sm flex items-center justify-center w-9 h-9 active:scale-90
+              ${isWaterNav ? 'md:hidden' : ''}
               ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
             title="Open Menu"
           >
@@ -439,6 +502,51 @@ const Layout: React.FC<LayoutProps> = ({
       </header>
 
       {/* ═══════════════════════════════════════
+          WATER SIDEBAR — Desktop only (md+). Approved dashboard mockup:
+          persistent left nav with DAILY / MANAGE / SETUP sections.
+          Mobile uses the hamburger drawer below. ISP untouched.
+      ═══════════════════════════════════════ */}
+      {isWaterNav && (
+        <aside className="hidden md:flex flex-col fixed left-0 top-[64px] bottom-0 w-72 z-30 bg-white dark:bg-[#0f172a] border-r border-[#e2e8f0] dark:border-white/10">
+          <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#f1f5f9] dark:border-white/5">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#3b82f6] text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-600/30 flex-shrink-0">
+              {(businessName?.charAt(0) || 'M').toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="font-black text-[15px] truncate text-[#0f172a] dark:text-white">{businessName || 'Water Manager'}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#94a3b8]">Water Manager</p>
+            </div>
+          </div>
+          <nav id="tour-sidebar-nav" className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
+            {waterSections.map(sec => (
+              <div key={sec.title} className="mb-4">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#64748b] dark:text-[#94a3b8] px-3 mb-1.5">{sec.title}</p>
+                <div className="space-y-0.5">
+                  {sec.items.map(renderWaterNavItem)}
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="p-4 border-t border-[#f1f5f9] dark:border-white/5">
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f8fafc] dark:hover:bg-white/5 transition-colors"
+            >
+              <span className="w-10 h-10 rounded-2xl bg-[#f1f5f9] dark:bg-white/5 flex items-center justify-center shrink-0">
+                {isDark ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" /></svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                )}
+              </span>
+              <span className="text-[15px] font-bold">Toggle theme</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* ═══════════════════════════════════════
           DRAWER OVERLAY — All screen sizes
       ═══════════════════════════════════════ */}
       {drawerOpen && (
@@ -453,9 +561,46 @@ const Layout: React.FC<LayoutProps> = ({
       ═══════════════════════════════════════ */}
       <div className={`fixed top-0 left-0 h-full z-[100] transition-transform duration-300 ease-in-out shadow-2xl
         w-72 md:w-80
-        ${isDark ? 'bg-slate-900' : 'bg-indigo-900'}
+        ${isWaterNav
+          ? (isDark ? 'bg-[#0f172a]' : 'bg-white')
+          : (isDark ? 'bg-slate-900' : 'bg-indigo-900')}
         ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
+        {/* Water drawer — themed + sectioned (approved dashboard mockup).
+            Mobile only; desktop uses the persistent sidebar above. */}
+        {isWaterNav && (
+          <>
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#f1f5f9] dark:border-white/5">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#3b82f6] text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-600/30 flex-shrink-0">
+                {(businessName?.charAt(0) || 'M').toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-[15px] truncate text-[#0f172a] dark:text-white">{businessName || 'Water Manager'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#94a3b8]">Water Manager</p>
+              </div>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="w-9 h-9 rounded-xl border border-[#e2e8f0] dark:border-white/10 text-[#64748b] dark:text-[#94a3b8] flex items-center justify-center flex-shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <nav className="px-4 py-3 space-y-4 overflow-y-auto max-h-[calc(100vh-100px)]">
+              {waterSections.map(sec => (
+                <div key={sec.title}>
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#64748b] dark:text-[#94a3b8] px-3 mb-1.5">{sec.title}</p>
+                  <div className="space-y-0.5">
+                    {sec.items.map(renderWaterNavItem)}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </>
+        )}
+        {!isWaterNav && (
+        <>
         {/* Drawer Header */}
         <div className={`flex items-center justify-between px-5 pt-5 pb-5 border-b border-white/10`}>
           <div className="flex items-center gap-3">
@@ -584,14 +729,17 @@ const Layout: React.FC<LayoutProps> = ({
             );
           })}
         </nav>
+        </>
+        )}
 
       </div>
 
       {/* ═══════════════════════════════════════
           MAIN CONTENT AREA
       ═══════════════════════════════════════ */}
-      <main className="flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full">
-        {/* Page Title Bar */}
+      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full ${isWaterNav ? 'md:ml-72' : ''}`}>
+        {/* Page Title Bar — hidden for water (every water screen renders its own header, per approved mockup) */}
+        {!isWaterNav && (
         <div className="flex items-center justify-between mb-6 no-print">
           <div className="flex items-center gap-3">
             <div className={`w-1 h-7 rounded-full ${isDark ? 'bg-indigo-500' : 'bg-indigo-600'}`} />
@@ -600,6 +748,7 @@ const Layout: React.FC<LayoutProps> = ({
             </h2>
           </div>
         </div>
+        )}
 
         <div className="w-full">
           {/* Supabase sync indicator */}
