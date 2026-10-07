@@ -8,7 +8,10 @@
 // the same figure. It is pure (no state, no side effects) and safe to call from
 // useMemo blocks.
 
-import { PaymentStatus, Receipt, UserRecord } from '../types';
+// Type-only import on purpose: this file is also imported by Vercel serverless functions
+// (api/webhook.ts, api/cron-overdue-reminders.ts), where Node ESM cannot resolve the
+// extensionless '../types' at runtime. A runtime import of types.ts would crash the bot.
+import type { Receipt, UserRecord } from '../types';
 
 // Reliable period parser: "May 2026" → new Date("May 1, 2026").
 // Returns null for legacy/malformed period strings.
@@ -84,7 +87,7 @@ export function computeCustomerBalance(
         const mName = cursor.toLocaleString('en-US', { month: 'long' });
         const mYear = cursor.getFullYear().toString();
         const mPeriod = `${mName} ${mYear}`;
-        const hasPaid = userReceipts.some(r => r.period === mPeriod && r.status === PaymentStatus.SUCCESS);
+        const hasPaid = userReceipts.some(r => r.period === mPeriod && (r.status as string) === 'Success' /* PaymentStatus.SUCCESS */);
         if (!hasPaid) missedMonthsArrears += Math.max(0, fee - persistentDisc);
         cursor.setMonth(cursor.getMonth() + 1);
       }
