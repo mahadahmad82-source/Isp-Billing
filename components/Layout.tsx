@@ -288,7 +288,8 @@ const Layout: React.FC<LayoutProps> = ({
   // Deliveries, Customers, Billing; MANAGE: Expenses, Reports, Analytics;
   // SETUP: Routes, Vehicles, Riders, Settings. No "More" tab — every
   // destination is a direct nav item. ISP navigation above is completely untouched.
-  const isWaterNav = businessType === 'water' && !isAdmin;
+  // Sub-managers keep the previous bottom-tab nav (unchanged behavior).
+  const isWaterNav = businessType === 'water' && !isAdmin && userRole !== 'sub-manager';
   let waterSections: WaterNavSection[] = [];
   if (isWaterNav) {
     const byId = new Map(tabs.map(tb => [tb.id, tb]));
