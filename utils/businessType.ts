@@ -23,19 +23,22 @@ export const getBusinessType = (state?: Pick<AppState, 'businessType'> | null): 
 // this order. ISP keeps everything (unchanged), so a new/unknown tab can never
 // disappear for ISP by accident.
 export const WATER_TABS: string[] = [
-  // Sidebar nav (2026-10-07, from approved dashboard mockup): DAILY —
-  // Dashboard, Deliveries, Customers, Billing; MANAGE — Expenses, Reports,
-  // Analytics; SETUP — Routes, Vehicles, Riders, Settings. No "More" tab;
-  // every destination is a direct nav item.
+  // Sidebar nav (2026-10-08, approved mockup v2): MAIN —
+  // Dashboard, Customer Directory List; OPERATIONS — Deliveries,
+  // Routes, Riders, Vehicles; FINANCIALS — Receipt and Billing,
+  // Expenses, Month End; INSIGHTS — Reports, Analytics; SYSTEM —
+  // System Logs, Settings. Every destination is a direct nav item.
   'dashboard',
   'water-hub',       // Deliveries
-  'water-customers', // Customers (+Ledger merged in)
-  'water-billing',
+  'water-customers', // Customer Directory List (+Ledger merged in)
+  'water-billing',   // Receipt and Billing
+  'water-monthend',  // Month End (direct link; also inside Billing > Ledger)
   'expenses',
   'water-reports',
   'water-analytics',
   'water-routes',
   'water-vehicles',
+  'water-syslogs',   // System Logs (water view of the shared log store)
   'team',            // Riders
   'settings',
 ];

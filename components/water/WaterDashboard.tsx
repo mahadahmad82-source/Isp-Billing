@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import RevenueChart from './RevenueChart';
 import { supabase } from '../../lib/supabase';
 import type { BusinessExpense } from '../../types';
 import {
@@ -358,6 +359,21 @@ export default function WaterDashboard({ managerId, customers, businessName, exp
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Total Collection Revenue — 30-day chart (approved mockup v2).
+              Reuses the Collection Analytics per-day series; no new fetching. */}
+          <div className={`${card} p-5 mb-4`}>
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+              <div>
+                <h2 className="text-base font-black text-[#0f172a] dark:text-white">Total Collection Revenue</h2>
+                <p className={`${sectionTitle} mt-0.5`}>Last 30 days</p>
+              </div>
+              <p className="text-2xl font-black text-[#0f172a] dark:text-white">
+                {formatRs(days30.reduce((a, d) => a + num(d.collected), 0))}
+              </p>
+            </div>
+            <RevenueChart days={days30.map(d => ({ date: d.date, collected: num(d.collected) }))} />
           </div>
 
           {/* Quick actions */}
