@@ -18,6 +18,7 @@ import type { TtsProvider, TtsGender } from '../lib/ttsProviders';
 // figure the Receipt Generator shows. Verified at build time via esbuild bundle;
 // kept as a top-level value import like ../lib/*.js above.
 import { computeCustomerBalance } from '../utils/computeBalance.js';
+import { OPEN_STATUSES, ticketFingerprint, getOpenTickets, isFollowUp, followUpReply, trustedConnectionType } from '../lib/netbotTickets.js';
 
 const SUPABASE_URL = 'https://mzmajmjzopmkzboizrbm.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // service role — bypasses RLS, server-only, never exposed to browser
@@ -749,10 +750,32 @@ async function getTemplates(): Promise<Record<string, string>> {
   }
 }
 
-async function saveComplaint(managerId: string, rowData: any, user: any, issue: string) {
+// Fresh (cache-bypassing) manager_data read — a ticket created seconds ago must be
+// visible to the duplicate check / follow-up routing, which the 30s cache would hide.
+async function getManagerRowFresh(managerId: string): Promise<any | null> {
+  invalidateManagerDataCache(managerId);
+  return getManagerRow(managerId);
+}
+
+async function getOpenTicketsFresh(managerId: string, customerId: string) {
+  const fresh = await getManagerRowFresh(managerId);
+  return getOpenTickets(customerId, fresh?.complaintTickets);
+}
+
+// Returns the ticket id plus whether it was an existing open ticket for the same
+// customer + same issue (paraphrase-tolerant fingerprint) within 24h — never mints a second one.
+async function saveComplaintEx(managerId: string, rowData: any, user: any, issue: string): Promise<{ id: string; duplicate: boolean }> {
   const t = issue.toLowerCase();
   const priority = /urgent|emergency|2\s*din|3\s*din|kal\s*se|bilkul\s*nahi|completely/.test(t)
     ? 'high' : /slow|thoda|kabhi/.test(t) ? 'low' : 'medium';
+  const fp = ticketFingerprint(String(user.id), issue);
+  try {
+    const fresh = await getManagerRowFresh(managerId);
+    const dup = (fresh?.complaintTickets || []).find((c: any) =>
+      c.customerId === user.id && OPEN_STATUSES.has(String(c.status || '').toLowerCase()) &&
+      c.fingerprint === fp && Date.now() - new Date(c.createdAt).getTime() < 24 * 3600 * 1000);
+    if (dup) { console.log(`♻️ duplicate ticket suppressed → ${dup.id}`); return { id: dup.id, duplicate: true }; }
+  } catch (e: any) { console.error('[saveComplaint dedupe]', e?.message); }
   const ticketId = `WA-${Date.now()}`;
   const inboundAt = new Date().toISOString();
   const newTicket = {
@@ -761,6 +784,7 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
     description: issue, status: 'open', priority,
     customerLastInboundAt: inboundAt, feedbackStatus: 'pending',
     createdAt: inboundAt, createdBy: 'netbot',
+    fingerprint: fp, idempotencyKey: `${fp}:${inboundAt.slice(0, 13)}`,
   };
   try {
     // Atomic DB-level append (same jsonb_set pattern as append_manager_notification) —
@@ -779,7 +803,11 @@ async function saveComplaint(managerId: string, rowData: any, user: any, issue: 
       priority: priority === 'high' ? 'HIGH' : priority === 'low' ? 'LOW' : 'MEDIUM',
     });
   } catch (e: any) { console.error('[saveComplaint]', e?.message); }
-  return ticketId;
+  return { id: ticketId, duplicate: false };
+}
+
+async function saveComplaint(managerId: string, rowData: any, user: any, issue: string): Promise<string> {
+  return (await saveComplaintEx(managerId, rowData, user, issue)).id;
 }
 
 async function getManagerRow(managerId: string): Promise<any | null> {
@@ -2895,7 +2923,14 @@ function complaintAckReply(user: any, ticketId: string, issue: string): string {
 }
 
 async function registerComplaintAndReply(from: string, found: any, issue: string) {
-  const ticketId = await saveComplaint(found.managerId, found.rowData, found.user, issue);
+  const { id: ticketId, duplicate } = await saveComplaintEx(found.managerId, found.rowData, found.user, issue);
+  if (duplicate) {
+    const [existing] = await getOpenTicketsFresh(found.managerId, found.user.id).then(l => l.filter(o => o.id === ticketId));
+    await sendText(from, existing
+      ? followUpReply(found.user?.name, existing, 1)
+      : `Ji, aap ki ticket ${ticketId} pehle se open hai — nayi ticket nahi banai.`);
+    return;
+  }
   const setupNote = routerSetupContextNote(issue);
   await sendTextAndVoice(from, `${complaintAckReply(found.user, ticketId, issue)}${setupNote ? `\n\n${setupNote}` : ''}`);
 }
@@ -3410,6 +3445,70 @@ async function handleDiagnosticAction(
 // matched agent (multi-agent routing, e.g. a dedicated technical persona) the
 // same way the Groq-fallback path does, and locks that persona/voice into the
 // session so it stays consistent across every turn of this diagnosis.
+// WI-3: persist the customer's own fiber/local answer so we ask at most once per
+// 180 days. Best-effort atomic patch via RPC (no whole-blob rewrite); if the RPC is
+// missing/failing the bot simply keeps asking, exactly like before.
+async function persistConnectionType(managerId: string, userId: string, type: 'fiber' | 'local') {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/set_user_connection_type`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        p_manager_id: managerId, p_user_id: userId,
+        p_type: type === 'fiber' ? 'Fiber' : 'Local', p_at: new Date().toISOString(),
+      }),
+    });
+    if (!res.ok) console.error('[persistConnectionType]', res.status, await res.text().catch(() => ''));
+    invalidateManagerDataCache(managerId);
+  } catch (e: any) { console.error('[persistConnectionType]', e?.message); }
+}
+
+// Shared tail of the complaint triage: outage check → billing block → diagnosis.
+// Used both after the customer answers "fiber ya local?" and when the stored
+// (trusted) connection type lets us skip that question.
+async function proceedAfterConnectionType(from: string, typedFound: any, originalIssue: string) {
+  // getRelevantUpdate already scopes internally (local-scoped schedule only matches
+  // local customers, fiber-scoped only fiber), so this covers both.
+  const outageType = getRelevantUpdate(typedFound.rowData, originalIssue, typedFound.user, { complaint: true });
+  if (outageType) {
+    await sendOutageResponse(from, outageType, typedFound.user, typedFound.rowData?.settings?.ayeshaBotName);
+    return;
+  }
+  const billingBlockType = accountBillingBlockedReply(typedFound.user, typedFound.receipts, typedFound.planPrices);
+  if (billingBlockType) { await sendText(from, billingBlockType); return; }
+  const ackType = await acknowledgeIssue(originalIssue, typedFound.rowData?.settings?.ayeshaBotName);
+  await startDiagnosticFlow(from, typedFound, originalIssue, ackType);
+}
+
+// Complaint entry point (menu + natural-language paths):
+//  1. open-ticket-first — a follow-up on an unresolved ticket gets a status reply,
+//     never a new triage loop / duplicate ticket (WI-1);
+//  2. ask fiber-vs-local only when no trusted value exists (WI-3).
+async function routeComplaint(from: string, found: any, issue: string) {
+  const open = await getOpenTicketsFresh(found.managerId, found.user.id);
+  if (isFollowUp(issue, open)) {
+    await setSession(from, null);
+    await sendText(from, followUpReply(found.user?.name, open[0], open.length));
+    if (open[0].ageHours >= 24) {
+      await notifyManager(found.managerId, found.rowData, {
+        title: '⏰ Customer follow-up on open ticket',
+        message: `${found.user.name} dobara pooch raha hai: ${open[0].id} (${open[0].ageHours}h se open)`,
+        priority: 'HIGH',
+      });
+    }
+    return;
+  }
+  const trusted = trustedConnectionType(found.user);
+  if (trusted) {
+    await setSession(from, null);
+    await proceedAfterConnectionType(
+      from, { ...found, user: { ...found.user, connectionType: trusted === 'fiber' ? 'Fiber' : 'Local' } }, issue);
+    return;
+  }
+  await setSession(from, 'awaiting_connection_type', { issue, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
+  await sendText(from, connectionTypeQuestion(await acknowledgeIssue(issue, found.rowData?.settings?.ayeshaBotName)));
+}
+
 async function startDiagnosticFlow(
   from: string,
   found: { managerId: string; rowData: any; user: any },
@@ -4243,19 +4342,9 @@ export default async function handler(req: any, res: any) {
           }
           await setSession(from, null);
           const typedFound = { ...foundType, user: { ...foundType.user, connectionType: selectedType === 'fiber' ? 'Fiber' : 'Local' } };
-          // Check for a relevant outage regardless of fiber/local — getRelevantUpdate
-          // already scopes internally (a local-scoped schedule only matches local
-          // customers, a fiber-scoped one only matches fiber), so this covers both,
-          // not just the local case.
-          const outageType = getRelevantUpdate(typedFound.rowData, originalIssue, typedFound.user, { complaint: true });
-          if (outageType) {
-            await sendOutageResponse(from, outageType, typedFound.user, typedFound.rowData?.settings?.ayeshaBotName);
-            continue;
-          }
-          const billingBlockType = accountBillingBlockedReply(typedFound.user, typedFound.receipts, typedFound.planPrices);
-          if (billingBlockType) { await sendText(from, billingBlockType); continue; }
-          const ackType = await acknowledgeIssue(originalIssue, typedFound.rowData?.settings?.ayeshaBotName);
-          await startDiagnosticFlow(from, typedFound, originalIssue, ackType);
+          // Heal the DB with the customer's own answer (WI-3) so we don't ask again.
+          await persistConnectionType(foundType.managerId, foundType.user.id, selectedType);
+          await proceedAfterConnectionType(from, typedFound, originalIssue);
           continue;
         }
 
@@ -4266,14 +4355,11 @@ export default async function handler(req: any, res: any) {
             found = await findCustomerByManagerAndId(sessionData.verifiedManagerId, sessionData.verifiedUserId);
           }
           if (!found) { await sendText(from, unknownCustomerReply()); await setSession(from, 'awaiting_unknown_details'); continue; }
-          // Always ask fiber-vs-local fresh on every new complaint — the stored
-          // user.connectionType field is frequently stale/wrong (confirmed in prod:
-          // customers marked "Fiber" in the DB who explicitly told the bot "Mera
-          // local area connection hai" and never got asked because a value already
-          // existed). Trusting that field silently skipped this question and also
-          // silently skipped the local-outage-schedule reply. Ask every time instead.
-          await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: found.managerId, verifiedUserId: found.user.id });
-          await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, found.rowData?.settings?.ayeshaBotName)));
+          // Open-ticket-first, then ask fiber-vs-local only if there is no trusted
+          // (customer-confirmed / admin-set, < 180 days) value — see routeComplaint().
+          // The old "ask every time" workaround never saved the answer, so it could
+          // never stop being necessary; the answer is now persisted on confirm.
+          await routeComplaint(from, found, text);
           continue;
         }
 
@@ -4712,11 +4798,8 @@ export default async function handler(req: any, res: any) {
           await sendOutageResponse(from, outageC, user, rowData?.settings?.ayeshaBotName);
           continue;
         }
-        // Always ask fiber-vs-local fresh on every new complaint — see matching
-        // comment in the 'awaiting_complaint_text' session handler above for why
-        // the stored user.connectionType field is no longer trusted here.
-        await setSession(from, 'awaiting_connection_type', { issue: text, verifiedManagerId: managerId, verifiedUserId: user.id });
-        await sendText(from, connectionTypeQuestion(await acknowledgeIssue(text, rowData?.settings?.ayeshaBotName)));
+        // Open-ticket-first + ask-once connection type — see routeComplaint().
+        await routeComplaint(from, found, text);
         continue;
       }
 
