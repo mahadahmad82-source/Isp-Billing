@@ -8,6 +8,7 @@ import { avatarBase64 } from '../utils/avatarBase64';
 import LanguageToggle from './LanguageToggle';
 import { Language, t } from '../utils/i18n';
 import { supabase } from '../lib/supabase';
+import { WATER_NAV_TAB_DEFS, WATER_SIDEBAR_SECTIONS, waterNavIcon } from './water/waterSidebarConfig';
 
 interface LayoutProps {
   businessType?: BusinessType; // undefined => 'isp' (no tabs hidden)
@@ -278,9 +279,16 @@ const Layout: React.FC<LayoutProps> = ({
     tabs = tabs.filter(tab => isTabEnabled(businessType, tab.id));
   }
 
-  // Water module (W1): Water Hub tab — only for water-business accounts. ISP sees nothing new.
+  // Water module (W1): water tab defs — only for water-business accounts. ISP sees nothing new.
+  // water-hub renders for every role; the remaining water tabs render for managers only
+  // (App.tsx guards them with userRole !== 'sub-manager'), so sub-managers must not get
+  // dead links. Previously only water-hub was pushed here, which silently dropped the
+  // other six links from the sidebar sections (2026-10-08 fix).
   if (businessType === 'water' && !isAdmin) {
-    tabs.push({ id: 'water-hub', label: 'Water', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7 6.7 8.6a7 7 0 1 0 10.6 0Z" /></svg> });
+    const defs = userRole === 'sub-manager'
+      ? WATER_NAV_TAB_DEFS.filter(d => d.id === 'water-hub')
+      : WATER_NAV_TAB_DEFS;
+    tabs.push(...defs);
   }
 
   // Water sidebar nav (2026-10-07, from approved dashboard mockup): persistent
@@ -292,42 +300,15 @@ const Layout: React.FC<LayoutProps> = ({
   let waterSections: WaterNavSection[] = [];
   if (isWaterNav) {
     const byId = new Map(tabs.map(tb => [tb.id, tb]));
-    const dropIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2.7s6.5 7 6.5 11.3a6.5 6.5 0 1 1-13 0C5.5 9.7 12 2.7 12 2.7z" /></svg>;
-    const trendIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 17l6-6 4 4 8-8M15 7h6v6" /></svg>;
-    const routeIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.5-2.5v-13L9 7l6-2.5L20.5 7v13L15 17.5 9 20zM9 7v13M15 4.5v13" /></svg>;
-    const vehicleIcon = <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11m-14 0h14a2 2 0 0 1 2 2v4h-2.5m-13.5 0H3v-4a2 2 0 0 1 2-2zm2.5 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm11 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" /></svg>;
-    const iconFor = (id: string): React.ReactNode => {
-      if (id === 'water-hub') return dropIcon;
-      if (id === 'water-analytics') return trendIcon;
-      if (id === 'water-routes') return routeIcon;
-      if (id === 'water-vehicles') return vehicleIcon;
-      return byId.get(id)?.icon;
-    };
-    const sectionDef: { title: string; ids: { id: string; label: string }[] }[] = [
-      { title: 'Daily', ids: [
-        { id: 'dashboard', label: 'Dashboard' },
-        { id: 'water-hub', label: 'Deliveries' },
-        { id: 'water-customers', label: 'Customers' },
-        { id: 'water-billing', label: 'Billing' },
-      ]},
-      { title: 'Manage', ids: [
-        { id: 'expenses', label: 'Expenses' },
-        { id: 'water-reports', label: 'Reports' },
-        { id: 'water-analytics', label: 'Analytics' },
-      ]},
-      { title: 'Setup', ids: [
-        { id: 'water-routes', label: 'Routes' },
-        { id: 'water-vehicles', label: 'Vehicles' },
-        { id: 'team', label: 'Riders' },
-        { id: 'settings', label: 'Settings' },
-      ]},
-    ];
-    waterSections = sectionDef
+    // Sections + icons come from components/water/waterSidebarConfig.tsx
+    // (single source of truth). The byId filter keeps sub-manager access-right
+    // restrictions and drops nothing else — every section id exists in tabs.
+    waterSections = WATER_SIDEBAR_SECTIONS
       .map(s => ({
         title: s.title,
-        items: s.ids
+        items: s.items
           .filter(o => byId.has(o.id))
-          .map(o => ({ id: o.id, label: o.label, icon: iconFor(o.id) })),
+          .map(o => ({ id: o.id, label: o.label, icon: waterNavIcon(o.id, byId.get(o.id)?.icon) })),
       }))
       .filter(s => s.items.length > 0);
   }
