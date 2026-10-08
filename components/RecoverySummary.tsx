@@ -6,7 +6,7 @@ import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import ReceiptGenerator from './ReceiptGenerator';
-import { computeCustomerBalance } from '../utils/computeBalance';
+import { computeCustomerBalance, feeForUser } from '../utils/computeBalance';
 import { PhoneIcon, PrinterIcon } from './icons/UiIcons';
 
 // Kept in sync with the same helper in ReceiptGenerator.tsx so recharge/expiry
@@ -343,6 +343,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       const balanceSum = hasPaid
         ? (lastReceipt?.balanceAmount ?? 0)
         : computeCustomerBalance(u, deferredReceipts || [], selectedMonth, settings.planPrices, true);
+      // Covered only when the credit also absorbs THIS month's fee: balanceSum excludes the
+      // current period's fee, so a small credit (e.g. Rs. 100 vs a Rs. 1000 fee) is still pending.
+      const netFee = Math.max(0, feeForUser(u, settings.planPrices) - (u.persistentDiscount || 0));
+      const isAdvanceCovered = !hasPaid && balanceSum < 0 && balanceSum + netFee <= 0;
 
       // Recharge Date = cycle-start date, same convention as the receipt view:
       // prefer the actual stored rechargeDate off the latest receipt this period,
@@ -365,13 +369,13 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         // Advance-covered: no receipt this period, but prior overpayment covers
         // everything owed (net balance negative). Nothing to collect — display
         // as ADVANCE instead of PENDING so prepaid customers stop looking due.
-        isAdvanceCovered: !hasPaid && balanceSum < 0,
+        isAdvanceCovered,
         rechargeDate,
         expiryDate: u.expiryDate,
         ref: hasPaid ? userReceipts.map(r => r.transactionRef).join(', ') : '-',
         date: hasPaid ? new Date(userReceipts[0].date).toLocaleDateString() : '-',
         dateRaw: hasPaid ? new Date(userReceipts[0].date).getTime() : 0,
-        statusSort: (hasPaid || (!hasPaid && balanceSum < 0)) ? 0 : 1, // 0=Paid/Advance first, 1=Pending
+        statusSort: (hasPaid || isAdvanceCovered) ? 0 : 1, // 0=Paid/Advance first, 1=Pending
       };
     }).filter(item => 
       !detailSearchTerm || 
