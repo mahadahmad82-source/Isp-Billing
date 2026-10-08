@@ -2152,6 +2152,7 @@ const App: React.FC = () => {
           language={state.language || 'en'}
           onLanguageChange={handleLanguageChange}
           businessName={currentSettings.businessName} 
+          businessLogo={currentSettings.businessLogo}
           onToggleTheme={handleToggleTheme}
           lastSavedTime={lastSavedTime}
           isSyncing={isSyncing}
