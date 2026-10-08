@@ -331,7 +331,12 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 transition-colors">
+    <div className="relative animate-in fade-in duration-500 transition-colors">
+      {/* Premium glass mesh backdrop — light mode */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[2.5rem] dark:hidden" style={{ background: "radial-gradient(600px 400px at 10% 0%, rgba(199,210,254,0.85), transparent 62%), radial-gradient(520px 440px at 92% 8%, rgba(186,230,253,0.85), transparent 62%), radial-gradient(560px 500px at 88% 92%, rgba(253,224,71,0.35), transparent 62%), radial-gradient(540px 500px at 6% 96%, rgba(249,168,212,0.50), transparent 62%)" }} />
+      {/* Premium glass mesh backdrop — dark mode */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[2.5rem] hidden dark:block" style={{ background: "radial-gradient(600px 400px at 10% 0%, rgba(99,102,241,0.18), transparent 60%), radial-gradient(520px 440px at 92% 8%, rgba(14,165,233,0.14), transparent 60%), radial-gradient(560px 500px at 88% 92%, rgba(217,70,239,0.12), transparent 60%)" }} />
+      <div className="relative space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="space-y-1">
@@ -417,7 +422,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       </div>
 
       {/* ── Analytics Chart ── */}
-      <div className="chart-surface bg-white dark:bg-[#0b1120] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-xl">
+      <div className="chart-surface bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] border border-white/80 dark:border-white/10 rounded-[24px] p-8 shadow-[0_12px_40px_rgba(99,102,241,0.10)]">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Revenue Analytics</h3>
@@ -454,12 +459,12 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       </div>
 
       {/* ── Growth Metrics (moved here from the former AI Insights tab) ── */}
-      <div className="bg-white dark:bg-[#0f172a] p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl">
+      <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] p-8 rounded-[24px] border border-white/80 dark:border-white/10 shadow-[0_12px_40px_rgba(99,102,241,0.10)]">
         <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
           <span className="w-8 h-8 bg-blue-500/10 text-blue-500 rounded-lg flex items-center justify-center text-sm">📈</span> Growth Metrics
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
+          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-white/50 dark:bg-white/5 rounded-2xl border border-white/70 dark:border-white/10">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Avg Payment / Unit</span>
             <span className="text-sm font-black text-slate-900 dark:text-white">
               Rs. {Math.round((receipts || []).filter(r => r.status === PaymentStatus.SUCCESS).length > 0
@@ -467,23 +472,23 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
                 : 0).toLocaleString()}
             </span>
           </div>
-          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
+          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-white/50 dark:bg-white/5 rounded-2xl border border-white/70 dark:border-white/10">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Retention Target</span>
             <span className="text-sm font-black text-emerald-500">95%</span>
           </div>
-          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-slate-50 dark:bg-[#030712] rounded-2xl border border-slate-100 dark:border-white/5">
+          <div className="flex justify-between md:flex-col md:justify-start md:gap-2 items-center md:items-start p-5 bg-white/50 dark:bg-white/5 rounded-2xl border border-white/70 dark:border-white/10">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Active Receivables</span>
             <span className="text-sm font-black text-rose-500">Rs. {(users || []).filter(u => u.status === 'expired').reduce((s,u) => s + (u.balance || 0), 0).toLocaleString()}</span>
           </div>
         </div>
       </div>
 
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-slate-900"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="recovery-gauge relative h-36 w-36 shrink-0"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#2563eb" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} style={{ transition: 'stroke-dashoffset 950ms cubic-bezier(0.22, 1, 0.36, 1)' }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-blue-600 dark:text-blue-400"><AnimatedRecoveryPercent value={recoveryPercent} /></span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
+      <div className="rounded-[24px] border border-white/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] p-6 shadow-[0_12px_40px_rgba(99,102,241,0.10)]"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="recovery-gauge relative h-36 w-36 shrink-0"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#2563eb" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} style={{ transition: 'stroke-dashoffset 950ms cubic-bezier(0.22, 1, 0.36, 1)' }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-blue-600 dark:text-blue-400"><AnimatedRecoveryPercent value={recoveryPercent} /></span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
       {/* ── Modals ── */}
       {activeModal === 'BALANCE' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/5 relative z-10 flex flex-col max-h-[85vh]">
+          <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-[24px] w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-white/70 dark:border-white/10 relative z-10 flex flex-col max-h-[85vh]">
             <div className="p-8 border-b border-slate-100 dark:border-white/5 bg-red-50/50 dark:bg-red-500/5 flex justify-between items-center">
               <div>
                 <h4 className="text-2xl font-black text-slate-900 dark:text-slate-50 uppercase tracking-tight">Outstanding Log</h4>
@@ -516,7 +521,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       {(activeModal === 'TODAY_EXPIRY' || activeModal === 'TODAY_EXPIRED') && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/5 relative z-10 flex flex-col max-h-[85vh]">
+          <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-[24px] w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-white/70 dark:border-white/10 relative z-10 flex flex-col max-h-[85vh]">
             <div className={`p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center ${activeModal === 'TODAY_EXPIRY' ? 'bg-amber-50 dark:bg-amber-500/5' : 'bg-rose-50 dark:bg-rose-500/5'}`}>
               <div>
                 <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
@@ -545,6 +550,7 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

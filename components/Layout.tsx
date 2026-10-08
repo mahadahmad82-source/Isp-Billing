@@ -18,6 +18,7 @@ interface LayoutProps {
   language?: Language;
   onLanguageChange?: (language: Language) => void;
   businessName: string;
+  businessLogo?: string;
   onToggleTheme: () => void;
   lastSavedTime?: string;
   isSyncing?: boolean;
@@ -162,6 +163,7 @@ const Layout: React.FC<LayoutProps> = ({
   language = 'en',
   onLanguageChange = () => {},
   businessName,
+  businessLogo,
   onToggleTheme,
   lastSavedTime,
   isSyncing = false,
@@ -361,6 +363,107 @@ const Layout: React.FC<LayoutProps> = ({
 
   const isDark = theme === 'dark';
 
+  // ISP glass nav items — desktop persistent sidebar (approved dashboard mockup).
+  // Same tabs, order, and click behavior as the drawer; glass styling only.
+  // Rendered only for non-admin ISP accounts; admin keeps the legacy drawer.
+  const renderIspGlassNav = () => {
+    return tabs
+      .filter(tab => !['reports', 'analytics'].includes(tab.id))
+      .map(tab => {
+        const isCustomers = tab.id === 'users';
+        const isExpenses = tab.id === 'expenses';
+        const isExpensesGroupActive = isExpenses && ['expenses', 'reports', 'analytics'].includes(activeTab);
+        const isActive = activeTab === tab.id || isExpensesGroupActive;
+        return (
+          <div key={tab.id}>
+            <a
+              href={isExpenses ? '#expenses' : '#' + tab.id}
+              onClick={(e) => {
+                e.preventDefault();
+                if (isCustomers) {
+                  setCustomersExpanded(prev => !prev);
+                  setActiveTab(tab.id);
+                  setDrawerOpen(false);
+                } else if (isExpenses && !isWaterNav) {
+                  setExpensesExpanded(prev => !prev);
+                } else {
+                  setActiveTab(tab.id);
+                  setDrawerOpen(false);
+                }
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-left cursor-pointer no-underline
+                ${isActive
+                  ? 'bg-[#4f46e5] text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                }`}
+            >
+              <span className="shrink-0">{tab.icon}</span>
+              <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>
+              {(isCustomers || (isExpenses && !isWaterNav)) && (
+                <svg className={`w-4 h-4 transition-transform text-slate-400
+                  ${isCustomers && (customersExpanded || isActive) ? 'rotate-180' : ''}
+                  ${isExpenses && (expensesExpanded || isExpensesGroupActive) ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+            </a>
+
+            {/* Customers Sub-items */}
+            {isCustomers && (activeTab === 'users' || customersExpanded) && (
+              <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-400/40 pl-3">
+                <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('all'); setActiveTab('users'); setDrawerOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10">
+                  <svg className="w-4 h-4 shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Master Directory</span>
+                </a>
+                <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('active'); setActiveTab('users'); setDrawerOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Active Customers</span>
+                </a>
+                <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('expired'); setActiveTab('users'); setDrawerOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10">
+                  <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Expired Customers</span>
+                </a>
+              </div>
+            )}
+
+            {/* Expenses Sub-items: Expenses · Copilot · Analytics */}
+            {isExpenses && !isWaterNav && (expensesExpanded || isExpensesGroupActive) && (
+              <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-400/40 pl-3">
+                <a href="#expenses" onClick={(e) => { e.preventDefault(); setActiveTab('expenses'); setDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer
+                    ${activeTab === 'expenses' ? 'text-[#4f46e5] dark:text-white bg-white/80 dark:bg-white/15' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10'}`}>
+                  <svg className="w-4 h-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Expenses</span>
+                </a>
+                <a href="#reports" onClick={(e) => { e.preventDefault(); setActiveTab('reports'); setDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer
+                    ${activeTab === 'reports' ? 'text-[#4f46e5] dark:text-white bg-white/80 dark:bg-white/15' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10'}`}>
+                  <svg className="w-4 h-4 shrink-0 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Copilot</span>
+                </a>
+                <a href="#analytics" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); setDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer
+                    ${activeTab === 'analytics' ? 'text-[#4f46e5] dark:text-white bg-white/80 dark:bg-white/15' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10'}`}>
+                  <svg className="w-4 h-4 shrink-0 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Analytics</span>
+                </a>
+              </div>
+            )}
+          </div>
+        );
+      });
+  };
+
   return (
     <div className={`app-shell flex flex-col h-screen transition-colors duration-300 overflow-hidden ${isDark ? 'app-shell-dark text-slate-100' : 'app-shell-light text-slate-900'}`}>
 
@@ -394,7 +497,7 @@ const Layout: React.FC<LayoutProps> = ({
           <button
             onClick={() => setDrawerOpen(true)}
             className={`p-1.5 rounded-xl border transition-all shadow-sm flex items-center justify-center w-9 h-9 active:scale-90
-              ${isWaterNav ? 'md:hidden' : ''}
+              ${isWaterNav ? 'md:hidden' : (!isAdmin ? 'lg:hidden' : '')}
               ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
             title="Open Menu"
           >
@@ -547,6 +650,34 @@ const Layout: React.FC<LayoutProps> = ({
       )}
 
       {/* ═══════════════════════════════════════
+          ISP SIDEBAR — Desktop only (lg+). Approved dashboard mockup:
+          persistent glass nav replacing the hamburger on desktop.
+          Non-admin ISP accounts only — admin keeps the legacy drawer,
+          water keeps its own sidebar. Mobile uses the drawer below.
+      ═══════════════════════════════════════ */}
+      {!isWaterNav && !isAdmin && (
+        <aside className="hidden lg:flex flex-col fixed left-0 top-[64px] bottom-0 w-60 z-30 bg-white/55 dark:bg-slate-900/60 backdrop-blur-[22px] border-r border-white/70 dark:border-white/10 shadow-[0_12px_40px_rgba(99,102,241,0.10)]">
+          {/* Business header: name on top, manager's logo below */}
+          <div className="px-5 pt-5 pb-4 border-b border-white/60 dark:border-white/10 text-center">
+            <p className="font-black text-[16px] truncate text-[#1e1b4b] dark:text-white tracking-tight">{businessName || 'ISP Manager'}</p>
+            <div className="mt-3 flex justify-center">
+              {businessLogo ? (
+                <img src={businessLogo} alt="Business logo" className="w-16 h-16 rounded-2xl object-cover shadow-lg border border-white/60" />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-indigo-600/30">
+                  {(businessName?.charAt(0) || 'M').toUpperCase()}
+                </div>
+              )}
+            </div>
+            <p className="mt-2 text-[8px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">ISP Manager v2.5</p>
+          </div>
+          <nav id="tour-sidebar-nav" className="flex-1 overflow-y-auto px-3 py-3 custom-scrollbar space-y-1">
+            {renderIspGlassNav()}
+          </nav>
+        </aside>
+      )}
+
+      {/* ═══════════════════════════════════════
           DRAWER OVERLAY — All screen sizes
       ═══════════════════════════════════════ */}
       {drawerOpen && (
@@ -561,6 +692,7 @@ const Layout: React.FC<LayoutProps> = ({
       ═══════════════════════════════════════ */}
       <div className={`fixed top-0 left-0 h-full z-[100] transition-transform duration-300 ease-in-out shadow-2xl
         w-72 md:w-80
+        ${(!isWaterNav && !isAdmin) ? 'lg:hidden' : ''}
         ${isWaterNav
           ? (isDark ? 'bg-[#0f172a]' : 'bg-white')
           : (isDark ? 'bg-slate-900' : 'bg-indigo-900')}
@@ -737,7 +869,7 @@ const Layout: React.FC<LayoutProps> = ({
       {/* ═══════════════════════════════════════
           MAIN CONTENT AREA
       ═══════════════════════════════════════ */}
-      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full ${isWaterNav ? 'md:ml-72' : ''}`}>
+      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full ${isWaterNav ? 'md:ml-72' : (!isAdmin ? 'lg:ml-60' : '')}`}>
         {/* Page Title Bar — hidden for water (every water screen renders its own header, per approved mockup) */}
         {!isWaterNav && (
         <div className="flex items-center justify-between mb-6 no-print">
