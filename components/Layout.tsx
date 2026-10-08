@@ -134,11 +134,13 @@ const PAGE_TITLES: Record<string, string> = {
   'admin-app-releases':  'Admin — App Releases',
   team:       'Team Hub',
   'water-hub': 'Deliveries',
-  'water-customers': 'Customers',
-  'water-billing': 'Billing',
+  'water-customers': 'Customer Directory List',
+  'water-billing': 'Receipt and Billing',
+  'water-monthend': 'Month End',
   'water-routes': 'Routes',
   'water-vehicles': 'Vehicles',
   'water-reports': 'Reports',
+  'water-syslogs': 'System Logs',
   expenses:   'Expenses',
   analytics:  'Analytics',
   outage:     'Outage',
@@ -193,6 +195,16 @@ const Layout: React.FC<LayoutProps> = ({
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Water sidebar collapse (desktop only) — persisted per browser.
+  const [waterCollapsed, setWaterCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('bc_water_sidebar_collapsed') === '1'; } catch { return false; }
+  });
+  const toggleWaterCollapsed = () => {
+    setWaterCollapsed(prev => {
+      try { localStorage.setItem('bc_water_sidebar_collapsed', prev ? '0' : '1'); } catch { /* storage unavailable */ }
+      return !prev;
+    });
+  };
 
   // Let the Tour Guide open/close the nav drawer while spotlighting it
   useEffect(() => {
@@ -291,11 +303,11 @@ const Layout: React.FC<LayoutProps> = ({
     tabs.push(...defs);
   }
 
-  // Water sidebar nav (2026-10-07, from approved dashboard mockup): persistent
-  // left sidebar on desktop (md+), themed drawer on mobile. DAILY: Dashboard,
-  // Deliveries, Customers, Billing; MANAGE: Expenses, Reports, Analytics;
-  // SETUP: Routes, Vehicles, Riders, Settings. No "More" tab — every
-  // destination is a direct nav item. ISP navigation above is completely untouched.
+  // Water sidebar nav (2026-10-08, approved mockup v2): persistent
+  // left sidebar on desktop (md+), collapsible to an icon rail,
+  // themed drawer on mobile. MAIN / OPERATIONS / FINANCIALS /
+  // INSIGHTS / SYSTEM — every destination is a direct nav item.
+  // ISP navigation above is completely untouched.
   const isWaterNav = businessType === 'water' && !isAdmin;
   let waterSections: WaterNavSection[] = [];
   if (isWaterNav) {
@@ -314,14 +326,16 @@ const Layout: React.FC<LayoutProps> = ({
   }
 
   // Shared water nav item renderer (desktop sidebar + mobile drawer).
-  const renderWaterNavItem = (item: WaterNavItem) => {
+  // compact=true renders icon-only for the collapsed desktop sidebar.
+  const renderWaterNavItem = (item: WaterNavItem, compact = false) => {
     const isActive = activeTab === item.id;
     return (
       <button
         key={item.id}
         type="button"
+        title={compact ? item.label : undefined}
         onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left ${isActive
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left ${compact ? 'justify-center px-0' : ''} ${isActive
           ? 'bg-[#dbeafe] dark:bg-[rgba(59,130,246,0.18)]'
           : 'hover:bg-[#f8fafc] dark:hover:bg-white/5'}`}
       >
@@ -330,10 +344,12 @@ const Layout: React.FC<LayoutProps> = ({
           : 'bg-[#f1f5f9] dark:bg-white/5 text-[#1d4ed8] dark:text-[#93c5fd]'}`}>
           {item.icon}
         </span>
-        <span className={`flex-1 text-[15px] font-bold ${isActive ? 'text-[#1e40af] dark:text-[#93c5fd]' : 'text-[#0f172a] dark:text-white'}`}>
-          {item.label}
-        </span>
-        {item.id === 'water-hub' && waterInboxCount > 0 && (
+        {!compact && (
+          <span className={`flex-1 text-[15px] font-bold ${isActive ? 'text-[#1e40af] dark:text-[#93c5fd]' : 'text-[#0f172a] dark:text-white'}`}>
+            {item.label}
+          </span>
+        )}
+        {item.id === 'water-hub' && !compact && waterInboxCount > 0 && (
           <span className="text-xs font-black px-2 py-0.5 rounded-full bg-[#dc2626] text-white">{waterInboxCount}</span>
         )}
       </button>
@@ -483,27 +499,32 @@ const Layout: React.FC<LayoutProps> = ({
       </header>
 
       {/* ═══════════════════════════════════════
-          WATER SIDEBAR — Desktop only (md+). Approved dashboard mockup:
-          persistent left nav with DAILY / MANAGE / SETUP sections.
+          WATER SIDEBAR — Desktop only (md+). Approved mockup v2:
+          persistent left nav, collapsible to icon rail, grouped
+          MAIN / OPERATIONS / FINANCIALS / INSIGHTS / SYSTEM.
           Mobile uses the hamburger drawer below. ISP untouched.
       ═══════════════════════════════════════ */}
       {isWaterNav && (
-        <aside className="hidden md:flex flex-col fixed left-0 top-[64px] bottom-0 w-72 z-30 bg-white dark:bg-[#0f172a] border-r border-[#e2e8f0] dark:border-white/10">
-          <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#f1f5f9] dark:border-white/5">
+        <aside className={`hidden md:flex flex-col fixed left-0 top-[64px] bottom-0 z-30 bg-white dark:bg-[#0f172a] border-r border-[#e2e8f0] dark:border-white/10 transition-all duration-200 ${waterCollapsed ? 'w-20' : 'w-72'}`}>
+          <div className={`flex items-center gap-3 pt-5 pb-4 border-b border-[#f1f5f9] dark:border-white/5 ${waterCollapsed ? 'justify-center px-0' : 'px-5'}`}>
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#3b82f6] text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-600/30 flex-shrink-0">
               {(businessName?.charAt(0) || 'M').toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <p className="font-black text-[15px] truncate text-[#0f172a] dark:text-white">{businessName || 'Water Manager'}</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#94a3b8]">Water Manager</p>
-            </div>
+            {!waterCollapsed && (
+              <div className="min-w-0">
+                <p className="font-black text-[15px] truncate text-[#0f172a] dark:text-white">{businessName || 'Water Manager'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#94a3b8]">Water Manager</p>
+              </div>
+            )}
           </div>
           <nav id="tour-sidebar-nav" className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
             {waterSections.map(sec => (
               <div key={sec.title} className="mb-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#64748b] dark:text-[#94a3b8] px-3 mb-1.5">{sec.title}</p>
+                {!waterCollapsed && (
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#64748b] dark:text-[#94a3b8] px-3 mb-1.5">{sec.title}</p>
+                )}
                 <div className="space-y-0.5">
-                  {sec.items.map(renderWaterNavItem)}
+                  {sec.items.map(item => renderWaterNavItem(item, waterCollapsed))}
                 </div>
               </div>
             ))}
@@ -511,17 +532,14 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="p-4 border-t border-[#f1f5f9] dark:border-white/5">
             <button
               type="button"
-              onClick={onToggleTheme}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f8fafc] dark:hover:bg-white/5 transition-colors"
+              onClick={toggleWaterCollapsed}
+              title={waterCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[#64748b] dark:text-[#94a3b8] hover:bg-[#f8fafc] dark:hover:bg-white/5 transition-colors ${waterCollapsed ? 'justify-center px-0' : ''}`}
             >
               <span className="w-10 h-10 rounded-2xl bg-[#f1f5f9] dark:bg-white/5 flex items-center justify-center shrink-0">
-                {isDark ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" /></svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                )}
+                <svg className={`w-5 h-5 transition-transform duration-200 ${waterCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 17l-5-5 5-5M18 17l-5-5 5-5" /></svg>
               </span>
-              <span className="text-[15px] font-bold">Toggle theme</span>
+              {!waterCollapsed && <span className="text-[15px] font-bold">Collapse</span>}
             </button>
           </div>
         </aside>
@@ -573,7 +591,7 @@ const Layout: React.FC<LayoutProps> = ({
                 <div key={sec.title}>
                   <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#64748b] dark:text-[#94a3b8] px-3 mb-1.5">{sec.title}</p>
                   <div className="space-y-0.5">
-                    {sec.items.map(renderWaterNavItem)}
+                    {sec.items.map(item => renderWaterNavItem(item))}
                   </div>
                 </div>
               ))}
@@ -718,7 +736,7 @@ const Layout: React.FC<LayoutProps> = ({
       {/* ═══════════════════════════════════════
           MAIN CONTENT AREA
       ═══════════════════════════════════════ */}
-      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full ${isWaterNav ? 'md:ml-72' : ''}`}>
+      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full transition-all duration-200 ${isWaterNav ? (waterCollapsed ? 'md:ml-20' : 'md:ml-72') : ''}`}>
         {/* Page Title Bar — hidden for water (every water screen renders its own header, per approved mockup) */}
         {!isWaterNav && (
         <div className="flex items-center justify-between mb-6 no-print">
