@@ -59,6 +59,7 @@ import VehiclesPanel from './components/water/VehiclesPanel';
 import WaterAnalytics from './components/water/WaterAnalytics';
 import WaterDashboard from './components/water/WaterDashboard';
 import WaterBillingTab from './components/water/WaterBillingTab';
+import MonthEndPanel from './components/water/MonthEndPanel';
 import WaterReports from './components/water/WaterReports';
 import WaterRiderGate from './components/water/WaterRiderGate';
 import WaterRiderHome from './components/water/WaterRiderHome';
@@ -168,7 +169,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Read tab from URL hash on initial load — supports right-click → open in new tab
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-reports','water-analytics','water-routes','water-vehicles'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-monthend','water-reports','water-analytics','water-routes','water-vehicles','water-syslogs'];
     return validTabs.includes(hash) ? hash : 'dashboard';
   });
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
@@ -198,7 +199,7 @@ const App: React.FC = () => {
 
   // Fix browser back/forward button — update activeTab when user navigates via browser history
   React.useEffect(() => {
-    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-reports','water-analytics','water-routes','water-vehicles'];
+    const validTabs = ['dashboard','users','receipts','recoveries','expiries','reports','settings','admin','admin-overview','admin-managers','admin-customers','admin-activity','admin-system','admin-subscriptions','admin-pricing','admin-wabot-saas','team','complaints','communication','expenses','analytics','systemlogs','equipment','dealer-sales','leads','payment-verify','outage','area','reminders','invoice','templates','water-hub','water-customers','water-billing','water-monthend','water-reports','water-analytics','water-routes','water-vehicles','water-syslogs'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (validTabs.includes(hash)) {
@@ -2284,6 +2285,17 @@ const App: React.FC = () => {
           )}
           {!tabLoading && activeTab === 'expiries' && <Expiries users={filteredUsers} settings={currentSettings} onMarkReminded={handleMarkUserReminded} setLoadingMessage={setLoadingMessage} />}
           {!tabLoading && activeTab === 'systemlogs' && (
+            <SystemLogs
+              logs={state.systemLogs || []}
+              onClearLogs={() => setState(prev => ({ ...prev, systemLogs: [] }))}
+            />
+          )}
+          {/* Water: Month End as a direct sidebar link (also reachable inside Billing > Ledger). */}
+          {!tabLoading && activeTab === 'water-monthend' && businessType === 'water' && userRole !== 'sub-manager' && (
+            <MonthEndPanel managerId={activeManager || ''} customers={state.users} />
+          )}
+          {/* Water: System Logs as a direct sidebar link (shared log store; water actions don't write logs yet). */}
+          {!tabLoading && activeTab === 'water-syslogs' && businessType === 'water' && userRole !== 'sub-manager' && (
             <SystemLogs
               logs={state.systemLogs || []}
               onClearLogs={() => setState(prev => ({ ...prev, systemLogs: [] }))}
