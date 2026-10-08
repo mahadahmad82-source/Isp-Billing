@@ -216,6 +216,13 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       onToggle: () => setShowBalance(!showBalance), onViewDetails: () => setActiveModal('BALANCE'), footerLabel: 'Operational Stat'
     },
     {
+      id: 'RECOVERY_RATE', label: 'Recovery Rate', value: `${recoveryPercent}%`,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>,
+      color: 'text-violet-500 bg-violet-500/10', isMasked: false,
+      onToggle: () => setActiveTab('recoveries'), onViewDetails: () => setActiveTab('recoveries'),
+      footerLabel: `Rs. ${(monthlyRecovered || 0).toLocaleString()} of Rs. ${(monthlyTarget || 0).toLocaleString()} target`
+    },
+    {
       id: 'TOTAL_USERS', label: 'Master Directory', value: totalUsersCount.toString(),
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>,
       gradient: 'from-violet-600 to-purple-700', color: 'text-violet-500 bg-violet-500/10', isMasked: false,
@@ -330,6 +337,43 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
     );
   };
 
+  // Glass stat card — Concept D premium style. Behavior identical to the old
+  // gradient cards: whole card fires stat.onToggle, footer button does too.
+  const renderStatCard = (stat: (typeof stats)[number], compact = false) => (
+    <div key={stat.id} onClick={stat.onToggle}
+      className={`bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] border border-white/80 dark:border-white/10 rounded-[24px] ${compact ? 'p-5' : 'p-6'} shadow-[0_12px_40px_rgba(99,102,241,0.10)] cursor-pointer group flex h-full ${compact ? 'min-h-[170px]' : 'min-h-[210px]'} flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all hover:shadow-[0_16px_50px_rgba(99,102,241,0.18)] hover:-translate-y-0.5`}>
+      <div className="relative z-10">
+        <div className={`flex justify-between items-start ${compact ? 'mb-3' : 'mb-5'}`}>
+          <div className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${stat.color}`}>
+            {stat.icon}
+          </div>
+          {stat.isMasked && (
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-slate-900/10 dark:bg-white/10 dark:text-slate-300 px-2 py-1 rounded-lg">
+              {stat.isVisible ? 'VISIBLE' : 'HIDDEN'}
+            </span>
+          )}
+        </div>
+        <h3 className="text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2 truncate">{stat.label}</h3>
+        <div className="flex items-baseline gap-1">
+          <p className={`${compact ? 'text-[22px]' : 'text-[26px]'} font-black tracking-tight transition-all ${stat.isMasked && !stat.isVisible ? 'text-slate-300 dark:text-slate-600 select-none' : 'text-slate-900 dark:text-white'}`}>
+            {stat.value}
+          </p>
+        </div>
+      </div>
+      <div className={`${compact ? 'mt-4 pt-3' : 'mt-6 pt-5'} border-t border-slate-900/10 dark:border-white/10 flex items-center justify-between relative z-10 gap-2`}>
+        <button onClick={(e) => { e.stopPropagation(); stat.onToggle(); }}
+          className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] hover:text-indigo-500 transition-colors truncate">
+          {stat.isMasked ? (stat.isVisible ? 'Hide Amount' : 'Show Amount') : (stat.footerLabel || 'View Details')}
+        </button>
+        <div className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative animate-in fade-in duration-500 transition-colors">
       {/* Premium glass mesh backdrop — light mode */}
@@ -383,44 +427,16 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
       )}
 
 
-      <div id="tour-stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-        {stats.map((stat) => (
-          <div key={stat.id} onClick={stat.onToggle}
-            className={`bg-gradient-to-br ${stat.gradient} p-7 rounded-[2rem] shadow-2xl cursor-pointer group flex h-full min-h-[220px] flex-col justify-between overflow-hidden relative active:scale-95 duration-200 transition-all`}>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none"></div>
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-5">
-                <div className="w-12 h-12 shrink-0 bg-white/20 rounded-2xl flex items-center justify-center text-white transition-transform group-hover:scale-110">
-                  {stat.icon}
-                </div>
-                {stat.isMasked && (
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 bg-black/20 px-2 py-1 rounded-lg">
-                    {stat.isVisible ? 'VISIBLE' : 'HIDDEN'}
-                  </span>
-                )}
-              </div>
-              <h3 className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-2 truncate">{stat.label}</h3>
-              <div className="flex items-baseline gap-1">
-                <p className={`text-3xl font-black tracking-tight transition-all ${stat.isMasked && !stat.isVisible ? 'text-white/20 select-none' : 'text-white'}`}>
-                  {stat.value}
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 pt-5 border-t border-white/20 flex items-center justify-between relative z-10 gap-2">
-              <button onClick={(e) => { e.stopPropagation(); stat.onToggle(); }}
-                className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] hover:text-white transition-colors truncate">
-                {stat.isMasked ? (stat.isVisible ? 'Hide Amount' : 'Show Amount') : (stat.footerLabel || 'View Details')}
-              </button>
-              <div className="text-white/40">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div id="tour-stats-grid" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 auto-rows-fr">
+        {stats.slice(0, 4).map((stat) => renderStatCard(stat))}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 auto-rows-fr">
+        {stats.slice(4).map((stat) => renderStatCard(stat, true))}
       </div>
 
+      {/* ── Analytics Chart + Recovery Pulse ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
       {/* ── Analytics Chart ── */}
       <div className="chart-surface bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] border border-white/80 dark:border-white/10 rounded-[24px] p-8 shadow-[0_12px_40px_rgba(99,102,241,0.10)]">
         <div className="flex justify-between items-center mb-8">
@@ -458,6 +474,10 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
         </div>
       </div>
 
+        </div>
+      <div className="rounded-[24px] border border-white/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] p-6 shadow-[0_12px_40px_rgba(99,102,241,0.10)]"><div className="flex flex-col items-center gap-5 text-center h-full justify-center"><div className="recovery-gauge relative h-36 w-36 shrink-0"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#2563eb" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} style={{ transition: 'stroke-dashoffset 950ms cubic-bezier(0.22, 1, 0.36, 1)' }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-blue-600 dark:text-blue-400"><AnimatedRecoveryPercent value={recoveryPercent} /></span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div className="flex flex-col items-center"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
+      </div>
+
       {/* ── Growth Metrics (moved here from the former AI Insights tab) ── */}
       <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] p-8 rounded-[24px] border border-white/80 dark:border-white/10 shadow-[0_12px_40px_rgba(99,102,241,0.10)]">
         <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 uppercase tracking-tight">
@@ -483,7 +503,6 @@ const Dashboard: React.FC<DashboardProps> = ({ users, receipts, settings, busine
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-white/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[22px] p-6 shadow-[0_12px_40px_rgba(99,102,241,0.10)]"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="recovery-gauge relative h-36 w-36 shrink-0"><svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-white/10"/><circle cx="60" cy="60" r="50" fill="none" stroke="#2563eb" strokeWidth="12" strokeLinecap="round" strokeDasharray={2 * Math.PI * 50} strokeDashoffset={2 * Math.PI * 50 * (1 - recoveryPercent / 100)} style={{ transition: 'stroke-dashoffset 950ms cubic-bezier(0.22, 1, 0.36, 1)' }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-black text-blue-600 dark:text-blue-400"><AnimatedRecoveryPercent value={recoveryPercent} /></span><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">recovered</span></div></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Current month performance</p><h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">Recovery pulse</h3><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Rs. {monthlyRecovered.toLocaleString()} collected against Rs. {monthlyTarget.toLocaleString()} target.</p><button onClick={() => setActiveTab('recoveries')} className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white">Open recovery ledger</button></div></div></div>
       {/* ── Modals ── */}
       {activeModal === 'BALANCE' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
