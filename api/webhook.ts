@@ -3711,9 +3711,34 @@ export default async function handler(req: any, res: any) {
 
       // Resolve stale pauses now, before the per-message loop uses pausedPhones.
       const staleResumed: string[] = [];
+      let stampedMissing = false;
       for (const ph of pausedPhones) {
-        const since = pausedAt[ph] ? new Date(pausedAt[ph]).getTime() : null;
-        if (since && Date.now() - since > PAUSE_AUTO_RESUME_MS) staleResumed.push(ph);
+        let since = pausedAt[ph] ? new Date(pausedAt[ph]).getTime() : NaN;
+        if (!Number.isFinite(since)) {
+          // Paused WITHOUT a paused_at stamp (e.g. auto-pause from api/wabot-send.ts used to
+          // skip it) — these never auto-resumed. Recover the clock from the last outbound
+          // message on that thread; if none is found, start the clock now.
+          since = Date.now();
+          try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages?manager_id=eq.mahadnet&customer_phone=ilike.*${encodeURIComponent(ph)}&direction=eq.out&select=created_at&order=created_at.desc&limit=1`, {
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+            });
+            const rows: any[] = await r.json();
+            const t = rows?.[0]?.created_at ? new Date(rows[0].created_at).getTime() : NaN;
+            if (Number.isFinite(t)) since = t;
+          } catch (e: any) { console.error('[auto-resume since lookup]', e?.message); }
+          pausedAt[ph] = new Date(since).toISOString();
+          stampedMissing = true;
+        }
+        if (Date.now() - since > PAUSE_AUTO_RESUME_MS) staleResumed.push(ph);
+      }
+      if (stampedMissing && staleResumed.length === 0) {
+        fetch(`${SUPABASE_URL}/rest/v1/whatsapp_configs?manager_id=eq.mahadnet`, {
+          method: 'PATCH',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ paused_at: pausedAt }),
+        }).catch((e) => console.error('[auto-resume stamp persist]', e?.message));
+        redisSetJSON(pausedCacheKey, { phones: pausedPhones, at: pausedAt, blocked: blockedPhones }, 30).catch(() => {});
       }
       if (staleResumed.length > 0) {
         pausedPhones = pausedPhones.filter(p => !staleResumed.includes(p));
