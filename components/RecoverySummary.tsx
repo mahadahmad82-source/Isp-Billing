@@ -6,7 +6,7 @@ import { renderMessageTemplate } from '../utils/messageTemplates';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import ReceiptGenerator from './ReceiptGenerator';
-import { computeCustomerBalance } from '../utils/computeBalance';
+import { computeCustomerBalance, feeForUser } from '../utils/computeBalance';
 import { PhoneIcon, PrinterIcon } from './icons/UiIcons';
 
 // Kept in sync with the same helper in ReceiptGenerator.tsx so recharge/expiry
@@ -343,6 +343,10 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       const balanceSum = hasPaid
         ? (lastReceipt?.balanceAmount ?? 0)
         : computeCustomerBalance(u, deferredReceipts || [], selectedMonth, settings.planPrices, true);
+      // Covered only when the credit also absorbs THIS month's fee: balanceSum excludes the
+      // current period's fee, so a small credit (e.g. Rs. 100 vs a Rs. 1000 fee) is still pending.
+      const netFee = Math.max(0, feeForUser(u, settings.planPrices) - (u.persistentDiscount || 0));
+      const isAdvanceCovered = !hasPaid && balanceSum < 0 && balanceSum + netFee <= 0;
 
       // Recharge Date = cycle-start date, same convention as the receipt view:
       // prefer the actual stored rechargeDate off the latest receipt this period,
@@ -362,12 +366,16 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
         paidAmount: paidSum,
         advanceAmount: advanceSum,
         balance: balanceSum,
+        // Advance-covered: no receipt this period, but prior overpayment covers
+        // everything owed (net balance negative). Nothing to collect — display
+        // as ADVANCE instead of PENDING so prepaid customers stop looking due.
+        isAdvanceCovered,
         rechargeDate,
         expiryDate: u.expiryDate,
         ref: hasPaid ? userReceipts.map(r => r.transactionRef).join(', ') : '-',
         date: hasPaid ? new Date(userReceipts[0].date).toLocaleDateString() : '-',
         dateRaw: hasPaid ? new Date(userReceipts[0].date).getTime() : 0,
-        statusSort: hasPaid ? 0 : 1, // 0=Paid first, 1=Pending
+        statusSort: (hasPaid || isAdvanceCovered) ? 0 : 1, // 0=Paid/Advance first, 1=Pending
       };
     }).filter(item => 
       !detailSearchTerm || 
@@ -704,7 +712,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
       'Username': item.username,
       'Full Name': item.name,
       'Expiry Date': item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '-',
-      'Status': item.hasPaid ? 'PAID' : 'PENDING',
+      'Status': item.hasPaid ? 'PAID' : (item.isAdvanceCovered ? 'ADVANCE' : 'PENDING'),
       'Paid Amount': item.paidAmount,
       'Advance Amount': item.advanceAmount,
       'Balance Amount': item.balance,
@@ -1341,9 +1349,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     {visibleColumns.status && (
                     <td className="px-8 py-5">
                       <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        item.hasPaid ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
+                        item.hasPaid ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                        : item.isAdvanceCovered ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400'
+                        : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
                       }`}>
-                        {item.hasPaid ? 'PAID' : 'PENDING'}
+                        {item.hasPaid ? 'PAID' : item.isAdvanceCovered ? 'ADVANCE' : 'PENDING'}
                       </span>
                     </td>
                     )}
@@ -1359,7 +1369,11 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     )}
                     {visibleColumns.balance && (
                     <td className="px-8 py-5">
-                       <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.balance || 0).toLocaleString()}</span>
+                       {(item.balance || 0) < 0 ? (
+                         <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">Advance Rs. {Math.abs(item.balance || 0).toLocaleString()}</span>
+                       ) : (
+                         <span className={`text-sm font-black ${(item.balance || 0) > 0 ? 'text-rose-600' : 'text-slate-400 dark:text-slate-700'}`}>Rs. {(item.balance || 0).toLocaleString()}</span>
+                       )}
                     </td>
                     )}
                     {visibleColumns.rechargeDate && (
@@ -1374,7 +1388,7 @@ const RecoverySummary: React.FC<RecoverySummaryProps> = ({
                     )}
                     {visibleColumns.metaReminder && (
                     <td className="px-8 py-5">
-                      {!item.hasPaid ? (
+                      {(!item.hasPaid && !item.isAdvanceCovered) ? (
                         <button
                           onClick={() => handleSendPendingAmountOne(item)}
                           disabled={sendingRecoveryId === item.id}
