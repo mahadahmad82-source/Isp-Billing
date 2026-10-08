@@ -141,6 +141,13 @@ export default function ReceiptView({
               className="min-h-[44px] px-4 rounded-2xl bg-[#0f172a] dark:bg-white text-white dark:text-[#0f172a] text-sm font-bold">
               Print
             </button>
+            {/* W5: explicit PDF action — same print dialog, user picks "Save as PDF"
+                (matches the SubManager Recovery PDF labeling convention). */}
+            <button type="button" onClick={doPrint}
+              className="min-h-[44px] px-4 rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-[#0f172a] dark:text-white text-sm font-bold flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+              PDF
+            </button>
             {waLink && digitsOnly(customer?.phone || '').length >= 10 && (
               <a href={waLink} target="_blank" rel="noopener noreferrer"
                 className="min-h-[44px] px-4 rounded-2xl bg-[rgba(34,197,94,0.12)] text-[#15803d] dark:text-[#4ade80] text-sm font-bold flex items-center">

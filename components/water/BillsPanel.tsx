@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { AppSettings } from '../../types';
-import type { WaterBill, WaterCustomer, WaterCustomerSettings } from './waterTypes';
+import type { WaterBill, WaterCustomer, WaterCustomerSettings, WaterRoute } from './waterTypes';
 import { formatRs, formatDayPK, digitsOnly, waNumber92 } from './waterTypes';
 import BillView from './BillView';
 
@@ -61,10 +61,20 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
   const [openBill, setOpenBill] = useState<WaterBill | null>(null);
   const [printAll, setPrintAll] = useState(false);
   const [shareAll, setShareAll] = useState(false);
+  // W3: route-scoped bills. Routes carry customer ids in `stops` (no direct
+  // route_id on bills/customers), so the join is bill -> customer_id -> route.stops.
+  const [routes, setRoutes] = useState<WaterRoute[]>([]);
+  const [routeFilter, setRouteFilter] = useState('');
 
   const live = useMemo(() => customers.filter(c => c.status !== 'deleted'), [customers]);
   const nameOf = (id: string) => live.find(c => c.id === id)?.name || '(deleted customer)';
   const customerOf = (id: string) => live.find(c => c.id === id) || null;
+
+  // W3: customer ids for the selected route (null = no route selected).
+  const routeStops = useMemo(() => {
+    if (!routeFilter) return null;
+    return new Set(routes.find(r => r.id === routeFilter)?.stops || []);
+  }, [routes, routeFilter]);
 
   const p_from = `${ym}-01`;
   const p_to = monthEnd(new Date(Number(ym.split('-')[0]), Number(ym.split('-')[1]) - 1, 1));
@@ -92,6 +102,21 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
 
   useEffect(() => { load(); }, [load]);
 
+  // W3: same water_routes query pattern as RoutesPanel. On failure the
+  // route filter simply stays hidden — bills are unaffected.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('water_routes').select('*')
+          .eq('manager_id', managerId).order('created_at', { ascending: false });
+        if (error) throw error;
+        setRoutes((data as WaterRoute[]) || []);
+      } catch {
+        setRoutes([]);
+      }
+    })();
+  }, [managerId]);
+
   const generate = async () => {
     if (generating) return;
     setGenerating(true);
@@ -116,14 +141,21 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
     const q = search.trim().toLowerCase();
     return bills.filter(b => {
       if (!showVoided && b.voided_at) return false;
+      if (routeStops && !routeStops.has(b.customer_id)) return false;
       if (filter === 'due' && !(b.closing_due > 0)) return false;
       if (filter === 'paid' && !(b.closing_due === 0)) return false;
       if (q && !nameOf(b.customer_id).toLowerCase().includes(q) && !b.bill_no.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [bills, filter, search, showVoided, live]);
+  }, [bills, filter, search, showVoided, live, routeStops]);
 
   const liveBills = bills.filter(b => !b.voided_at);
+  // W3: the batch print job honors the active route filter.
+  const scopedBills = useMemo(() => {
+    if (!routeStops) return liveBills;
+    return liveBills.filter(b => routeStops.has(b.customer_id));
+  }, [liveBills, routeStops]);
+  const routeNameOf = (id: string) => routes.find(r => r.id === id)?.name || '';
   const sumBilled = liveBills.reduce((s, b) => s + b.billed, 0);
   const sumPaid = liveBills.reduce((s, b) => s + b.paid, 0);
   const sumDue = liveBills.reduce((s, b) => s + b.closing_due, 0);
@@ -198,6 +230,16 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
             </button>
           ))}
         </div>
+        {/* W3: route-scoped bill batch print — filter bills by delivery route. */}
+        {routes.length > 0 && (
+          <select value={routeFilter} onChange={e => setRouteFilter(e.target.value)} aria-label="Filter bills by route"
+            className="min-h-[44px] max-w-full px-4 rounded-2xl bg-white dark:bg-[#0f172a] border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white outline-none">
+            <option value="">All routes</option>
+            {routes.filter(r => r.is_active).map(r => (
+              <option key={r.id} value={r.id}>{r.name}{r.area ? ` — ${r.area}` : ''}</option>
+            ))}
+          </select>
+        )}
         <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name / bill no"
           aria-label="Search bills"
           className="flex-1 min-w-[120px] min-h-[44px] px-4 rounded-2xl bg-white dark:bg-[#0f172a] border border-[#e2e8f0] dark:border-white/10 text-sm text-[#0f172a] dark:text-white placeholder-[#94a3b8] outline-none" />
@@ -209,9 +251,9 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
 
       {liveBills.length > 0 && (
         <div className="flex gap-2 mb-3">
-          <button type="button" onClick={() => setPrintAll(true)}
-            className="flex-1 min-h-[48px] rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white">
-            Print all bills
+          <button type="button" onClick={() => setPrintAll(true)} disabled={scopedBills.length === 0}
+            className="flex-1 min-h-[48px] rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white disabled:opacity-40">
+            {routeFilter ? `Print route bills (${scopedBills.length})` : 'Print all bills'}
           </button>
           <button type="button" onClick={() => setShareAll(s => !s)} aria-expanded={shareAll}
             className="flex-1 min-h-[48px] rounded-2xl border border-[#e2e8f0] dark:border-white/10 text-sm font-bold text-[#0f172a] dark:text-white">
@@ -282,12 +324,13 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
 
       {printAll && (
         <PrintAllBills
-          bills={liveBills}
+          bills={scopedBills}
           nameOf={nameOf}
           customerOf={customerOf}
           rateMap={rateMap}
           settings={settings}
           monthLabel={mLabel}
+          routeName={routeFilter ? routeNameOf(routeFilter) : null}
           onClose={() => setPrintAll(false)}
         />
       )}
@@ -297,13 +340,14 @@ export default function BillsPanel({ managerId, customers, settings }: Props): R
 
 /* ── Print all bills: one job, page-break per bill ── */
 
-function PrintAllBills({ bills, nameOf, customerOf, rateMap, settings, monthLabel, onClose }: {
+function PrintAllBills({ bills, nameOf, customerOf, rateMap, settings, monthLabel, routeName, onClose }: {
   bills: WaterBill[];
   nameOf: (id: string) => string;
   customerOf: (id: string) => WaterCustomer | null;
   rateMap: Map<string, number>;
   settings: AppSettings;
   monthLabel: string;
+  routeName?: string | null;
   onClose: () => void;
 }): React.JSX.Element {
   const doPrint = () => {
@@ -320,7 +364,7 @@ function PrintAllBills({ bills, nameOf, customerOf, rateMap, settings, monthLabe
       <div className="no-print sticky top-0 flex items-center gap-2 px-4 py-3 bg-white border-b border-[#e2e8f0]">
         <button type="button" onClick={onClose} aria-label="Close"
           className="min-h-[44px] min-w-[44px] rounded-2xl border border-[#e2e8f0] text-lg font-black">×</button>
-        <p className="flex-1 text-sm font-black">{bills.length} bills — {monthLabel}</p>
+        <p className="flex-1 text-sm font-black">{bills.length} bills — {monthLabel}{routeName ? ` — ${routeName}` : ''}</p>
         <button type="button" onClick={doPrint}
           className="min-h-[44px] px-5 rounded-2xl bg-[#0f172a] text-white text-sm font-bold">Print</button>
       </div>
