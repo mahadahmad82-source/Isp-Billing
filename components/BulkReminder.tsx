@@ -54,7 +54,9 @@ const BulkReminder: React.FC<Props> = ({ users, receipts, planPrices, settings }
     // whenever user.balance was 0/unset, so paid-up customers were reminded for a whole
     // month they didn't owe, and stale balances never included missed-month arrears.
     const currentPeriod = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
-    const balance = computeCustomerBalance(u, receipts, currentPeriod, planPrices);
+    // Floor at 0: an advance-covered customer has a negative computed balance —
+    // never print "Rs. −1,500" as dues in a reminder. Nothing is owed.
+    const balance = Math.max(0, computeCustomerBalance(u, receipts, currentPeriod, planPrices));
     return template
       .replace('{name}', u.name)
       .replace('{status}', statusStr)

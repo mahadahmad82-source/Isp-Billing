@@ -211,7 +211,11 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
     setMonthlyFee(fee);
     setPreviousBalance(balance);
     setDiscount(persistentDisc);
-    setAmountPaid((fee + balance) - persistentDisc);
+    // Floor at 0: when advance credit exceeds the fee, the raw figure goes
+    // negative — prefilling a negative "Amount to be Paid" is confusing and
+    // saving it writes a negative-paidAmount receipt (corrupts revenue stats).
+    // The remaining credit stays in previousBalance and rolls forward.
+    setAmountPaid(Math.max(0, (fee + balance) - persistentDisc));
     setAdvanceAmount(0);
     setDescription(user.description || settings.globalNote || '');
   }, [users, receipts, settings.planPrices, settings.globalNote, billingMonth, billingYear]);
@@ -1806,7 +1810,7 @@ const ReceiptGenerator: React.FC<ReceiptGeneratorProps> = ({
                       onChange={e => { 
                         const val = parseInt(e.target.value) || 0; 
                         setDiscount(val); 
-                        setAmountPaid((monthlyFee + previousBalance) - val); 
+                        setAmountPaid(Math.max(0, (monthlyFee + previousBalance) - val)); 
                       }}
                       onBlur={e => {
                         const val = parseInt(e.target.value) || 0;
