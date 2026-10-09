@@ -360,6 +360,136 @@ const Layout: React.FC<LayoutProps> = ({
 
   const isDark = theme === 'dark';
 
+  // ISP mobile drawer (2026-10-09): same themed + sectioned design as the water drawer.
+  // Sections only REGROUP the existing tabs; any tab id not listed below falls into
+  // "More" so nothing can ever go missing. Admin keeps the legacy drawer (below).
+  const ISP_DRAWER_SECTIONS: { title: string; ids: string[] }[] = [
+    { title: 'Main',          ids: ['dashboard', 'users', 'receipts', 'recoveries', 'expiries'] },
+    { title: 'Operations',    ids: ['team', 'complaints', 'outage', 'area', 'equipment', 'leads', 'dealer-sales'] },
+    { title: 'Financials',    ids: ['payment-verify', 'expenses'] },
+    { title: 'Communication', ids: ['communication', 'reminders', 'templates'] },
+    { title: 'System',        ids: ['systemlogs', 'settings'] },
+  ];
+  let ispDrawerSections: { title: string; items: typeof tabs }[] = [];
+  if (!isWaterNav && !isAdmin) {
+    // reports/analytics are reachable only via the Expenses sub-items (same as before).
+    const drawerTabs = tabs.filter(tb => !['reports', 'analytics'].includes(tb.id));
+    const placed = new Set<string>();
+    ispDrawerSections = ISP_DRAWER_SECTIONS
+      .map(s => ({
+        title: s.title,
+        items: s.ids
+          .map(id => drawerTabs.find(tb => tb.id === id))
+          .filter((tb): tb is (typeof tabs)[number] => !!tb)
+          .map(tb => { placed.add(tb.id); return tb; }),
+      }))
+      .filter(s => s.items.length > 0);
+    const leftovers = drawerTabs.filter(tb => !placed.has(tb.id));
+    if (leftovers.length > 0) ispDrawerSections.push({ title: 'More', items: leftovers });
+  }
+
+  const ispSubLinkCls = (active: boolean) =>
+    `w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer no-underline text-[14px] font-semibold ${active
+      ? 'bg-[#e0e7ff] text-[#3730a3] dark:bg-[rgba(99,102,241,0.18)] dark:text-[#a5b4fc]'
+      : 'text-[#334155] dark:text-white/80 hover:bg-[#f8fafc] dark:hover:bg-white/5'}`;
+
+  // ISP drawer item — identical click behavior to the previous drawer
+  // (Customers: toggle + open + close; Expenses: expand group only; others: open + close).
+  const renderIspDrawerItem = (tab: (typeof tabs)[number]) => {
+    const isCustomers = tab.id === 'users';
+    const isExpenses = tab.id === 'expenses';
+    const isExpensesGroupActive = isExpenses && ['expenses', 'reports', 'analytics'].includes(activeTab);
+    const isActive = activeTab === tab.id || isExpensesGroupActive;
+    return (
+      <div key={tab.id}>
+        <a
+          href={isExpenses ? '#expenses' : '#' + tab.id}
+          onClick={(e) => {
+            e.preventDefault();
+            if (isCustomers) {
+              setCustomersExpanded(prev => !prev);
+              setActiveTab(tab.id);
+              setDrawerOpen(false);
+            } else if (isExpenses) {
+              setExpensesExpanded(prev => !prev);
+            } else {
+              setActiveTab(tab.id);
+              setDrawerOpen(false);
+            }
+          }}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left cursor-pointer no-underline ${isActive
+            ? 'bg-[#e0e7ff] dark:bg-[rgba(99,102,241,0.18)]'
+            : 'hover:bg-[#f8fafc] dark:hover:bg-white/5'}`}
+        >
+          <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${isActive
+            ? 'bg-[#4f46e5] text-white shadow-[0_8px_20px_rgba(79,70,229,0.30)]'
+            : 'bg-[#f1f5f9] dark:bg-white/5 text-[#4f46e5] dark:text-[#a5b4fc]'}`}>
+            {tab.icon}
+          </span>
+          <span className={`flex-1 text-[15px] font-bold ${isActive ? 'text-[#3730a3] dark:text-[#a5b4fc]' : 'text-[#0f172a] dark:text-white'}`}>
+            {tab.label}
+          </span>
+          {(isCustomers || isExpenses) && (
+            <svg className={`w-4 h-4 text-[#64748b] dark:text-[#94a3b8] transition-transform
+              ${isCustomers && (customersExpanded || isActive) ? 'rotate-180' : ''}
+              ${isExpenses && (expensesExpanded || isExpensesGroupActive) ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/>
+            </svg>
+          )}
+        </a>
+
+        {/* Customers Sub-items */}
+        {isCustomers && (activeTab === 'users' || customersExpanded) && (
+          <div className="ml-6 mt-1 mb-1 space-y-0.5 border-l-2 border-[#c7d2fe] dark:border-white/10 pl-3">
+            <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('all'); setActiveTab('users'); setDrawerOpen(false); }}
+              className={ispSubLinkCls(false)}>
+              <svg className="w-4 h-4 shrink-0 text-[#6366f1]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+              <span>Master Directory</span>
+            </a>
+            <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('active'); setActiveTab('users'); setDrawerOpen(false); }}
+              className={ispSubLinkCls(false)}>
+              <span className="w-2 h-2 rounded-full bg-[#34d399] shrink-0"/>
+              <span>Active Customers</span>
+            </a>
+            <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('expired'); setActiveTab('users'); setDrawerOpen(false); }}
+              className={ispSubLinkCls(false)}>
+              <span className="w-2 h-2 rounded-full bg-[#fb7185] shrink-0"/>
+              <span>Expired Customers</span>
+            </a>
+          </div>
+        )}
+
+        {/* Expenses Sub-items: Expenses · Copilot · Analytics */}
+        {isExpenses && (expensesExpanded || isExpensesGroupActive) && (
+          <div className="ml-6 mt-1 mb-1 space-y-0.5 border-l-2 border-[#c7d2fe] dark:border-white/10 pl-3">
+            <a href="#expenses" onClick={(e) => { e.preventDefault(); setActiveTab('expenses'); setDrawerOpen(false); }}
+              className={ispSubLinkCls(activeTab === 'expenses')}>
+              <svg className="w-4 h-4 shrink-0 text-[#f59e0b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span>Expenses</span>
+            </a>
+            <a href="#reports" onClick={(e) => { e.preventDefault(); setActiveTab('reports'); setDrawerOpen(false); }}
+              className={ispSubLinkCls(activeTab === 'reports')}>
+              <svg className="w-4 h-4 shrink-0 text-[#06b6d4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span>Copilot</span>
+            </a>
+            <a href="#analytics" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); setDrawerOpen(false); }}
+              className={ispSubLinkCls(activeTab === 'analytics')}>
+              <svg className="w-4 h-4 shrink-0 text-[#8b5cf6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              <span>Analytics</span>
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ISP glass nav items — desktop persistent sidebar (approved dashboard mockup).
   // Same tabs, order, and click behavior as the drawer; glass styling only.
   // Rendered only for non-admin ISP accounts; admin keeps the legacy drawer.
@@ -692,7 +822,7 @@ const Layout: React.FC<LayoutProps> = ({
       <div className={`fixed top-0 left-0 h-full z-[100] transition-transform duration-300 ease-in-out shadow-2xl
         w-72 md:w-80
         ${(!isWaterNav && !isAdmin) ? 'lg:hidden' : ''}
-        ${isWaterNav
+        ${!isAdmin
           ? (isDark ? 'bg-[#0f172a]' : 'bg-white')
           : (isDark ? 'bg-slate-900' : 'bg-indigo-900')}
         ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -730,7 +860,42 @@ const Layout: React.FC<LayoutProps> = ({
             </nav>
           </>
         )}
-        {!isWaterNav && (
+        {/* ISP drawer — themed + sectioned, same design language as the water drawer.
+            Mobile/tablet only (desktop lg+ uses the persistent ISP sidebar). */}
+        {!isWaterNav && !isAdmin && (
+          <>
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#f1f5f9] dark:border-white/5">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#6366f1] text-white flex items-center justify-center font-black text-lg shadow-lg shadow-indigo-600/30 flex-shrink-0">
+                {(businessName?.charAt(0) || 'M').toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-[15px] truncate text-[#0f172a] dark:text-white">{businessName || 'ISP Manager'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#94a3b8]">ISP Manager v2.5</p>
+              </div>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="w-9 h-9 rounded-xl border border-[#e2e8f0] dark:border-white/10 text-[#64748b] dark:text-[#94a3b8] flex items-center justify-center flex-shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <nav id="tour-sidebar-nav" className="px-4 py-3 space-y-4 overflow-y-auto max-h-[calc(100dvh-84px)] pb-24">
+              {ispDrawerSections.map(sec => (
+                <div key={sec.title}>
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#64748b] dark:text-[#94a3b8] px-3 mb-1.5">{sec.title}</p>
+                  <div className="space-y-0.5">
+                    {sec.items.map(tab => renderIspDrawerItem(tab))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </>
+        )}
+
+        {/* Legacy drawer — admin account only (unchanged) */}
+        {isAdmin && (
         <>
         {/* Drawer Header */}
         <div className={`flex items-center justify-between px-5 pt-5 pb-5 border-b border-white/10`}>
