@@ -1060,7 +1060,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
             </div>
             <div className="due-list">
               <div className="due"><div><b>Ahmed Raza</b><br /><span>Monthly · Fiber 20MB</span></div><span className="pill paid">Paid</span></div>
-              <div className="due"><div><b>Fatima Khan</b><br /><span>Monthly · 19L bottles</span></div><span className="pill duep">Due</span></div>
+              <div className="due"><div><b>Fatima Khan</b><br /><span>Monthly · Fiber 10MB</span></div><span className="pill duep">Due</span></div>
             </div>
           </div>
         </div>
@@ -1137,7 +1137,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     display:flex; align-items:center; justify-content:center; }.bc-auth .ring::after{ content:""; width:24px; height:24px; border-radius:50%; background:#fff; }.bc-auth .f1{ top:-30px; right:6px; }.bc-auth .f2{ top:30%; left:-46px; }
   @media(max-width:520px){.bc-auth .float{ padding:8px 11px; font-size:11px; gap:7px; }.bc-auth .float small{ font-size:9px; }.bc-auth .fcheck, .bc-auth .fico{ width:26px; height:26px; }.bc-auth .ring{ width:28px; height:28px; }.bc-auth .ring::after{ width:19px; height:19px; }.bc-auth .f1{ top:-20px; right:2px; }.bc-auth .f2{ top:24%; left:-6px; }.bc-auth .f3{ bottom:0%; right:-2px; }.bc-auth .f4{ bottom:-16px; left:6%; }.bc-auth .art{ min-height:380px; padding:56px 16px 40px; }
   }.bc-auth .form{ padding:44px 40px; display:flex; flex-direction:column; justify-content:center; }
-  @media(max-width:899px){.bc-auth .form{ padding:36px 26px 40px; }.bc-auth .art{ display:none; } }.bc-auth .flogo{ display:flex; align-items:center; justify-content:center; gap:9px; font-weight:800; font-size:19px; color:var(--navy); margin-bottom:26px; }.bc-auth .flogo img{ height:34px; border-radius:8px; }.bc-auth .form h2{ text-align:center; font-size:24px; font-weight:800; color:var(--navy); letter-spacing:-.4px; }.bc-auth .form .fsub{ text-align:center; color:var(--muted); font-size:14px; margin:8px 0 24px; }.bc-auth .social{
+  @media(max-width:899px){.bc-auth .form{ padding:36px 26px 40px; }.bc-auth .art{ display:none; } }.bc-auth .flogo{ display:flex; align-items:center; justify-content:center; gap:9px; font-weight:800; font-size:19px; color:var(--navy); margin-bottom:26px; }.bc-auth .flogo img{ height:52px; width:auto; object-fit:contain; }.bc-auth .form h2{ text-align:center; font-size:24px; font-weight:800; color:var(--navy); letter-spacing:-.4px; }.bc-auth .form .fsub{ text-align:center; color:var(--muted); font-size:14px; margin:8px 0 24px; }.bc-auth .social{
     display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
     padding:13px; border-radius:12px; border:1.5px solid rgba(15,23,42,.16); background:#fff;
     font-size:15px; font-weight:600; color:var(--ink); cursor:pointer; transition:border-color .2s, box-shadow .2s;
@@ -1189,8 +1189,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
           </div>
           <div className="auth-form form">
             <div className="flogo">
-              {logoBase64 && <img src={logoBase64} alt="BillCollector" />}
-              <b>BillCollector</b>
+              {logoBase64 && <img src={logoBase64} alt="Bill Collector" />}
             </div>
             {(view === 'login' || view === 'signup') && (
               <div className={'tabs' + (view === 'signup' ? ' up' : '')}>

@@ -163,7 +163,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     { title: 'Subscription Tiers', desc: 'Let businesses sign up online for the subscription tier that fits their operation and scale access as their needs grow.', icon: <CreditCard className="w-5 h-5" />, color: '#14b8a6' },
     { title: 'Admin Subscription Ledger', desc: 'Maintain a central subscription ledger with account status and receipts for admin-side tracking.', icon: <FileText className="w-5 h-5" />, color: '#f97316' },
     { title: `${BOT_NAME} AI Support`, desc: `Connect customers to ${BOT_NAME} for WhatsApp support, with multiple configurable voice-agent personas available on higher tiers.`, icon: <MessageCircle className="w-5 h-5" />, color: '#22c55e' },
-    { title: 'CNIC-Based Login', desc: 'Provide customers with a secure CNIC-based login option for convenient access to the platform.', icon: <Fingerprint className="w-5 h-5" />, color: '#eab308' },
   ];
 
   const infraFeatures = [
@@ -205,7 +204,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const faqs = [
     {
       q: "Which businesses is Bill Collector suitable for?",
-      a: "Bill Collector is built for any local business with recurring billing — ISPs and cable internet providers, water/RO suppliers, and other subscription-style businesses. It handles PKR billing, area and route-wise collections, flexible packages, and Urdu/English WhatsApp payment reminders."
+      a: "Bill Collector is built for any local business with recurring billing — ISPs and internet providers today, with more industries (restaurants, water/RO, gyms, hostels) coming soon. It handles PKR billing, area and route-wise collections, flexible packages, and Urdu/English WhatsApp payment reminders."
     },
     {
       q: "How does the WhatsApp reminder feature work? Do I need a costly API key?",
@@ -274,8 +273,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <nav>
         <div className="nav-inner" style={{ position: 'relative' }}>
           <Link to="/" className="brand" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            {logoBase64 && <img src={logoBase64} alt="BillCollector logo" />}
-            <span>BillCollector</span>
+            {logoBase64 && <img src={logoBase64} alt="Bill Collector" />}
           </Link>
           <div className="nav-links">
             <a href="#who">Who it&apos;s for</a>
@@ -312,7 +310,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <div>
               <div className="eyebrow reveal"><span className="dot" />Recurring-billing platform</div>
               <h1 className="reveal d1">Billing that <span className="grad">runs itself.</span></h1>
-              <p className="lede reveal d2">BillCollector generates monthly bills, sends WhatsApp reminders, issues receipts and tracks recovery — for ISPs, water suppliers, cable operators, gyms and hostels. From one dashboard, on any phone.</p>
+              <p className="lede reveal d2">BillCollector generates monthly bills, sends WhatsApp reminders, issues receipts and tracks recovery — for ISPs and internet providers — with more industries coming soon. From one dashboard, on any phone.</p>
               <div className="cta-row reveal d3">
                 <button onClick={onGetStarted} className="btn" style={{ border: 'none', cursor: 'pointer' }}>Start free</button>
                 <a className="btn ghost" href="#horizontal">See how it works</a>
@@ -345,7 +343,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </div>
                   <div className="due-list">
                     <div className="due"><div><b>Ahmed Raza</b><br /><span>Monthly · Fiber 20MB</span></div><span className="pill paid">Paid</span></div>
-                    <div className="due"><div><b>Fatima Khan</b><br /><span>Monthly · 19L bottles</span></div><span className="pill duep">Due</span></div>
+                    <div className="due"><div><b>Fatima Khan</b><br /><span>Monthly · Fiber 10MB</span></div><span className="pill duep">Due</span></div>
                   </div>
                 </div>
               </div>
@@ -368,13 +366,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="wrap">
           <div className="sec-label reveal">Who it&apos;s for</div>
           <h2 className="reveal d1">One platform.<br />Every recurring business.</h2>
-          <p className="sec-sub reveal d2">ISPs, water suppliers, cable operators, gyms, hostels — if you bill every month, the whole app adapts.</p>
+          <p className="sec-sub reveal d2">Built for ISPs today — Restaurant, Water &amp; RO, Gyms and Hostels are coming soon.</p>
           <div className="biz-grid">
-            <div className="biz reveal"><div className="ico"><svg viewBox="0 0 24 24"><path d="M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01" /></svg></div><b>Internet (ISP)</b><span>Monthly packages, due dates &amp; recovery</span></div>
-            <div className="biz reveal d1"><div className="ico"><svg viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z" /></svg></div><b>Water &amp; RO</b><span>Daily &amp; monthly billing, deliveries</span></div>
-            <div className="biz reveal d2"><div className="ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M8 21h8" /></svg></div><b>Cable TV</b><span>Subscriber billing &amp; renewals</span></div>
-            <div className="biz reveal d3"><div className="ico"><svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M4 9h2M4 15h2M18 9h2M18 15h2M6 12h12" /></svg></div><b>Gyms</b><span>Memberships &amp; fee reminders</span></div>
-            <div className="biz reveal d3"><div className="ico"><svg viewBox="0 0 24 24"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 18h18M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4" /></svg></div><b>Hostels</b><span>Room rents &amp; monthly dues</span></div>
+            <div className="biz reveal"><div className="ico"><svg viewBox="0 0 24 24"><path d="M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01" /></svg></div><b>Internet (ISP)</b><span>Monthly packages, due dates &amp; recovery</span><em className="live-tag">Available now</em></div>
+            <div className="biz soon reveal d1"><div className="ico"><svg viewBox="0 0 24 24"><path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M17 21V3c-2.5 1.5-4 4.5-4 8h4" /></svg></div><b>Restaurant</b><span>Regular customer tabs &amp; dues</span><em className="soon-tag">Coming soon</em></div>
+            <div className="biz soon reveal d2"><div className="ico"><svg viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z" /></svg></div><b>Water &amp; RO</b><span>Daily &amp; monthly billing, deliveries</span><em className="soon-tag">Coming soon</em></div>
+            <div className="biz soon reveal d3"><div className="ico"><svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M4 9h2M4 15h2M18 9h2M18 15h2M6 12h12" /></svg></div><b>Gyms</b><span>Memberships &amp; fee reminders</span><em className="soon-tag">Coming soon</em></div>
+            <div className="biz soon reveal d3"><div className="ico"><svg viewBox="0 0 24 24"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 18h18M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4" /></svg></div><b>Hostels</b><span>Room rents &amp; monthly dues</span><em className="soon-tag">Coming soon</em></div>
           </div>
         </div>
       </section>
@@ -519,7 +517,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   }
   @media(min-width:1160px){ .nav-inner{ margin-left:auto; margin-right:auto; } }
   .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; color:var(--navy); text-decoration:none; }
-  .brand img{ height:34px; width:auto; border-radius:8px; }
+  .brand img{ height:46px; width:auto; object-fit:contain; display:block; }
   .nav-links{ display:none; gap:26px; }
   .nav-links a{ text-decoration:none; color:var(--muted); font-size:14.5px; font-weight:600; }
   .nav-links a:hover{ color:var(--navy); }
@@ -602,6 +600,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     box-shadow:0 14px 40px rgba(15,23,42,.10); transition:transform .25s;
   }
   .biz:hover{ transform:translateY(-6px); }
+  .biz.soon{ opacity:.8; }
+  .biz .soon-tag, .biz .live-tag{ display:inline-block; margin-top:12px; font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase; padding:5px 11px; border-radius:99px; }
+  .biz .soon-tag{ background:rgba(139,92,246,.12); color:#6d28d9; border:1px solid rgba(139,92,246,.25); }
+  .biz .live-tag{ background:rgba(16,185,129,.12); color:#0b7a5c; border:1px solid rgba(16,185,129,.28); }
   .biz .ico{ width:52px;height:52px; margin:0 auto 14px; border-radius:16px; display:flex; align-items:center; justify-content:center;
     background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(6,182,212,.14)); }
   .biz .ico svg{ width:26px;height:26px; stroke:var(--teal); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -659,7 +661,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   .bc-landing footer{ padding:44px 0 54px; text-align:center; color:var(--muted); font-size:13.5px; }
   .bc-landing footer .flogo{ display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:14px; color:var(--navy); font-weight:800; font-size:16px; }
-  .bc-landing footer img{ height:30px; border-radius:7px; }
+  .bc-landing footer img{ height:58px; width:auto; }
 
   /* ===== entrance animations (JS-gated) ===== */
   .screen .bar{ transform:scaleY(0); transform-origin:bottom; }
@@ -1061,8 +1063,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="fgrid">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              {logoBase64 && <img src={logoBase64} alt="Bill Collector" style={{ width: 54, height: 54, objectFit: 'contain', borderRadius: 12 }} />}
-              <b style={{ fontSize: 18, color: 'var(--navy)' }}>BillCollector</b>
+              {logoBase64 && <img src={logoBase64} alt="Bill Collector" style={{ height: 58, width: 'auto', objectFit: 'contain', display: 'block' }} />}
             </div>
             <p style={{ color: 'var(--muted)', fontSize: 14.5, lineHeight: 1.7, maxWidth: 340 }}>
               Pakistan&apos;s leading recurring-billing platform for local businesses. From small neighborhood businesses to growing enterprises — built for every subscription-style business.
