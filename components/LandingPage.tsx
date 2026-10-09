@@ -147,10 +147,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const missionText = "Bill Collector was built to empower local businesses with recurring billing through enterprise-grade billing automation, WhatsApp-powered recovery, and real-time cloud synchronization — all while keeping your data secure with AES-256 encryption and role-based access control.";
 
   const heroStats = [
-    { target: "150", suffix: "+", label: "Active Businesses" },
-    { target: "99.9", suffix: "%", label: "Uptime SLA" },
-    { target: "50000", suffix: "+", label: "Customers Managed" },
-    { target: "95", suffix: "%", label: "Recovery Rate" },
+    { value: "Free", label: "Starter plan, up to 50 customers" },
+    { value: "2 min", label: "Excel / CSV import" },
+    { value: "Urdu + English", label: "WhatsApp reminders" },
+    { value: "Android + Web", label: "One account, every device" },
   ];
 
   const featuresList = [
@@ -184,11 +184,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   const trustBadges = [
     { icon: <ShieldCheck className="w-5 h-5" />, label: "AES-256 Encryption", desc: "Bank-grade security" },
-    { icon: <Clock className="w-5 h-5" />, label: "99.9% Uptime", desc: "SLA guaranteed" },
+    { icon: <Clock className="w-5 h-5" />, label: "Cloud Backup", desc: "Synced across devices" },
     { icon: <Fingerprint className="w-5 h-5" />, label: "Role-Based Access", desc: "Secure permissions" },
     { icon: <CreditCard className="w-5 h-5" />, label: "PKR Billing", desc: "Local currency support" },
     { icon: <Wifi className="w-5 h-5" />, label: "Offline Mode", desc: "Works without internet" },
-    { icon: <HeadphonesIcon className="w-5 h-5" />, label: "24/7 Support", desc: "WhatsApp & Email" },
+    { icon: <HeadphonesIcon className="w-5 h-5" />, label: "WhatsApp Support", desc: "WhatsApp & Email" },
   ];
 
   const comparisonData = [
@@ -352,7 +352,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="stats reveal">
             {heroStats.map((s, i) => (
               <div className="stat" key={i}>
-                <b data-count={s.target} data-suffix={s.suffix} data-plain="true">0</b>
+                <b>{s.value}</b>
                 <span>{s.label}</span>
               </div>
             ))}
@@ -440,7 +440,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="shot">
                 <div className="cap">WhatsApp · reminder sent</div>
                 <div className="msg me"><div className="who">BillCollector</div>Assalam-o-Alaikum! Your November bill of Rs. 1,500 is due on the 10th. Pay via JazzCash or at the office. — MahadNet</div>
-                <div className="msg"><div className="who">Customer</div>Paid via JazzCash, screenshot attached 👍</div>
+                <div className="msg"><div className="who">Customer</div>Paid via JazzCash, screenshot attached</div>
                 <div className="msg me"><div className="who">BillCollector</div>Received. Receipt #R-000124 sent. Shukriya!</div>
               </div>
             </div>
@@ -900,15 +900,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="cmpwrap reveal d1" style={{ marginTop: 36 }}>
             <table className="cmp">
               <thead>
-                <tr><th>Feature</th><th className="me">BillCollector</th><th>Others</th><th>Others</th></tr>
+                <tr><th>Feature</th><th className="me">BillCollector</th><th>Typical apps</th></tr>
               </thead>
               <tbody>
                 {comparisonData.map((row, i) => (
                   <tr key={i}>
                     <td>{row.feature}</td>
                     <td className="me">{row.billcollector ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#4f46e5' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
-                    <td>{row.competitor1 ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#10b981' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
-                    <td>{row.competitor2 ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#10b981' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
+                    <td>{row.competitor1 && row.competitor2 ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#10b981' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1049,7 +1048,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="wrap">
           <div className="cta-card reveal">
             <h2>Stop chasing payments.<br />Start collecting.</h2>
-            <p>Join 150+ local businesses already automating their billing. No credit card required. Setup takes less than 2 minutes.</p>
+            <p>Automate monthly billing, WhatsApp reminders and recovery. No credit card required. Setup takes less than 2 minutes.</p>
             <div className="cta-row">
               <button onClick={onGetStarted} className="btn light" style={{ border: 'none', cursor: 'pointer' }}>Create free account</button>
               <a className="btn outline-w" href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector" target="_blank" rel="noreferrer">Talk to us</a>
@@ -1066,7 +1065,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               {logoBase64 && <img src={logoBase64} alt="Bill Collector" style={{ height: 58, width: 'auto', objectFit: 'contain', display: 'block' }} />}
             </div>
             <p style={{ color: 'var(--muted)', fontSize: 14.5, lineHeight: 1.7, maxWidth: 340 }}>
-              Pakistan&apos;s leading recurring-billing platform for local businesses. From small neighborhood businesses to growing enterprises — built for every subscription-style business.
+              Recurring-billing platform built for Pakistani businesses — from small neighborhood operators to growing enterprises. ISPs today, more industries coming soon.
             </p>
             <div className="fcontact">
               <a className="wa" href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector" target="_blank" rel="noreferrer">
@@ -1090,9 +1089,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <li><Link to="/privacy">Privacy Policy</Link></li>
               <li><Link to="/terms">Terms of Service</Link></li>
               <li><Link to="/terms">Refund Policy</Link></li>
-              <li><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#0b7a5c', fontWeight: 700, fontSize: 13.5 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />All Systems Operational
-              </span></li>
             </ul>
           </div>
         </div>
@@ -1154,7 +1150,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   <h2 className="text-2xl font-black uppercase tracking-tight" style={{ color: 'var(--navy)' }}>Bill Collector Platform Features</h2>
                   <p className="text-sm mt-1" style={{ color: '#6366f1' }}>Everything your business needs</p>
                 </div>
-                <button onClick={() => setShowSpecs(false)} className="text-2xl transition-colors" style={{ color: 'var(--muted)' }}>✕</button>
+                <button onClick={() => setShowSpecs(false)} className="text-2xl transition-colors" style={{ color: 'var(--muted)' }}><X className="w-5 h-5" /></button>
               </div>
             </div>
             <div className="p-6 space-y-4">

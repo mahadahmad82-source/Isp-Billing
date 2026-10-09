@@ -39,7 +39,7 @@ const GlobeIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentCol
 const CpuIcon = () => (<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" /></svg>);
 
 // ── Input with left icon (outside component to prevent keyboard dismiss on re-render) ──
-const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement, maxLength }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode; maxLength?: number }) => (
+const InputField = ({ icon, type = 'text', placeholder, value, onChange, disabled, rightElement, maxLength, onBlur }: { icon: React.ReactNode; type?: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean; rightElement?: React.ReactNode; maxLength?: number; onBlur?: () => void }) => (
   <div className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all duration-300 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     style={{ background: 'rgba(255,255,255,0.75)', borderColor: 'rgba(99,102,241,0.18)' }}>
     <span className="text-indigo-400 flex-shrink-0">{icon}</span>
@@ -48,6 +48,7 @@ const InputField = ({ icon, type = 'text', placeholder, value, onChange, disable
       placeholder={placeholder}
       value={value}
       onChange={onChange}
+      onBlur={onBlur}
       disabled={disabled}
       maxLength={maxLength}
       className="flex-1 bg-transparent text-slate-900 text-sm font-medium placeholder:text-slate-400 outline-none min-w-0"
@@ -66,6 +67,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   const [businessName, setBusinessName] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
+  // Signup-only: the chosen manager username (login ID). Phone is stored separately now.
+  const [signupUsername, setSignupUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'' | 'checking' | 'ok' | 'taken' | 'invalid'>('');
   const [cnic, setCnic] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -327,26 +331,43 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     await doLogin(username, password);
   };
 
+  const USERNAME_RE = /^[a-z0-9._]{3,30}$/;
+  const checkUsername = async (raw: string): Promise<boolean> => {
+    const u = raw.trim().toLowerCase();
+    if (!USERNAME_RE.test(u) || u === ADMIN_USERNAME) { setUsernameStatus('invalid'); return false; }
+    setUsernameStatus('checking');
+    try {
+      const { data, error: rpcErr } = await supabase.rpc('check_username_available', { p_username: u });
+      if (rpcErr) { setUsernameStatus(''); return true; } // don't block signup if the check itself is unavailable; server trigger still guards
+      if (data === false) { setUsernameStatus('taken'); return false; }
+      setUsernameStatus('ok'); return true;
+    } catch { setUsernameStatus(''); return true; }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signupBusinessType) { setView('signup-business-type'); showError('Please choose your business type first.'); return; }
     if (password.length < 4) { showError('Password must be at least 4 characters.'); return; }
     if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
-    if (phone === ADMIN_USERNAME || accounts.some(a => a.username === phone || a.phone === phone)) { showError('This Phone Number is already taken.'); return; }
+    const uname = signupUsername.trim().toLowerCase();
+    if (!USERNAME_RE.test(uname)) { setUsernameStatus('invalid'); showError('Username must be 3-30 characters: lowercase letters, numbers, dot or underscore.'); return; }
+    if (uname === ADMIN_USERNAME || accounts.some(a => a.username === uname)) { setUsernameStatus('taken'); showError('This username is already taken.'); return; }
+    if (phone.replace(/[^0-9]/g, '').length < 10) { showError('Please enter a valid phone number.'); return; }
     const trimmedEmail = email.trim().toLowerCase();
     if (trimmedEmail && (!trimmedEmail.includes('@') || trimmedEmail.endsWith('@myisp.local'))) { showError('Please enter a valid email address.'); return; }
     const cnicDigits = cnic.replace(/[^0-9]/g, '');
     if (cnic && cnicDigits.length !== 13) { showError('CNIC must be 13 digits (XXXXX-XXXXXXX-X).'); return; }
     setIsLoading(true); setLoadingText('Creating your account...'); setError('');
     try {
+      if (!(await checkUsername(uname))) { showError('This username is already taken. Please choose another one.'); return; }
       // Use the real email (if given) as the actual login/auth email — this is
       // what makes email-OTP "Forgot Password" work later. Without one, we fall
-      // back to the synthetic phone@myisp.local identifier as before (in which
+      // back to the synthetic username@myisp.local identifier as before (in which
       // case password recovery isn't possible via email — only admin reset).
       const hasRealEmail = !!trimmedEmail;
-      const authEmail = hasRealEmail ? trimmedEmail : `${phone}@myisp.local`;
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({ email: authEmail, password, options: { data: { full_name: businessName || phone, phone } } });
-      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) { showError(hasRealEmail ? 'This email is already registered.' : 'This Phone Number is already registered.'); return; }
+      const authEmail = hasRealEmail ? trimmedEmail : `${uname}@myisp.local`;
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({ email: authEmail, password, options: { data: { full_name: businessName || uname, phone } } });
+      if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) { showError(hasRealEmail ? 'This email is already registered.' : 'This username is already registered.'); return; }
       if (signUpErr) throw new Error(signUpErr.message);
       if (!signUpData.user) throw new Error('Signup failed. Try again.');
       if (hasRealEmail) {
@@ -358,7 +379,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         return;
       }
       // No real email was given — there's nowhere for a confirmation OTP to go
-      // (the synthetic {phone}@myisp.local address isn't a real inbox), so this
+      // (the synthetic {username}@myisp.local address isn't a real inbox), so this
       // account is auto-confirmed server-side instead of being stuck forever.
       await supabase.rpc('auto_confirm_synthetic_signup', { p_user_id: signUpData.user.id });
       await finishSignup(authEmail);
@@ -375,15 +396,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
     // never set by the signup trigger — set it now so dual-save works immediately.
     const { data: { user } } = await supabase.auth.getUser();
     const cnicDigits = cnic.replace(/[^0-9]/g, '');
+    const uname = signupUsername.trim().toLowerCase();
     if (user) {
-      const { error: cnicErr } = await supabase.from('profiles').update({ username: phone, full_name: businessName || phone, cnic: cnicDigits || null }).eq('id', user.id);
+      const { error: cnicErr } = await supabase.from('profiles').update({ username: uname, full_name: businessName || uname, cnic: cnicDigits || null }).eq('id', user.id);
       // CNIC has a unique index — if someone else already registered with it,
       // don't fail the whole signup over it, just drop the CNIC and let them
       // know via the account they already have (rare edge case).
       if (cnicErr && cnicDigits) {
-        await supabase.from('profiles').update({ username: phone, full_name: businessName || phone }).eq('id', user.id);
+        await supabase.from('profiles').update({ username: uname, full_name: businessName || uname }).eq('id', user.id);
       }
     }
+    // Best-effort: keep the contact phone on the profile (also lets login-by-phone resolve). Never fails signup.
+    try { if (user) await supabase.from('profiles').update({ phone }).eq('id', user.id); } catch { /* ignore */ }
     // M5: one-time business type save. The column is not directly updatable —
     // only this RPC can set it, exactly once. Never fail the signup over it;
     // the in-app gate (useBusinessTypeGate) asks if this didn't stick.
@@ -391,15 +415,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       if (signupBusinessType) {
         const { data: btData } = await supabase.rpc('set_my_business_type', { p_type: signupBusinessType });
         if ((btData as { success?: boolean } | null)?.success) {
-          try { localStorage.setItem(`bc_business_type_set_${phone}`, '1'); } catch { /* ignore */ }
+          try { localStorage.setItem(`bc_business_type_set_${uname}`, '1'); } catch { /* ignore */ }
         } else console.warn('[Signup] business type not confirmed:', btData);
       }
     } catch (btErr) { console.warn('[Signup] set_my_business_type failed:', btErr); }
     // Keep the per-manager cache in sync so the right tabs render on first paint.
-    try { if (signupBusinessType) localStorage.setItem(`bc_business_type_${phone}`, signupBusinessType); } catch { /* ignore */ }
-    const newAccount: ManagerAccount = { username: phone, password, businessName: businessName || phone, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
+    try { if (signupBusinessType) localStorage.setItem(`bc_business_type_${uname}`, signupBusinessType); } catch { /* ignore */ }
+    const newAccount: ManagerAccount = { username: uname, password, businessName: businessName || uname, email: authEmail, phone, createdAt: new Date().toISOString(), rememberPassword };
     saveAccount(newAccount); setAccounts(getAccounts());
-    writeLog({ username: phone, action: 'SIGNUP', detail: `New account: ${businessName}` });
+    writeLog({ username: uname, action: 'SIGNUP', detail: `New account: ${businessName}` });
     // Ask them which plan they actually want before dropping into the app —
     // Free activates immediately, paid tiers go to a payment-instructions
     // screen and stay on Free-level access until an admin verifies the
@@ -452,18 +476,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   // manual Meta WhatsApp Business setup per manager). Selecting a tier just
   // opens WhatsApp with the request; skipping goes straight to the dashboard.
   const handleSelectNetbotTier = (planName: string) => {
-    const msg = `Hi, I want to activate NetBot (${planName}) for my account — ${businessName || phone}.`;
+    const msg = `Hi, I want to activate NetBot (${planName}) for my account — ${businessName || signupUsername}.`;
     window.open(`https://wa.me/923477136214?text=${encodeURIComponent(msg)}`, '_blank');
-    onLogin(phone);
+    onLogin(signupUsername.trim().toLowerCase());
   };
-  const handleSkipNetbot = () => onLogin(phone);
+  const handleSkipNetbot = () => onLogin(signupUsername.trim().toLowerCase());
 
   const handleSubmitProof = async () => {
     if (!proofFile) { showError('Payment proof screenshot select karein.'); return; }
     setProofUploading(true);
     try {
       const ext = proofFile.name.split('.').pop() || 'jpg';
-      const path = `signup-proofs/${phone}-${Date.now()}.${ext}`;
+      const path = `signup-proofs/${signupUsername.trim().toLowerCase()}-${Date.now()}.${ext}`;
       let publicUrl: string;
       try {
         publicUrl = await uploadMediaToR2(path, proofFile, proofFile.type || 'image/jpeg');
@@ -567,7 +591,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
   };
 
   const resetFields = () => {
-    setBusinessName(''); setUsername(''); setEmail(''); setPhone('');
+    setBusinessName(''); setUsername(''); setEmail(''); setPhone(''); setSignupUsername(''); setUsernameStatus('');
     setPassword(''); setConfirmPassword(''); setRememberPassword(false); setError('');
     setForgotIdentifier(''); setForgotOtp(''); setNewPassword(''); setConfirmNewPassword('');
     setSignupOtp(''); setPendingSignupEmail('');
@@ -696,10 +720,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                     <InputField icon={<UserIcon />} placeholder="Enter your ID" value={username} onChange={e => setUsername(e.target.value.toLowerCase().trim())} disabled={!!selectedAccount} />
                   </div>
                 ) : (
-                  <div>
-                    <label className={labelCls}>Phone Number</label>
-                    <InputField icon={<PhoneIcon />} type="tel" placeholder="e.g. 03001234567" value={phone} onChange={e => setPhone(e.target.value)} />
-                  </div>
+                  <>
+                    <div>
+                      <label className={labelCls}>Username</label>
+                      <InputField icon={<UserIcon />} placeholder="e.g. mahadnet" value={signupUsername} maxLength={30}
+                        onBlur={() => { if (signupUsername.length >= 3) void checkUsername(signupUsername); }}
+                        onChange={e => { setSignupUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '')); setUsernameStatus(''); }} />
+                      <p className="mt-1.5 ml-1 text-[10px] font-semibold" style={{ color: usernameStatus === 'ok' ? '#059669' : usernameStatus === 'taken' || usernameStatus === 'invalid' ? '#e11d48' : '#94a3b8' }}>
+                        {usernameStatus === 'checking' ? 'Checking availability...'
+                          : usernameStatus === 'ok' ? 'Username is available'
+                          : usernameStatus === 'taken' ? 'This username is already taken'
+                          : usernameStatus === 'invalid' ? 'Use 3-30 characters: a-z, 0-9, dot or underscore'
+                          : 'This is your login ID. Letters, numbers, dot or underscore (min 3).'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Phone Number</label>
+                      <InputField icon={<PhoneIcon />} type="tel" placeholder="e.g. 03001234567" value={phone} onChange={e => setPhone(e.target.value)} />
+                    </div>
+                  </>
                 )}
 
                 {/* CNIC (signup only, optional) — also usable as a login ID once set */}
@@ -967,7 +1006,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
                   </button>
                 )}
 
-                <a href={`https://wa.me/923477136214?text=${encodeURIComponent(`Payment receipt for ${tierPaymentPending.label} plan — ${businessName || phone}`)}`}
+                <a href={`https://wa.me/923477136214?text=${encodeURIComponent(`Payment receipt for ${tierPaymentPending.label} plan — ${businessName || signupUsername}`)}`}
                   target="_blank" rel="noreferrer"
                   className="w-full py-3 rounded-2xl font-bold text-[11px] text-emerald-700 hover:text-emerald-800 transition-colors flex items-center justify-center gap-1.5">
                   Also inform on WhatsApp (optional)
@@ -1015,7 +1054,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
             {view === 'forgot-newpass' && (
               <form onSubmit={handleSetNewPassword} className="space-y-5">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">✅ OTP Verified</span>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">OTP Verified</span>
                   <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Step 3 / 3</span>
                 </div>
                 <div>
@@ -1256,7 +1295,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-white border-slate-200">
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">🎧</div>
+              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center mx-auto"><svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1v-7h3zM3 19a2 2 0 0 0 2 2h1v-7H3z" /></svg></div>
               <h4 className="text-xl font-black uppercase tracking-tight text-slate-900">Support Needed</h4>
               <p className="text-xs font-bold text-slate-400">No recovery email is on file for this account, so we can't send an OTP. Please contact our support team to manually reset your password.</p>
               <div className="pt-2 flex flex-col gap-3">
@@ -1277,7 +1316,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl animate-in zoom-in-95 duration-300 bg-white border-slate-200">
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-2xl mx-auto">⚠️</div>
+              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center mx-auto"><svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" /></svg></div>
               <h4 className="text-xl font-black uppercase tracking-tight text-slate-900">Purge All Data?</h4>
               <p className="text-xs font-bold text-slate-400">This will permanently remove all saved profiles from this device. This action cannot be undone.</p>
               <div className="pt-4 flex flex-col gap-3">
