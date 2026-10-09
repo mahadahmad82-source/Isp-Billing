@@ -33,6 +33,8 @@ export interface ParseResult {
   editField?: string;
   editValue?: string;
   receiptMonth?: string;
+  /** customer_list filter chosen by the AI layer: paid | pending | balance | expired | expiring_soon | suspended | active | all. */
+  filter?: string;
 }
 
 const R = (intent: Intent, extra: Partial<ParseResult> = {}): ParseResult => ({ intent, ...extra });

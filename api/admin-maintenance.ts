@@ -209,15 +209,15 @@ async function handleCopilot(req: any, res: any) {
     .map((h: any) => ({ from: h?.from === 'copilot' ? 'assistant' : 'user', text: String(h?.text || '').slice(0, 300) }))
     .filter((h: any) => h.text);
 
-  const FALLBACK = { action: 'unclear', reply: "Sorry, I didn't understand that. Please try again." };
+  const FALLBACK = { action: 'unclear', reply: 'Maaf kijiye, samajh nahi aaya. Dobara try karein.' };
 
   try {
     const historyBlock = history.length
       ? `\n\nRecent conversation (oldest first, for resolving references like "him"/"that customer"):\n${history.map((h: any) => `${h.from}: ${h.text}`).join('\n')}`
       : '';
 
-    const prompt = `You are a command router for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / Urdu script / English / mixed. Classify it into exactly one JSON object, no prose, matching this schema:
-{"action":"open_tab"|"customer_lookup"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"unclear","tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"op"?:"save"|"edit"|"read","reply":string}
+    const prompt = `You are the understanding layer of a smart assistant for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / Urdu script / English / any mix, possibly with typos, slang, half sentences or speech-to-text mistakes. Work out what they MEAN (their intent), not which keywords they used, and classify it into exactly one JSON object, no prose, matching this schema:
+{"action":"open_tab"|"customer_lookup"|"receipt_history"|"customer_list"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"chat"|"unclear","tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"filter"?:string,"op"?:"save"|"edit"|"read","reply":string}
 
 Rules:
 - "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
@@ -225,10 +225,13 @@ Rules:
 - "generate_receipt": manager wants to create/generate a receipt/rasid for a named customer. Extract customerName (resolve references from recent conversation the same way). If the manager states an amount (e.g. "1500 ki receipt", "amount 1500 kar do"), put it in amount as a plain number; if they state a note/description, put it in note.
 - "set_status": manager wants to disable/suspend/band a customer (status "suspended") or enable/activate/chalu a customer (status "active"). Extract customerName the same way. Never use this for expiry changes or deletion.
 - "receipt_form": ONLY when the client says a receipt form is open right now (see context line below). The manager is talking about the receipt already on screen: op "save" for save/confirm/generate it ("save kar do", "theek hai save karo", "receipt bana do"); op "edit" to change it ("amount 1500 kar do", "note likho ...") with amount (plain number) and/or note; op "read" to hear what is on the form ("form mein kya hai"). When the form is open and the manager only gives an amount/note change for it, use "edit" — NOT generate_receipt. If the form is NOT open, never use receipt_form ("save kar do" then is "unclear" with reply saying no receipt form is open).
-- "summary": manager asks a count/total question about their customers. metric must be exactly one of: total_customers, active, suspended, expired, expiring_today, total_balance.
-- "unclear": command doesn't clearly match any of the above, or no customer name could be extracted where one is needed.
+- "receipt_history": manager asks when/how much a specific customer last paid, or wants that customer's payment history / last receipts (e.g. "fcsalman18 ki last payment kab hoi thi?", "Ali ne akhri baar kitna diya"). Extract customerName the same way.
+- "customer_list": manager wants a list of customers matching a condition. filter must be exactly one of: paid (has paid for the current month), pending (has NOT paid for the current month), balance (owes an outstanding balance), expired, expiring_soon (expiring within the next 7 days), suspended (disabled/band), active, all. Map meaning, e.g. "kin logon ne abhi tak paisay nahi diye"/"pending list" -> pending; "jin ki payment aa chuki" -> paid; "udhaar wale" -> balance.
+- "summary": manager asks a count/total question about their business. metric must be exactly one of: total_customers, active, suspended, expired, expiring_today, expiring_soon, total_balance, collection_today, collection_month.
+- "chat": greeting, thanks, small talk, or a question about what you can do or how something works. Answer it helpfully in "reply" (up to 30 words). You can open tabs, look up a customer, show payment history, list paid/pending/expired customers, give totals, prepare receipts and enable/disable customers. Never answer a clear dashboard request with "chat".
+- "unclear": only when you truly cannot map the command to any action above, or a needed customer name is missing. In "reply" ask ONE short clarifying question instead of refusing.
 - customerName must always be written in Latin/English letters — transliterate it if the command was in Urdu script.
-- "reply": a short (under 15 words) natural confirmation IN ENGLISH of what you understood, to show back to the manager. Always reply in English regardless of what language or script the command was in.
+- "reply": a short (under 20 words) natural confirmation of what you understood, written in the manager's own language: Roman Urdu if they wrote Roman Urdu or Urdu script (default when unsure), English only if they wrote English. Never claim the action is already done — the app performs it after your reply.
 ${historyBlock}
 Context: the receipt form is ${receiptFormOpen ? 'OPEN' : 'NOT open'} on the manager's screen.
 
@@ -283,7 +286,7 @@ Respond with ONLY the JSON object, nothing else.`;
       return res.status(200).json(FALLBACK);
     }
     if (parsed.action === 'open_tab' && !COPILOT_VALID_TABS.includes(parsed.tab)) {
-      return res.status(200).json({ action: 'unclear', reply: "I couldn't find that tab, please rephrase." });
+      return res.status(200).json({ action: 'unclear', reply: 'Wo tab nahi mila, dobara bata dein.' });
     }
     // Strict output validation — never trust model output for anything that
     // later drives a money/status change on the client.
@@ -297,7 +300,7 @@ Respond with ONLY the JSON object, nothing else.`;
     }
     if (parsed.action === 'receipt_form') {
       if (!receiptFormOpen) {
-        return res.status(200).json({ action: 'unclear', reply: 'No receipt form is open — ask me to prepare a receipt first.' });
+        return res.status(200).json({ action: 'unclear', reply: 'Receipt form khula nahi hai — pehle receipt tayyar karne ko kahein.' });
       }
       if (!['save', 'edit', 'read'].includes(parsed.op)) {
         return res.status(200).json({ action: 'unclear', reply: "I couldn't tell what to do with the receipt — please rephrase." });
@@ -311,13 +314,23 @@ Respond with ONLY the JSON object, nothing else.`;
         }
       }
     }
-    if (parsed.action === 'summary' && !['total_customers','active','suspended','expired','expiring_today','total_balance'].includes(parsed.metric)) {
-      return res.status(200).json({ action: 'unclear', reply: "I couldn't tell which total you want — please rephrase." });
+    if (parsed.action === 'summary' && !['total_customers','active','suspended','expired','expiring_today','expiring_soon','total_balance','collection_today','collection_month'].includes(parsed.metric)) {
+      return res.status(200).json({ action: 'unclear', reply: 'Kaun sa total chahiye? Thora wazeh bata dein.' });
     }
+    if (parsed.action === 'customer_list' && !['paid','pending','balance','expired','expiring_soon','suspended','active','all'].includes(parsed.filter)) {
+      return res.status(200).json({ action: 'unclear', reply: 'Kaun si list chahiye — paid, pending, expired ya balance wali?' });
+    }
+    if ((parsed.action === 'receipt_history' || parsed.action === 'customer_lookup') && !String(parsed.customerName || '').trim()) {
+      return res.status(200).json({ action: 'unclear', reply: 'Kis customer ki baat kar rahe hain? Naam ya username bata dein.' });
+    }
+    if (!['open_tab','customer_lookup','receipt_history','customer_list','generate_receipt','set_status','summary','receipt_form','chat','unclear'].includes(parsed.action)) {
+      return res.status(200).json({ action: 'unclear', reply: 'Samajh nahi aaya, thora aasan alfaaz mein bata dein.' });
+    }
+    parsed.reply = String(parsed.reply || '').slice(0, 300);
     return res.status(200).json(parsed);
   } catch (error: any) {
     console.error('[copilot] Gemini failover exhausted:', error?.message || error);
-    return res.status(200).json({ action: 'unclear', reply: 'AI is not available right now, please try again.' });
+    return res.status(200).json({ action: 'unclear', reply: 'AI abhi available nahi hai, thori der baad dobara try karein.' });
   }
 }
 

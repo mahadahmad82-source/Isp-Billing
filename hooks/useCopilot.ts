@@ -1,7 +1,12 @@
 // ─── Offline-first Copilot ──────────────────────────────────────────────────
 // The local parser (utils/agent) is the PRIMARY path: text commands are
 // classified and executed entirely on-device — no customer PII and no
-// operational commands ever leave the device for classification. Voice
+// operational commands ever leave the device for classification.
+// When the local parser cannot understand a command (intent 'unclear'), the
+// raw command text + the last few chat turns are sent to the AI classifier
+// (?action=copilot) so natural phrasing works; its answer is mapped back into
+// the same ParseResult and run through the same executors (writes stay
+// confirmation-gated). If the AI is unreachable the local 'unclear' reply is used. Voice
 // transcription still uses the backend audio→text endpoint, but the resulting
 // text is parsed locally like any typed command.
 //
@@ -60,6 +65,32 @@ function isSavePhrase(text: string): boolean {
   return SAVE_PHRASES.test(text.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim());
 }
 
+interface AiResult {
+  action: string; tab?: string; customerName?: string; amount?: number; note?: string;
+  status?: string; metric?: string; filter?: string; op?: string; reply?: string;
+}
+
+/** Ask the backend AI to understand a command the local parser could not.
+ * Sends only the raw command text and the last few chat turns — never customer
+ * records. Returns null on any failure so the caller falls back to local replies. */
+async function classifyWithAI(command: string, turns: CopilotLogEntry[], receiptFormOpen: boolean): Promise<AiResult | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    const history = turns.slice(-7, -1).map(h => ({ from: h.from, text: h.text }));
+    const res = await fetch('/api/admin-maintenance?action=copilot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ command, history, receiptFormOpen }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data && typeof data.action === 'string' ? (data as AiResult) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface PendingWrite {
   /** Human-readable confirmation prompt shown to the user. */
   label: string;
@@ -105,6 +136,8 @@ export function useCopilot(opts: UseCopilotOptions) {
   stateRef.current = { users, receipts, expenses, complaints, subManagers, managerUsername };
   const cbRef = useRef({ onOpenTab, onPrepareReceipt, onSetUserStatus, onAddUser, onUpdateUser, onAddExpense, onResolveComplaint, onSendTeamMessage });
   cbRef.current = { onOpenTab, onPrepareReceipt, onSetUserStatus, onAddUser, onUpdateUser, onAddExpense, onResolveComplaint, onSendTeamMessage };
+  const logRef = useRef(log);
+  logRef.current = log;
   const permRef = useRef({ canChangeStatus });
   permRef.current = { canChangeStatus };
 
@@ -239,6 +272,38 @@ export function useCopilot(opts: UseCopilotOptions) {
       case 'customer_list': {
         const t = normalize(rawText);
         let list = live;
+        if (parsed.filter) {
+          const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+          const dte = (u: UserRecord): number | null => {
+            const e = new Date(u.expiryDate);
+            if (isNaN(e.getTime())) return null;
+            e.setHours(0, 0, 0, 0);
+            return Math.ceil((e.getTime() - today0.getTime()) / 86400000);
+          };
+          const period = periodLabel();
+          const paidNow = (u: UserRecord) => st.receipts.some(r =>
+            (r.userId === u.id || r.username === u.username) && String(r.status) === 'Success' && r.period === period);
+          const labels: Record<string, string> = {
+            paid: `${period} ki payment kar chuke`, pending: `${period} ki payment pending`, balance: 'balance wale',
+            expired: 'expired', expiring_soon: 'agle 7 din mein expire hone wale', suspended: 'disabled', active: 'active', all: 'tamam',
+          };
+          switch (parsed.filter) {
+            case 'paid': list = list.filter(paidNow); break;
+            case 'pending': list = list.filter(u => !paidNow(u)); break;
+            case 'balance': list = list.filter(u => (u.balance || 0) > 0).sort((a, b) => (b.balance || 0) - (a.balance || 0)); break;
+            case 'expired': list = list.filter(u => { const d = dte(u); return d !== null && d < 0; }); break;
+            case 'expiring_soon': list = list.filter(u => { const d = dte(u); return d !== null && d >= 0 && d <= 7; }); break;
+            case 'suspended': list = list.filter(u => u.status === 'suspended'); break;
+            case 'active': list = list.filter(u => u.status === 'active'); break;
+            default: break;
+          }
+          if (!list.length) { say(`Koi customer (${labels[parsed.filter] || parsed.filter}) nahi mila.`); return; }
+          const totalDue = list.reduce((s, u) => s + (Number(u.balance) || 0), 0);
+          say(`${labels[parsed.filter] || parsed.filter}: ${list.length} customers` + (totalDue > 0 ? ` (kul balance ${rs(totalDue)})` : '') + ':\n' +
+            list.slice(0, 8).map(u => `• ${u.name} (@${u.username}) — Balance ${rs(u.balance)}, expiry ${displayDate(u.expiryDate)}`).join('\n') +
+            (list.length > 8 ? `\n…aur ${list.length - 8} mazeed.` : ''));
+          return;
+        }
         if (hasWord(t, 'balance') || hasWord(t, 'udhaar') || hasWord(t, 'بقایا')) {
           list = list.filter(u => (u.balance || 0) > 0).sort((a, b) => (b.balance || 0) - (a.balance || 0));
         } else if (hasWord(t, 'band') || hasWord(t, 'suspended') || hasWord(t, 'disabled')) {
@@ -449,7 +514,7 @@ export function useCopilot(opts: UseCopilotOptions) {
       }
 
       default: {
-        say("Sorry, I didn't understand that. Say \"help\" to see what I can do.");
+        say('Maaf kijiye, samajh nahi aaya. "help" likhein to dikhaun main kya kar sakta hoon.');
         return;
       }
     }
@@ -626,6 +691,66 @@ export function useCopilot(opts: UseCopilotOptions) {
 
       // Offline parse → execute. No network, no PII leaves the device.
       const parsed = parse(text);
+
+      // Local parser did not understand → let the AI interpret natural phrasing,
+      // then run its answer through the same executors (writes stay gated).
+      if (parsed.intent === 'unclear') {
+        const ai = await classifyWithAI(text, logRef.current, copilotReceiptBridge.isOpen());
+        if (ai) {
+          const toRef = (name?: string): CustomerRef | undefined => {
+            const v = String(name || '').trim().replace(/^@/, '');
+            if (!v) return undefined;
+            const isUsername = stateRef.current.users.some(u => (u.username || '').toLowerCase() === v.toLowerCase());
+            return { kind: isUsername ? 'username' : 'name', value: v };
+          };
+          switch (ai.action) {
+            case 'open_tab':
+              if (ai.tab) { execute({ intent: 'open_tab', tab: ai.tab }, text); return; }
+              break;
+            case 'customer_lookup':
+            case 'receipt_history': {
+              const ref = toRef(ai.customerName);
+              if (ref) { execute({ intent: ai.action as Intent, customer: ref }, text); return; }
+              break;
+            }
+            case 'customer_list':
+              if (ai.filter) { execute({ intent: 'customer_list', filter: ai.filter }, text); return; }
+              break;
+            case 'summary':
+              if (ai.metric) { execute({ intent: 'summary', metric: ai.metric }, text); return; }
+              break;
+            case 'generate_receipt': {
+              const ref = toRef(ai.customerName);
+              if (ref) {
+                execute({ intent: 'generate_receipt', customer: ref, amount: typeof ai.amount === 'number' ? ai.amount : undefined, missing: [] }, text);
+                return;
+              }
+              break;
+            }
+            case 'set_status': {
+              const ref = toRef(ai.customerName);
+              if (ref && (ai.status === 'active' || ai.status === 'suspended')) {
+                execute({ intent: 'set_status', customer: ref, status: ai.status, missing: [] }, text);
+                return;
+              }
+              break;
+            }
+            case 'receipt_form':
+              if (copilotReceiptBridge.isOpen() && (ai.op === 'save' || ai.op === 'edit' || ai.op === 'read')) {
+                const r = await copilotReceiptBridge.run(
+                  ai.op === 'edit' ? { type: 'edit', amount: ai.amount, note: ai.note } : { type: ai.op },
+                );
+                say(r.message);
+                return;
+              }
+              break;
+            default:
+              break;
+          }
+          // chat / unclear / incomplete mapping → show the AI's own reply.
+          if (ai.reply) { say(ai.reply); return; }
+        }
+      }
       execute(parsed, text);
     } catch {
       say('Something went wrong — please try again.');
@@ -804,6 +929,7 @@ function summaryMetric(
     case 'active': return `Active customers: ${live.filter(u => u.status === 'active').length}.`;
     case 'suspended': return `Disabled customers: ${live.filter(u => u.status === 'suspended').length}.`;
     case 'expired': return `Expired customers: ${live.filter(u => { const d = daysToExpiry(u); return d !== null && d < 0; }).length}.`;
+    case 'expiring_today': return `Aaj expire hone wale: ${live.filter(u => daysToExpiry(u) === 0).length}.`;
     case 'expiring_soon': return `Expiring in the next 7 days: ${live.filter(u => { const d = daysToExpiry(u); return d !== null && d >= 0 && d <= 7; }).length}.`;
     case 'total_balance': return `Total outstanding balance: ${rs(live.reduce((s, u) => s + (Number(u.balance) || 0), 0))}.`;
     case 'collection_today': {
