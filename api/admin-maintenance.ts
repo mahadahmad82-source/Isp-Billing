@@ -204,6 +204,10 @@ async function handleCopilot(req: any, res: any) {
   // customer named a turn or two earlier. Never fetched from a DB by this
   // endpoint — just whatever the client already has on screen.
   const receiptFormOpen = req.body?.receiptFormOpen === true;
+  // Write actions (add customer / plan / expiry / payment) are only offered to
+  // clients that declare they can run them behind a Confirm step (web today).
+  const writesEnabled = req.body?.caps?.writes === true;
+  const pktToday = new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10); // Pakistan date
   const rawHistory = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
   const history = rawHistory
     .map((h: any) => ({ from: h?.from === 'copilot' ? 'assistant' : 'user', text: String(h?.text || '').slice(0, 300) }))
@@ -217,7 +221,7 @@ async function handleCopilot(req: any, res: any) {
       : '';
 
     const prompt = `You are the understanding layer of a smart assistant for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / Urdu script / English / any mix, possibly with typos, slang, half sentences or speech-to-text mistakes. Work out what they MEAN (their intent), not which keywords they used, and classify it into exactly one JSON object, no prose, matching this schema:
-{"action":"open_tab"|"customer_lookup"|"receipt_history"|"customer_list"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"chat"|"unclear","tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"filter"?:string,"op"?:"save"|"edit"|"read","reply":string}
+{"action":"open_tab"|"customer_lookup"|"receipt_history"|"customer_list"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"chat"|"unclear"${writesEnabled ? '|"add_customer"|"change_plan"|"set_expiry"|"record_payment"' : ''},"tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"filter"?:string,"op"?:"save"|"edit"|"read"${writesEnabled ? ',"phone"?:string,"plan"?:string,"monthlyFee"?:number,"date"?:string' : ''},"reply":string}
 
 Rules:
 - "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
@@ -230,10 +234,14 @@ Rules:
 - "summary": manager asks a count/total question about their business. metric must be exactly one of: total_customers, active, suspended, expired, expiring_today, expiring_soon, total_balance, collection_today, collection_month.
 - "chat": greeting, thanks, small talk, or a question about what you can do or how something works. Answer it helpfully in "reply" (up to 30 words). You can open tabs, look up a customer, show payment history, list paid/pending/expired customers, give totals, prepare receipts and enable/disable customers. Never answer a clear dashboard request with "chat".
 - "unclear": only when you truly cannot map the command to any action above, or a needed customer name is missing. In "reply" ask ONE short clarifying question instead of refusing.
-- customerName must always be written in Latin/English letters — transliterate it if the command was in Urdu script.
+${writesEnabled ? `- "add_customer": manager wants to register a NEW customer / new connection (e.g. "naya customer add karo Ali 03001234567", "Bilal ka connection lagao"). customerName = the new customer's name in Latin letters, phone = the digits as stated, plan = plan name only if stated, monthlyFee = number only if stated. A phone number is required: if it is missing use "unclear" and ask for it.
+- "change_plan": manager wants to change an existing customer's package/plan (e.g. "Ali ka plan 10mbps kar do"). customerName + plan (as written). Both required.
+- "set_expiry": manager wants an existing customer's expiry date set to a specific date. date = YYYY-MM-DD, worked out from today's date given below (e.g. "30 tareekh tak" = the 30th of the current month, "agle mahine ki 5"). If the date depends on the customer's current expiry (e.g. "1 mahina barha do") or cannot be worked out, use "unclear" and ask for the exact date. customerName + date required.
+- "record_payment": manager says a customer paid / wants to recharge / take a payment (e.g. "Ali ne 1500 diye", "fcsalman18 ka 1000 ka recharge karo"). customerName + amount (> 0) required; if the amount is missing use "unclear" and ask. Not for merely viewing payment history.
+` : ''}- customerName must always be written in Latin/English letters — transliterate it if the command was in Urdu script.
 - "reply": a short (under 20 words) natural confirmation of what you understood, written in the manager's own language: Roman Urdu if they wrote Roman Urdu or Urdu script (default when unsure), English only if they wrote English. Never claim the action is already done — the app performs it after your reply.
 ${historyBlock}
-Context: the receipt form is ${receiptFormOpen ? 'OPEN' : 'NOT open'} on the manager's screen.
+Context: the receipt form is ${receiptFormOpen ? 'OPEN' : 'NOT open'} on the manager's screen. Today's date (Pakistan) is ${pktToday}.
 
 Command: "${command}"
 
@@ -323,7 +331,16 @@ Respond with ONLY the JSON object, nothing else.`;
     if ((parsed.action === 'receipt_history' || parsed.action === 'customer_lookup') && !String(parsed.customerName || '').trim()) {
       return res.status(200).json({ action: 'unclear', reply: 'Kis customer ki baat kar rahe hain? Naam ya username bata dein.' });
     }
-    if (!['open_tab','customer_lookup','receipt_history','customer_list','generate_receipt','set_status','summary','receipt_form','chat','unclear'].includes(parsed.action)) {
+    if (['add_customer','change_plan','set_expiry','record_payment'].includes(parsed.action)) {
+      const clarify = (fallbackText: string) => res.status(200).json({ action: 'unclear', reply: String(parsed.reply || '').slice(0, 300) || fallbackText });
+      if (!writesEnabled) return clarify('Ye kaam abhi is app se mumkin nahi, web dashboard use karein.');
+      if (!String(parsed.customerName || '').trim()) return clarify('Customer ka naam ya username bata dein.');
+      if (parsed.action === 'add_customer' && String(parsed.phone || '').replace(/\D/g, '').length < 7) return clarify('Naye customer ka phone number bata dein.');
+      if (parsed.action === 'change_plan' && !String(parsed.plan || '').trim()) return clarify('Kaun sa plan lagana hai?');
+      if (parsed.action === 'set_expiry' && !/^\d{4}-\d{2}-\d{2}$/.test(String(parsed.date || ''))) return clarify('Expiry ki exact tareekh bata dein.');
+      if (parsed.action === 'record_payment' && !(Number(parsed.amount) > 0)) return clarify('Kitni raqam ki payment hai?');
+    }
+    if (!['open_tab','customer_lookup','receipt_history','customer_list','generate_receipt','set_status','summary','receipt_form','chat','unclear',...(writesEnabled ? ['add_customer','change_plan','set_expiry','record_payment'] : [])].includes(parsed.action)) {
       return res.status(200).json({ action: 'unclear', reply: 'Samajh nahi aaya, thora aasan alfaaz mein bata dein.' });
     }
     parsed.reply = String(parsed.reply || '').slice(0, 300);

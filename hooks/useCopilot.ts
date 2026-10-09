@@ -51,6 +51,10 @@ export interface UseCopilotOptions {
   onResolveComplaint?: (ticketId: string, details: string) => void;
   onSendTeamMessage?: (message: TeamMessage) => void;
   managerUsername?: string;
+  /** Plan name -> monthly price (settings.planPrices). Needed for AI plan changes / new customers. */
+  planPrices?: Record<string, number>;
+  /** True when the AI may propose customer writes (ISP managers). Every write stays behind Confirm. */
+  aiWrites?: boolean;
   /** Persisted conversation log (dual-saved by the parent like the rest of AppState). */
   history?: CopilotLogEntry[];
   onHistoryChange?: (log: CopilotLogEntry[]) => void;
@@ -65,15 +69,24 @@ function isSavePhrase(text: string): boolean {
   return SAVE_PHRASES.test(text.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim());
 }
 
+/** One month from now at 23:59 in the 'YYYY-MM-DDTHH:MM' format UserManagement stores. */
+function defaultExpiry(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T23:59`;
+}
+
 interface AiResult {
   action: string; tab?: string; customerName?: string; amount?: number; note?: string;
   status?: string; metric?: string; filter?: string; op?: string; reply?: string;
+  phone?: string; plan?: string; monthlyFee?: number; date?: string;
 }
 
 /** Ask the backend AI to understand a command the local parser could not.
  * Sends only the raw command text and the last few chat turns — never customer
  * records. Returns null on any failure so the caller falls back to local replies. */
-async function classifyWithAI(command: string, turns: CopilotLogEntry[], receiptFormOpen: boolean): Promise<AiResult | null> {
+async function classifyWithAI(command: string, turns: CopilotLogEntry[], receiptFormOpen: boolean, writes: boolean): Promise<AiResult | null> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
@@ -81,7 +94,7 @@ async function classifyWithAI(command: string, turns: CopilotLogEntry[], receipt
     const res = await fetch('/api/admin-maintenance?action=copilot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ command, history, receiptFormOpen }),
+      body: JSON.stringify({ command, history, receiptFormOpen, caps: { writes } }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -109,7 +122,7 @@ export function useCopilot(opts: UseCopilotOptions) {
     users, receipts = [], expenses = [], complaints = [], subManagers = [],
     onOpenTab, onPrepareReceipt, onSetUserStatus, canChangeStatus = false,
     onAddUser, onUpdateUser, onAddExpense, onResolveComplaint, onSendTeamMessage,
-    managerUsername = '', history, onHistoryChange,
+    managerUsername = '', history, onHistoryChange, planPrices, aiWrites = false,
   } = opts;
 
   const [input, setInput] = useState('');
@@ -140,6 +153,10 @@ export function useCopilot(opts: UseCopilotOptions) {
   logRef.current = log;
   const permRef = useRef({ canChangeStatus });
   permRef.current = { canChangeStatus };
+  const planRef = useRef<Record<string, number>>(planPrices || {});
+  planRef.current = planPrices || {};
+  const aiWritesRef = useRef(aiWrites);
+  aiWritesRef.current = aiWrites;
 
   handsFreeRef.current = handsFree;
   voiceReplyRef.current = voiceReply;
@@ -392,9 +409,15 @@ export function useCopilot(opts: UseCopilotOptions) {
 
       case 'add_customer': {
         if (parsed.missing?.length) { askForSlot(parsed, rawText); return; }
+        if (!permRef.current.canChangeStatus) { say('Customer add karne ke liye manager access chahiye.'); return; }
         const name = parsed.customer?.value || '';
-        const phone = (parsed as any).phone as string | undefined;
-        const fee = (parsed as any).monthlyFee as number | undefined;
+        const phone = parsed.phone ?? ((parsed as any).phone as string | undefined);
+        const prices = planRef.current;
+        const planNames = Object.keys(prices);
+        const matchedPlan = parsed.plan ? planNames.find(n => n.toLowerCase().replace(/\s+/g, '') === parsed.plan!.toLowerCase().replace(/\s+/g, '')) : undefined;
+        if (parsed.plan && planNames.length && !matchedPlan) { say(`"${parsed.plan}" plan nahi mila. Available plans: ${planNames.join(', ')}.`); return; }
+        const planName = matchedPlan || planNames[0] || '';
+        const fee = (parsed.monthlyFee ?? ((parsed as any).monthlyFee as number | undefined)) ?? (planName ? prices[planName] : undefined);
         const base = name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'customer';
         let username = base;
         let n = 1;
@@ -403,10 +426,10 @@ export function useCopilot(opts: UseCopilotOptions) {
         const now = new Date().toISOString();
         const user: UserRecord = {
           id: generateId(), username, name, phone: phone || '', address: '',
-          plan: '', monthlyFee: fee || 0, balance: 0,
-          lastPaymentDate: '', expiryDate: '', createdAt: now, status: 'active',
+          plan: planName, monthlyFee: fee || 0, balance: 0,
+          lastPaymentDate: '', expiryDate: defaultExpiry(), createdAt: now, status: 'active',
         };
-        askConfirm(`Add new customer ${name} (@${username}), phone ${phone}, fee ${rs(fee || 0)}?`,
+        askConfirm(`Add new customer ${name} (@${username}), phone ${phone}${planName ? `, plan ${planName}` : ''}, fee ${rs(fee || 0)}?`,
           () => {
             if (!cbRef.current.onAddUser) { say('Customer add karne ke liye App update chahiye.'); return; }
             cbRef.current.onAddUser(user);
@@ -416,6 +439,7 @@ export function useCopilot(opts: UseCopilotOptions) {
       }
 
       case 'edit_customer': {
+        if (!permRef.current.canChangeStatus) { say('Customer edit karne ke liye manager access chahiye.'); return; }
         if (parsed.missing?.length) { askForSlot(parsed, rawText); return; }
         const customer = resolve(parsed.customer, rawText);
         if (!customer) return;
@@ -429,6 +453,43 @@ export function useCopilot(opts: UseCopilotOptions) {
             if (!cbRef.current.onUpdateUser) { say('Update ke liye App update chahiye.'); return; }
             cbRef.current.onUpdateUser(customer.id, update);
             say(`Done — ${customer.name}'s ${field} updated.`);
+          });
+        return;
+      }
+
+      case 'change_plan': {
+        if (!permRef.current.canChangeStatus) { say('Plan change karne ke liye manager access chahiye.'); return; }
+        const customer = resolve(parsed.customer, rawText);
+        if (!customer) return;
+        const prices = planRef.current;
+        const planNames = Object.keys(prices);
+        const want = String(parsed.plan || '').toLowerCase().replace(/\s+/g, '');
+        const plan = planNames.find(n => n.toLowerCase().replace(/\s+/g, '') === want);
+        if (!plan) { say(planNames.length ? `"${parsed.plan}" plan nahi mila. Available plans: ${planNames.join(', ')}.` : 'Plans abhi load nahi hue, Settings mein check karein.'); return; }
+        if (customer.plan === plan) { say(`${customer.name} pehle se ${plan} plan par hai.`); return; }
+        const price = prices[plan];
+        askConfirm(`Change ${customer.name}'s plan from ${customer.plan || '-'} to ${plan} (${rs(price)}/month)?`,
+          () => {
+            if (!cbRef.current.onUpdateUser) { say('Update ke liye App update chahiye.'); return; }
+            cbRef.current.onUpdateUser(customer.id, { plan, monthlyFee: price });
+            say(`Done - ${customer.name} ka plan ${plan} kar diya (${rs(price)}/month).`);
+          });
+        return;
+      }
+
+      case 'set_expiry': {
+        if (!permRef.current.canChangeStatus) { say('Expiry change karne ke liye manager access chahiye.'); return; }
+        const customer = resolve(parsed.customer, rawText);
+        if (!customer) return;
+        const day = String(parsed.date || '');
+        const dt = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T23:59:00`) : null;
+        if (!dt || isNaN(dt.getTime())) { say('Tareekh samajh nahi aayi, exact date bata dein (jaise 30 October).'); return; }
+        const value = `${day}T23:59`; // same format UserManagement stores
+        askConfirm(`Set ${customer.name}'s expiry to ${displayDate(value)}${customer.expiryDate ? ` (abhi: ${displayDate(customer.expiryDate)})` : ''}?`,
+          () => {
+            if (!cbRef.current.onUpdateUser) { say('Update ke liye App update chahiye.'); return; }
+            cbRef.current.onUpdateUser(customer.id, { expiryDate: value });
+            say(`Done - ${customer.name} ki expiry ${displayDate(value)} kar di.`);
           });
         return;
       }
@@ -695,7 +756,7 @@ export function useCopilot(opts: UseCopilotOptions) {
       // Local parser did not understand → let the AI interpret natural phrasing,
       // then run its answer through the same executors (writes stay gated).
       if (parsed.intent === 'unclear') {
-        const ai = await classifyWithAI(text, logRef.current, copilotReceiptBridge.isOpen());
+        const ai = await classifyWithAI(text, logRef.current, copilotReceiptBridge.isOpen(), aiWritesRef.current);
         if (ai) {
           const toRef = (name?: string): CustomerRef | undefined => {
             const v = String(name || '').trim().replace(/^@/, '');
@@ -733,6 +794,31 @@ export function useCopilot(opts: UseCopilotOptions) {
                 execute({ intent: 'set_status', customer: ref, status: ai.status, missing: [] }, text);
                 return;
               }
+              break;
+            }
+            case 'record_payment': {
+              const ref = toRef(ai.customerName);
+              if (aiWritesRef.current && ref && typeof ai.amount === 'number' && ai.amount > 0) {
+                execute({ intent: 'record_payment', customer: ref, amount: ai.amount, missing: [] }, text);
+                return;
+              }
+              break;
+            }
+            case 'add_customer':
+              if (aiWritesRef.current && ai.customerName && ai.phone) {
+                execute({ intent: 'add_customer', customer: { kind: 'name', value: String(ai.customerName).trim() }, phone: ai.phone, plan: ai.plan,
+                  monthlyFee: typeof ai.monthlyFee === 'number' ? ai.monthlyFee : undefined, missing: [] }, text);
+                return;
+              }
+              break;
+            case 'change_plan': {
+              const ref = toRef(ai.customerName);
+              if (aiWritesRef.current && ref && ai.plan) { execute({ intent: 'change_plan', customer: ref, plan: ai.plan, missing: [] }, text); return; }
+              break;
+            }
+            case 'set_expiry': {
+              const ref = toRef(ai.customerName);
+              if (aiWritesRef.current && ref && ai.date) { execute({ intent: 'set_expiry', customer: ref, date: ai.date, missing: [] }, text); return; }
               break;
             }
             case 'receipt_form':

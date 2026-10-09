@@ -2310,6 +2310,11 @@ const App: React.FC = () => {
               onPrepareReceipt={handleCopilotPrepareReceipt}
               canChangeStatus={userRole !== 'sub-manager'}
               onSetUserStatus={handleCopilotSetUserStatus}
+              receipts={state.receipts || filteredReceipts}
+              planPrices={currentSettings.planPrices}
+              aiWrites={businessType !== 'water'}
+              onAddUser={businessType !== 'water' ? handleAddUser : undefined}
+              onUpdateUser={businessType !== 'water' ? handleUpdateUser : undefined}
             />
           )}
           {!tabLoading && activeTab === 'settings' && <Settings settings={currentSettings} onUpdateSettings={handleUpdateSettings} onRestoreState={handleRestoreState} onWipeData={handleWipeData} fullState={state} onLogout={handleLogout} onBulkUpdateUsers={handleBulkUpdateUsers} activeManager={activeManager || ''} onReplayWelcomeTour={handleReplayWelcomeTour} onResetFeatureTips={handleResetFeatureTips} copilotWidgetVisible={!state.copilotWidgetClosed} onToggleCopilotWidget={(visible) => handleCopilotWidgetClosedChange(!visible)} businessType={businessType} />}
@@ -2950,6 +2955,11 @@ const App: React.FC = () => {
           onPrepareReceipt={handleCopilotPrepareReceipt}
           canChangeStatus={userRole !== 'sub-manager'}
           onSetUserStatus={handleCopilotSetUserStatus}
+          receipts={state.receipts || filteredReceipts}
+          planPrices={currentSettings.planPrices}
+          aiWrites={businessType !== 'water'}
+          onAddUser={businessType !== 'water' ? handleAddUser : undefined}
+          onUpdateUser={businessType !== 'water' ? handleUpdateUser : undefined}
           widgetClosed={state.copilotWidgetClosed}
           onWidgetClosedChange={handleCopilotWidgetClosedChange}
         />
