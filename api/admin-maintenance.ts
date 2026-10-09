@@ -207,6 +207,7 @@ async function handleCopilot(req: any, res: any) {
   // Write actions (add customer / plan / expiry / payment) are only offered to
   // clients that declare they can run them behind a Confirm step (web today).
   const writesEnabled = req.body?.caps?.writes === true;
+  const printEnabled = req.body?.caps?.print === true; // client can open a printable recovery list/statement
   const pktToday = new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10); // Pakistan date
   const rawHistory = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
   const history = rawHistory
@@ -221,7 +222,7 @@ async function handleCopilot(req: any, res: any) {
       : '';
 
     const prompt = `You are the understanding layer of a smart assistant for an ISP billing dashboard's manager. The manager typed or spoke a command in Roman Urdu / Urdu script / English / any mix, possibly with typos, slang, half sentences or speech-to-text mistakes. Work out what they MEAN (their intent), not which keywords they used, and classify it into exactly one JSON object, no prose, matching this schema:
-{"action":"open_tab"|"customer_lookup"|"receipt_history"|"customer_list"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"chat"|"unclear"${writesEnabled ? '|"add_customer"|"change_plan"|"set_expiry"|"record_payment"' : ''},"tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"filter"?:string,"op"?:"save"|"edit"|"read"${writesEnabled ? ',"phone"?:string,"plan"?:string,"monthlyFee"?:number,"date"?:string' : ''},"reply":string}
+{"action":"open_tab"|"customer_lookup"|"receipt_history"|"customer_list"|"generate_receipt"|"set_status"|"summary"|"receipt_form"|"chat"|"unclear"${writesEnabled ? '|"add_customer"|"change_plan"|"set_expiry"|"record_payment"' : ''}${printEnabled ? '|"recovery_print"' : ''},"tab"?:string,"customerName"?:string,"amount"?:number,"note"?:string,"status"?:"active"|"suspended","metric"?:string,"filter"?:string,"op"?:"save"|"edit"|"read"${writesEnabled ? ',"phone"?:string,"plan"?:string,"monthlyFee"?:number,"date"?:string' : ''},"reply":string}
 
 Rules:
 - "open_tab": manager wants to navigate/see a section. tab must be exactly one of: ${COPILOT_VALID_TABS.join(', ')}. Map meaning, e.g. "customer list kholo"/"users dikhao" -> users; "receipt/rasid wala tab" -> receipts; "expiring/expire hone wale customers" -> expiries; "recovery ledger" -> recoveries; "team/staff" -> team.
@@ -238,6 +239,7 @@ ${writesEnabled ? `- "add_customer": manager wants to register a NEW customer / 
 - "change_plan": manager wants to change an existing customer's package/plan (e.g. "Ali ka plan 10mbps kar do"). customerName + plan (as written). Both required.
 - "set_expiry": manager wants an existing customer's expiry date set to a specific date. date = YYYY-MM-DD, worked out from today's date given below (e.g. "30 tareekh tak" = the 30th of the current month, "agle mahine ki 5"). If the date depends on the customer's current expiry (e.g. "1 mahina barha do") or cannot be worked out, use "unclear" and ask for the exact date. customerName + date required.
 - "record_payment": manager says a customer paid / wants to recharge / take a payment (e.g. "Ali ne 1500 diye", "fcsalman18 ka 1000 ka recharge karo"). customerName + amount (> 0) required; if the amount is missing use "unclear" and ask. Not for merely viewing payment history.
+` : ''}${printEnabled ? `- "recovery_print": manager wants a PRINTABLE / PDF pending-recovery list (customers who still have to pay), or a printable recovery statement for ONE named customer (e.g. "pending recovery list print karo", "jinhon ne paisay nahi diye unki print nikalo", "Ali ki recovery print kar do"). Set customerName only when one specific customer is named. filter: "pending" (default: customers who have not paid this month) or "balance" (anyone who still owes money, including part-payers). For just seeing a list on screen use "customer_list" instead.
 ` : ''}- customerName must always be written in Latin/English letters — transliterate it if the command was in Urdu script.
 - "reply": a short (under 20 words) natural confirmation of what you understood, written in the manager's own language: Roman Urdu if they wrote Roman Urdu or Urdu script (default when unsure), English only if they wrote English. Never claim the action is already done — the app performs it after your reply.
 ${historyBlock}
@@ -340,7 +342,8 @@ Respond with ONLY the JSON object, nothing else.`;
       if (parsed.action === 'set_expiry' && !/^\d{4}-\d{2}-\d{2}$/.test(String(parsed.date || ''))) return clarify('Expiry ki exact tareekh bata dein.');
       if (parsed.action === 'record_payment' && !(Number(parsed.amount) > 0)) return clarify('Kitni raqam ki payment hai?');
     }
-    if (!['open_tab','customer_lookup','receipt_history','customer_list','generate_receipt','set_status','summary','receipt_form','chat','unclear',...(writesEnabled ? ['add_customer','change_plan','set_expiry','record_payment'] : [])].includes(parsed.action)) {
+    if (parsed.action === 'recovery_print' && printEnabled && parsed.filter !== 'balance') parsed.filter = 'pending';
+    if (!['open_tab','customer_lookup','receipt_history','customer_list','generate_receipt','set_status','summary','receipt_form','chat','unclear',...(writesEnabled ? ['add_customer','change_plan','set_expiry','record_payment'] : []),...(printEnabled ? ['recovery_print'] : [])].includes(parsed.action)) {
       return res.status(200).json({ action: 'unclear', reply: 'Samajh nahi aaya, thora aasan alfaaz mein bata dein.' });
     }
     parsed.reply = String(parsed.reply || '').slice(0, 300);

@@ -27,6 +27,8 @@ import {
 } from '../utils/agent/parser';
 import { resolveCustomer, isAffirmative, isNegative, extractOrdinal, type CustomerRef } from '../utils/agent/slots';
 import { normalize, hasWord, rs, periodLabel, displayDate } from '../utils/agent/normalize';
+import { getMonthLedger, ledgerRowForUser } from '../utils/recoveryCalc';
+import { buildPendingListHtml, buildCustomerStatementHtml, printHtml } from '../utils/agent/recoveryPrint';
 
 export interface UseCopilotOptions {
   users: UserRecord[];
@@ -94,7 +96,7 @@ async function classifyWithAI(command: string, turns: CopilotLogEntry[], receipt
     const res = await fetch('/api/admin-maintenance?action=copilot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ command, history, receiptFormOpen, caps: { writes } }),
+      body: JSON.stringify({ command, history, receiptFormOpen, caps: { writes, print: writes } }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -298,16 +300,18 @@ export function useCopilot(opts: UseCopilotOptions) {
             return Math.ceil((e.getTime() - today0.getTime()) / 86400000);
           };
           const period = periodLabel();
-          const paidNow = (u: UserRecord) => st.receipts.some(r =>
-            (r.userId === u.id || r.username === u.username) && String(r.status) === 'Success' && r.period === period);
+          // paid / pending / balance follow the Recovery Ledger rules exactly (activated months,
+          // advance-covered customers, missed-month arrears) so Copilot never disagrees with it.
+          const ledgerById = new Map(getMonthLedger(st.users, st.receipts, period, planRef.current).map(r => [r.id, r]));
+          const statusOf = (u: UserRecord) => ledgerById.get(u.id)?.status;
           const labels: Record<string, string> = {
             paid: `${period} ki payment kar chuke`, pending: `${period} ki payment pending`, balance: 'balance wale',
             expired: 'expired', expiring_soon: 'agle 7 din mein expire hone wale', suspended: 'disabled', active: 'active', all: 'tamam',
           };
           switch (parsed.filter) {
-            case 'paid': list = list.filter(paidNow); break;
-            case 'pending': list = list.filter(u => !paidNow(u)); break;
-            case 'balance': list = list.filter(u => (u.balance || 0) > 0).sort((a, b) => (b.balance || 0) - (a.balance || 0)); break;
+            case 'paid': list = list.filter(u => statusOf(u) === 'paid'); break;
+            case 'pending': list = list.filter(u => statusOf(u) === 'pending'); break;
+            case 'balance': list = list.filter(u => (ledgerById.get(u.id)?.toCollect || 0) > 0).sort((a, b) => (ledgerById.get(b.id)?.toCollect || 0) - (ledgerById.get(a.id)?.toCollect || 0)); break;
             case 'expired': list = list.filter(u => { const d = dte(u); return d !== null && d < 0; }); break;
             case 'expiring_soon': list = list.filter(u => { const d = dte(u); return d !== null && d >= 0 && d <= 7; }); break;
             case 'suspended': list = list.filter(u => u.status === 'suspended'); break;
@@ -315,9 +319,10 @@ export function useCopilot(opts: UseCopilotOptions) {
             default: break;
           }
           if (!list.length) { say(`Koi customer (${labels[parsed.filter] || parsed.filter}) nahi mila.`); return; }
-          const totalDue = list.reduce((s, u) => s + (Number(u.balance) || 0), 0);
-          say(`${labels[parsed.filter] || parsed.filter}: ${list.length} customers` + (totalDue > 0 ? ` (kul balance ${rs(totalDue)})` : '') + ':\n' +
-            list.slice(0, 8).map(u => `• ${u.name} (@${u.username}) — Balance ${rs(u.balance)}, expiry ${displayDate(u.expiryDate)}`).join('\n') +
+          const dueOf = (u: UserRecord) => ledgerById.has(u.id) ? ledgerById.get(u.id)!.toCollect : (Number(u.balance) || 0);
+          const totalDue = list.reduce((s, u) => s + dueOf(u), 0);
+          say(`${labels[parsed.filter] || parsed.filter}: ${list.length} customers` + (totalDue > 0 ? ` (kul wasooli ${rs(totalDue)})` : '') + ':\n' +
+            list.slice(0, 8).map(u => `• ${u.name} (@${u.username}) — Wasool karna ${rs(dueOf(u))}, expiry ${displayDate(u.expiryDate)}`).join('\n') +
             (list.length > 8 ? `\n…aur ${list.length - 8} mazeed.` : ''));
           return;
         }
@@ -454,6 +459,28 @@ export function useCopilot(opts: UseCopilotOptions) {
             cbRef.current.onUpdateUser(customer.id, update);
             say(`Done — ${customer.name}'s ${field} updated.`);
           });
+        return;
+      }
+
+      case 'recovery_print': {
+        const period = periodLabel();
+        const prices = planRef.current;
+        const manager = st.managerUsername || '';
+        if (parsed.customer) {
+          const customer = resolve(parsed.customer, rawText);
+          if (!customer) return;
+          const row = ledgerRowForUser(customer, st.receipts, period, prices);
+          const mine = st.receipts.filter(r => r.userId === customer.id || r.username === customer.username);
+          printHtml(buildCustomerStatementHtml(row, mine, period, manager));
+          say(`${customer.name} ka recovery statement print ke liye khol diya. Abhi wasool karna: ${rs(row.toCollect)}.`);
+          return;
+        }
+        const wantBalance = parsed.filter === 'balance';
+        const rows = getMonthLedger(st.users, st.receipts, period, prices).filter(r => wantBalance ? r.toCollect > 0 : r.status === 'pending');
+        if (!rows.length) { say(wantBalance ? 'Kisi customer ka balance baqi nahi.' : `${period} ke liye koi pending customer nahi.`); return; }
+        const total = rows.reduce((sum, r) => sum + r.toCollect, 0);
+        printHtml(buildPendingListHtml(rows, period, manager, wantBalance ? 'Customers with money left to collect' : `Customers who have not paid ${period}`));
+        say(`${rows.length} customers ki pending recovery list print ke liye tayyar (kul wasooli ${rs(total)}). Print dialog se print karein ya PDF save karein.`);
         return;
       }
 
@@ -795,6 +822,12 @@ export function useCopilot(opts: UseCopilotOptions) {
                 return;
               }
               break;
+            }
+            case 'recovery_print': {
+              if (!aiWritesRef.current) break;
+              const ref = toRef(ai.customerName);
+              execute({ intent: 'recovery_print', customer: ref, filter: ai.filter === 'balance' ? 'balance' : 'pending' }, text);
+              return;
             }
             case 'record_payment': {
               const ref = toRef(ai.customerName);

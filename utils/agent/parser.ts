@@ -14,7 +14,7 @@ export type Intent =
   | 'open_tab' | 'customer_lookup' | 'customer_list' | 'summary' | 'receipt_history'
   | 'complaint_list' | 'expense_summary' | 'record_payment' | 'generate_receipt'
   | 'add_customer' | 'edit_customer' | 'set_status' | 'add_expense'
-  | 'resolve_complaint' | 'send_team_message' | 'mark_reminded' | 'change_plan' | 'set_expiry' | 'help' | 'unclear';
+  | 'resolve_complaint' | 'send_team_message' | 'mark_reminded' | 'change_plan' | 'set_expiry' | 'recovery_print' | 'help' | 'unclear';
 
 export interface ParseResult {
   intent: Intent;
