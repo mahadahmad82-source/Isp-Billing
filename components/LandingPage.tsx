@@ -3,13 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { logoBase64 } from '../utils/logoBase64';
 import { supabase } from '../lib/supabase';
 import { ensureWhatsAppBotPlan, fetchPricingPlans, DEFAULT_ISP_PLANS, type PricingPlan } from '../utils/pricing';
-import VideoBackground from './landing/VideoBackground';
-import { 
-  Zap, Smartphone, Lock, BarChart, Users, Globe, Cpu, Server, 
-  Check, ArrowRight, Shield, ChevronDown, CheckCircle, Activity, 
-  Database, ShieldCheck, Mail, FileText, BarChart3, Calendar, Map,
-  Play, Star, TrendingUp, Clock, CreditCard, MessageCircle, Eye, LockKeyhole,
-  ArrowUpRight, X, Menu, Wifi, Receipt, Bell, Fingerprint, HeadphonesIcon, Download
+import {
+  Zap, Smartphone, BarChart, Users, Globe,
+  Check, ArrowRight, ShieldCheck, ChevronDown, CheckCircle,
+  FileText, BarChart3, Calendar, Map,
+  Play, Star, TrendingUp, Clock, CreditCard, MessageCircle, LockKeyhole,
+  X, Menu, Wifi, Receipt, Bell, Fingerprint, HeadphonesIcon, Download, Database
 } from 'lucide-react';
 
 const BOT_NAME = 'NetBot';
@@ -24,14 +23,43 @@ interface LandingPageProps {
 // so the two screens can never show different tiers/prices again.
 const DEFAULT_PRICING_PLANS: PricingPlan[] = ensureWhatsAppBotPlan(DEFAULT_ISP_PLANS);
 
+// Pakistani number formatting for the hero count-up (1,24,500 style)
+const formatPKR = (n: number): string => {
+  const s = Math.max(0, Math.round(n)).toString();
+  const last3 = s.slice(-3);
+  const rest = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+  return 'Rs. ' + (rest ? rest + ',' + last3 : last3);
+};
+
+const countUp = (el: HTMLElement) => {
+  const target = parseFloat(el.dataset.count || '0');
+  const suffix = el.dataset.suffix || '';
+  const plain = el.hasAttribute('data-plain');
+  const dur = 1600;
+  const t0 = performance.now();
+  const fmtPlain = (n: number) => {
+    if (!Number.isInteger(target)) return (Math.round(n * 10) / 10).toFixed(1);
+    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+  const fmt = (n: number) => (plain ? fmtPlain(n) : formatPKR(n)) + suffix;
+  const tick = (t: number) => {
+    const p = Math.min((t - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(target * e);
+    if (p < 1) requestAnimationFrame(tick);
+    else el.textContent = fmt(target);
+  };
+  requestAnimationFrame(tick);
+};
+
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const location = useLocation();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [showDemoModal, setShowDemoModal] = useState(false);
   const [showSpecs, setShowSpecs] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [showDemoModal, setShowDemoModal] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
 
   // Pricing plans — admin-editable via AdminDashboard, stored in Supabase
   // `site_settings.pricing_plans`. Starts with the known-good defaults so the
@@ -73,26 +101,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     return () => { cancelled = true; };
   }, []);
 
-  // Card Progress State
-  const [activeCardIdx, setActiveCardIdx] = useState(0);
-
-  // Scroll Progress
-  const [scrollProgress, setScrollProgress] = useState(0);
-
-  // Refs
-  const heroRef = useRef<HTMLDivElement>(null);
-  const heroContentRef = useRef<HTMLDivElement>(null);
-  const heroIconsRef = useRef<HTMLDivElement>(null);
-  const horizontalSectionRef = useRef<HTMLDivElement>(null);
-  const cardsContainerRef = useRef<HTMLDivElement>(null);
-  const countersContainerRef = useRef<HTMLDivElement>(null);
-  const revealContainerRef = useRef<HTMLDivElement>(null);
-  const wordRevealContainerRef = useRef<HTMLDivElement>(null);
-  const orb1Ref = useRef<HTMLDivElement>(null);
-  const orb2Ref = useRef<HTMLDivElement>(null);
-  const howItWorksRef = useRef<HTMLDivElement>(null);
-  const trustSectionRef = useRef<HTMLDivElement>(null);
-
   // Scroll handler for routes
   useEffect(() => {
     const path = location.pathname;
@@ -107,266 +115,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     }
   }, [location.pathname]);
 
-
-
-  // General Scroll Event Listener
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = docHeight > 0 ? scrollTop / docHeight : 0;
-      setScrollProgress(progress);
-
-      // Hero Parallax (scroll animation)
-      if (heroRef.current && heroContentRef.current) {
-        if (scrollTop < window.innerHeight) {
-          const p = scrollTop / window.innerHeight;
-          heroContentRef.current.style.transform = `translateY(${scrollTop * 0.25}px) scale(${1 + p * 0.08})`;
-          heroContentRef.current.style.opacity = `${Math.max(1 - p * 1.2, 0)}`;
-        }
-      }
-
-      // Hero floating icons — Mahadnet-style scroll parallax (each icon moves at its own speed)
-      if (heroIconsRef.current) {
-        const icons = heroIconsRef.current.querySelectorAll<HTMLElement>('.hero-float-icon');
-        icons.forEach((el) => {
-          const speed = parseFloat(el.getAttribute('data-speed') || '0.2');
-          if (scrollTop < window.innerHeight * 1.5) {
-            el.style.transform = `translateY(${-scrollTop * speed}px)`;
-          } else {
-            el.style.transform = '';
-          }
-        });
-      }
-
-      // Horizontal Scroll (High-fidelity smooth card reveal with continuous parallax and center-highlighting)
-      if (horizontalSectionRef.current && cardsContainerRef.current) {
-        const section = horizontalSectionRef.current;
-        const container = cardsContainerRef.current;
-        const rect = section.getBoundingClientRect();
-        
-        // Use offsetTop traversal for a constant, drift-free calculation
-        let sectionTop = 0;
-        let el: HTMLElement | null = section;
-        while (el) {
-          sectionTop += el.offsetTop;
-          el = el.offsetParent as HTMLElement;
-        }
-        
-        const scrolledDistance = window.scrollY - sectionTop;
-        const totalScrollableDistance = section.offsetHeight - window.innerHeight;
-        const maxTranslate = container.scrollWidth - window.innerWidth;
-        
-        if (scrolledDistance >= 0 && totalScrollableDistance > 0 && maxTranslate > 0) {
-          const progress = Math.min(1, Math.max(0, scrolledDistance / totalScrollableDistance));
-          
-          // Allocate 92% of the scroll track for translation, leaving a subtle 8% buffer at the end
-          const translationProgress = progress;
-          
-          const translateX = translationProgress * maxTranslate;
-          container.style.transform = `translateX(-${translateX}px)`;
-
-          // Dynamically highlight the card closest to the horizontal center of the viewport
-          const cards = container.querySelectorAll('.card');
-          const viewportCenter = window.innerWidth / 2;
-          let closestIdx = 0;
-          let closestDist = Infinity;
-          
-          cards.forEach((card, idx) => {
-            const cardRect = card.getBoundingClientRect();
-            const cardCenter = cardRect.left + cardRect.width / 2;
-            const dist = Math.abs(viewportCenter - cardCenter);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestIdx = idx;
-            }
-          });
-
-          cards.forEach((card, idx) => {
-            if (idx === closestIdx) {
-              (card as HTMLElement).style.transform = 'translateY(-6px) scale(1.02)';
-              (card as HTMLElement).style.borderColor = 'rgba(99, 102, 241, 0.75)';
-              (card as HTMLElement).style.boxShadow = '0 8px 20px -6px rgba(99, 102, 241, 0.3)';
-            } else {
-              (card as HTMLElement).style.transform = 'translateY(0px) scale(1)';
-              (card as HTMLElement).style.borderColor = 'rgba(255, 255, 255, 0.08)';
-              (card as HTMLElement).style.boxShadow = 'none';
-            }
-          });
-
-          // Update active card index in state for our visual progress bar
-          setActiveCardIdx(prev => {
-            if (prev !== closestIdx) {
-              return closestIdx;
-            }
-            return prev;
-          });
-        } else if (scrolledDistance < 0) {
-          container.style.transform = `translateX(0px)`;
-          const cards = container.querySelectorAll('.card');
-          cards.forEach((card, idx) => {
-            if (idx === 0) {
-              (card as HTMLElement).style.transform = 'translateY(-6px) scale(1.02)';
-              (card as HTMLElement).style.borderColor = 'rgba(99, 102, 241, 0.75)';
-              (card as HTMLElement).style.boxShadow = '0 8px 20px -6px rgba(99, 102, 241, 0.3)';
-            } else {
-              (card as HTMLElement).style.transform = 'translateY(0px) scale(1)';
-              (card as HTMLElement).style.borderColor = 'rgba(255, 255, 255, 0.08)';
-              (card as HTMLElement).style.boxShadow = 'none';
-            }
-          });
-          setActiveCardIdx(prev => prev !== 0 ? 0 : prev);
-        } else if (maxTranslate > 0) {
-          container.style.transform = `translateX(-${maxTranslate}px)`;
-          const cards = container.querySelectorAll('.card');
-          cards.forEach((card, idx) => {
-            if (idx === 5) {
-              (card as HTMLElement).style.transform = 'translateY(-6px) scale(1.02)';
-              (card as HTMLElement).style.borderColor = 'rgba(99, 102, 241, 0.75)';
-              (card as HTMLElement).style.boxShadow = '0 8px 20px -6px rgba(99, 102, 241, 0.3)';
-            } else {
-              (card as HTMLElement).style.transform = 'translateY(0px) scale(1)';
-              (card as HTMLElement).style.borderColor = 'rgba(255, 255, 255, 0.08)';
-              (card as HTMLElement).style.boxShadow = 'none';
-            }
-          });
-          setActiveCardIdx(prev => prev !== 5 ? 5 : prev);
-        }
-      }
-
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Mouse move for orbs
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (orb1Ref.current && orb2Ref.current) {
-        const x = e.clientX / window.innerWidth;
-        const y = e.clientY / window.innerHeight;
-        orb1Ref.current.style.transform = `translate(${(x - 0.5) * 50}px, ${(y - 0.5) * 50}px)`;
-        orb2Ref.current.style.transform = `translate(${(x - 0.5) * -40}px, ${(y - 0.5) * -40}px)`;
-      }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // Intersection Observers
-  useEffect(() => {
-    let countersObserver: IntersectionObserver | null = null;
-    if (countersContainerRef.current) {
-      const counterElements = countersContainerRef.current.querySelectorAll('.counter-number');
-      countersObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const el = entry.target as HTMLElement;
-            const target = parseFloat(el.getAttribute('data-target') || '0');
-            const suffix = el.getAttribute('data-suffix') || '';
-            const isDecimal = target % 1 !== 0;
-            const duration = 2000;
-            const startTime = performance.now();
-            const update = (currentTime: number) => {
-              const elapsed = currentTime - startTime;
-              const progress = Math.min(elapsed / duration, 1);
-              const eased = 1 - Math.pow(1 - progress, 3);
-              const current = eased * target;
-              el.textContent = (isDecimal ? current.toFixed(1) : Math.floor(current)) + suffix;
-              if (progress < 1) requestAnimationFrame(update);
-            };
-            requestAnimationFrame(update);
-            countersObserver?.unobserve(el);
-          }
-        });
-      }, { threshold: 0.5 });
-      counterElements.forEach(el => countersObserver?.observe(el));
-    }
-
-    let revealsObserver: IntersectionObserver | null = null;
-    if (revealContainerRef.current) {
-      const revealItems = revealContainerRef.current.querySelectorAll('.reveal-card, .fade-in, .scale-in');
-      revealsObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const target = entry.target as HTMLElement;
-            const indexAttr = target.getAttribute('data-index');
-            if (indexAttr) {
-              setTimeout(() => target.classList.add('visible'), parseInt(indexAttr) * 100);
-            } else {
-              target.classList.add('visible');
-            }
-            revealsObserver?.unobserve(target);
-          }
-        });
-      }, { threshold: 0.1, rootMargin: '-20px' });
-      revealItems.forEach(item => revealsObserver?.observe(item));
-    }
-
-    let wordRevealObserver: IntersectionObserver | null = null;
-    if (wordRevealContainerRef.current) {
-      wordRevealObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.querySelectorAll('.word').forEach(w => w.classList.add('visible'));
-            wordRevealObserver?.unobserve(entry.target);
-          }
-        });
-      }, { threshold: 0.2, rootMargin: '-50px' });
-      wordRevealObserver.observe(wordRevealContainerRef.current);
-    }
-
-    let generalRevealObserver: IntersectionObserver | null = null;
-    const revealElements = document.querySelectorAll('.scroll-reveal');
-    if (revealElements.length > 0) {
-      generalRevealObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-            generalRevealObserver?.unobserve(entry.target);
-          }
-        });
-      }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-      revealElements.forEach(el => generalRevealObserver?.observe(el));
-    }
-
-    // How it works observer
-    let howItWorksObserver: IntersectionObserver | null = null;
-    if (howItWorksRef.current) {
-      const steps = howItWorksRef.current.querySelectorAll('.how-step');
-      howItWorksObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const idx = parseInt((entry.target as HTMLElement).getAttribute('data-step') || '0');
-            setTimeout(() => entry.target.classList.add('visible'), idx * 200);
-            howItWorksObserver?.unobserve(entry.target);
-          }
-        });
-      }, { threshold: 0.2 });
-      steps.forEach(s => howItWorksObserver?.observe(s));
-    }
-
-    return () => {
-      countersObserver?.disconnect();
-      revealsObserver?.disconnect();
-      wordRevealObserver?.disconnect();
-      generalRevealObserver?.disconnect();
-      howItWorksObserver?.disconnect();
-    };
-  }, []);
-
-  // Testimonials Autoplay
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % testimonials.length);
-    }, 8000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // ─── DATA ───
-  const missionText = "Bill Collector was built to empower local businesses with recurring billing through enterprise-grade billing automation, WhatsApp-powered recovery, and real-time cloud synchronization — all while keeping your data secure with AES-256 encryption and role-based access control.";
-  const words = missionText.split(' ');
-
+  // Testimonial slider
   const testimonials = [
     {
       name: "Mahad Ahmad",
@@ -386,10 +135,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     }
   ];
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % testimonials.length);
+    }, 8000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── DATA ───
+  const missionText = "Bill Collector was built to empower local businesses with recurring billing through enterprise-grade billing automation, WhatsApp-powered recovery, and real-time cloud synchronization — all while keeping your data secure with AES-256 encryption and role-based access control.";
+
+  const heroStats = [
+    { target: "150", suffix: "+", label: "Active Businesses" },
+    { target: "99.9", suffix: "%", label: "Uptime SLA" },
+    { target: "50000", suffix: "+", label: "Customers Managed" },
+    { target: "95", suffix: "%", label: "Recovery Rate" },
+  ];
+
   const featuresList = [
     { title: 'Billing & Receipts', desc: 'Manage customer plans, record collections, and generate professional digital receipts for sharing with customers.', icon: <Receipt className="w-5 h-5" />, color: '#6366f1' },
-    { title: 'WhatsApp Reminders', desc: 'Send personalized Urdu and English payment reminders with bill links directly to a customer’s WhatsApp chat with a single tap.', icon: <Smartphone className="w-5 h-5" />, color: '#8b5cf6' },
-    { title: 'Cloud Sync', desc: 'Enjoy lightning-fast operations with encrypted local storage coupled with real-time Supabase cloud sync. Your database is always backed up, secure, and accessible from any device.', icon: <Lock className="w-5 h-5" />, color: '#06b6d4' },
+    { title: 'WhatsApp Reminders', desc: 'Send personalized Urdu and English payment reminders with bill links directly to a customer\u2019s WhatsApp chat with a single tap.', icon: <Smartphone className="w-5 h-5" />, color: '#8b5cf6' },
+    { title: 'Cloud Sync', desc: 'Enjoy lightning-fast operations with encrypted local storage coupled with real-time Supabase cloud sync. Your database is always backed up, secure, and accessible from any device.', icon: <LockKeyhole className="w-5 h-5" />, color: '#06b6d4' },
     { title: 'Recovery & Financial Tracking', desc: 'Review area-wise collections, recovery activity, pending balances, and outstanding dues in focused operational dashboards.', icon: <BarChart className="w-5 h-5" />, color: '#10b981' },
     { title: 'Agent Management', desc: 'Authorize collection staff with secure, restricted sub-accounts. Let agents collect outstanding dues, issue instant digital receipts, and record field expenses on the spot.', icon: <Users className="w-5 h-5" />, color: '#f59e0b' },
     { title: 'Network Operations', desc: 'Document service disruptions and maintenance downtime while keeping structured suspension records with reasons and dates.', icon: <Globe className="w-5 h-5" />, color: '#ec4899' },
@@ -406,38 +173,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     { title: 'Leads Pipeline', desc: 'Convert prospective customers into active subscribers. Track inquiries from initial contact to active service with status stages.', icon: <Zap className="w-6 h-6" />, borderColor: '#f59e0b55', bg: 'linear-gradient(145deg, #f59e0b15, #f59e0b08 60%, transparent)' },
     { title: 'Aging Report', desc: 'Identify chronic non-payers. Automatically categorizes outstanding bills into customizable aging buckets, helping you decide when to suspend service.', icon: <Calendar className="w-6 h-6" />, borderColor: '#ec489955', bg: 'linear-gradient(145deg, #ec489915, #ec489908 60%, transparent)' },
     { title: 'Area Dashboard', desc: 'Get deep business insight into your active areas and routes. Identify highly profitable neighborhoods, pending cash-flow zones, and localized customer growth.', icon: <Map className="w-6 h-6" />, borderColor: '#6366f155', bg: 'linear-gradient(145deg, #6366f115, #6366f108 60%, transparent)' },
-    { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <Lock className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
+    { title: 'Suspension Log', desc: 'Maintain a flawless history of inactive users. Log why a customer was suspended (unpaid, moving, support) and automatically track restoration dates.', icon: <LockKeyhole className="w-6 h-6" />, borderColor: '#8b5cf655', bg: 'linear-gradient(145deg, #8b5cf615, #8b5cf608 60%, transparent)' },
   ];
 
   const howItWorksSteps = [
-    {
-      step: 1,
-      title: "Import Your Customers",
-      desc: "Upload your existing Excel/CSV database in under 2 minutes. Customer names, packages, areas, and outstanding balances auto-map to our system.",
-      icon: <Database className="w-6 h-6" />,
-      color: "#6366f1"
-    },
-    {
-      step: 2,
-      title: "Set Up Auto-Billing",
-      desc: "Configure monthly billing cycles, package prices, due dates, and late fees. The system auto-generates invoices at midnight on billing day.",
-      icon: <Receipt className="w-6 h-6" />,
-      color: "#8b5cf6"
-    },
-    {
-      step: 3,
-      title: "Send WhatsApp Reminders",
-      desc: "With one tap, send personalized Urdu/English payment reminders via WhatsApp. Include digital receipt links and due date alerts.",
-      icon: <MessageCircle className="w-6 h-6" />,
-      color: "#06b6d4"
-    },
-    {
-      step: 4,
-      title: "Track & Collect Payments",
-      desc: "Field agents log cash collections via mobile. Managers view real-time recovery dashboards. Auto-sync keeps everything in sync across all devices.",
-      icon: <TrendingUp className="w-6 h-6" />,
-      color: "#10b981"
-    }
+    { step: 1, title: "Import Your Customers", desc: "Upload your existing Excel/CSV database in under 2 minutes. Customer names, packages, areas, and outstanding balances auto-map to our system.", icon: <Database className="w-6 h-6" />, color: "#6366f1" },
+    { step: 2, title: "Set Up Auto-Billing", desc: "Configure monthly billing cycles, package prices, due dates, and late fees. The system auto-generates invoices at midnight on billing day.", icon: <Receipt className="w-6 h-6" />, color: "#8b5cf6" },
+    { step: 3, title: "Send WhatsApp Reminders", desc: "With one tap, send personalized Urdu/English payment reminders via WhatsApp. Include digital receipt links and due date alerts.", icon: <MessageCircle className="w-6 h-6" />, color: "#06b6d4" },
+    { step: 4, title: "Track & Collect Payments", desc: "Field agents log cash collections via mobile. Managers view real-time recovery dashboards. Auto-sync keeps everything in sync across all devices.", icon: <TrendingUp className="w-6 h-6" />, color: "#10b981" }
   ];
 
   const trustBadges = [
@@ -460,33 +203,33 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   ];
 
   const faqs = [
-    { 
-      q: "Which businesses is Bill Collector suitable for?", 
-      a: "Bill Collector is built for any local business with recurring billing — ISPs and cable internet providers, water/RO suppliers, and other subscription-style businesses. It handles PKR billing, area and route-wise collections, flexible packages, and Urdu/English WhatsApp payment reminders." 
+    {
+      q: "Which businesses is Bill Collector suitable for?",
+      a: "Bill Collector is built for any local business with recurring billing — ISPs and cable internet providers, water/RO suppliers, and other subscription-style businesses. It handles PKR billing, area and route-wise collections, flexible packages, and Urdu/English WhatsApp payment reminders."
     },
-    { 
-      q: "How does the WhatsApp reminder feature work? Do I need a costly API key?", 
-      a: "No expensive API keys or monthly subscriptions are required! Bill Collector compiles pre-filled, personalized text templates (in English and Urdu) with secure billing links. You just tap the WhatsApp icon, and it instantly opens your customer's chat. Send invoices and reminders in literally 1 second." 
+    {
+      q: "How does the WhatsApp reminder feature work? Do I need a costly API key?",
+      a: "No expensive API keys or monthly subscriptions are required! Bill Collector compiles pre-filled, personalized text templates (in English and Urdu) with secure billing links. You just tap the WhatsApp icon, and it instantly opens your customer's chat. Send invoices and reminders in literally 1 second."
     },
-    { 
-      q: "Can I use it offline in remote areas where mobile data is weak?", 
-      a: "Yes! Bill Collector features encrypted local storage that functions perfectly without active internet. Your collection agents can record payments and write ledger entries while on the field. The moment they connect to a network, all offline operations automatically sync with the cloud." 
+    {
+      q: "Can I use it offline in remote areas where mobile data is weak?",
+      a: "Yes! Bill Collector features encrypted local storage that functions perfectly without active internet. Your collection agents can record payments and write ledger entries while on the field. The moment they connect to a network, all offline operations automatically sync with the cloud."
     },
-    { 
-      q: "Can I import my existing Excel/CSV records?", 
-      a: "Yes! We support direct bulk import for both .xlsx and .csv spreadsheets. You can upload your customer database, active package details, and outstanding balances in under 2 minutes. No manual re-typing required." 
+    {
+      q: "Can I import my existing Excel/CSV records?",
+      a: "Yes! We support direct bulk import for both .xlsx and .csv spreadsheets. You can upload your customer database, active package details, and outstanding balances in under 2 minutes. No manual re-typing required."
     },
-    { 
-      q: "Can my field collection agents use it securely?", 
-      a: "Yes, easily! You can add sub-managers or recovery agents with custom role-based permissions. They can check active/expired statuses in their designated areas, log collected cash, and issue PDF receipts. They cannot view your total profits, system settings, or admin-level data." 
+    {
+      q: "Can my field collection agents use it securely?",
+      a: "Yes, easily! You can add sub-managers or recovery agents with custom role-based permissions. They can check active/expired statuses in their designated areas, log collected cash, and issue PDF receipts. They cannot view your total profits, system settings, or admin-level data."
     },
-    { 
-      q: "How many customers can one account support?", 
-      a: "The Starter plan supports up to 50 active customers for free. To scale further, our Business plan supports unlimited customer accounts, complete device inventory trackers, leads pipeline, and advanced aging reports." 
+    {
+      q: "How many customers can one account support?",
+      a: "The Starter plan supports up to 50 active customers for free. To scale further, our Business plan supports unlimited customer accounts, complete device inventory trackers, leads pipeline, and advanced aging reports."
     },
-    { 
-      q: "Is my data safe? What if my phone breaks?", 
-      a: "Your data is perfectly safe. Everything is securely stored using enterprise-grade AES-256 encryption and synchronized with secure, redundant cloud databases (Supabase). If your phone gets lost or broken, simply log in from another device to retrieve your complete database instantly." 
+    {
+      q: "Is my data safe? What if my phone breaks?",
+      a: "Your data is perfectly safe. Everything is securely stored using enterprise-grade AES-256 encryption and synchronized with secure, redundant cloud databases (Supabase). If your phone gets lost or broken, simply log in from another device to retrieve your complete database instantly."
     }
   ];
 
@@ -496,1652 +239,946 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     { path: '/about', label: 'About' },
   ];
 
+  // Scroll-driven animations: reveals, video play/pause, count-ups, chat pops
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const rio = new IntersectionObserver((es) => {
+      es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); rio.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    root.querySelectorAll('.reveal').forEach(el => rio.observe(el));
+    const vio = new IntersectionObserver((es) => {
+      es.forEach(e => {
+        const v = e.target as HTMLVideoElement;
+        if (e.isIntersecting) { v.play().catch(() => {}); } else { v.pause(); }
+      });
+    }, { threshold: 0.25 });
+    root.querySelectorAll('video.vbg').forEach(el => vio.observe(el));
+    const cio = new IntersectionObserver((es) => {
+      es.forEach(e => { if (e.isIntersecting) { countUp(e.target as HTMLElement); cio.unobserve(e.target); } });
+    }, { threshold: 0.4 });
+    root.querySelectorAll('[data-count]').forEach(el => cio.observe(el));
+    const mio = new IntersectionObserver((es) => {
+      es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('play'); mio.unobserve(e.target); } });
+    }, { threshold: 0.3 });
+    root.querySelectorAll('.shot, .screen').forEach(el => mio.observe(el));
+    return () => { rio.disconnect(); vio.disconnect(); cio.disconnect(); mio.disconnect(); };
+  }, []);
+
   return (
-    <div className="landing-page min-h-screen font-sans relative bg-[#f4f7fc] text-slate-900 overflow-x-clip select-none">
+    <div ref={rootRef} className="bc-landing">
 
-      {/* ── STYLES ── */}
-      <style>{`
-        .figma-progress-bar {
-          position: fixed; top: 0; left: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-          z-index: 1000;
-          transform-origin: left;
-          width: 100%;
-        }
-        .landing-nav-link {
-          color: rgba(255, 255, 255, 0.7) !important;
-          transition: color 0.3s;
-          font-weight: 700;
-        }
-        .landing-nav-link:hover {
-          color: #ffffff !important;
-        }
-        .landing-nav-link.active {
-          color: #818cf8 !important;
-        }
-        .landing-mobile-link {
-          color: rgba(255, 255, 255, 0.7) !important;
-          transition: all 0.3s;
-        }
-        .landing-mobile-link:hover {
-          color: #ffffff !important;
-          background: rgba(255, 255, 255, 0.05) !important;
-        }
-        .landing-mobile-link.active {
-          color: #818cf8 !important;
-          background: rgba(99, 102, 241, 0.1) !important;
-        }
-        .hero {
-          min-height: 100vh;
-          padding: 150px 20px 100px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-        }
-        .hero .orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(100px);
-          opacity: 0.15;
-          pointer-events: none;
-        }
-        .hero .orb-1 { width: 500px; height: 500px; background: #6366f1; top: -100px; left: -100px; }
-        .hero .orb-2 { width: 400px; height: 400px; background: #a855f7; bottom: -100px; right: -100px; }
-        .hero .orb-3 { width: 300px; height: 300px; background: #22d3ee; top: 30%; left: 60%; }
-        .hero .grid-bg {
-          position: absolute;
-          inset: 0;
-          opacity: 0.12;
-          background-image: 
-            linear-gradient(rgba(99,102,241,0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99,102,241,0.3) 1px, transparent 1px);
-          background-size: 60px 60px;
-          transform: perspective(500px) rotateX(60deg) scale(2.5);
-          transform-origin: center bottom;
-          pointer-events: none;
-        }
-        .hero-content {
-          text-align: center;
-          z-index: 10;
-          padding: 0 20px;
-        }
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 20px;
-          border-radius: 50px;
-          background: rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(16px) saturate(160%);
-          -webkit-backdrop-filter: blur(16px) saturate(160%);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-          margin-bottom: 24px;
-        }
-        .badge .dot {
-          width: 8px; height: 8px;
-          background: #22d3ee;
-          border-radius: 50%;
-          box-shadow: 0 0 0 0 rgba(34,211,238,0.7);
-          animation: pulseRing 2s infinite;
-        }
-        @keyframes pulseRing {
-          0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.7); }
-          70% { box-shadow: 0 0 0 12px rgba(34,211,238,0); }
-          100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); }
-        }
-        .badge span {
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.25em;
-          color: rgba(255,255,255,0.8);
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        .hero h1 {
-          font-size: clamp(2.1rem, 5.2vw, 4.75rem);
-          font-weight: 900;
-          line-height: 1.1;
-          margin-bottom: 18px;
-        }
-        .hero h1 .gradient {
-          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        .hero p {
-          color: #94a3b8;
-          font-size: 1.1rem;
-          max-width: 550px;
-          margin: 0 auto;
-          font-weight: 500;
-        }
-        .scroll-indicator {
-          position: absolute;
-          bottom: 40px;
-          left: 50%;
-          transform: translateX(-50%);
-          text-align: center;
-        }
-        .scroll-indicator span {
-          font-size: 9px;
-          text-transform: uppercase;
-          letter-spacing: 0.3em;
-          color: #64748b;
-          font-weight: 700;
-        }
-        .scroll-indicator .arrow {
-          margin-top: 8px;
-          animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(8px); }
-        }
-        @keyframes floatA {
-          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
-          50% { transform: translate(25px,-35px) rotate(8deg) scale(1.05); }
-        }
-        @keyframes floatB {
-          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
-          50% { transform: translate(-35px,25px) rotate(-8deg) scale(0.95); }
-        }
-        @keyframes floatC {
-          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
-          50% { transform: translate(20px,25px) rotate(6deg) scale(1.08); }
-        }
-        @keyframes floatD {
-          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
-          50% { transform: translate(-25px,-30px) rotate(-10deg) scale(1.03); }
-        }
-        @keyframes floatE {
-          0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
-          50% { transform: translate(30px,-20px) rotate(12deg) scale(0.97); }
-        }
-        .hero-float-icon {
-          position: absolute;
-          border-radius: 1rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 0 15px rgba(34,211,238,0.12);
-        }
-        .glass-section {
-          padding: 120px 24px;
-          position: relative;
-        }
-        .glass-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 32px;
-          max-width: 1200px;
-          margin: 0 auto;
-        }
-        .glass-card {
-          background: linear-gradient(145deg, rgba(34,211,238,0.07) 0%, rgba(99,102,241,0.08) 45%, rgba(168,85,247,0.06) 100%);
-          backdrop-filter: blur(16px) saturate(160%);
-          -webkit-backdrop-filter: blur(16px) saturate(160%);
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 32px;
-          padding: 40px;
-          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-          opacity: 0;
-          transform: translateY(50px);
-          position: relative;
-          overflow: hidden;
-        }
-        .glass-card.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .glass-card:hover {
-          background: linear-gradient(145deg, rgba(34,211,238,0.14) 0%, rgba(99,102,241,0.16) 45%, rgba(168,85,247,0.12) 100%);
-          border-color: rgba(34, 211, 238, 0.4);
-          transform: translateY(-10px);
-          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(34, 211, 238, 0.08);
-        }
-        .glass-card .icon-box {
-          width: 64px;
-          height: 64px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 32px;
-          transition: transform 0.3s, box-shadow 0.3s;
-        }
-        .glass-card:hover .icon-box {
-          transform: scale(1.1) rotate(5deg);
-          box-shadow: 0 0 30px rgba(34, 211, 238, 0.18);
-        }
-        .glass-card h3 {
-          color: #ffffff;
-          font-size: 1.5rem;
-          font-weight: 800;
-          margin-bottom: 16px;
-          letter-spacing: -0.02em;
-        }
-        .glass-card p {
-          color: #94a3b8;
-          font-size: 1rem;
-          line-height: 1.7;
-          margin: 0;
-        }
-        .glass-card .glow {
-          position: absolute;
-          top: 0; left: 0; width: 100%; height: 100%;
-          background: radial-gradient(circle at top right, rgba(34,211,238,0.08), transparent 70%);
-          pointer-events: none;
-        }
-        .card-top-row {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 18px;
-        }
-        .card-icon-badge {
-          width: 60px;
-          height: 60px;
-          border-radius: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .card .num-badge {
-          position: static;
-          padding: 4px 10px;
-          height: 26px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 0.05em;
-        }
-        .card h3 {
-          font-size: 1.5rem;
-          font-weight: 900;
-          letter-spacing: 0.04em;
-          color: #ffffff;
-          margin-bottom: 16px;
-          margin-top: 0;
-          text-align: left;
-          line-height: 1.2;
-        }
-        .card p {
-          color: #cbd5e1;
-          font-size: 1.1rem;
-          font-weight: 500;
-          line-height: 1.6;
-          text-align: left;
-          white-space: normal;
-          word-break: break-word;
-          margin: 0;
-          flex: 1;
-        }
-        .card .glow-line {
-          position: absolute;
-          bottom: 0;
-          left: 20px; right: 20px;
-          height: 2px;
-          border-radius: 9999px;
-        }
-        .counter-section {
-          padding: 160px 24px;
-          position: relative;
-          overflow: hidden;
-        }
-        .counter-section .bg-glow {
-          position: absolute;
-          top: 50%; left: 50%;
-          transform: translate(-50%, -50%);
-          width: 800px; height: 800px;
-          border-radius: 50%;
-          background: rgba(99,102,241,0.03);
-          filter: blur(200px);
-          pointer-events: none;
-        }
-        .counter-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 48px;
-          max-width: 1000px;
-          margin: 0 auto;
-        }
-        @media (min-width: 768px) {
-          .counter-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        .counter-item { text-align: center; }
-        .counter-item .number {
-          font-size: clamp(2.5rem, 5vw, 4rem);
-          font-weight: 900;
-          margin-bottom: 8px;
-        }
-        .counter-item .label {
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.3em;
-          color: #94a3b8;
-        }
-        .reveal-section {
-          padding: 160px 24px;
-          position: relative;
-          overflow: hidden;
-        }
-        .reveal-grid {
-          display: grid;
-          grid-template-columns: repeat(1, 1fr);
-          gap: 24px;
-          max-width: 1100px;
-          margin: 0 auto;
-        }
-        @media (min-width: 640px) { .reveal-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (min-width: 1024px) { .reveal-grid { grid-template-columns: repeat(3, 1fr); } }
-        .reveal-card {
-          padding: 32px;
-          border-radius: 24px;
-          border: 1px solid;
-          position: relative;
-          overflow: hidden;
-          transition: transform 0.3s, box-shadow 0.3s;
-          opacity: 0;
-          transform: translateY(40px);
-        }
-        .reveal-card.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .reveal-card:hover {
-          transform: translateY(-6px) scale(1.02);
-        }
-        .reveal-card .icon-box {
-          width: 64px; height: 64px;
-          border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 28px;
-          margin-bottom: 24px;
-        }
-        .reveal-card h3 {
-          font-size: 1.25rem;
-          font-weight: 900;
-          color: white;
-          margin-bottom: 8px;
-        }
-        .reveal-card p {
-          color: #cbd5e1;
-          font-size: 14px;
-          font-weight: 500;
-          line-height: 1.6;
-        }
-        .text-reveal-section {
-          padding: 160px 24px;
-          position: relative;
-          overflow: hidden;
-        }
-        .text-reveal-section .bg-glow {
-          position: absolute;
-          top: 0; left: 50%;
-          transform: translateX(-50%);
-          width: 600px; height: 600px;
-          border-radius: 50%;
-          background: rgba(99,102,241,0.05);
-          filter: blur(150px);
-          pointer-events: none;
-        }
-        .text-content {
-          max-width: 900px;
-          margin: 0 auto;
-        }
-        .text-content h2 {
-          font-size: clamp(1.5rem, 4vw, 3rem);
-          font-weight: 900;
-          line-height: 1.2;
-          color: white;
-        }
-        .text-content .word {
-          display: inline-block;
-          margin-right: 0.3em;
-          opacity: 0;
-          transform: translateY(40px) rotateX(-40deg);
-          transition: all 0.6s cubic-bezier(0.215, 0.61, 0.355, 1);
-        }
-        .text-content .word.visible {
-          opacity: 1;
-          transform: translateY(0) rotateX(0);
-        }
-        .parallax-section {
-          height: 120vh;
-          position: relative;
-          overflow: hidden;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .parallax-bg {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(180deg, rgba(30,27,75,0.4), transparent, rgba(88,28,135,0.4));
-        }
-        .parallax-grid {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .parallax-grid-inner {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-          max-width: 700px;
-          width: 100%;
-          padding: 0 24px;
-        }
-        .parallax-grid-inner .box {
-          aspect-ratio: 1;
-          border-radius: 24px;
-          border: 1px solid rgba(99,102,241,0.15);
-          background: rgba(99,102,241,0.05);
-        }
-        .parallax-content {
-          position: relative;
-          z-index: 10;
-          text-align: center;
-          padding: 0 24px;
-        }
-        .parallax-content h2 {
-          font-size: clamp(2.5rem, 6vw, 5rem);
-          font-weight: 900;
-          line-height: 1;
-        }
-        .parallax-content h2 .gradient {
-          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
-        }
-        .parallax-content p {
-          color: #94a3b8;
-          max-width: 400px;
-          margin: 24px auto 0;
-          font-weight: 500;
-        }
-        .marquee-section {
-          padding: 128px 0;
-          border-top: 1px solid rgba(255,255,255,0.05);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          overflow: hidden;
-        }
-        .marquee-row {
-          overflow: hidden;
-          white-space: nowrap;
-          padding: 16px 0;
-        }
-        .marquee-content {
-          display: inline-block;
-          animation: marquee 35s linear infinite;
-        }
-        .marquee-row.reverse .marquee-content {
-          animation: marquee-reverse 45s linear infinite;
-        }
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        @keyframes marquee-reverse {
-          0% { transform: translateX(-50%); }
-          100% { transform: translateX(0); }
-        }
-        .marquee-text {
-          font-size: clamp(1.8rem, 3.5vw, 2.5rem);
-          font-weight: 900;
-          color: rgba(255,255,255,0.1);
-          letter-spacing: -0.02em;
-        }
-        .interactive-section {
-          padding: 160px 24px;
-          position: relative;
-          overflow: hidden;
-        }
-        .interactive-orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(150px);
-          pointer-events: none;
-          transition: transform 0.3s ease-out;
-        }
-        .interactive-orb-1 {
-          width: 500px; height: 500px;
-          background: radial-gradient(circle, rgba(99,102,241,0.15), rgba(139,92,246,0.08), transparent);
-          top: -50px; right: -50px;
-        }
-        .interactive-orb-2 {
-          width: 400px; height: 400px;
-          background: radial-gradient(circle, rgba(6,182,212,0.1), rgba(16,185,129,0.05), transparent);
-          bottom: -50px; left: -50px;
-        }
-        .section-header {
-          text-align: center;
-          margin-bottom: 80px;
-        }
-        .section-header .num {
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.35em;
-          color: #818cf8;
-        }
-        .section-header h2 {
-          font-size: clamp(2rem, 5vw, 3.5rem);
-          font-weight: 900;
-          color: white;
-          margin-top: 16px;
-          line-height: 1.1;
-        }
-        .section-header h2 .gradient {
-          background: linear-gradient(135deg, #67e8f9 0%, #a5b4fc 40%, #d8b4fe 80%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        .section-header p {
-          color: #94a3b8;
-          max-width: 500px;
-          margin: 16px auto 0;
-          font-weight: 500;
-        }
-        .scroll-reveal {
-          opacity: 0;
-          transform: translateY(40px);
-          transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-          will-change: opacity, transform;
-        }
-        .scroll-reveal.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .fade-in {
-          opacity: 0;
-          transform: translateY(30px);
-          transition: all 0.8s ease-out;
-        }
-        .fade-in.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .scale-in {
-          opacity: 0;
-          transform: scale(0.8);
-          transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .scale-in.visible {
-          opacity: 1;
-          transform: scale(1);
-        }
-        /* How It Works */
-        .how-step {
-          opacity: 0;
-          transform: translateY(30px);
-          transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .how-step.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        /* Comparison Table */
-        .comparison-row:nth-child(even) {
-          background: rgba(255,255,255,0.02);
-        }
-        /* Modal */
-        @keyframes modalFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes modalScaleIn {
-          from { transform: scale(0.95) translateY(20px); opacity: 0; }
-          to { transform: scale(1) translateY(0); opacity: 1; }
-        }
-        .animate-fade-in {
-          animation: modalFadeIn 0.25s ease-out forwards;
-        }
-        .animate-scale-in {
-          animation: modalScaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        @media (max-width: 640px) {
-          .cards-container { padding: 0 20px; gap: 16px; }
-          .card {
-            width: 260px;
-            height: 260px;
-            min-width: 260px;
-            min-height: 260px;
-            padding: 18px;
-            border-radius: 16px;
-          }
-          .card-top-row { margin-bottom: 12px; }
-          .card-icon-badge { width: 36px; height: 36px; border-radius: 10px; }
-          .card h3 { font-size: 0.95rem; margin-bottom: 8px; }
-          .card p { font-size: 0.775rem; line-height: 1.5; }
-          .section-label { left: 20px; top: 20px; }
-        }
-        @media (max-width: 768px) {
-          .parallax-section {
-            height: auto;
-            min-height: 100vh;
-          }
-          .parallax-section .parallax-grid { display: none; }
-        }
-        @media (max-width: 640px) {
-          .glass-section, .counter-section, .reveal-section,
-          .text-reveal-section, .interactive-section, .marquee-section {
-            padding-top: 80px;
-            padding-bottom: 80px;
-          }
-          .counter-grid { gap: 24px; }
-          .counter-item .number { font-size: clamp(2rem, 8.5vw, 4rem); }
-          .section-header { margin-bottom: 48px; }
-        }
+      <div className="mesh" aria-hidden="true" />
 
-        /* ── LIGHT MODE (Mahadnet midnight → light glass) ── */
-        .landing-nav-link { color: rgba(15,23,42,0.7) !important; }
-        .landing-nav-link:hover { color: #111827 !important; }
-        .landing-nav-link.active { color: #4f46e5 !important; }
-        .landing-mobile-link { color: rgba(15,23,42,0.7) !important; }
-        .landing-mobile-link:hover { color: #111827 !important; background: rgba(15,23,42,0.05) !important; }
-        .landing-mobile-link.active { color: #4f46e5 !important; background: rgba(79,70,229,0.1) !important; }
-        .hero .orb { opacity: 0.2; }
-        .hero .grid-bg {
-          background-image:
-            linear-gradient(rgba(15,23,42,0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(15,23,42,0.06) 1px, transparent 1px);
-        }
-        .badge {
-          background: rgba(255,255,255,0.8);
-          border-color: rgba(15,23,42,0.08);
-          box-shadow: 0 8px 32px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
-        }
-        .badge span { color: #334155; }
-        .hero h1 .gradient,
-        .section-header h2 .gradient,
-        .parallax-content h2 .gradient {
-          background: linear-gradient(135deg, #06b6d4 0%, #6366f1 40%, #a855f7 80%);
-        }
-        .hero p { color: #475569; }
-        .glass-card {
-          background: rgba(255,255,255,0.78);
-          border-color: rgba(15,23,42,0.08);
-          box-shadow: 0 8px 32px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
-        }
-        .glass-card:hover {
-          background: rgba(255,255,255,0.95);
-          border-color: rgba(99,102,241,0.4);
-          box-shadow: 0 30px 60px -12px rgba(15,23,42,0.18), 0 0 40px rgba(99,102,241,0.08);
-        }
-        .glass-card h3 { color: #0f172a; }
-        .glass-card p { color: #475569; }
-        .glass-card .glow { background: radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 70%); }
-        .counter-item .label { color: #64748b; }
-        .section-header .num { color: #4f46e5; }
-        .section-header h2 { color: #0f172a; }
-        .section-header p { color: #475569; }
-        .reveal-card h3 { color: #0f172a; }
-        .reveal-card p { color: #475569; }
-        .text-content h2 { color: #0f172a; }
-        .parallax-bg { background: linear-gradient(180deg, rgba(99,102,241,0.12), transparent, rgba(168,85,247,0.12)); }
-        .parallax-content h2 { color: #0f172a; }
-        .parallax-content p { color: #475569; }
-        .marquee-text { color: rgba(15,23,42,0.12); }
-        .comparison-row:nth-child(even) { background: rgba(15,23,42,0.02); }
-        .counter-section .bg-glow,
-        .text-reveal-section .bg-glow { background: rgba(99,102,241,0.06); }
-        section[id] { scroll-margin-top: 100px; }
-      `}</style>
-
-      {/* Progress Bar */}
-      <div className="figma-progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} />
-
-      {/* Global Mahadnet mesh background (fixed, behind all sections) */}
-      <VideoBackground variant="light" />
-
-      <div className="relative z-10 flex flex-col min-h-screen">
-
-        {/* ── NAVBAR ── */}
-        <div className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 pt-4">
-          <nav className="glass-strong rounded-2xl px-4 sm:px-7 py-3 flex items-center justify-between max-w-7xl mx-auto shadow-xl shadow-slate-300/50">
-            <div className="flex justify-between items-center w-full">
-              <Link to="/" className="flex items-center gap-3 pl-1 sm:pl-2">
-                {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[95px] sm:w-[130px] h-auto object-contain" />}
-              </Link>
-
-              <div className="hidden md:flex items-center gap-6 lg:gap-8 text-[11px] font-bold uppercase tracking-widest">
-                {navLinks.map(link =>
-                  link.path === '/features' ? (
-                    <a key={link.path} href="#features" className="landing-nav-link">{link.label}</a>
-                  ) : (
-                    <Link key={link.path} to={link.path}
-                      className={`landing-nav-link ${location.pathname === link.path ? 'active' : ''}`}>
-                      {link.label}
-                    </Link>
-                  )
-                )}
-                <a href="#how-it-works" className="landing-nav-link">How It Works</a>
-                <a href="#pricing" className="landing-nav-link">Pricing</a>
-              </div>
-
-              <div className="flex items-center gap-2 pr-1">
-                <a href="/portal"
-                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl text-indigo-600 text-[10px] font-black uppercase tracking-widest border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-all"
-                >
-                  <Users className="w-3.5 h-3.5 text-indigo-500" /> User Portal
-                </a>
-                <button onClick={onGetStarted}
-                  className="cta-glow px-3.5 sm:px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2"
-                >
-                  <LockKeyhole className="w-3.5 h-3.5" /> Manager Login
-                </button>
-                <button onClick={() => setMenuOpen(o => !o)}
-                  className="md:hidden flex flex-col gap-1.5 p-2 rounded-full hover:bg-white/5 ml-1">
-                  <span className={`block w-5 h-0.5 bg-slate-900 transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`}/>
-                  <span className={`block w-5 h-0.5 bg-slate-900 transition-all ${menuOpen ? 'opacity-0' : ''}`}/>
-                  <span className={`block w-5 h-0.5 bg-slate-900 transition-all ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`}/>
-                </button>
-              </div>
+      {/* ── NAV ── */}
+      <nav>
+        <div className="nav-inner" style={{ position: 'relative' }}>
+          <Link to="/" className="brand" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+            {logoBase64 && <img src={logoBase64} alt="BillCollector logo" />}
+            <span>BillCollector</span>
+          </Link>
+          <div className="nav-links">
+            <a href="#who">Who it&apos;s for</a>
+            <a href="#horizontal">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={onGetStarted} className="btn small" style={{ border: 'none', cursor: 'pointer' }}>Start free</button>
+            <button className="mnav btn small ghost" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu"
+              style={{ padding: '9px 12px' }}>
+              {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
+          {menuOpen && (
+            <div className="mdrop">
+              <a href="#who" onClick={() => setMenuOpen(false)}>Who it&apos;s for</a>
+              <a href="#horizontal" onClick={() => setMenuOpen(false)}>Features</a>
+              <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+              <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
             </div>
-          </nav>
+          )}
         </div>
+      </nav>
 
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="fixed top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-[99] bg-[#040814]/98 border border-white/10 rounded-[24px] shadow-2xl flex flex-col md:hidden overflow-hidden">
-            {navLinks.map(link =>
-              link.path === '/features' ? (
-                <a key={link.path} href="#features" onClick={() => setMenuOpen(false)}
-                  className="px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link">
-                  {link.label}
-                </a>
-              ) : (
-                <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)}
-                  className={`px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link ${location.pathname === link.path ? 'active' : ''}`}>
-                  {link.label}
-                </Link>
-              )
-            )}
-            <a href="#how-it-works" onClick={() => setMenuOpen(false)} className="px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link">How It Works</a>
-            <a href="#pricing" onClick={() => setMenuOpen(false)} className="px-6 py-4 text-xs font-bold uppercase tracking-widest border-b border-white/5 landing-mobile-link">Pricing</a>
-            <a href="/portal" onClick={() => setMenuOpen(false)} className="px-6 py-4 text-xs font-bold text-indigo-400 flex items-center gap-2">
-              <Users className="w-4 h-4" /> User Portal
-            </a>
-          </div>
-        )}
-
-        {/* ── SECTION 1: HERO ── */}
-        <section className="hero" id="hero" ref={heroRef}>
-          <div className="orb orb-1"></div>
-          <div className="orb orb-2"></div>
-          <div className="orb orb-3"></div>
-          <div className="grid-bg"></div>
-
-          {/* Floating glass icon cards — Mahadnet hero signature */}
-          <div ref={heroIconsRef} className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-            <div className="hero-float-icon glass w-14 h-14 md:w-20 md:h-20 top-[24%] left-[3%] md:top-[10%] md:left-[8%]" data-speed="0.35">
-              <Wifi className="w-6 h-6 md:w-8 md:h-8 text-cyan-300" />
-            </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 top-[16%] right-[4%] md:right-[10%] hidden sm:flex" data-speed="0.2">
-              <Cpu className="w-5 h-5 md:w-7 md:h-7 text-purple-300" />
-            </div>
-            <div className="hero-float-icon glass w-12 h-12 md:w-16 md:h-16 bottom-[12%] left-[6%] md:left-[12%] hidden sm:flex" data-speed="-0.3">
-              <Zap className="w-5 h-5 md:w-7 md:h-7 text-yellow-300" />
-            </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-18 md:h-18 bottom-[16%] right-[6%] md:right-[14%] hidden sm:flex" data-speed="0.28">
-              <Activity className="w-6 h-6 md:w-8 md:h-8 text-indigo-300" />
-            </div>
-            <div className="hero-float-icon glass w-16 h-16 top-[28%] right-[24%] hidden lg:flex" data-speed="-0.18">
-              <Database className="w-6 h-6 text-teal-300" />
-            </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[26%] left-[26%] hidden lg:flex" data-speed="0.24">
-              <Globe className="w-6 h-6 text-emerald-300" />
-            </div>
-            <div className="hero-float-icon glass w-16 h-16 top-[40%] left-[14%] hidden md:flex" data-speed="-0.35">
-              <Server className="w-6 h-6 text-pink-300" />
-            </div>
-            <div className="hero-float-icon glass w-16 h-16 bottom-[24%] right-[4%] md:bottom-[34%] md:right-[20%]" data-speed="0.4">
-              <Receipt className="w-6 h-6 text-blue-300" />
-            </div>
-            <div className="hero-float-icon glass w-14 h-14 md:w-16 md:h-16 top-[56%] left-[2%] md:left-[4%] hidden sm:flex" data-speed="-0.22">
-              <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-green-300" />
-            </div>
-          </div>
-
-          <div className="hero-content" ref={heroContentRef}>
-            <div className="badge scroll-reveal">
-              <div className="dot"></div>
-              <span>Trusted by 150+ local businesses</span>
-            </div>
-            <div className="badge scroll-reveal" style={{ background: 'rgba(16,185,129,0.14)', borderColor: 'rgba(16,185,129,0.4)' }}>
-              <div className="dot" style={{ background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)' }}></div>
-              <span style={{ color: '#047857', fontWeight: 700 }}>Free for 50 Customers · No Card Required</span>
-            </div>
-            <h1 className="scroll-reveal">
-              THE FUTURE OF<br/>
-              <span className="gradient">RECURRING BILLING</span><br/>
-              IN PAKISTAN
-            </h1>
-            <p className="mt-3 text-slate-300 text-sm sm:text-base leading-relaxed scroll-reveal max-w-2xl mx-auto">
-              Automate invoices, send WhatsApp payment reminders, and manage your entire customer base — all from one secure, cloud-synced dashboard built for local businesses with recurring billing.
-            </p>
-
-            {/* Trust Badges Row */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 scroll-reveal">
-              {trustBadges.slice(0, 4).map((badge, i) => {
-                const c = ['#0891b2', '#4f46e5', '#9333ea', '#059669'][i];
-                return (
-                  <div key={i} className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-bold text-slate-800"
-                    style={{ background: `${c}14`, border: `1px solid ${c}40` }}>
-                    <span style={{ color: c }}>{badge.icon}</span>
-                    {badge.label}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 scroll-reveal">
-              <button onClick={onGetStarted}
-                className="cta-glow w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white"
-              >
-                Start Free Trial <ArrowRight className="w-4 h-4" />
-              </button>
-              <button onClick={() => setShowDemoModal(true)}
-                className="glass w-full sm:w-auto h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-slate-900 hover:bg-white/60 transition-all active:scale-95"
-              >
-                <Play className="w-4 h-4 text-cyan-300" /> Watch Demo
-              </button>
-            </div>
-
-            <p className="mt-3 text-[10px] text-slate-500 font-bold uppercase tracking-widest scroll-reveal">
-              No credit card required · Free for 50 customers · Setup in 2 minutes
-            </p>
-          </div>
-
-          <div className="scroll-indicator">
-            <span>Scroll to explore</span>
-            <div className="arrow">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mx-auto text-slate-400">
-                <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
-              </svg>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 1.5: TRUST STRIP ── */}
-        <section className="py-6 px-6 border-y border-white/5" ref={trustSectionRef}>
-          <div className="relative overflow-hidden">
-            <div className="marquee-row py-2">
-              <div className="marquee-content whitespace-nowrap flex items-center">
-                {[0, 1].map(dup => (
-                  <div key={dup} className="inline-flex items-center">
-                    {trustBadges.map((badge, i) => (
-                      <span key={i} className="inline-flex items-center gap-2.5 mx-8 text-slate-500 text-xs font-bold uppercase tracking-[0.2em]">
-                        <span className="text-indigo-400">{badge.icon}</span>
-                        {badge.label}
-                      </span>
-                    ))}
-                  </div>
-                ))}
+      {/* ── HERO ── */}
+      <header className="hero vband">
+        <video className="vbg" muted loop playsInline autoPlay preload="metadata" poster="/landing/hero-poster.jpg">
+          <source src="/landing/hero.mp4" type="video/mp4" />
+        </video>
+        <div className="vshade" />
+        <div className="contentwrap"><div className="wrap">
+          <div className="wrap hero-grid">
+            <div>
+              <div className="eyebrow reveal"><span className="dot" />Recurring-billing platform</div>
+              <h1 className="reveal d1">Billing that <span className="grad">runs itself.</span></h1>
+              <p className="lede reveal d2">BillCollector generates monthly bills, sends WhatsApp reminders, issues receipts and tracks recovery — for ISPs, water suppliers, cable operators, gyms and hostels. From one dashboard, on any phone.</p>
+              <div className="cta-row reveal d3">
+                <button onClick={onGetStarted} className="btn" style={{ border: 'none', cursor: 'pointer' }}>Start free</button>
+                <a className="btn ghost" href="#horizontal">See how it works</a>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 2: GLASSMORPHISM CAPABILITIES ── */}
-        <section className="glass-section" id="features">
-          <div className="max-w-4xl mx-auto text-center mb-20 scroll-reveal">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">02 / Core Modules</span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mt-4">
-              Premium <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Capabilities</span>
-            </h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto mt-6">
-              Everything you need to automate your recurring billing, recovery, and customer management in one powerful platform.
-            </p>
-          </div>
-
-          <div className="glass-grid px-6">
-            {featuresList.map((feat, i) => (
-              <div key={i} className="glass-card scroll-reveal" data-index={i}>
-                <div className="glow"></div>
-                <div className="icon-box" style={{ color: feat.color, background: `${feat.color}14`, border: `1px solid ${feat.color}40` }}>
-                  {feat.icon}
-                </div>
-                <h3>{feat.title}</h3>
-                <p>{feat.desc}</p>
-                <div className="mt-8 flex items-center justify-between">
-                  <span className="text-[10px] font-black text-white/20 tracking-widest uppercase">0{i+1}</span>
-                  <div className="h-px flex-1 mx-4 bg-white/5"></div>
-                  <div className="w-2 h-2 rounded-full" style={{ background: feat.color }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── SECTION 2.5: INDUSTRIES ── */}
-        <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="industries">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">02.5 / Industries</span>
-              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mt-4">
-                Built for <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">recurring businesses</span>
-              </h2>
-              <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto mt-4">
-                One platform for every local business that bills again and again — from internet providers to water suppliers.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* ISP & Cable Internet */}
-              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 flex flex-col hover:border-indigo-500/30 transition-all">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#6366f114', border: '1px solid #6366f140', color: '#6366f1' }}>
-                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-                      <path d="M1.42 9a16 16 0 0 1 21.16 0" />
-                      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                      <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none" />
-                    </svg>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)' }}>Live</span>
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">ISP & Cable Internet</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">Everything internet providers already use today — billing, recovery, and customer care in one dashboard.</p>
-                <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Monthly billing & digital receipts</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> WhatsApp payment reminders</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Customer, dues & recovery tracking</li>
-                </ul>
-                <div className="mt-6 pt-6 border-t border-white/5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">ISP-focused tools</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Equipment Tracker</span>
-                    <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Outage Tracker</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Water / RO Suppliers */}
-              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 flex flex-col hover:border-indigo-500/30 transition-all">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#06b6d414', border: '1px solid #06b6d440', color: '#06b6d4' }}>
-                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
-                    </svg>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.4)' }}>Coming soon</span>
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">Water / RO Suppliers</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">Built for daily-supply businesses — track every bottle, every route, every rupee.</p>
-                <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Daily delivery entry</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Bottle balance per customer</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Route-wise organization</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> Udhaar ledger</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> WhatsApp bill reminders</li>
-                </ul>
-              </div>
-
-              {/* Coming soon */}
-              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 flex flex-col hover:border-indigo-500/30 transition-all">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#94a3b814', border: '1px solid #94a3b840', color: '#94a3b8' }}>
-                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 6v6l4 2" />
-                    </svg>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.4)' }}>Coming soon</span>
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">More industries</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">We are expanding step by step — these are next on the roadmap.</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Cable TV</span>
-                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Gyms & academies</span>
-                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Hostels & rent</span>
-                  <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300">Society maintenance</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 3: LIVE COUNTERS ── */}
-        <section className="counter-section scroll-reveal" id="counters">
-          <div className="bg-glow"></div>
-          <div className="section-header max-w-4xl mx-auto" ref={revealContainerRef}>
-            <div className="num fade-in">03 / Live Metrics</div>
-            <h2 className="fade-in">Trusted at <span className="gradient">Scale</span></h2>
-            <p className="fade-in">Real numbers from real local businesses using Bill Collector every day.</p>
-          </div>
-          <div className="counter-grid" ref={countersContainerRef}>
-            <div className="counter-item">
-              <div className="number counter-number grad-text" data-target="150" data-suffix="+">0</div>
-              <div className="label">Active Businesses</div>
-            </div>
-            <div className="counter-item">
-              <div className="number counter-number grad-text" data-target="99.9" data-suffix="%">0</div>
-              <div className="label">Uptime SLA</div>
-            </div>
-            <div className="counter-item">
-              <div className="number counter-number grad-text" data-target="50000" data-suffix="+">0</div>
-              <div className="label">Customers Managed</div>
-            </div>
-            <div className="counter-item">
-              <div className="number counter-number grad-text" data-target="95" data-suffix="%">0</div>
-              <div className="label">Recovery Rate</div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 3.5: HOW IT WORKS ── */}
-        <section className="py-24 px-6 border-t border-white/5 scroll-reveal" id="how-it-works" ref={howItWorksRef}>
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">03.5 / Getting Started</span>
-              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mt-4">
-                How It <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Works</span>
-              </h2>
-              <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
-                From spreadsheet to fully automated billing in 4 simple steps. No technical expertise required.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {howItWorksSteps.map((step) => (
-                <div key={step.step} data-step={step.step - 1} className="how-step relative p-6 rounded-3xl glass hover:bg-white/10 transition-all group">
-                  <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white"
-                    style={{ background: step.color }}>
-                    {step.step}
-                  </div>
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: `${step.color}15`, color: step.color }}>
-                    {step.icon}
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900 mb-2">{step.title}</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">{step.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-12 text-center">
-              <button onClick={onGetStarted}
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-600/20">
-                Get Started Now <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 4: STAGGER REVEALS ── */}
-        <section className="reveal-section scroll-reveal" id="reveals">
-          <div className="section-header max-w-4xl mx-auto">
-            <div className="num">04 / Platform</div>
-            <h2>Core <span className="gradient">Infrastructure</span></h2>
-            <p>Everything you need to run a professional recurring-billing operation.</p>
-          </div>
-          <div className="reveal-grid max-w-7xl mx-auto px-6" ref={revealContainerRef}>
-            {infraFeatures.map((infra, idx) => (
-              <div key={idx} className="reveal-card" data-index={idx}
-                style={{ borderColor: infra.borderColor, background: infra.bg }}>
-                <div className="icon-box" style={{ background: `${infra.borderColor.slice(0, -2)}15`, border: `1px solid ${infra.borderColor}`, color: infra.borderColor.slice(0, -2) }}>
-                  {infra.icon}
-                </div>
-                <h3>{infra.title}</h3>
-                <p>{infra.desc}</p>
-                <div style={{ position: 'absolute', bottom: 0, left: 24, right: 24, height: '1px', background: `linear-gradient(90deg, ${infra.borderColor.slice(0, -2)}40, transparent)` }}></div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── SECTION 4.5: COMPETITIVE COMPARISON ── */}
-        <section className="py-24 px-6 border-t border-white/5 scroll-reveal">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">04.5 / Comparison</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
-                Why Choose <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Bill Collector?</span>
-              </h2>
-              <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
-                See how we stack up against other billing platforms in Pakistan.
-              </p>
-            </div>
-
-            <div className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6 sm:p-8">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-2">{BOT_NAME} / WhatsApp Customer Care</p>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">Purpose-built support for your customers</h3>
-                  <p className="text-sm leading-relaxed text-slate-600 mt-3 max-w-3xl">
-                    {BOT_NAME} is Bill Collector’s AI WhatsApp customer-care service — designed for billing questions, technical support, complaints, and everyday customer assistance. Choose natural-sounding female voices and configure different support tones and voice-agent personas for the way your business communicates with customers.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:max-w-xs sm:justify-end">
-                  <span className="rounded-full border border-cyan-500/20 bg-white/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-700">WhatsApp Care</span>
-                  <span className="rounded-full border border-cyan-500/20 bg-white/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-700">Female Voices</span>
-                  <span className="rounded-full border border-cyan-500/20 bg-white/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-700">Custom Tones</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md overflow-x-auto">
-              <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/10 bg-white/5 min-w-[520px]">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Feature</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 text-center">Bill Collector</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Others</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Others</div>
-              </div>
-              {comparisonData.map((row, i) => (
-                <div key={i} className="comparison-row grid grid-cols-4 gap-4 p-4 border-b border-white/5 items-center min-w-[520px]">
-                  <div className="text-sm font-bold text-slate-900">{row.feature}</div>
-                  <div className="flex justify-center">
-                    {row.billcollector ? (
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <X className="w-4 h-4 text-red-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex justify-center">
-                    {row.competitor1 ? (
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <X className="w-4 h-4 text-red-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex justify-center">
-                    {row.competitor2 ? (
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <X className="w-4 h-4 text-red-400" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 5: WORD-BY-WORD TEXT REVEAL ── */}
-        <section className="text-reveal-section" id="textReveal">
-          <div className="bg-glow"></div>
-          <div className="text-content text-center px-6">
-            <div className="num" style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.35em', color: '#818cf8', marginBottom: '24px' }}>
-              05 / Our Mission
-            </div>
-            <div ref={wordRevealContainerRef} className="max-w-4xl mx-auto text-left leading-relaxed">
-              <h2 className="text-xl sm:text-4xl font-black text-slate-900 leading-tight flex flex-wrap justify-center">
-                {words.map((word, i) => (
-                  <span key={i} className="word inline-block mr-2" style={{ transitionDelay: `${i * 35}ms` }}>
-                    {word}
+              <p className="hero-note reveal d3">Free to start · No card required · Works on Android &amp; web</p>
+              <div className="trust-row reveal d3" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 18 }}>
+                {trustBadges.slice(0, 4).map((badge, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, color: 'var(--ink)', background: 'rgba(255,255,255,.6)', border: '1px solid var(--glass-brd)', padding: '7px 13px', borderRadius: 999 }}>
+                    <span style={{ color: '#4f46e5', display: 'inline-flex' }}>{badge.icon}</span>{badge.label}
                   </span>
                 ))}
-              </h2>
-            </div>
-            <div style={{ marginTop: '48px', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent)' }}></div>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" /> AES-256 Encryption
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300">
-                <LockKeyhole className="w-4 h-4 text-emerald-400" /> Role-Based Access
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300">
-                <Database className="w-4 h-4 text-emerald-400" /> Automated Backups
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 7: MARQUEE ── */}
-        <section className="marquee-section" id="marquee">
-          <div className="section-header mb-12">
-            <div className="num">07 / Platform Highlights</div>
-            <h2 className="text-2xl sm:text-4xl font-black">Endless Automation</h2>
-          </div>
-          <div className="marquee-row">
-            <div className="marquee-content whitespace-nowrap">
-              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · {BOT_NAME.toUpperCase()} AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
-              <span className="marquee-text">✦ BILLING & RECEIPTS · WHATSAPP REMINDERS · SUBSCRIPTION TIERS · {BOT_NAME.toUpperCase()} AI SUPPORT · AREA DASHBOARD · EQUIPMENT TRACKER · SUSPENSION LOG · LEADS PIPELINE ✦ </span>
-            </div>
-          </div>
-          <div className="marquee-row reverse">
-            <div className="marquee-content whitespace-nowrap">
-              <span className="marquee-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', color: 'rgba(255,255,255,0.05)' }}>
-                ✦ billing & receipts · WhatsApp reminders · subscription tiers · {BOT_NAME} AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
-              </span>
-              <span className="marquee-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', color: 'rgba(255,255,255,0.05)' }}>
-                ✦ billing & receipts · WhatsApp reminders · subscription tiers · {BOT_NAME} AI support · area dashboard · equipment tracker · suspension log · leads pipeline ✦ 
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 8: INTERACTIVE FAQ ── */}
-        <section className="interactive-section scroll-reveal" id="interactive">
-          <div className="interactive-orb interactive-orb-1" ref={orb1Ref}></div>
-          <div className="interactive-orb interactive-orb-2" ref={orb2Ref}></div>
-          <div className="section-header max-w-4xl mx-auto px-6">
-            <div className="num">08 / FAQ</div>
-            <h2>Frequently Asked <span className="gradient">Questions</span></h2>
-            <p>Everything you need to know before getting started.</p>
-          </div>
-          <div className="max-w-4xl mx-auto px-6 space-y-4 relative z-10">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden shadow-sm hover:border-indigo-500/30 transition-all">
-                <button className="w-full p-6 text-left flex justify-between items-center group"
-                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}>
-                  <span className="text-sm sm:text-base font-black uppercase tracking-wider group-hover:text-indigo-600 transition-colors text-slate-900 pr-4">
-                    {faq.q}
-                  </span>
-                  <div className={`w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 transition-all ${activeFaq === idx ? 'rotate-180 bg-indigo-600 text-white' : 'text-slate-500'}`}>
-                    <ChevronDown className="w-4 h-4" />
+            <div className="phone-stage reveal d2">
+              <div className="phone">
+                <div className="screen">
+                  <div className="screen-top"><b>Dashboard</b><div className="avatar" /></div>
+                  <div className="kpis">
+                    <div className="kpi"><small>Collected</small><b data-count="124500">Rs. 0</b><span className="up">▲ this month</span></div>
+                    <div className="kpi"><small>Pending</small><b data-count="38200">Rs. 0</b><span className="up" style={{ color: '#c0392b' }}>▼ 12% vs last</span></div>
                   </div>
-                </button>
-                {activeFaq === idx && (
-                  <div className="px-6 pb-6 text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                    {faq.a}
+                  <div className="bars">
+                    <small>Collection · last 7 days</small>
+                    <div className="bar-row">
+                      <div className="bar" style={{ height: '42%' }} /><div className="bar" style={{ height: '68%' }} />
+                      <div className="bar" style={{ height: '55%' }} /><div className="bar" style={{ height: '88%' }} />
+                      <div className="bar" style={{ height: '74%' }} /><div className="bar" style={{ height: '96%' }} />
+                      <div className="bar" style={{ height: '62%' }} />
+                    </div>
                   </div>
-                )}
+                  <div className="due-list">
+                    <div className="due"><div><b>Ahmed Raza</b><br /><span>Monthly · Fiber 20MB</span></div><span className="pill paid">Paid</span></div>
+                    <div className="due"><div><b>Fatima Khan</b><br /><span>Monthly · 19L bottles</span></div><span className="pill duep">Due</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="stats reveal">
+            {heroStats.map((s, i) => (
+              <div className="stat" key={i}>
+                <b data-count={s.target} data-suffix={s.suffix} data-plain="true">0</b>
+                <span>{s.label}</span>
               </div>
             ))}
           </div>
-        </section>
+          <div className="scroll-cue">Scroll</div>
+        </div></div>
+      </header>
 
-        {/* ── SECTION 8.5: TESTIMONIAL SLIDER ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 overflow-hidden" id="testimonials">
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-indigo-500 rounded-full blur-[120px]" />
-            <div className="absolute bottom-1/2 right-1/4 w-[400px] h-[400px] bg-purple-500 rounded-full blur-[120px]" />
+      {/* ── WHO IT'S FOR ── */}
+      <section id="who">
+        <div className="wrap">
+          <div className="sec-label reveal">Who it&apos;s for</div>
+          <h2 className="reveal d1">One platform.<br />Every recurring business.</h2>
+          <p className="sec-sub reveal d2">ISPs, water suppliers, cable operators, gyms, hostels — if you bill every month, the whole app adapts.</p>
+          <div className="biz-grid">
+            <div className="biz reveal"><div className="ico"><svg viewBox="0 0 24 24"><path d="M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01" /></svg></div><b>Internet (ISP)</b><span>Monthly packages, due dates &amp; recovery</span></div>
+            <div className="biz reveal d1"><div className="ico"><svg viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z" /></svg></div><b>Water &amp; RO</b><span>Daily &amp; monthly billing, deliveries</span></div>
+            <div className="biz reveal d2"><div className="ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M8 21h8" /></svg></div><b>Cable TV</b><span>Subscriber billing &amp; renewals</span></div>
+            <div className="biz reveal d3"><div className="ico"><svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M4 9h2M4 15h2M18 9h2M18 15h2M6 12h12" /></svg></div><b>Gyms</b><span>Memberships &amp; fee reminders</span></div>
+            <div className="biz reveal d3"><div className="ico"><svg viewBox="0 0 24 24"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 18h18M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4" /></svg></div><b>Hostels</b><span>Room rents &amp; monthly dues</span></div>
           </div>
-          <div className="max-w-4xl mx-auto relative z-10 scroll-reveal">
-            <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">08.5 / Customer Stories</span>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mt-4">
-                TRUSTED BY <br className="sm:hidden" />
-                <span className="bg-gradient-to-r from-[#6366f1] via-[#8b5cf6] to-[#06b6d4] bg-clip-text text-transparent">
-                  LOCAL BUSINESSES
+        </div>
+      </section>
+
+      {/* ── FEATURE CHAPTERS ── */}
+      <section id="horizontal" style={{ paddingTop: 30 }}>
+        <div className="wrap">
+          <div className="sec-label reveal">Why teams switch</div>
+          <h2 className="reveal d1">Scroll through<br />a month with BillCollector.</h2>
+        </div>
+      </section>
+
+      <div className="vband vpad">
+        <video className="vbg" muted loop playsInline preload="metadata" poster="/landing/billing-poster.jpg">
+          <source src="/landing/billing.mp4" type="video/mp4" />
+        </video>
+        <div className="vshade" />
+        <div className="wrap">
+          <div className="chapter">
+            <div className="txt reveal">
+              <div className="sec-label">Chapter 01 · Billing</div>
+              <h3>Bills generate themselves.</h3>
+              <p>Set a plan once. Every month the bills appear on their own — correct amounts, correct dates, zero spreadsheets.</p>
+              <ul>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Monthly &amp; daily billing modes</li>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Advances &amp; partial payments handled</li>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Sub-managers &amp; riders see only their own</li>
+              </ul>
+            </div>
+            <div className="vis reveal d1">
+              <div className="shot">
+                <div className="cap">November billing · auto-generated</div>
+                <div className="receipt">
+                  <div className="rhead"><b>Monthly Bill</b><span style={{ color: 'var(--muted)', fontSize: 12 }}>#R-000123</span></div>
+                  <div className="rrow"><span>Package · Fiber 20MB</span><span>Rs. 1,500</span></div>
+                  <div className="rrow"><span>Previous balance</span><span>Rs. 0</span></div>
+                  <div className="rrow"><span>Discount</span><span>− Rs. 0</span></div>
+                  <div className="rrow total"><span>Total due</span><span>Rs. 1,500</span></div>
+                  <span className="rstamp">GENERATED AUTOMATICALLY</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="vband vpad">
+        <video className="vbg" muted loop playsInline preload="metadata" poster="/landing/reminders-poster.jpg">
+          <source src="/landing/reminders.mp4" type="video/mp4" />
+        </video>
+        <div className="vshade" />
+        <div className="wrap">
+          <div className="chapter flip">
+            <div className="txt reveal">
+              <div className="sec-label">Chapter 02 · Reminders</div>
+              <h3>Reminders that actually get paid.</h3>
+              <p>Polite WhatsApp reminders go out before and after the due date — in your customer&apos;s language. You just watch the paid list grow.</p>
+              <ul>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>WhatsApp billing &amp; reminder templates</li>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Due-date &amp; overdue follow-ups</li>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Tap-to-call customer directory</li>
+              </ul>
+            </div>
+            <div className="vis reveal d1">
+              <div className="shot">
+                <div className="cap">WhatsApp · reminder sent</div>
+                <div className="msg me"><div className="who">BillCollector</div>Assalam-o-Alaikum! Your November bill of Rs. 1,500 is due on the 10th. Pay via JazzCash or at the office. — MahadNet</div>
+                <div className="msg"><div className="who">Customer</div>Paid via JazzCash, screenshot attached 👍</div>
+                <div className="msg me"><div className="who">BillCollector</div>Received. Receipt #R-000124 sent. Shukriya!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="vband vpad">
+        <video className="vbg" muted loop playsInline preload="metadata" poster="/landing/recovery-poster.jpg">
+          <source src="/landing/recovery.mp4" type="video/mp4" />
+        </video>
+        <div className="vshade" />
+        <div className="wrap">
+          <div className="chapter">
+            <div className="txt reveal">
+              <div className="sec-label">Chapter 03 · Recovery</div>
+              <h3>See every rupee, chase every due.</h3>
+              <p>Live dashboards show collection, pending and recovery rate. Print a pending list for field recovery, or filter by route and rider.</p>
+              <ul>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Recovery rate &amp; collection trends</li>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Printable pending lists for the field</li>
+                <li><span className="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>Route, rider &amp; vehicle reports</li>
+              </ul>
+            </div>
+            <div className="vis reveal d1">
+              <div className="shot">
+                <div className="cap">Recovery · this month</div>
+                <div className="bars" style={{ marginBottom: 12 }}>
+                  <small>Recovery rate</small>
+                  <div style={{ fontSize: 34, fontWeight: 800, color: 'var(--navy)', margin: '8px 0 4px' }}>87%</div>
+                  <div style={{ height: 10, background: '#eef1f5', borderRadius: 6, overflow: 'hidden' }}><div style={{ width: '87%', height: '100%', background: 'linear-gradient(90deg,#6366f1,#06b6d4)', borderRadius: 6 }} /></div>
+                </div>
+                <div className="due-list">
+                  <div className="due"><div><b>Route A · Gulberg</b><br /><span>14 pending</span></div><span className="pill duep">Rs. 21,000</span></div>
+                  <div className="due"><div><b>Route B · DHA</b><br /><span>6 pending</span></div><span className="pill duep">Rs. 9,000</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+<style>{`
+
+  .bc-landing{ box-sizing:border-box; }
+  :root{
+    --navy:#0f172a; --teal:#6366f1; --gold:#8b5cf6; --cyan:#06b6d4;
+    --ink:rgba(15,23,42,.92); --muted:rgba(15,23,42,.62);
+    --glass:rgba(255,255,255,.58); --glass-brd:rgba(255,255,255,.75);
+  }
+  .bc-landing{ scroll-behavior:smooth; }
+  .bc-landing{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink); overflow-x:hidden; background:#f7f4ef;
+  }
+  /* ---------- drifting pastel mesh ---------- */
+
+
+  .wrap{ max-width:1120px; margin:0 auto; padding:0 22px; }
+  .vband{ position:relative; overflow:hidden; }
+  .vband video.vbg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .vband .vshade{ position:absolute; inset:0; background:linear-gradient(180deg,rgba(247,244,239,.55),rgba(247,244,239,.32) 50%,rgba(247,244,239,.55)); }
+  .vband > .wrap, .vband > .contentwrap{ position:relative; z-index:1; }
+  .vpad{ padding:70px 0; }
+
+  /* ---------- nav ---------- */
+  .bc-landing nav{ position:fixed; top:14px; left:0; right:0; z-index:50; }
+  .nav-inner{
+    max-width:1120px; margin:0 auto; padding:10px 18px;
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--glass); border:1px solid var(--glass-brd); border-radius:18px;
+    backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    box-shadow:0 12px 40px rgba(15,23,42,.10);
+    margin-left:16px; margin-right:16px;
+  }
+  @media(min-width:1160px){ .nav-inner{ margin-left:auto; margin-right:auto; } }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; color:var(--navy); text-decoration:none; }
+  .brand img{ height:34px; width:auto; border-radius:8px; }
+  .nav-links{ display:none; gap:26px; }
+  .nav-links a{ text-decoration:none; color:var(--muted); font-size:14.5px; font-weight:600; }
+  .nav-links a:hover{ color:var(--navy); }
+  @media(min-width:760px){ .nav-links{ display:flex; } }
+  .btn{
+    display:inline-block; text-decoration:none; font-weight:700; font-size:15px;
+    padding:12px 26px; border-radius:999px; border:none; cursor:pointer;
+    background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff;
+    box-shadow:0 10px 26px rgba(99,102,241,.35); transition:transform .2s, box-shadow .2s;
+  }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 14px 32px rgba(99,102,241,.42); }
+  .btn.ghost{ background:rgba(255,255,255,.65); color:var(--navy); border:1px solid var(--glass-brd); box-shadow:0 8px 22px rgba(15,23,42,.10); backdrop-filter:blur(10px); }
+  .btn.small{ padding:9px 20px; font-size:14px; }
+
+  /* ---------- hero ---------- */
+  .hero{ min-height:100svh; display:flex; align-items:center; padding:130px 0 60px; position:relative; }
+  .hero-grid{ display:grid; gap:44px; align-items:center; }
+  @media(min-width:900px){ .hero-grid{ grid-template-columns:1.05fr .95fr; } }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--teal);
+    background:rgba(255,255,255,.6); border:1px solid var(--glass-brd); padding:8px 16px; border-radius:999px;
+    backdrop-filter:blur(10px); margin-bottom:22px;
+  }
+  .eyebrow .dot{ width:8px;height:8px;border-radius:50%;background:var(--teal); box-shadow:0 0 0 4px rgba(99,102,241,.18); }
+  .bc-landing h1{ font-size:clamp(38px,6.4vw,68px); line-height:1.04; letter-spacing:-1.5px; color:var(--navy); font-weight:800; }
+  h1 .grad{ background:linear-gradient(120deg,#6366f1,#8b5cf6 55%,#06b6d4); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lede{ margin-top:20px; font-size:clamp(16px,2.2vw,19px); line-height:1.65; color:var(--muted); max-width:34em; }
+  .cta-row{ display:flex; gap:14px; margin-top:32px; flex-wrap:wrap; }
+  .hero-note{ margin-top:18px; font-size:13.5px; color:var(--muted); }
+
+  /* phone mockup */
+  .phone-stage{ display:flex; justify-content:center; perspective:1200px; }
+  .phone{
+    width:min(320px,78vw); border-radius:44px; padding:12px;
+    background:rgba(15,23,42,.92); box-shadow:0 40px 90px rgba(15,23,42,.35);
+    transform:rotateY(-8deg) rotateX(4deg); animation:floaty 7s ease-in-out infinite;
+  }
+  @keyframes floaty{ 0%,100%{ transform:rotateY(-8deg) rotateX(4deg) translateY(0);} 50%{ transform:rotateY(-8deg) rotateX(4deg) translateY(-14px);} }
+  .screen{ background:#f6f8fb; border-radius:34px; overflow:hidden; padding:18px 14px 22px; }
+  .screen-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .screen-top b{ font-size:14px; color:var(--navy); }
+  .avatar{ width:30px;height:30px;border-radius:50%; background:linear-gradient(135deg,#6366f1,#06b6d4); }
+  .kpis{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .kpi{ background:#fff; border-radius:14px; padding:12px; box-shadow:0 4px 14px rgba(15,23,42,.07); }
+  .kpi small{ font-size:10px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .kpi b{ display:block; font-size:16px; color:var(--navy); margin-top:4px; }
+  .kpi .up{ font-size:10px; color:var(--teal); font-weight:700; }
+  .bars{ background:#fff; border-radius:14px; padding:14px; box-shadow:0 4px 14px rgba(15,23,42,.07); }
+  .bars small{ font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+  .bar-row{ display:flex; align-items:flex-end; gap:7px; height:74px; margin-top:10px; }
+  .bar{ flex:1; border-radius:6px 6px 3px 3px; background:linear-gradient(180deg,#8b5cf6,#6366f1); }
+  .bar:nth-child(odd){ background:linear-gradient(180deg,#a5b4fc,#06b6d4); }
+  .due-list{ margin-top:12px; background:#fff; border-radius:14px; padding:6px 12px; box-shadow:0 4px 14px rgba(15,23,42,.07); }
+  .due{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #eef1f5; font-size:12px; }
+  .due:last-child{ border:none; }
+  .due b{ color:var(--navy); } .due span{ color:var(--muted); }
+  .pill{ font-size:10px; font-weight:700; padding:4px 10px; border-radius:999px; }
+  .pill.paid{ background:#dcf5ec; color:#0b7a5c; } .pill.duep{ background:#fdeaea; color:#c0392b; }
+  .scroll-cue{ position:absolute; bottom:26px; left:50%; transform:translateX(-50%); color:var(--muted); font-size:12px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; text-align:center; }
+  .scroll-cue::after{ content:""; display:block; width:22px; height:36px; margin:10px auto 0; border:2px solid var(--muted); border-radius:12px; position:relative; }
+  .scroll-cue::before{ content:""; position:absolute; left:50%; bottom:26px; width:4px; height:8px; margin-left:-2px; border-radius:4px; background:var(--teal); animation:wheel 1.8s infinite; }
+  @keyframes wheel{ 0%{ transform:translateY(0); opacity:1;} 70%{ transform:translateY(12px); opacity:0;} 100%{ opacity:0;} }
+
+  /* ---------- sections ---------- */
+  .bc-landing section{ padding:90px 0; position:relative; }
+  .sec-label{ font-size:13px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--teal); margin-bottom:14px; }
+  .bc-landing h2{ font-size:clamp(30px,4.6vw,48px); letter-spacing:-1px; line-height:1.1; color:var(--navy); font-weight:800; }
+  .sec-sub{ margin-top:14px; color:var(--muted); font-size:17px; line-height:1.65; max-width:36em; }
+
+  .reveal{ opacity:0; transform:translateY(36px); transition:opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in{ opacity:1; transform:none; }
+  .reveal.d1{ transition-delay:.08s; } .reveal.d2{ transition-delay:.16s; } .reveal.d3{ transition-delay:.24s; }
+
+  /* business cards */
+  .biz-grid{ display:grid; gap:18px; margin-top:44px; grid-template-columns:repeat(2,1fr); }
+  @media(min-width:860px){ .biz-grid{ grid-template-columns:repeat(5,1fr); } }
+  .biz{
+    background:var(--glass); border:1px solid var(--glass-brd); border-radius:22px; padding:26px 18px; text-align:center;
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    box-shadow:0 14px 40px rgba(15,23,42,.10); transition:transform .25s;
+  }
+  .biz:hover{ transform:translateY(-6px); }
+  .biz .ico{ width:52px;height:52px; margin:0 auto 14px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(6,182,212,.14)); }
+  .biz .ico svg{ width:26px;height:26px; stroke:var(--teal); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .biz b{ display:block; color:var(--navy); font-size:15.5px; margin-bottom:6px; }
+  .biz span{ font-size:13px; color:var(--muted); line-height:1.5; display:block; }
+
+  /* scrollytelling chapters */
+  .chapter{ display:grid; gap:34px; align-items:center; margin-top:70px; }
+  @media(min-width:900px){ .chapter{ grid-template-columns:1fr 1fr; } .chapter.flip .txt{ order:2; } .chapter.flip .vis{ order:1; } }
+  .txt h3{ font-size:clamp(24px,3.4vw,36px); color:var(--navy); letter-spacing:-.5px; margin:12px 0 14px; font-weight:800; }
+  .txt p{ color:var(--muted); font-size:16.5px; line-height:1.7; }
+  .txt ul{ margin-top:18px; list-style:none; display:grid; gap:12px; }
+  .txt li{ display:flex; gap:12px; align-items:flex-start; font-size:15px; color:var(--ink); font-weight:500; }
+  .tick{ flex:none; width:24px;height:24px;border-radius:50%; background:rgba(99,102,241,.14); display:flex;align-items:center;justify-content:center; margin-top:1px;}
+  .tick svg{ width:13px;height:13px; stroke:var(--teal); stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .vis{ display:flex; justify-content:center; }
+  .shot{
+    width:min(420px,100%); border-radius:26px; padding:26px;
+    background:var(--glass); border:1px solid var(--glass-brd);
+    backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    box-shadow:0 30px 70px rgba(15,23,42,.16);
+  }
+  .shot .cap{ font-size:12px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--teal); margin-bottom:14px; }
+  .msg{ background:#fff; border-radius:16px; padding:14px 16px; margin-bottom:10px; box-shadow:0 6px 18px rgba(15,23,42,.08); font-size:14px; line-height:1.55; color:var(--ink); }
+  .msg .who{ font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
+  .msg.me{ background:linear-gradient(135deg,#0E7C7B,#149a98); color:#fff; margin-left:34px; }
+  .msg.me .who{ color:rgba(255,255,255,.75); }
+  .receipt{ background:#fff; border-radius:14px; padding:18px; box-shadow:0 6px 18px rgba(15,23,42,.08); font-size:13.5px; }
+  .receipt .rhead{ display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:2px dashed #e5e9f0; margin-bottom:12px;}
+  .receipt .rhead b{ color:var(--navy); font-size:15px; }
+  .rrow{ display:flex; justify-content:space-between; padding:5px 0; color:var(--muted); }
+  .rrow.total{ color:var(--navy); font-weight:800; font-size:15px; border-top:2px dashed #e5e9f0; margin-top:8px; padding-top:12px; }
+  .rstamp{ display:inline-block; margin-top:12px; font-size:12px; font-weight:800; color:#0b7a5c; background:#dcf5ec; padding:6px 16px; border-radius:8px; letter-spacing:1px; }
+
+  /* steps */
+  .steps{ display:grid; gap:18px; margin-top:44px; }
+  @media(min-width:860px){ .steps{ grid-template-columns:repeat(3,1fr); } }
+  .step{ background:var(--glass); border:1px solid var(--glass-brd); border-radius:22px; padding:30px 26px; backdrop-filter:blur(16px); box-shadow:0 14px 40px rgba(15,23,42,.10); position:relative; }
+  .step .n{ font-size:13px; font-weight:800; color:#fff; background:linear-gradient(135deg,#6366f1,#06b6d4); width:34px;height:34px; border-radius:12px; display:flex;align-items:center;justify-content:center; margin-bottom:16px; }
+  .step b{ color:var(--navy); font-size:18px; display:block; margin-bottom:8px; }
+  .step p{ color:var(--muted); font-size:14.5px; line-height:1.65; }
+
+  /* final CTA */
+  .cta-card{
+    background:linear-gradient(135deg,#0f172a,#1e1b4b); border-radius:32px; padding:clamp(40px,7vw,80px) clamp(26px,6vw,70px);
+    text-align:center; color:#fff; position:relative; overflow:hidden; box-shadow:0 40px 90px rgba(15,23,42,.35);
+  }
+  .cta-card::before{ content:""; position:absolute; width:480px;height:480px; border-radius:50%; background:radial-gradient(circle,rgba(99,102,241,.5),transparent 70%); left:-140px; top:-140px; }
+  .cta-card::after{ content:""; position:absolute; width:480px;height:480px; border-radius:50%; background:radial-gradient(circle,rgba(6,182,212,.35),transparent 70%); right:-140px; bottom:-140px; }
+  .cta-card h2{ color:#fff; position:relative; z-index:1; }
+  .cta-card p{ color:rgba(255,255,255,.72); margin:16px auto 30px; max-width:32em; font-size:17px; line-height:1.65; position:relative; z-index:1; }
+  .cta-card .cta-row{ justify-content:center; position:relative; z-index:1; }
+  .btn.light{ background:#fff; color:var(--navy); box-shadow:0 12px 30px rgba(0,0,0,.25); }
+  .btn.outline-w{ background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.4); box-shadow:none; }
+
+  .bc-landing footer{ padding:44px 0 54px; text-align:center; color:var(--muted); font-size:13.5px; }
+  .bc-landing footer .flogo{ display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:14px; color:var(--navy); font-weight:800; font-size:16px; }
+  .bc-landing footer img{ height:30px; border-radius:7px; }
+
+  /* ===== entrance animations (JS-gated) ===== */
+  .screen .bar{ transform:scaleY(0); transform-origin:bottom; }
+  .screen.play .bar{ transform:scaleY(1); transition:transform 1.1s cubic-bezier(.2,.7,.2,1); }
+  .screen.play .bar:nth-child(1){ transition-delay:.15s; }
+  .screen.play .bar:nth-child(2){ transition-delay:.25s; }
+  .screen.play .bar:nth-child(3){ transition-delay:.35s; }
+  .screen.play .bar:nth-child(4){ transition-delay:.45s; }
+  .screen.play .bar:nth-child(5){ transition-delay:.55s; }
+  .screen.play .bar:nth-child(6){ transition-delay:.65s; }
+  .screen.play .bar:nth-child(7){ transition-delay:.75s; }
+  .screen .due{ opacity:0; transform:translateX(-14px); }
+  .screen.play .due{ opacity:1; transform:none; transition:opacity .6s ease, transform .6s ease; }
+  .screen.play .due:nth-child(1){ transition-delay:1s; }
+  .screen.play .due:nth-child(2){ transition-delay:1.15s; }
+  .shot .msg{ opacity:0; transform:translateY(16px) scale(.97); }
+  .shot.play .msg{ animation:msgpop .55s cubic-bezier(.2,.9,.3,1.25) forwards; }
+  .shot.play .msg:nth-child(2){ animation-delay:.3s; }
+  .shot.play .msg:nth-child(3){ animation-delay:1s; }
+  .shot.play .msg:nth-child(4){ animation-delay:1.7s; }
+  @keyframes msgpop{ to{ opacity:1; transform:none; } }
+  .shot .rstamp{ opacity:0; }
+  .shot.play .rstamp{ animation:stamppop .6s cubic-bezier(.2,.9,.3,1.3) .9s forwards; }
+  @keyframes stamppop{ from{ opacity:0; transform:scale(.5) rotate(-8deg); } 60%{ opacity:1; transform:scale(1.1) rotate(2deg); } to{ opacity:1; transform:scale(1) rotate(0); } }
+
+  /* ---------- mesh background ---------- */
+  .bc-landing{ position:relative; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif; color:var(--ink); overflow-x:hidden; background:#f7f4ef; }
+  .bc-landing .mesh{ position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(700px 480px at 12% 8%, rgba(99,102,241,.14), transparent 60%),
+      radial-gradient(640px 520px at 88% 12%, rgba(6,182,212,.13), transparent 60%),
+      radial-gradient(760px 560px at 50% 100%, rgba(139,92,246,.12), transparent 60%);
+  }
+  .bc-landing .mesh::after{ content:""; position:absolute; inset:0; opacity:.5;
+    background-image:radial-gradient(rgba(15,23,42,.06) 1px, transparent 1px); background-size:26px 26px;
+    mask-image:radial-gradient(ellipse 90% 70% at 50% 30%, black, transparent); }
+  .bc-landing > *:not(.mesh):not(nav){ position:relative; z-index:1; }
+
+  /* ---------- mobile menu ---------- */
+  .mnav{ display:none; }
+  @media(max-width:759px){
+    .nav-links{ display:none !important; }
+    .mnav{ display:block; }
+    .mdrop{ position:absolute; top:calc(100% + 10px); left:16px; right:16px; background:rgba(255,255,255,.92);
+      border:1px solid var(--glass-brd); border-radius:18px; backdrop-filter:blur(18px);
+      box-shadow:0 20px 50px rgba(15,23,42,.16); padding:10px; display:grid; gap:2px; }
+    .mdrop a{ padding:12px 16px; border-radius:12px; text-decoration:none; color:var(--ink); font-weight:600; font-size:15px; }
+    .mdrop a:hover{ background:rgba(99,102,241,.08); }
+  }
+
+  /* ---------- stats row ---------- */
+  .stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:44px; }
+  @media(min-width:760px){ .stats{ grid-template-columns:repeat(4,1fr); } }
+  .stat{ background:var(--glass); border:1px solid var(--glass-brd); border-radius:18px; padding:20px 16px; text-align:center;
+    backdrop-filter:blur(14px); box-shadow:0 10px 30px rgba(15,23,42,.08); }
+  .stat b{ display:block; font-size:clamp(24px,3.4vw,34px); font-weight:800; letter-spacing:-.5px;
+    background:linear-gradient(120deg,#6366f1,#8b5cf6 60%,#06b6d4); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .stat span{ font-size:12.5px; color:var(--muted); font-weight:600; }
+
+  /* ---------- feature cards grid ---------- */
+  .feat-grid{ display:grid; gap:16px; margin-top:44px; grid-template-columns:1fr; }
+  @media(min-width:640px){ .feat-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media(min-width:1024px){ .feat-grid{ grid-template-columns:repeat(3,1fr); } }
+  .feat{ background:var(--glass); border:1px solid var(--glass-brd); border-radius:22px; padding:26px 22px;
+    backdrop-filter:blur(16px); box-shadow:0 14px 40px rgba(15,23,42,.10); transition:transform .25s; position:relative; overflow:hidden; }
+  .feat:hover{ transform:translateY(-6px); }
+  .feat .fico{ width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .feat b{ display:block; color:var(--navy); font-size:16.5px; margin-bottom:8px; }
+  .feat p{ color:var(--muted); font-size:14px; line-height:1.65; }
+
+  /* ---------- comparison ---------- */
+  .cmp{ width:100%; border-collapse:separate; border-spacing:0; background:var(--glass); border:1px solid var(--glass-brd);
+    border-radius:22px; overflow:hidden; backdrop-filter:blur(16px); box-shadow:0 14px 40px rgba(15,23,42,.10); }
+  .cmp th, .cmp td{ padding:15px 14px; font-size:14px; text-align:center; border-bottom:1px solid rgba(15,23,42,.07); }
+  .cmp th{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+  .cmp td:first-child, .cmp th:first-child{ text-align:left; font-weight:600; color:var(--navy); }
+  .cmp tr:last-child td{ border-bottom:none; }
+  .cmp .me{ background:rgba(99,102,241,.07); font-weight:800; color:#4f46e5; }
+  .cmpwrap{ overflow-x:auto; border-radius:22px; }
+  .netbot-panel{ margin-top:22px; border-radius:24px; padding:28px; color:#fff; position:relative; overflow:hidden;
+    background:linear-gradient(135deg,#0f172a,#1e1b4b); box-shadow:0 30px 70px rgba(15,23,42,.3); }
+  .netbot-panel::before{ content:""; position:absolute; width:420px; height:420px; border-radius:50%;
+    background:radial-gradient(circle,rgba(6,182,212,.3),transparent 70%); right:-120px; top:-120px; }
+  .netbot-panel h3{ position:relative; z-index:1; font-size:22px; margin-bottom:10px; }
+  .netbot-panel p{ position:relative; z-index:1; color:rgba(255,255,255,.72); font-size:15px; line-height:1.7; max-width:44em; }
+  .netbot-tags{ position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .netbot-tags span{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px;
+    border:1px solid rgba(255,255,255,.25); padding:7px 14px; border-radius:999px; color:#a5f3fc; }
+
+  /* ---------- testimonials ---------- */
+  .tslider{ position:relative; max-width:760px; margin:44px auto 0; }
+  .tslide{ display:none; background:var(--glass); border:1px solid var(--glass-brd); border-radius:26px; padding:38px 34px;
+    backdrop-filter:blur(18px); box-shadow:0 24px 60px rgba(15,23,42,.12); }
+  .tslide.on{ display:block; animation:fadein .6s ease; }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:none;} }
+  .tslide .stars{ color:#f59e0b; display:flex; gap:3px; margin-bottom:16px; }
+  .tslide blockquote{ font-size:17px; line-height:1.7; color:var(--ink); }
+  .tslide .who{ display:flex; align-items:center; gap:14px; margin-top:22px; }
+  .tslide .ava{ width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:18px; }
+  .tslide .who b{ display:block; color:var(--navy); font-size:15px; }
+  .tslide .who span{ font-size:13px; color:var(--muted); }
+  .tdots{ display:flex; gap:8px; justify-content:center; margin-top:20px; }
+  .tdots button{ width:9px; height:9px; border-radius:50%; border:none; background:rgba(15,23,42,.18); cursor:pointer; padding:0; }
+  .tdots button.on{ background:#6366f1; width:26px; border-radius:6px; }
+
+  /* ---------- pricing ---------- */
+  .plans{ display:grid; gap:20px; margin-top:48px; grid-template-columns:1fr; align-items:start; }
+  @media(min-width:860px){ .plans{ grid-template-columns:repeat(3,1fr); } }
+  .plan{ background:var(--glass); border:1px solid var(--glass-brd); border-radius:26px; padding:34px 28px;
+    backdrop-filter:blur(18px); box-shadow:0 18px 50px rgba(15,23,42,.10); position:relative; transition:transform .25s; }
+  .plan:hover{ transform:translateY(-6px); }
+  .plan.hot{ border:2px solid #6366f1; box-shadow:0 24px 60px rgba(99,102,241,.22); }
+  @media(min-width:860px){ .plan.hot{ transform:scale(1.04); } .plan.hot:hover{ transform:scale(1.04) translateY(-6px); } }
+  .plan .pop{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,#6366f1,#8b5cf6);
+    color:#fff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; padding:7px 18px; border-radius:999px; white-space:nowrap; }
+  .plan .pname{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; }
+  .plan .price{ font-size:40px; font-weight:800; color:var(--navy); letter-spacing:-1px; }
+  .plan .per{ font-size:14px; color:var(--muted); font-weight:600; }
+  .plan ul{ list-style:none; margin:22px 0 28px; display:grid; gap:11px; }
+  .plan li{ display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--ink); }
+  .plan li svg{ flex:none; width:17px; height:17px; margin-top:2px; }
+
+  /* ---------- faq ---------- */
+  .faq{ max-width:760px; margin:40px auto 0; display:grid; gap:12px; }
+  .faq-item{ background:var(--glass); border:1px solid var(--glass-brd); border-radius:18px; backdrop-filter:blur(14px);
+    box-shadow:0 10px 30px rgba(15,23,42,.08); overflow:hidden; }
+  .faq-q{ width:100%; display:flex; justify-content:space-between; align-items:center; gap:14px; padding:20px 22px;
+    background:none; border:none; cursor:pointer; text-align:left; font-size:15.5px; font-weight:700; color:var(--navy); }
+  .faq-q svg{ flex:none; transition:transform .3s; color:#6366f1; }
+  .faq-item.open .faq-q svg{ transform:rotate(180deg); }
+  .faq-a{ max-height:0; overflow:hidden; transition:max-height .35s ease; }
+  .faq-item.open .faq-a{ max-height:300px; }
+  .faq-a p{ padding:0 22px 22px; color:var(--muted); font-size:14.5px; line-height:1.7; }
+
+  /* ---------- download ---------- */
+  .dl-grid{ display:grid; gap:18px; max-width:640px; margin:40px auto 0; grid-template-columns:1fr; }
+  @media(min-width:640px){ .dl-grid{ grid-template-columns:1fr 1fr; } }
+  .dl-card{ display:flex; flex-direction:column; align-items:center; gap:14px; padding:34px 26px; border-radius:24px;
+    background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(16px);
+    box-shadow:0 14px 40px rgba(15,23,42,.10); text-decoration:none; transition:transform .25s; }
+  .dl-card:hover{ transform:translateY(-6px); }
+  .dl-card .dico{ width:62px; height:62px; border-radius:20px; display:flex; align-items:center; justify-content:center; }
+  .dl-card b{ color:var(--navy); font-size:16px; }
+  .dl-card span{ font-size:13px; color:var(--muted); }
+
+  /* ---------- about ---------- */
+  .about-card{ background:var(--glass); border:1px solid var(--glass-brd); border-radius:28px; padding:clamp(30px,5vw,60px);
+    backdrop-filter:blur(18px); box-shadow:0 24px 60px rgba(15,23,42,.12); text-align:center; }
+
+  /* ---------- footer ---------- */
+  .fgrid{ display:grid; gap:36px; grid-template-columns:1fr; max-width:1120px; margin:0 auto; padding:0 22px; }
+  @media(min-width:760px){ .fgrid{ grid-template-columns:2fr 1fr 1fr; } }
+  .fgrid h4{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:18px; }
+  .fgrid ul{ list-style:none; display:grid; gap:12px; }
+  .fgrid ul a{ color:var(--ink); text-decoration:none; font-size:14.5px; font-weight:600; }
+  .fgrid ul a:hover{ color:#4f46e5; }
+  .fcontact{ display:flex; flex-direction:column; gap:10px; margin-top:20px; max-width:300px; }
+  .fcontact a{ display:inline-flex; align-items:center; gap:10px; padding:11px 16px; border-radius:14px; font-size:13.5px;
+    font-weight:700; text-decoration:none; }
+  .fcontact .wa{ background:rgba(14,124,123,.12); border:1px solid rgba(14,124,123,.3); color:#0b6e6d; }
+  .fcontact .em{ background:rgba(99,102,241,.1); border:1px solid rgba(99,102,241,.25); color:#4f46e5; }
+
+  /* ---------- modals ---------- */
+  @keyframes modalFadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes modalScaleIn{ from{ transform:scale(.95) translateY(20px); opacity:0; } to{ transform:scale(1) translateY(0); opacity:1; } }
+  .animate-fade-in{ animation:modalFadeIn .25s ease-out forwards; }
+  .animate-scale-in{ animation:modalScaleIn .3s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+`}</style>
+
+      {/* ── FEATURES GRID ── */}
+      <section id="features">
+        <div className="wrap">
+          <div className="sec-label reveal">Platform</div>
+          <h2 className="reveal d1">Everything to run<br />your billing operation.</h2>
+          <p className="sec-sub reveal d2">Ten modules, one dashboard — built for the way local businesses actually collect.</p>
+          <div className="feat-grid">
+            {featuresList.map((f, i) => (
+              <div className={"feat reveal " + (i % 3 === 1 ? "d1" : i % 3 === 2 ? "d2" : "")} key={i}>
+                <div className="fico" style={{ background: f.color + '1a', color: f.color }}>{f.icon}</div>
+                <b>{f.title}</b>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── INFRA ── */}
+      <section id="infra" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-label reveal">Core infrastructure</div>
+          <h2 className="reveal d1">Deep tools<br />for serious recovery.</h2>
+          <div className="feat-grid">
+            {infraFeatures.map((inf, i) => (
+              <div className={"feat reveal " + (i % 3 === 1 ? "d1" : i % 3 === 2 ? "d2" : "")} key={i}
+                style={{ borderColor: inf.borderColor, background: inf.bg }}>
+                <div className="fico" style={{ background: inf.borderColor.slice(0, -2) + '1a', color: inf.borderColor.slice(0, -2) }}>{inf.icon}</div>
+                <b>{inf.title}</b>
+                <p>{inf.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section id="how" style={{ paddingTop: 30 }}>
+        <div className="wrap">
+          <div className="sec-label reveal">How it works</div>
+          <h2 className="reveal d1">Live in an afternoon.</h2>
+          <p className="sec-sub reveal d2">From spreadsheet to fully automated billing in 4 simple steps. No technical expertise required.</p>
+          <div className="steps" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+            {howItWorksSteps.map((s, i) => (
+              <div className={"step reveal " + (i === 1 ? "d1" : i === 2 ? "d2" : i === 3 ? "d3" : "")} key={s.step}>
+                <div className="n" style={{ background: "linear-gradient(135deg," + s.color + "," + s.color + "cc)" }}>{s.step}</div>
+                <b>{s.title}</b>
+                <p>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="reveal" style={{ marginTop: 36, textAlign: 'center' }}>
+            <button onClick={onGetStarted} className="btn" style={{ border: 'none', cursor: 'pointer' }}>
+              Get Started Now <ArrowRight className="w-4 h-4" style={{ display: 'inline', verticalAlign: '-2px', marginLeft: 6 }} />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMPARISON ── */}
+      <section id="compare" style={{ paddingTop: 30 }}>
+        <div className="wrap">
+          <div className="sec-label reveal">Comparison</div>
+          <h2 className="reveal d1">Why teams<br />choose BillCollector.</h2>
+          <div className="cmpwrap reveal d1" style={{ marginTop: 36 }}>
+            <table className="cmp">
+              <thead>
+                <tr><th>Feature</th><th className="me">BillCollector</th><th>Others</th><th>Others</th></tr>
+              </thead>
+              <tbody>
+                {comparisonData.map((row, i) => (
+                  <tr key={i}>
+                    <td>{row.feature}</td>
+                    <td className="me">{row.billcollector ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#4f46e5' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
+                    <td>{row.competitor1 ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#10b981' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
+                    <td>{row.competitor2 ? <CheckCircle className="w-5 h-5" style={{ display: 'inline', color: '#10b981' }} /> : <X className="w-5 h-5" style={{ display: 'inline', color: '#cbd5e1' }} />}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="netbot-panel reveal">
+            <h3>{BOT_NAME} — AI WhatsApp customer care</h3>
+            <p>{BOT_NAME} is Bill Collector&apos;s AI WhatsApp customer-care service — designed for billing questions, technical support, complaints, and everyday customer assistance. Choose natural-sounding female voices and configure different support tones and voice-agent personas for the way your business communicates with customers.</p>
+            <div className="netbot-tags"><span>WhatsApp Care</span><span>Female Voices</span><span>Custom Tones</span></div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── ABOUT ── */}
+      <section id="textReveal" style={{ paddingTop: 30 }}>
+        <div className="wrap">
+          <div className="about-card reveal">
+            <div className="sec-label">Our mission</div>
+            <h2 style={{ marginBottom: 18 }}>Built for Pakistan&apos;s<br />local businesses.</h2>
+            <p style={{ color: 'var(--muted)', fontSize: 17, lineHeight: 1.75, maxWidth: '44em', margin: '0 auto' }}>{missionText}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 26 }}>
+              {trustBadges.map((b, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700, color: 'var(--ink)', background: 'rgba(255,255,255,.65)', border: '1px solid var(--glass-brd)', padding: '8px 14px', borderRadius: 999 }}>
+                  <span style={{ color: '#4f46e5', display: 'inline-flex' }}>{b.icon}</span>{b.label}
                 </span>
-              </h2>
-              <p className="text-slate-400 text-sm max-w-lg mx-auto mt-4">
-                See how local business owners and operators are transforming their payment recovery with our automated platform.
-              </p>
+              ))}
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div className="relative min-h-[300px] md:min-h-[260px] bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 p-8 sm:p-12 shadow-2xl flex flex-col justify-between transition-all duration-300 hover:border-indigo-500/30">
-              <div className="absolute top-0 right-12 -translate-y-1/2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/30 rounded-full text-[9px] font-mono uppercase text-indigo-400 tracking-wider">
-                verified operator
+      {/* ── TESTIMONIALS ── */}
+      <section id="testimonials" style={{ paddingTop: 30 }}>
+        <div className="wrap">
+          <div className="sec-label reveal" style={{ textAlign: 'center' }}>Loved by owners</div>
+          <h2 className="reveal d1" style={{ textAlign: 'center' }}>Real businesses.<br />Real recovery.</h2>
+          <div className="tslider reveal d1">
+            {testimonials.map((t, i) => (
+              <div className={"tslide " + (i === currentSlide ? "on" : "")} key={i}>
+                <div className="stars">{Array.from({ length: t.rating }).map((_, s) => <Star key={s} className="w-4 h-4" fill="currentColor" />)}</div>
+                <blockquote>&ldquo;{t.text}&rdquo;</blockquote>
+                <div className="who">
+                  <div className="ava" style={{ background: t.avatarBg }}>{t.name.charAt(0)}</div>
+                  <div><b>{t.name}</b><span>{t.role} · {t.location}</span></div>
+                </div>
               </div>
+            ))}
+            <div className="tdots">
+              {testimonials.map((_, i) => (
+                <button key={i} className={i === currentSlide ? "on" : ""} onClick={() => setCurrentSlide(i)} aria-label={"Slide " + (i + 1)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRICING ── */}
+      <section id="pricing" style={{ paddingTop: 30 }}>
+        <div className="wrap" style={{ maxWidth: 1020 }}>
+          <div className="sec-label reveal" style={{ textAlign: 'center' }}>Simple pricing</div>
+          <h2 className="reveal d1" style={{ textAlign: 'center' }}>Choose your plan.</h2>
+          <p className="sec-sub reveal d2" style={{ textAlign: 'center', margin: '14px auto 0' }}>Flexible billing subscription plans for local businesses of every size. No hidden charges.</p>
+          <div className="plans">
+            {pricingPlans.map((plan, i) => (
+              <div className={"plan reveal " + (plan.highlight ? "hot" : "") + (i % 3 === 1 ? " d1" : i % 3 === 2 ? " d2" : "")} key={i}>
+                {plan.highlight && <div className="pop">Most Popular</div>}
+                <p className="pname" style={{ color: plan.color }}>{plan.name}</p>
+                <div><span className="price">{plan.price}</span>{plan.period && <span className="per">/{plan.period}</span>}</div>
+                <ul>
+                  {plan.features.map((f, fi) => (
+                    <li key={fi}><Check className="w-4 h-4" style={{ color: plan.color, flex: 'none', marginTop: 2 }} />{f}</li>
+                  ))}
+                </ul>
+                <button
+                  onClick={plan.name === 'Free' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the Bill Collector ' + plan.name + ' plan', '_blank')}
+                  className="btn" style={{ width: '100%', border: 'none', cursor: 'pointer', textAlign: 'center' }}>
+                  {plan.cta}
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="reveal" style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginTop: 34, fontWeight: 600 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#10b981', marginRight: 8 }} />
+            Built natively for Pakistan&apos;s growing local businesses.
+          </p>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section id="faq" style={{ paddingTop: 30 }}>
+        <div className="wrap">
+          <div className="sec-label reveal" style={{ textAlign: 'center' }}>FAQ</div>
+          <h2 className="reveal d1" style={{ textAlign: 'center' }}>Questions, answered.</h2>
+          <div className="faq">
+            {faqs.map((f, i) => (
+              <div className={"faq-item reveal " + (activeFaq === i ? "open" : "")} key={i}>
+                <button className="faq-q" onClick={() => setActiveFaq(activeFaq === i ? null : i)}>
+                  {f.q}
+                  <ChevronDown className="w-5 h-5" />
+                </button>
+                <div className="faq-a"><p>{f.a}</p></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── DOWNLOAD ── */}
+      {(latestReleases.billcollector || latestReleases.wabot) && (
+        <section id="download-apps" style={{ paddingTop: 30 }}>
+          <div className="wrap" style={{ textAlign: 'center' }}>
+            <div className="sec-label reveal">Android apps</div>
+            <h2 className="reveal d1">Manage on the go.</h2>
+            <p className="sec-sub reveal d2" style={{ margin: '14px auto 0', textAlign: 'center' }}>Native Android apps for your billing dashboard and {BOT_NAME} inbox — no browser needed.</p>
+            <div className="dl-grid">
+              {latestReleases.billcollector && (
+                <a href={latestReleases.billcollector.apk_url} target="_blank" rel="noopener noreferrer" className="dl-card reveal">
+                  <div className="dico" style={{ background: 'rgba(99,102,241,.14)', color: '#4f46e5' }}><Smartphone className="w-8 h-8" /></div>
+                  <div><b>Bill Collector Manager</b><br /><span>v{latestReleases.billcollector.version}{latestReleases.billcollector.file_size_mb ? " · " + latestReleases.billcollector.file_size_mb + " MB" : ''}</span></div>
+                  <span className="btn small" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Download className="w-4 h-4" /> Download APK</span>
+                </a>
+              )}
+              {latestReleases.wabot && (
+                <a href={latestReleases.wabot.apk_url} target="_blank" rel="noopener noreferrer" className="dl-card reveal d1">
+                  <div className="dico" style={{ background: 'rgba(14,124,123,.12)', color: '#0b7a5c' }}><MessageCircle className="w-8 h-8" /></div>
+                  <div><b>{BOT_NAME}</b><br /><span>v{latestReleases.wabot.version}{latestReleases.wabot.file_size_mb ? " · " + latestReleases.wabot.file_size_mb + " MB" : ''}</span></div>
+                  <span className="btn small" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Download className="w-4 h-4" /> Download APK</span>
+                </a>
+              )}
+            </div>
+            <p className="reveal" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 22 }}>Direct APK download — enable &ldquo;Install from unknown sources&rdquo; if prompted.</p>
+          </div>
+        </section>
+      )}
+
+      {/* ── FINAL CTA ── */}
+      <section id="start" style={{ paddingBottom: 110 }}>
+        <div className="wrap">
+          <div className="cta-card reveal">
+            <h2>Stop chasing payments.<br />Start collecting.</h2>
+            <p>Join 150+ local businesses already automating their billing. No credit card required. Setup takes less than 2 minutes.</p>
+            <div className="cta-row">
+              <button onClick={onGetStarted} className="btn light" style={{ border: 'none', cursor: 'pointer' }}>Create free account</button>
+              <a className="btn outline-w" href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector" target="_blank" rel="noreferrer">Talk to us</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer>
+        <div className="fgrid">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              {logoBase64 && <img src={logoBase64} alt="Bill Collector" style={{ width: 54, height: 54, objectFit: 'contain', borderRadius: 12 }} />}
+              <b style={{ fontSize: 18, color: 'var(--navy)' }}>BillCollector</b>
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 14.5, lineHeight: 1.7, maxWidth: 340 }}>
+              Pakistan&apos;s leading recurring-billing platform for local businesses. From small neighborhood businesses to growing enterprises — built for every subscription-style business.
+            </p>
+            <div className="fcontact">
+              <a className="wa" href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector" target="_blank" rel="noreferrer">
+                <MessageCircle className="w-4 h-4" /> WhatsApp: 0304-2773453
+              </a>
+              <a className="em" href="mailto:support@billcollector.online">support@billcollector.online</a>
+            </div>
+          </div>
+          <div>
+            <h4>Platform</h4>
+            <ul>
+              <li><a href="#horizontal">Features</a></li>
+              <li><Link to="/about">About</Link></li>
+              <li><a href="#pricing">Pricing</a></li>
+              <li><a href="https://wa.me/923042773453" target="_blank" rel="noreferrer">Contact</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Legal</h4>
+            <ul>
+              <li><Link to="/privacy">Privacy Policy</Link></li>
+              <li><Link to="/terms">Terms of Service</Link></li>
+              <li><Link to="/terms">Refund Policy</Link></li>
+              <li><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#0b7a5c', fontWeight: 700, fontSize: 13.5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />All Systems Operational
+              </span></li>
+            </ul>
+          </div>
+        </div>
+        <div className="wrap" style={{ marginTop: 44, paddingTop: 26, borderTop: '1px solid rgba(15,23,42,.1)', display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>© 2026 Bill Collector. All rights reserved.</p>
+          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.5 }}>Built for Pakistani businesses · support@billcollector.online</p>
+        </div>
+      </footer>
+
+      {/* ── DEMO MODAL ── */}
+      {showDemoModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowDemoModal(false)}>
+          <div className="w-full max-w-3xl rounded-3xl overflow-hidden animate-scale-in" style={{ background: '#fff', boxShadow: '0 40px 90px rgba(15,23,42,.35)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid #eef1f5' }}>
               <div>
-                <div className="flex gap-1 mb-6 text-amber-400">
-                  {Array.from({ length: testimonials[currentSlide].rating }).map((_, i) => (
-                    <svg key={i} className="w-5 h-5 fill-current" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
+                <h3 className="text-lg font-black uppercase tracking-wider" style={{ color: 'var(--navy)' }}>Product Demo</h3>
+                <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>See Bill Collector in action</p>
+              </div>
+              <button onClick={() => setShowDemoModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ background: '#f1f4f9', color: 'var(--muted)' }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="aspect-video rounded-2xl flex items-center justify-center" style={{ background: '#f1f4f9', border: '1px solid #e5e9f0' }}>
+                <div className="text-center">
+                  <Play className="w-16 h-16 mx-auto mb-4" style={{ color: '#6366f1' }} />
+                  <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Demo video coming soon</p>
+                  <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>Contact us for a live walkthrough</p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <a href="https://wa.me/923042773453?text=I%20want%20a%20live%20demo%20of%20Bill%20Collector"
+                  target="_blank" rel="noreferrer" className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <MessageCircle className="w-4 h-4" /> Request Live Demo
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SPECS MODAL ── */}
+      {showSpecs && (
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 sm:p-6 animate-fade-in"
+          style={{ background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowSpecs(false)}>
+          <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-scale-in" style={{ background: '#fff', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #e0e7ff, #eef3fb)' }}>
+              <div className="relative z-10 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">System Online</span>
+                  </div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight" style={{ color: 'var(--navy)' }}>Bill Collector Platform Features</h2>
+                  <p className="text-sm mt-1" style={{ color: '#6366f1' }}>Everything your business needs</p>
+                </div>
+                <button onClick={() => setShowSpecs(false)} className="text-2xl transition-colors" style={{ color: 'var(--muted)' }}>✕</button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-2xl p-5" style={{ background: '#f8fafc', border: '1px solid #e5e9f0' }}>
+                <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: '#0b7a5c' }}>
+                  <Zap className="w-3 h-3" /> Core Features
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {['Customer Management', 'Digital Receipt Generator', 'Monthly Recovery Ledger', 'Expiry Alerts (3/7/30 days)',
+                    'Equipment / Device Tracker', 'Leads Pipeline', 'Receivable Aging Report', 'Area-wise Dashboard',
+                    'Service Suspension Log', 'Network Outage Tracker', 'Business Expenses', 'Team / Agent Management',
+                    'Smart Notifications', 'Cross-Device Cloud Sync', 'Role-Based Access', 'WhatsApp Reminder Links'].map((f, i) => (
+                    <div key={i} className="text-xs font-medium py-1 flex items-center gap-2" style={{ color: 'var(--ink)' }}>
+                      <Check className="w-3 h-3" style={{ color: '#10b981' }} /> {f}
+                    </div>
                   ))}
                 </div>
-                <p className="text-slate-800 text-base sm:text-lg md:text-xl font-medium leading-relaxed italic mb-8">
-                  "{testimonials[currentSlide].text}"
-                </p>
               </div>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-t border-white/5 pt-6 mt-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-base shadow-inner uppercase font-mono"
-                    style={{ background: testimonials[currentSlide].avatarBg }}>
-                    {testimonials[currentSlide].name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{testimonials[currentSlide].name}</h4>
-                    <p className="text-[11px] font-mono text-slate-400 mt-0.5">{testimonials[currentSlide].role}</p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                  {testimonials[currentSlide].location}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-8 px-2">
-              <div className="flex gap-2">
-                {testimonials.map((_, i) => (
-                  <button key={i} onClick={() => setCurrentSlide(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${currentSlide === i ? 'w-8 bg-indigo-500' : 'w-2 bg-white/20 hover:bg-white/40'}`}
-                  />
-                ))}
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setCurrentSlide((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-white/60 transition-colors active:scale-95">
-                  <ArrowRight className="w-4 h-4 rotate-180" />
-                </button>
-                <button onClick={() => setCurrentSlide((prev) => (prev + 1) % testimonials.length)}
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-white/60 transition-colors active:scale-95">
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 9: PRICING PLANS ── */}
-        <section className="relative py-24 px-6 border-t border-white/5 scroll-reveal" id="pricing">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Simple Pricing</p>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-900 mb-4">
-                Choose Your<br />
-                <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Plan</span>
-              </h2>
-              <p className="text-slate-400 text-sm max-w-xl mx-auto">Flexible billing subscription plans for local businesses of every size. No hidden charges.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start pt-5">
-              {pricingPlans.map((plan, i) => (
-                <div key={i}
-                  className={`relative rounded-3xl border p-8 transition-all ${
-                    plan.highlight 
-                      ? 'border-indigo-500/50 bg-indigo-500/10 shadow-xl shadow-indigo-500/5 md:-mt-4 md:py-10' 
-                      : 'border-white/10 bg-white/5 backdrop-blur-md'
-                  }`}>
-                  {plan.highlight && (
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent"/>
-                  )}
-                  {plan.highlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="px-4 py-1 bg-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest text-white">Most Popular</span>
-                    </div>
-                  )}
-                  <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: plan.color }}>{plan.name}</p>
-                  <div className="mb-6">
-                    <span className="text-4xl font-black text-slate-900">{plan.price}</span>
-                    {plan.period && <span className="text-slate-400 text-sm ml-2">/{plan.period}</span>}
-                  </div>
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((f, fi) => (
-                      <li key={fi} className="flex items-center gap-2 text-xs sm:text-sm text-slate-300">
-                        <Check className="w-4 h-4 flex-shrink-0" style={{ color: plan.color }} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <button onClick={plan.name === 'Free' ? onGetStarted : () => window.open('https://wa.me/923042773453?text=I want to discuss the Bill Collector ' + plan.name + ' plan', '_blank')}
-                    className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${
-                      plan.highlight 
-                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/35' 
-                        : 'bg-white/70 hover:bg-white text-slate-900 border border-slate-200'
-                    }`}>
-                    {plan.cta}
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-center text-slate-500 text-xs mt-12 font-medium flex items-center justify-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-              Built natively for Pakistan's growing local businesses.
-            </p>
-          </div>
-        </section>
-
-        {/* ── SECTION 9.5: DOWNLOAD APPS ── */}
-        {(latestReleases.billcollector || latestReleases.wabot) && (
-          <section className="py-24 px-6 border-t border-white/5" id="download-apps">
-            <div className="max-w-4xl mx-auto text-center">
-              <div className="badge mb-6 mx-auto">
-                <div className="dot"></div>
-                <span>Android Apps</span>
-              </div>
-              <h2 className="text-3xl sm:text-5xl font-black leading-none mb-6">
-                MANAGE ON THE GO —<br />
-                <span className="gradient">DOWNLOAD THE APP</span>
-              </h2>
-              <p className="max-w-lg mx-auto mb-12 text-slate-400 text-sm sm:text-base font-medium">
-                Native Android apps for your billing dashboard and {BOT_NAME} inbox — no browser needed.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                {latestReleases.billcollector && (
-                  <a href={latestReleases.billcollector.apk_url} target="_blank" rel="noopener noreferrer"
-                    className="group flex flex-col items-center gap-4 p-8 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
-                      <Smartphone className="w-8 h-8 text-indigo-400" />
-                    </div>
-                    <div>
-                      <p className="font-black text-sm">Bill Collector Manager</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        v{latestReleases.billcollector.version}{latestReleases.billcollector.file_size_mb ? ` • ${latestReleases.billcollector.file_size_mb} MB` : ''}
-                      </p>
-                    </div>
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-400 group-hover:text-indigo-300">
-                      <Download className="w-4 h-4" /> Download APK
-                    </span>
-                  </a>
-                )}
-                {latestReleases.wabot && (
-                  <a href={latestReleases.wabot.apk_url} target="_blank" rel="noopener noreferrer"
-                    className="group flex flex-col items-center gap-4 p-8 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95">
-                    <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
-                      <MessageCircle className="w-8 h-8 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="font-black text-sm">{BOT_NAME}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        v{latestReleases.wabot.version}{latestReleases.wabot.file_size_mb ? ` • ${latestReleases.wabot.file_size_mb} MB` : ''}
-                      </p>
-                    </div>
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-emerald-400 group-hover:text-emerald-300">
-                      <Download className="w-4 h-4" /> Download APK
-                    </span>
-                  </a>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 mt-8">Direct APK download — enable "Install from unknown sources" if prompted.</p>
-            </div>
-          </section>
-        )}
-
-        {/* ── SECTION 10: CTA SECTION ── */}
-        <section className="cta-section" id="cta">
-          <div className="bg-glow" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', borderRadius: '50%', background: 'rgba(99,102,241,0.05)', filter: 'blur(150px)', pointerEvents: 'none' }}></div>
-          <div className="max-w-4xl mx-auto px-6 relative z-10">
-            <div className="badge mb-8">
-              <div className="dot"></div>
-              <span>Ready to Scale?</span>
-            </div>
-            <h2 className="text-3xl sm:text-5xl font-black leading-none mb-6">
-              START YOUR<br />
-              <span className="gradient">FREE TRIAL</span>
-            </h2>
-            <p className="max-w-lg mx-auto mb-10 text-slate-400 text-sm sm:text-base font-medium">
-              Join 150+ local businesses already automating their billing. No credit card required. Setup takes less than 2 minutes.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button onClick={onGetStarted}
-                className="cta-glow w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-3 text-white">
-                Get Started Free <ArrowRight className="w-4 h-4" />
+              <button onClick={() => { setShowSpecs(false); onGetStarted(); }} className="btn" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
+                Get Started Free <ArrowRight className="w-4 h-4" style={{ display: 'inline', verticalAlign: '-2px', marginLeft: 6 }} />
               </button>
-              <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
-                target="_blank" rel="noreferrer"
-                className="w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.25em] backdrop-blur-md border border-white/10 bg-white/5 flex items-center justify-center gap-3 text-slate-900 hover:text-emerald-600 hover:border-emerald-500/30 transition-all active:scale-95">
-                <MessageCircle className="w-4 h-4 text-emerald-400" /> WhatsApp Us
-              </a>
-            </div>
-            <div className="flex flex-wrap justify-center gap-3 mt-8">
-              {['Fast Sync', '99.9% Uptime', 'AES-256', 'WhatsApp Ready', 'PKR Billing', 'Offline Mode'].map((tag, i) => (
-                <span key={i} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  {tag}
-                </span>
-              ))}
             </div>
           </div>
-        </section>
-
-        {/* ── FOOTER ── */}
-        <footer className="pt-20 pb-10 px-6 border-t border-white/10 bg-[#040814]/40 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-              <div className="col-span-2">
-                {logoBase64 && <img src={logoBase64} alt="Bill Collector" className="w-[85px] h-[85px] object-contain mb-6" />}
-                <p className="text-slate-300 max-w-sm font-medium text-base leading-relaxed mb-6">
-                  Pakistan's leading recurring-billing platform for local businesses. From small neighborhood businesses to growing enterprises — built for every subscription-style business.
-                </p>
-                <div className="flex flex-col gap-2 max-w-xs">
-                  <a href="https://wa.me/923042773453?text=I%20want%20more%20information%20about%20Bill%20Collector"
-                    target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600/20 border border-green-500/30 text-green-400 rounded-xl text-xs font-bold hover:bg-green-600/30 transition-all">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>WhatsApp: 0304-2773453</span>
-                  </a>
-                  <a href="mailto:support@billcollector.online"
-                    className="glass inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-white/10 transition-all text-cyan-300">
-                    <Mail className="w-3.5 h-3.5" />
-                    <span>support@billcollector.online</span>
-                  </a>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Platform</h4>
-                <ul className="space-y-4 text-sm font-bold text-slate-300">
-                  <li><a href="#features" className="hover:text-indigo-400 transition-colors">Features</a></li>
-                  <li><Link to="/about" className="hover:text-indigo-400 transition-colors">About</Link></li>
-                  <li><a href="#pricing" className="hover:text-indigo-400 transition-colors">Pricing</a></li>
-                  <li><a href="https://wa.me/923042773453" target="_blank" rel="noreferrer" className="hover:text-indigo-400 transition-colors">Contact</a></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Legal</h4>
-                <ul className="space-y-4 text-sm font-bold text-slate-300">
-                  <li><Link to="/privacy" className="hover:text-indigo-400 transition-colors">Privacy Policy</Link></li>
-                  <li><Link to="/terms" className="hover:text-indigo-400 transition-colors">Terms of Service</Link></li>
-                  <li><Link to="/terms" className="hover:text-indigo-400 transition-colors">Refund Policy</Link></li>
-                  <li>
-                    <span className="inline-flex items-center gap-1.5 text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-                      All Systems Operational
-                    </span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">© 2026 Bill Collector. All rights reserved.</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest">Built for Pakistani businesses · support@billcollector.online</p>
-            </div>
-          </div>
-        </footer>
-
-        {/* ── DEMO MODAL ── */}
-        {showDemoModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#040814]/80 backdrop-blur-md animate-fade-in"
-            onClick={() => setShowDemoModal(false)}>
-            <div className="w-full max-w-3xl rounded-3xl border border-white/20 bg-[#0a1228] overflow-hidden animate-scale-in"
-              onClick={e => e.stopPropagation()}>
-              <div className="p-6 border-b border-white/10 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-wider">Product Demo</h3>
-                  <p className="text-slate-400 text-xs mt-1">See Bill Collector in action</p>
-                </div>
-                <button onClick={() => setShowDemoModal(false)} className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="p-6">
-                <div className="aspect-video rounded-2xl bg-slate-200 flex items-center justify-center border border-white/10">
-                  <div className="text-center">
-                    <Play className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
-                    <p className="text-slate-400 text-sm font-medium">Demo video coming soon</p>
-                    <p className="text-slate-500 text-xs mt-2">Contact us for a live walkthrough</p>
-                  </div>
-                </div>
-                <div className="mt-6 flex justify-center">
-                  <a href="https://wa.me/923042773453?text=I%20want%20a%20live%20demo%20of%20Bill%20Collector"
-                    target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest transition-all">
-                    <MessageCircle className="w-4 h-4" /> Request Live Demo
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── SPECS MODAL ── */}
-        {showSpecs && (
-          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-[#040814]/80 backdrop-blur-md animate-fade-in"
-            onClick={() => setShowSpecs(false)}>
-            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 bg-[#0a1228] max-h-[90vh] overflow-y-auto animate-scale-in"
-              onClick={e => e.stopPropagation()}>
-              <div className="p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #e0e7ff, #eef3fb)' }}>
-                <div className="absolute inset-0 opacity-20">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-3xl -mr-32 -mt-32" />
-                </div>
-                <div className="relative z-10 flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">System Online</span>
-                    </div>
-                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Bill Collector Platform Features</h2>
-                    <p className="text-indigo-300 text-sm mt-1">Everything your business needs</p>
-                  </div>
-                  <button onClick={() => setShowSpecs(false)} className="text-slate-500 hover:text-slate-900 text-2xl transition-colors">✕</button>
-                </div>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="rounded-2xl p-5 bg-white/5 border border-white/10">
-                  <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Zap className="w-3 h-3" /> Core Features
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {['Customer Management', 'Digital Receipt Generator', 'Monthly Recovery Ledger', 'Expiry Alerts (3/7/30 days)',
-                      'Equipment / Device Tracker', 'Leads Pipeline', 'Receivable Aging Report', 'Area-wise Dashboard',
-                      'Service Suspension Log', 'Network Outage Tracker', 'Business Expenses', 'Team / Agent Management',
-                      'Smart Notifications', 'Cross-Device Cloud Sync', 'Role-Based Access', 'WhatsApp Reminder Links'].map((f, i) => (
-                      <div key={i} className="text-xs font-medium py-1 text-slate-300 flex items-center gap-2">
-                        <Check className="w-3 h-3 text-emerald-400" /> {f}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={() => { setShowSpecs(false); onGetStarted(); }}
-                  className="cta-glow w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 active:scale-95">
-                  Get Started Free <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
