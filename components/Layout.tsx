@@ -207,6 +207,17 @@ const Layout: React.FC<LayoutProps> = ({
       return !prev;
     });
   };
+  // ISP sidebar collapse (desktop only) — same pattern as the RO water sidebar,
+  // persisted per browser. Approved 2026-10-10: single-panel header + collapse.
+  const [ispCollapsed, setIspCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('bc_isp_sidebar_collapsed') === '1'; } catch { return false; }
+  });
+  const toggleIspCollapsed = () => {
+    setIspCollapsed(prev => {
+      try { localStorage.setItem('bc_isp_sidebar_collapsed', prev ? '0' : '1'); } catch { /* storage unavailable */ }
+      return !prev;
+    });
+  };
 
   // Let the Tour Guide open/close the nav drawer while spotlighting it
   useEffect(() => {
@@ -493,7 +504,8 @@ const Layout: React.FC<LayoutProps> = ({
   // ISP glass nav items — desktop persistent sidebar (approved dashboard mockup).
   // Same tabs, order, and click behavior as the drawer; glass styling only.
   // Rendered only for non-admin ISP accounts; admin keeps the legacy drawer.
-  const renderIspGlassNav = () => {
+  // compact=true renders icon-only for the collapsed sidebar (same as water).
+  const renderIspGlassNav = (compact = false) => {
     return tabs
       .filter(tab => !['reports', 'analytics'].includes(tab.id))
       .map(tab => {
@@ -505,6 +517,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div key={tab.id}>
             <a
               href={isExpenses ? '#expenses' : '#' + tab.id}
+              title={compact ? tab.label : undefined}
               onClick={(e) => {
                 e.preventDefault();
                 if (isCustomers) {
@@ -519,14 +532,15 @@ const Layout: React.FC<LayoutProps> = ({
                 }
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-left cursor-pointer no-underline
+                ${compact ? 'justify-center px-0' : ''}
                 ${isActive
                   ? 'bg-[#4f46e5] text-white shadow-lg shadow-indigo-600/30'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
                 }`}
             >
               <span className="shrink-0">{tab.icon}</span>
-              <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>
-              {(isCustomers || (isExpenses && !isWaterNav)) && (
+              {!compact && <span className="flex-1 text-xs font-bold uppercase tracking-widest">{tab.label}</span>}
+              {(isCustomers || (isExpenses && !isWaterNav)) && !compact && (
                 <svg className={`w-4 h-4 transition-transform text-slate-400
                   ${isCustomers && (customersExpanded || isActive) ? 'rotate-180' : ''}
                   ${isExpenses && (expensesExpanded || isExpensesGroupActive) ? 'rotate-180' : ''}`}
@@ -536,8 +550,8 @@ const Layout: React.FC<LayoutProps> = ({
               )}
             </a>
 
-            {/* Customers Sub-items */}
-            {isCustomers && (activeTab === 'users' || customersExpanded) && (
+            {/* Customers Sub-items — hidden in collapsed icon-rail mode */}
+            {isCustomers && !compact && (activeTab === 'users' || customersExpanded) && (
               <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-400/40 pl-3">
                 <a href="#users" onClick={(e) => { e.preventDefault(); if (onNavigateCustomers) onNavigateCustomers('all'); setActiveTab('users'); setDrawerOpen(false); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10">
@@ -557,8 +571,8 @@ const Layout: React.FC<LayoutProps> = ({
               </div>
             )}
 
-            {/* Expenses Sub-items: Expenses · Copilot · Analytics */}
-            {isExpenses && !isWaterNav && (expensesExpanded || isExpensesGroupActive) && (
+            {/* Expenses Sub-items: Expenses · Copilot · Analytics — hidden in collapsed icon-rail mode */}
+            {isExpenses && !compact && !isWaterNav && (expensesExpanded || isExpensesGroupActive) && (
               <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-indigo-400/40 pl-3">
                 <a href="#expenses" onClick={(e) => { e.preventDefault(); setActiveTab('expenses'); setDrawerOpen(false); }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer
@@ -785,24 +799,37 @@ const Layout: React.FC<LayoutProps> = ({
           water keeps its own sidebar. Mobile uses the drawer below.
       ═══════════════════════════════════════ */}
       {!isWaterNav && !isAdmin && (
-        <aside className="hidden lg:flex flex-col fixed left-0 top-[64px] bottom-0 w-60 z-30 bg-white/55 dark:bg-slate-900/60 backdrop-blur-[22px] border-r border-white/70 dark:border-white/10 shadow-[0_12px_40px_rgba(99,102,241,0.10)]">
-          {/* Business header: name on top, manager's logo below */}
-          <div className="px-5 pt-5 pb-4 border-b border-white/60 dark:border-white/10 text-center">
-            <p className="font-black text-[16px] truncate text-[#1e1b4b] dark:text-white tracking-tight">{businessName || 'ISP Manager'}</p>
-            <div className="mt-3 flex justify-center">
-              {businessLogo ? (
-                <img src={businessLogo} alt="Business logo" className="w-16 h-16 rounded-2xl object-cover shadow-lg border border-white/60" />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-indigo-600/30">
-                  {(businessName?.charAt(0) || 'M').toUpperCase()}
-                </div>
-              )}
-            </div>
-            <p className="mt-2 text-[8px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">ISP Manager v2.5</p>
+        <aside className={`hidden lg:flex flex-col fixed left-0 top-[64px] bottom-0 z-30 bg-white/55 dark:bg-slate-900/60 backdrop-blur-[22px] border-r border-white/70 dark:border-white/10 shadow-[0_12px_40px_rgba(99,102,241,0.10)] transition-all duration-200 ${ispCollapsed ? 'w-20' : 'w-60'}`}>
+          {/* Business header: single panel — 16px logo + name in one row (was: name on top, 64px logo below) */}
+          <div className={`flex items-center gap-2.5 pt-5 pb-4 border-b border-white/60 dark:border-white/10 ${ispCollapsed ? 'justify-center px-0' : 'px-5'}`}>
+            {businessLogo ? (
+              <img src={businessLogo} alt="Business logo" className="w-4 h-4 rounded object-cover shadow border border-white/60 flex-shrink-0" />
+            ) : (
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] text-white flex items-center justify-center font-black text-[10px] shadow flex-shrink-0">
+                {(businessName?.charAt(0) || 'M').toUpperCase()}
+              </div>
+            )}
+            {!ispCollapsed && (
+              <p className="font-black text-[15px] truncate text-[#1e1b4b] dark:text-white tracking-tight min-w-0">{businessName || 'ISP Manager'}</p>
+            )}
           </div>
-          <nav id="tour-sidebar-nav" className="flex-1 overflow-y-auto px-3 py-3 custom-scrollbar space-y-1">
-            {renderIspGlassNav()}
+          <nav id="tour-sidebar-nav" className={`flex-1 overflow-y-auto py-3 custom-scrollbar space-y-1 ${ispCollapsed ? 'px-2' : 'px-3'}`}>
+            {renderIspGlassNav(ispCollapsed)}
           </nav>
+          {/* Collapse — same pattern as the RO water sidebar (persisted per browser) */}
+          <div className={`border-t border-white/60 dark:border-white/10 ${ispCollapsed ? 'p-2' : 'p-3'}`}>
+            <button
+              type="button"
+              onClick={toggleIspCollapsed}
+              title={ispCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-white/10 transition-colors ${ispCollapsed ? 'justify-center px-0' : ''}`}
+            >
+              <span className="w-10 h-10 rounded-2xl bg-white/60 dark:bg-white/5 flex items-center justify-center shrink-0 border border-white/60 dark:border-white/10">
+                <svg className={`w-5 h-5 transition-transform duration-200 ${ispCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 17l-5-5 5-5M18 17l-5-5 5-5" /></svg>
+              </span>
+              {!ispCollapsed && <span className="text-[15px] font-bold">Collapse</span>}
+            </button>
+          </div>
         </aside>
       )}
 
@@ -1033,7 +1060,7 @@ const Layout: React.FC<LayoutProps> = ({
       {/* ═══════════════════════════════════════
           MAIN CONTENT AREA
       ═══════════════════════════════════════ */}
-      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full transition-all duration-200 ${isWaterNav ? (waterCollapsed ? 'md:ml-20' : 'md:ml-72') : (!isAdmin ? 'lg:ml-60' : '')}`}>
+      <main className={`flex-1 px-4 md:px-8 pb-6 pt-[80px] overflow-y-auto custom-scrollbar h-full transition-all duration-200 ${isWaterNav ? (waterCollapsed ? 'md:ml-20' : 'md:ml-72') : (!isAdmin ? (ispCollapsed ? 'lg:ml-20' : 'lg:ml-60') : '')}`}>
         {/* Page Title Bar — hidden for water (every water screen renders its own header, per approved mockup) */}
         {!isWaterNav && (
         <div className="flex items-center justify-between mb-6 no-print">
