@@ -2957,9 +2957,9 @@ const App: React.FC = () => {
           onSetUserStatus={handleCopilotSetUserStatus}
           receipts={state.receipts || filteredReceipts}
           planPrices={currentSettings.planPrices}
-          aiWrites={businessType !== 'water'}
-          onAddUser={businessType !== 'water' ? handleAddUser : undefined}
-          onUpdateUser={businessType !== 'water' ? handleUpdateUser : undefined}
+          aiWrites
+          onAddUser={handleAddUser}
+          onUpdateUser={handleUpdateUser}
           widgetClosed={state.copilotWidgetClosed}
           onWidgetClosedChange={handleCopilotWidgetClosedChange}
         />
