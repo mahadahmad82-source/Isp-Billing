@@ -4,6 +4,7 @@ import type { AppSettings } from '../../types';
 import type { WaterBill, WaterCustomer } from './waterTypes';
 import { formatRs, formatDayPK, waNumber92, digitsOnly } from './waterTypes';
 import { SheetShell } from './VehiclesPanel';
+import BillTemplate from './BillTemplate';
 
 interface Props {
   bill: WaterBill;
@@ -16,6 +17,8 @@ interface Props {
   monthLabel: string;
   onClose: () => void;
   onVoided: () => void;
+  /** W4: opt-in modern bill template. Default 'classic' keeps the current design exactly. */
+  template?: 'classic' | 'modern';
 }
 
 const PRINT_CSS = `
@@ -41,11 +44,24 @@ const secT: React.CSSProperties = { fontSize: '10pt', fontWeight: 700, textTrans
  * M6b: printable monthly bill (A4, black/white). Bill is a snapshot —
  * numbers come straight from the water_bills row, never recomputed.
  */
-export default function BillView({ bill, customer, customerName, rate, settings, monthLabel, onClose, onVoided }: Props): React.JSX.Element {
+export default function BillView({ bill, customer, customerName, rate, settings, monthLabel, onClose, onVoided, template }: Props): React.JSX.Element {
   const [voiding, setVoiding] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // W4: Classic/Modern template selector, persisted. Defaults to 'classic'
+  // so the current design renders exactly as before unless changed.
+  const [variant, setVariant] = useState<'classic' | 'modern'>(() => {
+    try {
+      const saved = localStorage.getItem('bc_water_bill_template');
+      if (saved === 'classic' || saved === 'modern') return saved;
+    } catch { /* storage unavailable — use the default */ }
+    return template ?? 'classic';
+  });
+  const pickVariant = (v: 'classic' | 'modern') => {
+    setVariant(v);
+    try { localStorage.setItem('bc_water_bill_template', v); } catch { /* storage unavailable — ignore */ }
+  };
 
   const doPrint = () => {
     document.body.classList.add('water-printing');
@@ -92,6 +108,14 @@ export default function BillView({ bill, customer, customerName, rate, settings,
       )}
 
       <div className="no-print flex flex-wrap items-center gap-2 mb-3">
+        {/* W4: template selector */}
+        <div className="flex rounded-2xl overflow-hidden border border-[#e2e8f0] dark:border-white/10">
+          {(['classic', 'modern'] as const).map(v => (
+            <button key={v} type="button" onClick={() => pickVariant(v)} aria-pressed={variant === v}
+              className={`min-h-[44px] px-3 text-xs font-bold uppercase tracking-widest ${variant === v
+                ? 'bg-[#1d4ed8] text-white' : 'text-[#475569] dark:text-[#94a3b8]'}`}>{v}</button>
+          ))}
+        </div>
         <button type="button" onClick={doPrint}
           className="min-h-[44px] px-4 rounded-2xl bg-[#0f172a] dark:bg-white text-white dark:text-[#0f172a] text-sm font-bold">
           Print
@@ -123,6 +147,9 @@ export default function BillView({ bill, customer, customerName, rate, settings,
         </div>
       )}
 
+      {variant === 'modern' ? (
+        <BillTemplate bill={bill} customer={customer} customerName={customerName} rate={rate} settings={settings} monthLabel={monthLabel} />
+      ) : (
       <div id="water-print-sheet" style={{ ...doc, maxWidth: '700px', margin: '0 auto', padding: '16px', border: '1px solid #000' }}>
         <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '8px', marginBottom: '8px' }}>
           <p style={{ fontSize: '18pt', fontWeight: 800, margin: 0 }}>{settings.businessName}</p>
@@ -161,6 +188,7 @@ export default function BillView({ bill, customer, customerName, rate, settings,
         )}
         <p style={{ textAlign: 'center', fontSize: '11pt', marginTop: '14px' }}>Shukriya.</p>
       </div>
+      )}
     </SheetShell>
   );
 }

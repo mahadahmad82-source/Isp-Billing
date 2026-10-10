@@ -2217,7 +2217,7 @@ const App: React.FC = () => {
               managerId={activeManager || state.currentManager || ''}
             />
           )}
-          {!tabLoading && activeTab === 'water-hub' && <WaterHub managerId={activeManager!} customers={state.users}
+          {!tabLoading && activeTab === 'water-hub' && businessType === 'water' && <WaterHub managerId={activeManager!} customers={state.users}
             navRequest={waterNavRequest} onNavRequestConsumed={() => setWaterNavRequest(null)} />}
           {/* R1: Customers tab — Directory + Dues (ledger merged in). Replaces the old Ledger tab. */}
           {!tabLoading && activeTab === 'water-customers' && businessType === 'water' && userRole !== 'sub-manager' && (
@@ -2946,7 +2946,7 @@ const App: React.FC = () => {
         </button>
       )}
 
-      {activeManager && activeManager !== 'admin' && activeTab !== 'reports' && (
+      {activeManager && activeManager !== 'admin' && activeTab !== 'reports' && businessType !== 'water' && (
         <CopilotBar
           users={state.users || filteredUsers}
           history={state.copilotHistory}
