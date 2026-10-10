@@ -281,6 +281,14 @@ export default async function handler(req: any, res: any) {
         body: JSON.stringify({ paused_phones: [...current, phone] }),
       });
     }
+    // Stamp / refresh the operator-activity clock on EVERY human send — the webhook's
+    // 15-min auto-resume measures from paused_at, and without a stamp the chat stayed
+    // paused forever.
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/bump_paused_at`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ p_manager_id: mgr, p_phone: phone }),
+    });
   } catch (e: any) { console.error('[wabot-send autopause]', e?.message); }
 
   return res.status(200).json({ success: true, wamid });
